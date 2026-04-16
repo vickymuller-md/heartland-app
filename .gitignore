@@ -1,0 +1,27 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+
+# environment
+.env.local
+.env*.local
+
+# planning
+.planning/
+
+# service worker (build artifact)
+public/sw.js
+public/sw.js.map
+public/swe-worker-*.js
+
+# misc
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+
+# NIW petition strategy (private)
+CLAUDE.md
+NIW_INTEGRATION.md

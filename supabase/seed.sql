@@ -1,0 +1,5 @@
+-- Seed file for HEARTLAND Protocol App
+-- Test data can be added here for local development.
+-- Note: Auth users must be created via Supabase Auth API,
+-- not directly in the users table. The handle_new_user trigger
+-- will auto-create corresponding profiles rows.

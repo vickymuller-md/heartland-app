@@ -1,0 +1,46 @@
+{
+  "title": "HEARTLAND Protocol App — Clinical Decision Support Tool for Rural Heart Failure Management",
+  "description": "Progressive Web Application operationalizing the HEARTLAND Protocol (Heart failure Evidence-based Access in Rural Treatment, Linking Advanced Network Delivery) for primary care-led heart failure management in rural and resource-limited United States settings. Eight interactive modules — risk stratification, GDMT optimization, telephone titration, discharge transitions, remote monitoring, comorbidity management, linkage to primary care, and implementation guidance — built with Next.js 16, React 19, and TypeScript. Synthetic data only; no PHI. For professional use only; not a medical device.",
+  "creators": [
+    {
+      "name": "Muller Ferreira, Vicky",
+      "affiliation": "Independent Clinical Researcher",
+      "orcid": "0009-0009-1099-5690"
+    }
+  ],
+  "keywords": [
+    "heart failure",
+    "clinical decision support",
+    "rural health",
+    "implementation science",
+    "GDMT",
+    "telehealth",
+    "remote patient monitoring",
+    "primary care",
+    "Critical Access Hospital",
+    "progressive web application",
+    "open source health software"
+  ],
+  "license": "MIT",
+  "upload_type": "software",
+  "access_right": "open",
+  "language": "eng",
+  "related_identifiers": [
+    {
+      "identifier": "10.5281/zenodo.18566403",
+      "relation": "isSupplementTo",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.17605/OSF.IO/YUSGH",
+      "relation": "isDerivedFrom",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    }
+  ],
+  "communities": [
+    { "identifier": "open-science" }
+  ],
+  "notes": "Disclaimer: This software is designed for healthcare professionals as a clinical decision support resource. It does not provide medical diagnoses, treatment recommendations for individual patients, or replace clinical judgment. Not intended for direct patient care. For professional use only. The HEARTLAND Risk Stratification Framework is a proposed tool under development; formal validation against clinical outcomes data is a defined research objective."
+}
