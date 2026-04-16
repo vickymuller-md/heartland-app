@@ -43,6 +43,25 @@ export default async function PatientManagePage() {
     .eq("provider_id", user.id)
     .order("created_at", { ascending: false });
 
+  const normalizedLinks: LinkageRow[] = (links ?? []).map((row) => {
+    const patient = row.patient as
+      | { id?: string; full_name?: string; email?: string }
+      | Array<{ id?: string; full_name?: string; email?: string }>
+      | null;
+    // Supabase-js may type single joined relation as array; pick the first.
+    const p = Array.isArray(patient) ? patient[0] ?? null : patient;
+    return {
+      id: row.id,
+      status: row.status,
+      invite_email: row.invite_email,
+      created_at: row.created_at,
+      linked_at: row.linked_at,
+      patient: p?.id && p?.full_name && p?.email
+        ? { id: p.id, full_name: p.full_name, email: p.email }
+        : null,
+    };
+  });
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       {/* Page header */}
@@ -74,7 +93,7 @@ export default async function PatientManagePage() {
 
       {/* Linkage Management (Client Component with Realtime) */}
       <LinkageManagement
-        initialLinks={(links as unknown as LinkageRow[]) ?? []}
+        initialLinks={normalizedLinks}
         providerId={user.id}
       />
     </div>

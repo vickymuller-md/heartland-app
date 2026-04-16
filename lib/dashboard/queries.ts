@@ -12,6 +12,7 @@ import { sortPatients } from './alert-engine';
 import { getAdherenceData } from '@/lib/medications/queries';
 import { getEducationSummary } from '@/lib/education/queries';
 import { ALL_STEPS_COMPLETE } from '@/lib/onboarding/constants';
+import { extractFullName, extractPatientFullName } from '@/lib/supabase/types';
 import type {
   PatientWithStatus,
   PatientStatus,
@@ -111,12 +112,9 @@ export async function getLinkedPatients(
         ? (patientAlerts[0].flags as AlertFlag[])
         : null;
 
-    // Extract full_name from joined profiles
-    const profile = p.profiles as unknown as { full_name: string } | null;
-
     return {
       id: p.id,
-      full_name: profile?.full_name ?? 'Unknown',
+      full_name: extractFullName(p.profiles) ?? 'Unknown',
       risk_tier: p.risk_tier,
       track_assignment: p.track_assignment,
       status,
@@ -159,7 +157,7 @@ export async function getPatientDetail(
 
   if (patientError) throw patientError;
 
-  const profile = patient.profiles as unknown as { full_name: string } | null;
+  const patientFullName = extractFullName(patient.profiles) ?? 'Unknown';
 
   // 3. Fetch vitals (last 90 days)
   const ninetyDaysAgo = new Date();
@@ -210,7 +208,7 @@ export async function getPatientDetail(
   return {
     patient: {
       id: patient.id,
-      full_name: profile?.full_name ?? 'Unknown',
+      full_name: patientFullName,
       risk_tier: patient.risk_tier,
       track_assignment: patient.track_assignment,
     },
@@ -228,7 +226,7 @@ export async function getPatientDetail(
     notes,
     openAlerts: (openAlerts ?? []).map((a) => ({
       ...a,
-      patient_name: profile?.full_name ?? 'Unknown',
+      patient_name: patientFullName,
     })) as AlertRow[],
   };
 }
@@ -267,13 +265,10 @@ export async function getAlerts(
   if (error) throw error;
 
   return (data ?? []).map((row) => {
-    const patients = row.patients as unknown as {
-      profiles: { full_name: string } | null;
-    } | null;
     return {
       id: row.id,
       patient_id: row.patient_id,
-      patient_name: patients?.profiles?.full_name ?? 'Unknown',
+      patient_name: extractPatientFullName(row.patients) ?? 'Unknown',
       vitals_id: row.vitals_id,
       flags: row.flags as AlertFlag[],
       severity: row.severity as AlertSeverity,
@@ -304,12 +299,11 @@ export async function getProviderNotes(
   if (error) throw error;
 
   return (data ?? []).map((row) => {
-    const profile = row.profiles as unknown as { full_name: string } | null;
     return {
       id: row.id,
       patient_id: row.patient_id,
       provider_id: row.provider_id,
-      provider_name: profile?.full_name ?? 'Unknown',
+      provider_name: extractFullName(row.profiles) ?? 'Unknown',
       content: row.content,
       created_at: row.created_at,
     };

@@ -42,3 +42,39 @@ export function detectArniInMedications(
     ARNI_DRUG_NAMES.some((drug) => med.name.toLowerCase().includes(drug)),
   );
 }
+
+/** Required ACEi washout before first ARNI dose, in hours. PARADIGM-HF / ACC/AHA 2022. */
+export const ACEI_ARNI_WASHOUT_HOURS = 36;
+
+export interface AceiWashoutStatus {
+  /** True when the provider should see the 36-hour washout warning. */
+  showWarning: boolean;
+  /** Human-readable message shown next to the ARNI step. */
+  message?: string;
+}
+
+/**
+ * Decide whether the ACEi-to-ARNI 36-hour washout warning should appear.
+ *
+ * The warning fires when the current medication list contains an ACEi AND
+ * the provider is considering an ARNI (via either the planned-drug list
+ * or a simultaneous ARNI entry). It is advisory -- the checklist still
+ * allows step progression -- because timing of the last ACEi dose lives
+ * outside the app's data model.
+ */
+export function checkAceiArniWashout(input: {
+  medications: { name: string }[];
+  arniBeingConsidered: boolean;
+}): AceiWashoutStatus {
+  const hasAcei = detectAceiInMedications(input.medications);
+  const hasArniInList = detectArniInMedications(input.medications);
+  const arniOnTheTable = input.arniBeingConsidered || hasArniInList;
+
+  if (hasAcei && arniOnTheTable) {
+    return {
+      showWarning: true,
+      message: `Active ACEi detected. Wait ${ACEI_ARNI_WASHOUT_HOURS}h after the last dose before initiating ARNI to avoid angioedema.`,
+    };
+  }
+  return { showWarning: false };
+}

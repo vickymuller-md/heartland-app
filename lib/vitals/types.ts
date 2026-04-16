@@ -41,6 +41,13 @@ export interface RedFlag {
   action: string;
 }
 
+/** Plausibility warning on a single vitals field (non-blocking). */
+export interface PlausibilityWarning {
+  field: 'weight_lbs' | 'sbp' | 'dbp' | 'heart_rate' | 'spo2';
+  value: number;
+  message: string;
+}
+
 /** Form input values before conversion (matches Zod schema output) */
 export interface VitalsInput {
   weight: number;

@@ -10,6 +10,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { startOfMonth, format, parseISO, subWeeks, startOfWeek } from 'date-fns';
+import { extractFullName } from '@/lib/supabase/types';
 import type {
   ProviderMetrics,
   MetricTrend,
@@ -189,10 +190,9 @@ export async function getRpmEligiblePatients(
   if (nameError) throw nameError;
 
   return (patients ?? []).map((p) => {
-    const profile = p.profiles as unknown as { full_name: string } | null;
     return {
       id: p.id,
-      full_name: profile?.full_name ?? 'Unknown',
+      full_name: extractFullName(p.profiles) ?? 'Unknown',
       vitals_days_this_month: daysByPatient.get(p.id)?.size ?? 0,
     };
   });

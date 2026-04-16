@@ -8,6 +8,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { extractFullName } from '@/lib/supabase/types';
 import type { ProviderMessage } from './types';
 
 /**
@@ -30,12 +31,11 @@ export async function getPatientMessages(
   if (error) throw error;
 
   return (data ?? []).map((row) => {
-    const profile = row.profiles as unknown as { full_name: string } | null;
     return {
       id: row.id,
       patient_id: row.patient_id,
       provider_id: row.provider_id,
-      provider_name: profile?.full_name ?? 'Unknown',
+      provider_name: extractFullName(row.profiles) ?? 'Unknown',
       template_type: row.template_type,
       subject: row.subject,
       body: row.body,
@@ -66,12 +66,11 @@ export async function getUnreadMessages(
   if (error) throw error;
 
   return (data ?? []).map((row) => {
-    const profile = row.profiles as unknown as { full_name: string } | null;
     return {
       id: row.id,
       patient_id: row.patient_id,
       provider_id: row.provider_id,
-      provider_name: profile?.full_name ?? 'Unknown',
+      provider_name: extractFullName(row.profiles) ?? 'Unknown',
       template_type: row.template_type,
       subject: row.subject,
       body: row.body,

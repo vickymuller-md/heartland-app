@@ -10,6 +10,7 @@ import { SortControls } from './_components/sort-controls';
 import { MetricCards, MetricCardsSkeleton } from './_components/metric-cards';
 import { RpmTracker } from './_components/rpm-tracker';
 import { UrgentNowSection } from './_components/urgent-now-section';
+import { ProviderPageDisclaimer } from '@/components/disclaimers/provider-page-disclaimer';
 
 /**
  * Provider Dashboard -- Server Component
@@ -82,6 +83,9 @@ export default async function ProviderDashboard({
       ) : (
         <PatientList patients={patients} />
       )}
+
+      {/* Risk Framework disclaimer -- risk_tier chips reference the HEARTLAND Framework */}
+      <ProviderPageDisclaimer variant="framework" />
     </div>
   );
 }

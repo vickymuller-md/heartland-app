@@ -33,6 +33,16 @@ import type { ExistingAlertForDedup } from '@/lib/dashboard/types';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
+  // Fail loudly if CRON_SECRET is missing in prod -- prevents silent auth-deny
+  // that would suppress all alerts without any signal in logs.
+  if (!process.env.CRON_SECRET) {
+    console.error('[alert-scan] CRON_SECRET is not configured -- cron cannot authenticate');
+    return NextResponse.json(
+      { error: 'CRON_SECRET not configured' },
+      { status: 503 }
+    );
+  }
+
   // Authorization gate (Vercel cron pattern)
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {

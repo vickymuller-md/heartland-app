@@ -9,6 +9,7 @@ import { ALL_STEPS_COMPLETE } from '@/lib/onboarding/constants';
 import { Badge } from '@/components/ui/badge';
 import { PatientDetailTabs } from './_components/patient-detail-tabs';
 import { SetupPrompt } from './_components/setup-prompt';
+import { ProviderPageDisclaimer } from '@/components/disclaimers/provider-page-disclaimer';
 
 /**
  * Patient Detail -- Server Component
@@ -173,6 +174,9 @@ export default async function PatientDetailPage({
         comorbidities={(clinicalData?.comorbidities ?? []) as string[]}
         patientInfo={patientInfo}
       />
+
+      {/* Risk Framework disclaimer -- header shows risk_tier badge */}
+      {patient.risk_tier && <ProviderPageDisclaimer variant="framework" />}
     </div>
   );
 }

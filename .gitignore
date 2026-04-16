@@ -25,3 +25,13 @@ next-env.d.ts
 # NIW petition strategy (private)
 CLAUDE.md
 NIW_INTEGRATION.md
+
+# local dev seed data (101 fake patients for v4.0 testing — not for repo)
+scripts/seed-v4.ts
+supabase/seed_v4.sql
+
+# macOS
+.DS_Store
+
+# Claude CLI state
+.claude/

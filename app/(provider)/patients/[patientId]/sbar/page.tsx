@@ -12,6 +12,7 @@ import { getPatientDetail } from '@/lib/dashboard/queries';
 import { getPatientMedications } from '@/lib/medications/queries';
 import { populateSbar } from '@/lib/sbar/populate';
 import { SbarEditor } from './_components/sbar-editor';
+import { ProviderPageDisclaimer } from '@/components/disclaimers/provider-page-disclaimer';
 
 interface SbarPageProps {
   params: Promise<{ patientId: string }>;
@@ -92,10 +93,15 @@ export default async function SbarPage({ params }: SbarPageProps) {
   });
 
   return (
-    <SbarEditor
-      initialData={sbarData}
-      patientName={patientName}
-      patientId={patientId}
-    />
+    <div className="space-y-4">
+      {profileData.data?.risk_tier && (
+        <ProviderPageDisclaimer variant="framework" />
+      )}
+      <SbarEditor
+        initialData={sbarData}
+        patientName={patientName}
+        patientId={patientId}
+      />
+    </div>
   );
 }

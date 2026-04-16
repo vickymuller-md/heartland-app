@@ -15,8 +15,8 @@
  */
 
 import { isAfter, subDays } from 'date-fns';
-import { RED_FLAG_CRITERIA } from './constants';
-import type { RedFlag } from './types';
+import { PLAUSIBILITY_BOUNDS, RED_FLAG_CRITERIA } from './constants';
+import type { PlausibilityWarning, RedFlag } from './types';
 
 /**
  * Evaluate red flag criteria against current vitals and recent history.
@@ -40,29 +40,41 @@ export function evaluateRedFlags(
 
   // --- Weight-trend checks (skip if no history -- first entry) ---
   if (recentHistory.length > 0) {
-    // 1. Weight gain >= 3 lbs in 2 days (warning)
-    const twoDayCutoff = subDays(new Date(), RED_FLAG_CRITERIA.weight_gain_3lb_2d.windowDays);
-    const twoDayEntries = recentHistory.filter((v) =>
-      isAfter(new Date(v.recorded_at), twoDayCutoff)
-    );
-    if (twoDayEntries.length > 0) {
-      const minWeight2d = Math.min(...twoDayEntries.map((v) => v.weight_lbs));
-      if (current.weight_lbs - minWeight2d >= RED_FLAG_CRITERIA.weight_gain_3lb_2d.threshold) {
-        const c = RED_FLAG_CRITERIA.weight_gain_3lb_2d;
-        flags.push({ id: c.id, severity: c.severity, message: c.message, action: c.action });
-      }
-    }
+    // Scale-malfunction guard: if weight jumps by >20% of the most recent
+    // prior weight, treat it as a likely measurement error and suppress the
+    // absolute weight-gain red flags. A plausibility warning is surfaced
+    // separately via evaluatePlausibility.
+    const priorWeight = recentHistory[0]?.weight_lbs;
+    const scaleMalfunction =
+      priorWeight != null &&
+      Math.abs(current.weight_lbs - priorWeight) >
+        priorWeight * PLAUSIBILITY_BOUNDS.weight_delta_pct;
 
-    // 2. Weight gain >= 5 lbs in 7 days (critical)
-    const sevenDayCutoff = subDays(new Date(), RED_FLAG_CRITERIA.weight_gain_5lb_7d.windowDays);
-    const sevenDayEntries = recentHistory.filter((v) =>
-      isAfter(new Date(v.recorded_at), sevenDayCutoff)
-    );
-    if (sevenDayEntries.length > 0) {
-      const minWeight7d = Math.min(...sevenDayEntries.map((v) => v.weight_lbs));
-      if (current.weight_lbs - minWeight7d >= RED_FLAG_CRITERIA.weight_gain_5lb_7d.threshold) {
-        const c = RED_FLAG_CRITERIA.weight_gain_5lb_7d;
-        flags.push({ id: c.id, severity: c.severity, message: c.message, action: c.action });
+    if (!scaleMalfunction) {
+      // 1. Weight gain >= 3 lbs in 2 days (warning)
+      const twoDayCutoff = subDays(new Date(), RED_FLAG_CRITERIA.weight_gain_3lb_2d.windowDays);
+      const twoDayEntries = recentHistory.filter((v) =>
+        isAfter(new Date(v.recorded_at), twoDayCutoff)
+      );
+      if (twoDayEntries.length > 0) {
+        const minWeight2d = Math.min(...twoDayEntries.map((v) => v.weight_lbs));
+        if (current.weight_lbs - minWeight2d >= RED_FLAG_CRITERIA.weight_gain_3lb_2d.threshold) {
+          const c = RED_FLAG_CRITERIA.weight_gain_3lb_2d;
+          flags.push({ id: c.id, severity: c.severity, message: c.message, action: c.action });
+        }
+      }
+
+      // 2. Weight gain >= 5 lbs in 7 days (critical)
+      const sevenDayCutoff = subDays(new Date(), RED_FLAG_CRITERIA.weight_gain_5lb_7d.windowDays);
+      const sevenDayEntries = recentHistory.filter((v) =>
+        isAfter(new Date(v.recorded_at), sevenDayCutoff)
+      );
+      if (sevenDayEntries.length > 0) {
+        const minWeight7d = Math.min(...sevenDayEntries.map((v) => v.weight_lbs));
+        if (current.weight_lbs - minWeight7d >= RED_FLAG_CRITERIA.weight_gain_5lb_7d.threshold) {
+          const c = RED_FLAG_CRITERIA.weight_gain_5lb_7d;
+          flags.push({ id: c.id, severity: c.severity, message: c.message, action: c.action });
+        }
       }
     }
   }
@@ -90,4 +102,78 @@ export function evaluateRedFlags(
   }
 
   return flags;
+}
+
+/**
+ * Evaluate plausibility of current vitals + trend delta. Returns non-blocking
+ * warnings that prompt the user to verify the measurement. Bounds intentionally
+ * sit inside the Zod validation range -- we accept the reading but flag it
+ * for review rather than auto-firing a critical alert.
+ */
+export function evaluatePlausibility(
+  current: {
+    weight_lbs: number;
+    sbp: number;
+    dbp: number;
+    heart_rate: number;
+    spo2: number | null;
+  },
+  recentHistory: Array<{ weight_lbs: number; recorded_at: string }> = []
+): PlausibilityWarning[] {
+  const warnings: PlausibilityWarning[] = [];
+  const b = PLAUSIBILITY_BOUNDS;
+
+  if (current.weight_lbs < b.weight_lbs.min || current.weight_lbs > b.weight_lbs.max) {
+    warnings.push({
+      field: 'weight_lbs',
+      value: current.weight_lbs,
+      message: `Weight ${current.weight_lbs} lbs is outside the typical range (${b.weight_lbs.min}-${b.weight_lbs.max}). Verify the scale reading.`,
+    });
+  }
+  if (current.sbp < b.sbp.min || current.sbp > b.sbp.max) {
+    warnings.push({
+      field: 'sbp',
+      value: current.sbp,
+      message: `Systolic BP ${current.sbp} mmHg is outside the plausible range. Recheck with the cuff seated correctly.`,
+    });
+  }
+  if (current.dbp < b.dbp.min || current.dbp > b.dbp.max) {
+    warnings.push({
+      field: 'dbp',
+      value: current.dbp,
+      message: `Diastolic BP ${current.dbp} mmHg is outside the plausible range. Verify measurement.`,
+    });
+  }
+  if (current.heart_rate < b.heart_rate.min || current.heart_rate > b.heart_rate.max) {
+    warnings.push({
+      field: 'heart_rate',
+      value: current.heart_rate,
+      message: `Heart rate ${current.heart_rate} bpm is unusually high/low. Recount for 60 seconds and confirm.`,
+    });
+  }
+  if (
+    current.spo2 != null &&
+    (current.spo2 < b.spo2.min || current.spo2 > b.spo2.max)
+  ) {
+    warnings.push({
+      field: 'spo2',
+      value: current.spo2,
+      message: `SpO2 ${current.spo2}% reading looks implausible. Warm the finger and re-measure.`,
+    });
+  }
+
+  // Relative weight delta -- likely scale malfunction rather than real event.
+  const priorWeight = recentHistory[0]?.weight_lbs;
+  if (
+    priorWeight != null &&
+    Math.abs(current.weight_lbs - priorWeight) > priorWeight * b.weight_delta_pct
+  ) {
+    warnings.push({
+      field: 'weight_lbs',
+      value: current.weight_lbs,
+      message: `Weight changed more than 20% from the last reading (${priorWeight} → ${current.weight_lbs} lbs). Verify the scale.`,
+    });
+  }
+
+  return warnings;
 }

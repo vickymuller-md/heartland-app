@@ -65,6 +65,26 @@ export const RED_FLAG_CRITERIA = {
 >;
 
 /**
+ * Plausibility boundaries -- values outside these are suspicious and trigger
+ * a "verify measurement" warning but do NOT block submission. Distinct from
+ * the harder Zod bounds (which prevent obviously broken input like HR=0).
+ *
+ * Rationale: a lone HR=185 reading or a 30-lb overnight weight jump is far
+ * more likely to be a fat-finger or malfunctioning device than a real event.
+ * Firing a critical alert on these creates alarm fatigue; silently accepting
+ * them corrupts trend data.
+ */
+export const PLAUSIBILITY_BOUNDS = {
+  weight_lbs: { min: 80, max: 400 },
+  sbp: { min: 70, max: 210 },
+  dbp: { min: 35, max: 130 },
+  heart_rate: { min: 35, max: 170 },
+  spo2: { min: 80, max: 100 },
+  /** Relative weight delta (fraction of prior weight) suggesting scale error. */
+  weight_delta_pct: 0.2,
+} as const;
+
+/**
  * Severity configuration for red flag display styling
  */
 export const SEVERITY_CONFIG = {

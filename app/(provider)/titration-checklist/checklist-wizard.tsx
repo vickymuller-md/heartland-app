@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useMemo } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm, useWatch, type DefaultValues } from 'react-hook-form';
 import { useReactToPrint } from 'react-to-print';
 import { differenceInDays, parseISO } from 'date-fns';
 import { useStepper } from '@/hooks/use-stepper';
@@ -47,18 +47,15 @@ export function ChecklistWizard() {
     getValues,
     setValue,
   } = useForm<TitrationFormData>({
+    // react-hook-form's DefaultValues<T> already allows fields to be undefined
+    // (they become Partial<T>). The Zod schema enforces presence at step
+    // transition via trigger(). No manual `as unknown as number` needed.
     defaultValues: {
-      sbp: undefined as unknown as number,
-      hr: undefined as unknown as number,
-      potassium: undefined as unknown as number,
-      creatinine: undefined as unknown as number,
-      creatinineBaseline: undefined,
-      egfr: undefined,
       symptomsReported: '',
       medications: DEFAULT_MEDICATIONS,
       nextCallDate: '',
       notes: '',
-    },
+    } satisfies DefaultValues<TitrationFormData>,
   });
 
   // Handle patient selection — pre-populate vitals and medications

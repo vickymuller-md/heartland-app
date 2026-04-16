@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { extractFullName } from "@/lib/supabase/types";
 import { LinkProviderForm } from "./link-provider-form";
 
 type ExistingLink = {
@@ -36,6 +37,14 @@ export default async function LinkProviderPage() {
     .eq("patient_id", user.id)
     .order("created_at", { ascending: false });
 
+  const normalizedLinks: ExistingLink[] = (existingLinks ?? []).map((row) => ({
+    id: row.id,
+    status: row.status,
+    provider: extractFullName(row.provider)
+      ? { full_name: extractFullName(row.provider) as string }
+      : null,
+  }));
+
   return (
     <div className="mx-auto max-w-md space-y-6">
       <div>
@@ -46,7 +55,7 @@ export default async function LinkProviderPage() {
         </p>
       </div>
 
-      <LinkProviderForm existingLinks={(existingLinks as unknown as ExistingLink[]) ?? []} />
+      <LinkProviderForm existingLinks={normalizedLinks} />
     </div>
   );
 }
