@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Masthead } from "@/components/landing/masthead";
+import { Masthead, Colophon } from "@heartland/ui";
 import { Hero } from "@/components/landing/hero";
 import { Abstract } from "@/components/landing/abstract";
 import { Modules } from "@/components/landing/modules";
 import { EvidenceFoundation } from "@/components/landing/evidence";
 import { AccessCta } from "@/components/landing/access-cta";
-import { Colophon } from "@/components/landing/colophon";
 
 export const metadata: Metadata = {
   title: "HEARTLAND Protocol · Clinical Decision Support for Rural Heart Failure",
@@ -28,13 +27,38 @@ export default async function Home() {
 
   return (
     <div className="bg-terminal font-editorial text-cool antialiased selection:bg-alert/40 selection:text-cool">
-      <Masthead />
+      <Masthead
+        currentSite="app"
+        navItems={[
+          { label: "The Protocol", href: "/about" },
+          {
+            label: "Research",
+            href: "https://doi.org/10.5281/zenodo.18566403",
+            external: true,
+          },
+          { label: "Sign in", href: "/login" },
+        ]}
+        cta={{ label: "Request access", href: "/request-access" }}
+      />
       <Hero />
       <Abstract />
       <Modules />
       <EvidenceFoundation />
       <AccessCta />
-      <Colophon />
+      <Colophon
+        currentSite="app"
+        version="v1.0.2"
+        extraBlocks={[
+          {
+            title: "Platform",
+            links: [
+              { label: "Request access", href: "/request-access" },
+              { label: "Sign in", href: "/login" },
+              { label: "About the protocol", href: "/about" },
+            ],
+          },
+        ]}
+      />
     </div>
   );
 }
