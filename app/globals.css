@@ -3,6 +3,8 @@
 @import "shadcn/tailwind.css";
 @import "@heartland/ui/css/theme.css";
 
+@source "../node_modules/@heartland/ui/dist/**/*.{js,mjs}";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
