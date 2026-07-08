@@ -78,7 +78,7 @@ export const CATEGORY_DEFINITIONS: CategoryDefinition[] = [
       3: {
         label: 'Full CKM + Score',
         description:
-          'Full CKM staging integrated with HEARTLAND risk score. Automated calculation and decision support.',
+          'Full CKM staging integrated with HEARTLAND risk score. Automated calculation and workflow support.',
         upgradeAction: '',
       },
     },

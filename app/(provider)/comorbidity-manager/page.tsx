@@ -73,8 +73,7 @@ export default async function ComorbidityManagerPage({
 
       {/* Disclaimer banner */}
       <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-xs text-yellow-800">
-        This tool is designed for healthcare professionals as a clinical decision
-        support resource. It does not provide medical diagnoses, treatment
+        This tool is designed for healthcare professionals as a educational implementation-support resource. It does not provide medical diagnoses, treatment
         recommendations for individual patients, or replace clinical judgment.
         Not intended for direct patient care. For professional use only.
       </div>

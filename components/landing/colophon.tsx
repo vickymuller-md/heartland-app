@@ -20,7 +20,7 @@ export function Colophon() {
             <p className="mt-4 max-w-md font-editorial text-[14.5px] leading-relaxed text-cool/70">
               Heart failure Evidence-based Access in Rural Treatment, Linking
               Advanced Network Delivery — a peer-reviewed implementation
-              framework and its companion clinical decision-support toolkit.
+              framework and its companion clinical implementation toolkit.
             </p>
             <p className="mt-6 font-editorial text-[12.5px] leading-relaxed text-stone">
               Built by Vicky Muller Ferreira, MD. For licensed clinicians
@@ -30,8 +30,8 @@ export function Colophon() {
           </div>
 
           <FooterBlock title="Research">
-            <FooterLink href="https://www.cureus.com/" external>
-              Cureus article
+            <FooterLink href="https://doi.org/10.7759/cureus.104817" external>
+              Cureus article (PMID 41948265)
             </FooterLink>
             <FooterLink
               href="https://doi.org/10.5281/zenodo.18566403"

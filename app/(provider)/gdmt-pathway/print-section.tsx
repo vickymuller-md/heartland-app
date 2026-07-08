@@ -200,11 +200,11 @@ export function PrintSection() {
       {/* Disclaimer */}
       <div className="border-t pt-2 text-xs text-gray-500 mt-8">
         <p className="font-medium mb-1">
-          Clinical Decision Support Disclaimer
+          Clinical Use Disclaimer
         </p>
         <p>
-          This tool is designed for healthcare professionals as a clinical
-          decision support resource. It does not provide medical diagnoses,
+          This tool is designed for healthcare professionals as a educational
+          implementation-support resource. It does not provide medical diagnoses,
           treatment recommendations for individual patients, or replace clinical
           judgment. Not intended for direct patient care. For professional use
           only.

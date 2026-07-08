@@ -64,7 +64,7 @@ export function AccessCta() {
               </p>
               <ul className="mt-5 space-y-3 font-editorial text-[15px] text-terminal/85">
                 {[
-                  "All eight decision-support modules",
+                  "All eight implementation modules",
                   "Ten downloadable pocket reference cards",
                   "Telephone titration workflow with safety gates",
                   "Remote monitoring assignment + billing reference",

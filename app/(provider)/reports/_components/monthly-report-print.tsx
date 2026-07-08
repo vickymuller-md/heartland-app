@@ -29,7 +29,7 @@ export const MonthlyReportPrint = React.forwardRef<
 
       {/* Disclaimer */}
       <p className="text-xs italic border p-2 mb-6">
-        This tool is designed for healthcare professionals as a clinical decision support resource.
+        This tool is designed for healthcare professionals as a educational implementation-support resource.
         It does not provide medical diagnoses, treatment recommendations for individual patients,
         or replace clinical judgment. Not intended for direct patient care. For professional use only.
       </p>

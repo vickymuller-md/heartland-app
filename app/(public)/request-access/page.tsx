@@ -7,7 +7,7 @@ import { RequestAccessForm } from "@/components/landing/request-access-form";
 export const metadata: Metadata = {
   title: "Request Professional Access · Heartland",
   description:
-    "Licensed healthcare professionals and implementation researchers may request access to the HEARTLAND Protocol clinical decision-support toolkit.",
+    "Licensed healthcare professionals and implementation researchers may request access to the HEARTLAND Protocol clinical implementation toolkit.",
 };
 
 export default async function RequestAccessPage() {

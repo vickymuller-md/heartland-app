@@ -49,8 +49,8 @@ export function Abstract() {
         {/* Required disclaimers — verbatim text mandated by NIW_INTEGRATION.md */}
         <div className="mt-20 grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6">
           <Disclaimer heading="Professional use only">
-            This tool is designed for healthcare professionals as a clinical
-            decision support resource. It does not provide medical diagnoses,
+            This tool is designed for healthcare professionals as a educational
+            implementation-support resource. It does not provide medical diagnoses,
             treatment recommendations for individual patients, or replace
             clinical judgment. Not intended for direct patient care. For
             professional use only.
@@ -77,7 +77,7 @@ function Disclaimer({
   return (
     <aside
       role="note"
-      aria-label="Clinical decision support disclaimer"
+      aria-label="Clinical use disclaimer"
       className="rounded-2xl border border-grid bg-terminal p-6"
     >
       <p className="font-editorial text-[12.5px] uppercase tracking-[0.14em] text-alert">

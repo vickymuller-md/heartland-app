@@ -26,7 +26,7 @@ export function Hero() {
             </h1>
 
             <p className="mt-7 max-w-xl font-editorial text-[17px] leading-[1.65] text-cool/75 md:text-[18px]">
-              Heartland is a clinical decision-support toolkit for primary
+              Heartland is a clinical implementation companion for primary
               care teams managing heart failure in rural and resource-limited
               settings across the United States. Built from the peer-reviewed
               HEARTLAND Protocol — eight modules, one shared workflow.

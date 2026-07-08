@@ -102,7 +102,7 @@ export function GuideContent() {
         <h1 className="text-3xl font-bold text-gray-900 mb-3">Provider User Guide</h1>
         <p className="text-gray-500 max-w-2xl mx-auto">
           A complete step-by-step guide for healthcare professionals using the HEARTLAND Protocol
-          Clinical Decision Support Tool for rural heart failure management.
+          Clinical Implementation Companion for rural heart failure management.
         </p>
         <p className="text-xs text-gray-400 mt-2">Version 4.0 &middot; Last updated March 2026</p>
       </div>
@@ -129,7 +129,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       <Section id="overview" title="System Overview" icon={BookOpen}>
         <p>
-          The HEARTLAND Protocol App is a <strong>two-sided clinical decision support platform</strong> designed
+          The HEARTLAND Protocol App is a <strong>two-sided clinical implementation platform</strong> designed
           specifically for primary care providers managing heart failure (HF) patients in rural and
           resource-limited settings. It bridges the gap between rural primary care and specialist
           cardiology by providing evidence-based tools directly in the provider&apos;s workflow.
@@ -184,7 +184,7 @@ export function GuideContent() {
             <p>Select <strong>&quot;Healthcare Professional&quot;</strong> as your role. Enter your name, email, and create a password.</p>
           </Step>
           <Step n={2} title="Accept the consent agreement">
-            <p>Read the informed consent dialog that explains this is a clinical decision support tool for professional use only. Click &quot;Accept&quot; to proceed.</p>
+            <p>Read the informed consent dialog that explains this is a clinical implementation tool for professional use only. Click &quot;Accept&quot; to proceed.</p>
           </Step>
           <Step n={3} title="Access your Provider Portal">
             <p>After registration, you will be automatically redirected to your <strong>Dashboard</strong>. Your unique <strong>Provider Code</strong> (a 6-character code like &quot;HLP-A3BX&quot;) is generated automatically.</p>
@@ -888,7 +888,7 @@ export function GuideContent() {
           </div>
           <div>
             <h4 className="font-medium text-gray-900">Q: Does this app replace a cardiologist?</h4>
-            <p className="text-sm text-gray-600 mt-1">A: No. This is a clinical decision support tool that helps primary care providers manage HF patients according to evidence-based guidelines. Patients meeting advanced HF criteria should still be referred to cardiology. The SBAR Handoff generator facilitates this referral.</p>
+            <p className="text-sm text-gray-600 mt-1">A: No. This is a clinical implementation tool that helps primary care providers manage HF patients according to evidence-based guidelines. Patients meeting advanced HF criteria should still be referred to cardiology. The SBAR Handoff generator facilitates this referral.</p>
           </div>
           <div>
             <h4 className="font-medium text-gray-900">Q: How do I print materials for a patient visit?</h4>
@@ -903,7 +903,7 @@ export function GuideContent() {
 
       {/* Footer */}
       <div className="mt-12 border-t pt-6 text-center text-xs text-gray-400">
-        <p>HEARTLAND Protocol App &middot; Version 4.0 &middot; Clinical Decision Support Tool</p>
+        <p>HEARTLAND Protocol App &middot; Version 4.0 &middot; Clinical Implementation Companion</p>
         <p className="mt-1">This guide is for healthcare professionals only. Not intended for patient use.</p>
         <p className="mt-1">Protocol Author: Vicky Muller Ferreira, MD &middot; ORCID: 0009-0009-1099-5690</p>
       </div>

@@ -9,9 +9,9 @@ import { EvidenceFoundation } from "@/components/landing/evidence";
 import { AccessCta } from "@/components/landing/access-cta";
 
 export const metadata: Metadata = {
-  title: "HEARTLAND Protocol · Clinical Decision Support for Rural Heart Failure",
+  title: "HEARTLAND Protocol · Clinical Implementation Companion for Rural Heart Failure",
   description:
-    "A peer-reviewed implementation framework and interactive decision support toolkit for primary care-led heart failure management in rural and resource-limited settings across the United States.",
+    "A peer-reviewed implementation framework and interactive companion toolkit — educational implementation support for licensed professionals managing heart failure in rural and resource-limited settings across the United States.",
 };
 
 export default async function Home() {
@@ -31,6 +31,7 @@ export default async function Home() {
         currentSite="app"
         navItems={[
           { label: "The Protocol", href: "/about" },
+          { label: "Try the tools", href: "/tools" },
           {
             label: "Research",
             href: "https://doi.org/10.5281/zenodo.18566403",

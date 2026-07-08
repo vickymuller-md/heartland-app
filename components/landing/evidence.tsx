@@ -55,7 +55,7 @@ export function EvidenceFoundation() {
             <p className="mt-6 max-w-sm font-editorial text-[15px] leading-relaxed text-cool/70">
               Each module is integrated with the highest-quality evidence
               available. Full reference list — 71 citations — accompanies
-              the Cureus article and Zenodo / OSF deposits.
+              the PubMed-indexed Cureus article (PMID 41948265) and the Zenodo / OSF deposits.
             </p>
           </header>
 

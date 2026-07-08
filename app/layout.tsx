@@ -37,7 +37,7 @@ const jetbrains = Sora({
 export const metadata: Metadata = {
   title: "HEARTLAND Protocol",
   description:
-    "Clinical Decision Support Tool for Rural Heart Failure Management",
+    "Clinical Implementation Companion for Rural Heart Failure Management",
 };
 
 export default function RootLayout({

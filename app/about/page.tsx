@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "About - HEARTLAND Protocol",
   description:
-    "About the HEARTLAND Protocol clinical decision support toolkit",
+    "About the HEARTLAND Protocol clinical implementation companion",
 };
 
 export default function AboutPage() {
@@ -50,7 +50,7 @@ export default function AboutPage() {
         <h2 className="text-2xl font-semibold">What This App Does</h2>
         <p>
           This app translates the eight HEARTLAND Protocol modules into
-          interactive clinical decision support tools:
+          interactive clinical implementation tools:
         </p>
         <ol className="list-decimal list-inside space-y-3 ml-2">
           <li>

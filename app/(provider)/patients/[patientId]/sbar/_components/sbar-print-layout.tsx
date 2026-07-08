@@ -55,8 +55,8 @@ export function SbarPrintLayout({
 
         {/* Disclaimer */}
         <p className="text-xs italic border border-gray-300 rounded p-2 mb-6">
-          This tool is designed for healthcare professionals as a clinical
-          decision support resource. It does not provide medical diagnoses,
+          This tool is designed for healthcare professionals as a educational
+          implementation-support resource. It does not provide medical diagnoses,
           treatment recommendations for individual patients, or replace clinical
           judgment. Not intended for direct patient care. For professional use
           only.

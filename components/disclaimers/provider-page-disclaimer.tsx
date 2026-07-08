@@ -28,16 +28,16 @@ export function ProviderPageDisclaimer({
   return (
     <aside
       role="note"
-      aria-label="Clinical decision support disclaimer"
+      aria-label="Clinical use disclaimer"
       className={
         "rounded-lg border border-gray-200 bg-gray-50 p-4 text-xs text-gray-600 print:hidden " +
         className
       }
     >
-      <p className="font-medium mb-1">Clinical Decision Support Disclaimer</p>
+      <p className="font-medium mb-1">Clinical Use Disclaimer</p>
       <p>
-        This tool is designed for healthcare professionals as a clinical
-        decision support resource. It does not provide medical diagnoses,
+        This tool is designed for healthcare professionals as a educational
+        implementation-support resource. It does not provide medical diagnoses,
         treatment recommendations for individual patients, or replace clinical
         judgment. Not intended for direct patient care. For professional use
         only.

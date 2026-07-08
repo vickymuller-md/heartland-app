@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "HEARTLAND Protocol",
     short_name: "HEARTLAND",
     description:
-      "Clinical decision support for rural heart failure management",
+      "Clinical implementation companion for rural heart failure management",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",

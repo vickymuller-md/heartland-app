@@ -51,10 +51,9 @@ export function ConsentDialog({ open, onAccept, onCancel }: ConsentDialogProps) 
 
         <div className="space-y-4 text-sm text-muted-foreground">
           <div className="rounded-lg border p-3">
-            <p className="font-medium text-foreground mb-1">Clinical Decision Support Disclaimer</p>
+            <p className="font-medium text-foreground mb-1">Clinical Use Disclaimer</p>
             <p>
-              This tool is designed for healthcare professionals as a clinical decision support
-              resource. It does not provide medical diagnoses, treatment recommendations for
+              This tool is designed for healthcare professionals as a educational implementation-support resource. It does not provide medical diagnoses, treatment recommendations for
               individual patients, or replace clinical judgment. Not intended for direct patient
               care. For professional use only.
             </p>
