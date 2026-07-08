@@ -11,6 +11,18 @@ const PUBLIC_PREFIXES = [
   "/error",
   "/about",
   "/request-access",
+  // Public demo access: the educational tools are client-side, use no
+  // account data and no PHI (all bundled data is synthetic), so they are
+  // open for anonymous evaluation. Account workflows (dashboard, patients,
+  // alerts, worklists) still require a session.
+  "/risk-calculator",
+  "/gdmt-pathway",
+  "/titration-checklist",
+  "/remote-monitoring",
+  "/tier-selector",
+  "/pocket-cards",
+  "/tools",
+  "/guide",
 ];
 
 // Exactly-matched paths that are public (no session required).
