@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { PatientDetailTabs } from '@/app/(provider)/patients/[patientId]/_components/patient-detail-tabs';
 import { SymptomHistory } from '@/app/(provider)/patients/[patientId]/_components/symptom-history';
 import { MedicationSummary } from '@/app/(provider)/patients/[patientId]/_components/medication-summary';
@@ -52,8 +52,8 @@ vi.mock('@/lib/messages/actions', () => ({
 // ---------- Test Data ----------
 
 const mockVitals: VitalsChartPoint[] = [
-  { date: '2026-03-20T10:00:00Z', weight_lbs: 180, sbp: 120, dbp: 80, heart_rate: 72, spo2: 98 },
-  { date: '2026-03-21T10:00:00Z', weight_lbs: 181, sbp: 125, dbp: 82, heart_rate: 75, spo2: 97 },
+  { date: new Date().toISOString(), weight_lbs: 180, sbp: 120, dbp: 80, heart_rate: 72, spo2: 98 },
+  { date: new Date(Date.now() - 86_400_000).toISOString(), weight_lbs: 181, sbp: 125, dbp: 82, heart_rate: 75, spo2: 97 },
 ];
 
 const mockSymptoms: SymptomEntry[] = [
@@ -118,6 +118,7 @@ describe('PatientDetailTabs', () => {
       />
     );
 
+    fireEvent.click(screen.getByText('Vitals'));
     // Chart should be rendered (mocked)
     expect(screen.getByTestId('line-chart')).toBeInTheDocument();
   });
@@ -137,6 +138,7 @@ describe('PatientDetailTabs', () => {
       />
     );
 
+    fireEvent.click(screen.getByText('Vitals'));
     // Period buttons should be present
     expect(screen.getByText('7d')).toBeInTheDocument();
     expect(screen.getByText('30d')).toBeInTheDocument();
@@ -188,7 +190,7 @@ describe('MedicationSummary', () => {
       ],
     };
 
-    render(<MedicationSummary adherenceSummary={adherenceData} />);
+    render(<MedicationSummary patientId="p1" adherenceSummary={adherenceData} />);
 
     expect(screen.getByText('Lisinopril')).toBeInTheDocument();
     expect(screen.getByText('Metoprolol')).toBeInTheDocument();
@@ -197,7 +199,7 @@ describe('MedicationSummary', () => {
   });
 
   it('shows empty state when no medications', () => {
-    render(<MedicationSummary adherenceSummary={null} />);
+    render(<MedicationSummary patientId="p1" adherenceSummary={{ medications: [] }} />);
     expect(screen.getByText('No medications recorded')).toBeInTheDocument();
   });
 });

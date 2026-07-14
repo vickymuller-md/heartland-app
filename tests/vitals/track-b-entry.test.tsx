@@ -11,6 +11,25 @@ import { render, screen } from '@testing-library/react';
 
 const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
+const { mockAuthorizeProvider } = vi.hoisted(() => ({
+  mockAuthorizeProvider: vi.fn(),
+}));
+
+vi.mock('@/lib/auth/authorization', () => ({
+  authorizeProviderForPatient: mockAuthorizeProvider,
+  authorize: vi.fn(),
+}));
+
+vi.mock('@/lib/supabase/admin', () => ({
+  supabaseAdmin: {
+    from: () => ({
+      select: () => ({
+        eq: () => ({ in: vi.fn().mockResolvedValue({ data: [], error: null }) }),
+      }),
+      insert: vi.fn().mockResolvedValue({ error: null }),
+    }),
+  },
+}));
 
 // Track calls for assertion
 let insertCalls: Record<string, unknown>[] = [];
@@ -38,7 +57,7 @@ vi.mock('@/lib/vitals/queries', () => ({
 function setupChain() {
   insertCalls = [];
   linkResult = { data: null, error: null };
-  vitalsResult = { data: { id: 'v-1', patient_id: 'patient-123', source: 'provider_entry' }, error: null };
+  vitalsResult = { data: { id: 'v-1', patient_id: '11111111-1111-4111-8111-111111111111', source: 'provider_entry' }, error: null };
   symptomsResult = { error: null };
 
   // Build chainable eq mock
@@ -81,7 +100,7 @@ function setupChain() {
 
 function makeFormData(overrides: Record<string, string> = {}): FormData {
   const defaults: Record<string, string> = {
-    patientId: 'patient-123',
+    patientId: '11111111-1111-4111-8111-111111111111',
     weight: '165',
     weightUnit: 'lbs',
     sbp: '120',
@@ -107,34 +126,39 @@ describe('Track B: Provider Data Entry (TRKB-02, TRKB-03)', () => {
     beforeEach(async () => {
       vi.clearAllMocks();
       setupChain();
+      mockAuthorizeProvider.mockResolvedValue({
+        authorized: true,
+        user: { id: 'provider-1' },
+        role: 'provider',
+        supabase: { from: mockFrom },
+      });
       const mod = await import('@/lib/vitals/actions');
       submitVitalsAsProvider = mod.submitVitalsAsProvider;
     });
 
     it('returns error when not authenticated', async () => {
-      mockGetUser.mockResolvedValue({ data: { user: null } });
+      mockAuthorizeProvider.mockResolvedValueOnce({ authorized: false, error: 'Not authenticated' });
       const result = await submitVitalsAsProvider(null, makeFormData());
       expect(result.error).toBe('Not authenticated');
     });
 
     it('returns error when patient not linked to provider', async () => {
-      mockGetUser.mockResolvedValue({ data: { user: { id: 'provider-1' } } });
-      linkResult = { data: null, error: null };
+      mockAuthorizeProvider.mockResolvedValueOnce({ authorized: false, error: 'Unauthorized' });
       const result = await submitVitalsAsProvider(null, makeFormData());
-      expect(result.error).toBe('Patient not linked to this provider');
+      expect(result.error).toBe('Unauthorized');
     });
 
     it('inserts vitals with source = "provider_entry"', async () => {
       mockGetUser.mockResolvedValue({ data: { user: { id: 'provider-1' } } });
       linkResult = { data: { id: 'link-1' }, error: null };
-      vitalsResult = { data: { id: 'v-1', patient_id: 'patient-123', source: 'provider_entry' }, error: null };
+      vitalsResult = { data: { id: 'v-1', patient_id: '11111111-1111-4111-8111-111111111111', source: 'provider_entry' }, error: null };
 
       await submitVitalsAsProvider(null, makeFormData());
 
       // First insertCalls entry = vitals
       expect(insertCalls.length).toBeGreaterThanOrEqual(1);
       expect(insertCalls[0]).toMatchObject({
-        patient_id: 'patient-123',
+        patient_id: '11111111-1111-4111-8111-111111111111',
         source: 'provider_entry',
       });
     });
@@ -142,11 +166,11 @@ describe('Track B: Provider Data Entry (TRKB-02, TRKB-03)', () => {
     it('uses formData patientId as patient_id (not the provider user.id)', async () => {
       mockGetUser.mockResolvedValue({ data: { user: { id: 'provider-1' } } });
       linkResult = { data: { id: 'link-1' }, error: null };
-      vitalsResult = { data: { id: 'v-1', patient_id: 'patient-xyz' }, error: null };
+      vitalsResult = { data: { id: 'v-1', patient_id: '22222222-2222-4222-8222-222222222222' }, error: null };
 
-      await submitVitalsAsProvider(null, makeFormData({ patientId: 'patient-xyz' }));
+      await submitVitalsAsProvider(null, makeFormData({ patientId: '22222222-2222-4222-8222-222222222222' }));
 
-      expect(insertCalls[0].patient_id).toBe('patient-xyz');
+      expect(insertCalls[0].patient_id).toBe('22222222-2222-4222-8222-222222222222');
       expect(insertCalls[0].patient_id).not.toBe('provider-1');
     });
 

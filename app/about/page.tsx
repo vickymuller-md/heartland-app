@@ -169,10 +169,10 @@ export default function AboutPage() {
               <tr>
                 <td className="px-3 py-2">FINEARTS-HF (NEJM 2024)</td>
                 <td className="px-3 py-2">
-                  Finerenone 16% reduction in CV death/HF events
+                  16% lower rate of CV death and total worsening HF events
                 </td>
                 <td className="px-3 py-2">
-                  Module 2: Emerging evidence integration
+                  Module 2: Evidence and current-label navigation
                 </td>
               </tr>
               <tr>

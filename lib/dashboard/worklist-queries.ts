@@ -75,7 +75,7 @@ export async function getTitrationWorklist(
   // 2. Batch fetch patient profiles
   const { data: patients } = await supabase
     .from('patients')
-    .select('id, full_name, risk_tier')
+    .select('id, risk_tier, profiles(full_name)')
     .in('id', patientIds);
 
   if (!patients || patients.length === 0) return [];
@@ -122,7 +122,11 @@ export async function getTitrationWorklist(
   });
 
   // 6. Build worklist rows
-  type PatientRow = { id: string; full_name: string | null; risk_tier: string | null };
+  type PatientRow = {
+    id: string;
+    risk_tier: string | null;
+    profiles: { full_name?: string | null } | { full_name?: string | null }[] | null;
+  };
   const rows: TitrationWorklistRow[] = ((patients ?? []) as PatientRow[]).map((p) => {
     const lab = labMap.get(p.id) ?? null;
     const vital = vitalsMap.get(p.id) ?? null;
@@ -131,7 +135,7 @@ export async function getTitrationWorklist(
 
     return {
       patient_id: p.id,
-      full_name: p.full_name ?? 'Unknown',
+      full_name: (Array.isArray(p.profiles) ? p.profiles[0]?.full_name : p.profiles?.full_name) ?? 'Unknown',
       risk_tier: p.risk_tier,
       last_sbp: vital?.sbp ?? null,
       last_k: lab?.potassium ?? null,

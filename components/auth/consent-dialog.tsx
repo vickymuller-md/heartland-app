@@ -53,9 +53,10 @@ export function ConsentDialog({ open, onAccept, onCancel }: ConsentDialogProps) 
           <div className="rounded-lg border p-3">
             <p className="font-medium text-foreground mb-1">Clinical Use Disclaimer</p>
             <p>
-              This tool is designed for healthcare professionals as a educational implementation-support resource. It does not provide medical diagnoses, treatment recommendations for
-              individual patients, or replace clinical judgment. Not intended for direct patient
-              care. For professional use only.
+              This authenticated workspace is controlled-evaluation implementation support. It does
+              not independently diagnose, prescribe, establish billing eligibility, replace source-record
+              review, clinical judgment, or institutional policy. Real PHI and unsupervised clinical use
+              are not authorized until organizational release gates are approved.
             </p>
           </div>
 
@@ -72,8 +73,9 @@ export function ConsentDialog({ open, onAccept, onCancel }: ConsentDialogProps) 
             <p className="font-medium text-foreground mb-1">Data and Privacy Notice</p>
             <p>
               By creating an account, you acknowledge that this application is a research and
-              demonstration tool. Data entered is stored on secure servers but this system has not
-              undergone HIPAA certification. Do not enter real patient identifiable information.
+              demonstration tool. Data entered is stored on remote servers and the system is not
+              HIPAA-certified. Use synthetic or formally approved evaluation data only; do not enter
+              real patient-identifiable information.
             </p>
           </div>
         </div>

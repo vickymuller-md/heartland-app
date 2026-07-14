@@ -92,10 +92,17 @@ export function getTitrationAction(vitals: VitalSigns): TitrationAction {
     };
   }
 
-  // SBP >= 100 AND asymptomatic -> UPTITRATE (default safe state)
+  if (vitals.egfr === undefined) {
+    return {
+      action: 'hold',
+      details: 'eGFR missing: HOLD the advisory pathway until renal context is reviewed',
+    };
+  }
+
+  // Numeric signal only. Symptoms and other clinical context are not evaluated here.
   return {
     action: 'uptitrate',
-    details: 'SBP \u2265100 mmHg AND asymptomatic: UPTITRATE to next dose level',
+    details: 'No entered numeric gate triggered a hold. Symptoms and full clinical context remain unevaluated; provider decision required',
   };
 }
 
@@ -161,7 +168,19 @@ export function getPerDrugRecommendations(
       }
     }
 
-    // eGFR per-drug thresholds (skip if egfr undefined/null)
+    if (
+      vitals.egfr === undefined &&
+      (drugClass === 'MRA' || drugClass === 'SGLT2i' || drugClass === 'ARNI')
+    ) {
+      return {
+        drugClass,
+        action: 'not-applicable' as const,
+        reason: 'eGFR missing — renal gate incomplete',
+        safetyGateFailed: 'eGFR',
+      };
+    }
+
+    // eGFR per-drug thresholds
     if (vitals.egfr !== undefined && vitals.egfr !== null) {
       if (drugClass === 'MRA' && vitals.egfr <= 30) {
         return { drugClass, action: 'hold' as const, reason: `eGFR ${vitals.egfr} <=30`, safetyGateFailed: 'eGFR' };
@@ -175,7 +194,12 @@ export function getPerDrugRecommendations(
     }
 
     // Default: all gates passed -> uptitrate
-    return { drugClass, action: 'uptitrate' as const, reason: 'All gates passed', safetyGateFailed: null };
+    return {
+      drugClass,
+      action: 'uptitrate' as const,
+      reason: 'No entered class-specific numeric gate triggered; provider review still required',
+      safetyGateFailed: null,
+    };
   });
 }
 

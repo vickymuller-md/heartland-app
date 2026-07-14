@@ -32,7 +32,7 @@ export interface RedFlagAlert {
 export interface BillingCode {
   code: string;
   description: string;
-  reimbursement: string;
+  verification: string;
 }
 
 export interface TimHf2Outcome {

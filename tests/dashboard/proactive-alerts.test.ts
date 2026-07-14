@@ -26,10 +26,20 @@ import type { AdherenceDay } from '@/lib/medications/types';
 vi.mock('server-only', () => ({}));
 
 // Mock Supabase server client for muteAlertType tests
-const mockUpsert = vi.fn().mockResolvedValue({ error: null });
-const mockGetUser = vi.fn().mockResolvedValue({
-  data: { user: { id: 'provider-1' } },
-});
+const { mockUpsert, mockGetUser } = vi.hoisted(() => ({
+  mockUpsert: vi.fn().mockResolvedValue({ error: null }),
+  mockGetUser: vi.fn().mockResolvedValue({ data: { user: { id: 'provider-1' } } }),
+}));
+
+vi.mock('@/lib/auth/authorization', () => ({
+  authorizeProviderForPatient: vi.fn().mockImplementation(async () => ({
+    authorized: true,
+    user: { id: 'provider-1' },
+    role: 'provider',
+    supabase: { from: () => ({ upsert: mockUpsert }) },
+  })),
+  authorize: vi.fn(),
+}));
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn().mockResolvedValue({

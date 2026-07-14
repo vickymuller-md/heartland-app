@@ -1,6 +1,6 @@
 # HEARTLAND Protocol App
 
-**Clinical Decision Support Tool for Rural Heart Failure Management**
+**Clinical implementation companion for rural heart-failure workflows**
 
 A Progressive Web Application that operationalizes the HEARTLAND Protocol — *Heart failure Evidence-based Access in Rural Treatment, Linking Advanced Network Delivery* — for primary care-led heart failure management in rural and resource-limited settings across the United States.
 
@@ -10,11 +10,11 @@ A Progressive Web Application that operationalizes the HEARTLAND Protocol — *H
 
 ## Disclaimers (read first)
 
-> *"This tool is designed for healthcare professionals as a clinical decision support resource. It does not provide medical diagnoses, treatment recommendations for individual patients, or replace clinical judgment. Not intended for direct patient care. For professional use only."*
+> Public routes are an educational sandbox. The authenticated workspace is a controlled evaluation environment. Outputs do not independently diagnose, prescribe, establish billing eligibility, replace source-record review, or replace clinical judgment and institutional policy.
 
 > *"The HEARTLAND Risk Stratification Framework is a proposed tool under development. It has not been validated against clinical outcomes data. Formal validation through registry data is a defined research objective."*
 
-This app is **not a medical device**, **not FDA-cleared**, and **not HIPAA-certified**. It processes **synthetic data only** — no patient health information is stored or transmitted.
+This app is **not a medical device**, **not FDA-cleared**, and **not HIPAA-certified**. The schema can store health information, but **real PHI and unsupervised clinical use are not authorized** until organizational security, privacy, validation, staffing, incident-response, backup, legal/BAA, and governance gates are approved. Use synthetic or formally approved evaluation data only.
 
 ---
 
@@ -44,7 +44,7 @@ Cross-cutting:
 - NIW Traction Report — monthly aggregate usage statistics (geographic spread, module engagement, growth)
 - Offline-capable (PWA with service worker)
 - Mobile-first, print-friendly
-- HIPAA Safe Harbor date truncation on CSV exports (risk-minimization even with synthetic data)
+- Privacy-minimizing exports, row-level access control, immutable work events, and explicit access revocation
 
 ## Requesting Access
 
@@ -56,10 +56,9 @@ For research collaborations, pilot deployments at Critical Access Hospitals, or 
 
 | Stream | State |
 |-|-|
-| Cureus manuscript | Submitted; peer-review response in progress |
-| HEARTLAND Protocol | v3.2 (February 2026) — authoritative |
-| App | Phase 1 milestone complete; Phase 2 (Modules 4 & 7) in progress |
-| Zenodo software DOI | Pending — will be minted at first public release via `.zenodo.json` |
+| Product workspace | Daily Loop, patient 60-second brief, action center, patient Today/Plan/Privacy, and privacy-safe product telemetry implemented |
+| Clinical release posture | Controlled evaluation only; real-PHI and pilot go-live gates remain closed pending independent validation and organizational controls |
+| Product plan | Published in [`reference/HEARTLAND_PRODUCT_ADOPTION_PLAN.md`](./reference/HEARTLAND_PRODUCT_ADOPTION_PLAN.md) |
 | NIW petition integration | Tracked in [`NIW_INTEGRATION.md`](./NIW_INTEGRATION.md) |
 
 ## Stack
@@ -83,7 +82,7 @@ npm test
 
 ## Open science
 
-This repository will be deposited to Zenodo under DOI minted from `.zenodo.json` at first public release. All protocol content is covered by the Cureus open-access publication and the existing repository deposits:
+Protocol content and research materials are available through the existing deposits:
 
 - **Cureus** (peer-reviewed, indexed PubMed/PMC/Scopus)
 - **Zenodo** (protocol): [`10.5281/zenodo.18566403`](https://doi.org/10.5281/zenodo.18566403)

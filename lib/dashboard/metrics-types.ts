@@ -20,8 +20,8 @@ export interface ProviderMetrics {
   noCheckinCount: number;
   /** Average medication adherence across all patients, 0-100 */
   avgAdherence: number;
-  /** Patients meeting CPT 99454 threshold (>=16 vitals days this month) */
-  rpmEligibleCount: number;
+  /** Patients with >=16 distinct app-entry days this month; not billing eligibility */
+  rpmDataCompletenessCount: number;
   /** Percentage of HFrEF patients on >=3 of 4 GDMT drug classes, 0-100 */
   gdmtOptRate: number;
 }
@@ -32,7 +32,7 @@ export const EMPTY_METRICS: ProviderMetrics = {
   activeAlerts: 0,
   noCheckinCount: 0,
   avgAdherence: 0,
-  rpmEligibleCount: 0,
+  rpmDataCompletenessCount: 0,
   gdmtOptRate: 0,
 };
 
@@ -49,23 +49,10 @@ export interface MetricTrend {
 // ---------- RPM Eligibility (METR-03) ----------
 
 /** Patient qualifying for RPM billing under CPT 99454 */
-export interface RpmEligiblePatient {
-  /** Patient UUID */
+export interface RpmDataCompletenessPatient {
   id: string;
   /** Patient display name */
   full_name: string;
   /** Number of distinct calendar days with vitals this month */
   vitals_days_this_month: number;
-}
-
-// ---------- Billing Summary (METR-05) ----------
-
-/** Estimated monthly RPM billing revenue */
-export interface BillingSummary {
-  /** Number of patients meeting RPM eligibility threshold */
-  eligibleCount: number;
-  /** Low-end revenue estimate (eligibleCount * RPM_REIMBURSEMENT_RANGE.low) */
-  lowEstimate: number;
-  /** High-end revenue estimate (eligibleCount * RPM_REIMBURSEMENT_RANGE.high) */
-  highEstimate: number;
 }

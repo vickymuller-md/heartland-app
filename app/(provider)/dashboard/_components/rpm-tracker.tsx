@@ -1,16 +1,15 @@
 /**
- * RpmTracker -- RPM Billing Tracker (server component)
+ * RpmTracker -- remote-monitoring data completeness (server component)
  *
- * Shows patients eligible for CPT 99454 (>=16 vitals days/month),
- * estimated monthly revenue, and GDMT optimization rate.
+ * Shows app-entry consistency and GDMT optimization rate. It does not decide
+ * billing eligibility because entries may be manually reported.
  *
  * Requirements: METR-03 (RPM eligibility), METR-05 (billing estimates), METR-02 (GDMT rate)
  */
 
 import { createClient } from '@/lib/supabase/server';
 import {
-  getRpmEligiblePatients,
-  computeBillingSummary,
+  getRpmDataCompletenessPatients,
   getProviderMetrics,
 } from '@/lib/dashboard/metrics-queries';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -40,9 +39,7 @@ export async function RpmTracker({ providerId }: RpmTrackerProps) {
 
   const patientIds = (links ?? []).map((l) => l.patient_id);
 
-  // Get RPM eligible patients and billing summary
-  const eligible = await getRpmEligiblePatients(supabase, patientIds);
-  const billing = computeBillingSummary(eligible.length);
+  const complete = await getRpmDataCompletenessPatients(supabase, patientIds);
 
   // Get GDMT optimization rate from provider metrics
   const metrics = await getProviderMetrics(supabase, providerId);
@@ -50,13 +47,13 @@ export async function RpmTracker({ providerId }: RpmTrackerProps) {
   return (
     <Card className="mb-6">
       <CardHeader>
-        <CardTitle>RPM Billing Tracker — CPT 99454</CardTitle>
+        <CardTitle>Remote Monitoring Data Completeness</CardTitle>
         <CardDescription>
-          Patients with {'\u2265'}16 vitals days this month
+          Patients with {'\u2265'}16 distinct HEARTLAND entry days this month
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {eligible.length === 0 ? (
+        {complete.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center">
             No patients have reached 16 days of data this month yet.
           </p>
@@ -70,7 +67,7 @@ export async function RpmTracker({ providerId }: RpmTrackerProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {eligible.map((patient) => (
+              {complete.map((patient) => (
                 <TableRow key={patient.id}>
                   <TableCell className="font-medium">
                     {patient.full_name}
@@ -79,8 +76,8 @@ export async function RpmTracker({ providerId }: RpmTrackerProps) {
                     {patient.vitals_days_this_month}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Badge variant="default" className="bg-green-600">
-                      Eligible
+                    <Badge variant="secondary">
+                      16+ entry days
                     </Badge>
                   </TableCell>
                 </TableRow>
@@ -89,20 +86,8 @@ export async function RpmTracker({ providerId }: RpmTrackerProps) {
           </Table>
         )}
 
-        {/* Billing estimate */}
-        {eligible.length > 0 && (
-          <div className="rounded-lg bg-muted/50 p-3 text-sm">
-            <p className="font-medium text-foreground">
-              Estimated monthly revenue: ~${billing.lowEstimate.toLocaleString()}
-              &ndash;${billing.highEstimate.toLocaleString()} ({eligible.length}{' '}
-              patient{eligible.length !== 1 ? 's' : ''})
-            </p>
-          </div>
-        )}
-
-        <p className="text-xs text-muted-foreground">
-          Estimated ~$150&ndash;200/eligible patient/month (G0511, rural).
-          Actual reimbursement varies by payer.
+        <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
+          This count is a workflow signal, not RPM billing eligibility. Manual app entries do not prove a qualifying connected device or automatic transmission. Verify current CMS and payer requirements independently.
         </p>
 
         {/* GDMT Optimization Rate */}

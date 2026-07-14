@@ -4,8 +4,7 @@
  * All functions accept a SupabaseClient parameter for testability.
  * Follows batch patientIds pattern from getLinkedPatients (no N+1 queries).
  *
- * Requirements: METR-01, METR-02, METR-03, METR-05
- * Source: HEARTLAND Protocol v3.3; CMS 2023 Physician Fee Schedule
+ * Requirements: METR-01 through METR-04
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -14,13 +13,11 @@ import { extractFullName } from '@/lib/supabase/types';
 import type {
   ProviderMetrics,
   MetricTrend,
-  RpmEligiblePatient,
-  BillingSummary,
+  RpmDataCompletenessPatient,
 } from './metrics-types';
 import { EMPTY_METRICS } from './metrics-types';
 import {
   RPM_CPT_99454_THRESHOLD,
-  RPM_REIMBURSEMENT_RANGE,
   GDMT_CLASS_KEYWORDS,
 } from './metrics-constants';
 
@@ -82,21 +79,6 @@ export function computeGdmtRate(
 }
 
 /**
- * Compute billing summary from RPM eligible count.
- * lowEstimate = eligibleCount * RPM_REIMBURSEMENT_RANGE.low
- * highEstimate = eligibleCount * RPM_REIMBURSEMENT_RANGE.high
- *
- * METR-05
- */
-export function computeBillingSummary(eligibleCount: number): BillingSummary {
-  return {
-    eligibleCount,
-    lowEstimate: eligibleCount * RPM_REIMBURSEMENT_RANGE.low,
-    highEstimate: eligibleCount * RPM_REIMBURSEMENT_RANGE.high,
-  };
-}
-
-/**
  * Compute weekly trend data for sparkline charts.
  * Bins raw data points into weekly buckets for the last N weeks.
  *
@@ -148,10 +130,10 @@ export function computeWeeklyTrend(
  *
  * METR-03
  */
-export async function getRpmEligiblePatients(
+export async function getRpmDataCompletenessPatients(
   supabase: SupabaseClient,
   patientIds: string[]
-): Promise<RpmEligiblePatient[]> {
+): Promise<RpmDataCompletenessPatient[]> {
   if (patientIds.length === 0) return [];
 
   const monthStart = startOfMonth(new Date());
@@ -174,18 +156,18 @@ export async function getRpmEligiblePatients(
     daysByPatient.set(v.patient_id, set);
   }
 
-  // Filter patients meeting threshold
-  const eligibleIds = patientIds.filter(
+  // Product completeness marker only; not billing eligibility.
+  const completeIds = patientIds.filter(
     (id) => (daysByPatient.get(id)?.size ?? 0) >= RPM_CPT_99454_THRESHOLD
   );
 
-  if (eligibleIds.length === 0) return [];
+  if (completeIds.length === 0) return [];
 
-  // Fetch names for eligible patients
+  // Fetch names for patients meeting the product marker.
   const { data: patients, error: nameError } = await supabase
     .from('patients')
     .select('id, profiles(full_name)')
-    .in('id', eligibleIds);
+    .in('id', completeIds);
 
   if (nameError) throw nameError;
 
@@ -296,16 +278,16 @@ export async function getProviderMetrics(
     gdmtOptRate = gdmtResult.rate;
   }
 
-  // RPM eligible count
-  const rpmEligible = await getRpmEligiblePatients(supabase, patientIds);
-  const rpmEligibleCount = rpmEligible.length;
+  // App-entry completeness marker; not a billing eligibility determination.
+  const rpmReady = await getRpmDataCompletenessPatients(supabase, patientIds);
+  const rpmDataCompletenessCount = rpmReady.length;
 
   return {
     totalPatients,
     activeAlerts,
     noCheckinCount,
     avgAdherence,
-    rpmEligibleCount,
+    rpmDataCompletenessCount,
     gdmtOptRate,
   };
 }

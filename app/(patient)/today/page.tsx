@@ -7,6 +7,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getUnreadMessages } from "@/lib/messages/queries";
 import { getTodayTaskStatus } from "@/lib/patient/today-tasks";
 import type { TodayTaskStatus } from "@/lib/patient/today-tasks";
+import { getPatientPlan } from "@/lib/patient/plan";
+import { NextActionCard } from "./_components/next-action-card";
+import { ProductEventTracker } from "@/components/analytics/product-event-tracker";
 
 export default async function PatientToday() {
   const supabase = await createClient();
@@ -21,12 +24,24 @@ export default async function PatientToday() {
     medsTotal: 0,
     educationRemaining: 0,
   };
-  const [messages, taskStatus] = await Promise.all([
-    user ? getUnreadMessages(supabase, user.id) : Promise.resolve([]),
+  const [messagesResult, taskResult, plan] = await Promise.all([
+    user
+      ? getUnreadMessages(supabase, user.id)
+          .then((data) => ({ data, error: null as string | null }))
+          .catch(() => ({ data: [], error: 'Care-team messages could not be loaded.' }))
+      : Promise.resolve({ data: [], error: null }),
     user
       ? getTodayTaskStatus(supabase, user.id)
-      : Promise.resolve(defaultTaskStatus),
+          .then((data) => ({ data, error: null as string | null }))
+          .catch(() => ({ data: defaultTaskStatus, error: 'Today checklist status could not be loaded.' }))
+      : Promise.resolve({ data: defaultTaskStatus, error: null }),
+    user
+      ? getPatientPlan(supabase, user.id)
+      : Promise.resolve({ items: [], careContact: null, error: null, contactError: null }),
   ]);
+  const messages = messagesResult.data;
+  const taskStatus = taskResult.data;
+  const todayDataError = messagesResult.error ?? taskResult.error ?? plan.error;
 
   // PTUX-01: Check if patient has seen onboarding overlay
   const { data: profile } = user
@@ -38,19 +53,8 @@ export default async function PatientToday() {
     : { data: null };
   const showOnboarding = !profile?.onboarding_seen_at;
 
-  // SAFE-02: Fetch linked provider's phone for offline emergency contact
-  let providerPhone: string | null = null;
-  if (user) {
-    const { data: linkData } = await supabase
-      .from('provider_patient_links')
-      .select('provider_id, profiles!provider_patient_links_provider_id_fkey(phone)')
-      .eq('patient_id', user.id)
-      .eq('status', 'active')
-      .limit(1)
-      .maybeSingle();
-
-    providerPhone = (linkData?.profiles as { phone?: string } | null)?.phone ?? null;
-  }
+  // SAFE-02: Phone comes from the patient-scoped access-history RPC.
+  const providerPhone = plan.careContact?.phone ?? null;
 
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -62,6 +66,7 @@ export default async function PatientToday() {
   return (
     <div className="space-y-6">
       <OnboardingOverlay showOnboarding={showOnboarding} />
+      <ProductEventTracker eventName="patient_today_view" area="patient_today" />
 
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">
@@ -70,13 +75,23 @@ export default async function PatientToday() {
         <p className="text-base text-gray-600 mt-1">{today}</p>
       </div>
 
+      {todayDataError && (
+        <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-medium text-red-900">{todayDataError}</div>
+      )}
+      <NextActionCard
+        tasks={taskStatus}
+        unreadMessages={messages.length}
+        nextFollowup={plan.items[0] ?? null}
+        dataAvailable={!todayDataError}
+      />
+
       <TodayTasksChecklist {...taskStatus} />
 
-      {messages.length > 0 && <MessageCards messages={messages} />}
+      {messages.length > 0 && <div id="care-team-messages"><MessageCards messages={messages} /></div>}
 
       <OfflineIndicator />
 
-      <VitalsEntryForm providerPhone={providerPhone} />
+      <div id="daily-check-in" className="scroll-mt-4"><VitalsEntryForm providerPhone={providerPhone} /></div>
     </div>
   );
 }

@@ -61,51 +61,40 @@ export const RED_FLAG_ALERTS: RedFlagAlert[] = [
 ];
 
 // ==========================================================================
-// Billing Codes (2025) — Section 5.3
-// Source: reference/clinical_content.md, Module 5, Section 5.3
+// Billing code navigation — verify current CMS descriptors, payer rules, and
+// device/data requirements before use. Self-entered app data does not itself
+// establish RPM eligibility.
 // ==========================================================================
 export const BILLING_CODES: BillingCode[] = [
   {
-    // Source: "99453 | RPM initial setup | $19-21"
     code: '99453',
     description: 'RPM initial setup',
-    reimbursement: '$19-21',
+    verification: 'Confirm device, setup, episode, consent, and payer requirements.',
   },
   {
-    // Source: "99454 | RPM monthly device (>=16 days data) | $48-55"
     code: '99454',
-    description: 'RPM monthly device (\u226516 days data)',
-    reimbursement: '$48-55',
+    description: 'RPM device supply and data transmission',
+    verification: 'Confirm current monitoring-day, connected-device, and transmission rules.',
   },
   {
-    // Source: "99457 | RPM first 20 min management | $48-52"
     code: '99457',
     description: 'RPM first 20 min management',
-    reimbursement: '$48-52',
+    verification: 'Confirm interactive communication, time, personnel, supervision, and payer rules.',
   },
   {
-    // Source: "99458 | RPM additional 20 min | $38-42"
     code: '99458',
     description: 'RPM additional 20 min',
-    reimbursement: '$38-42',
+    verification: 'Confirm incremental time and all base-code requirements.',
   },
   {
-    // Source: "98975-98981 | RTM codes (similar structure) | Similar range"
     code: '98975-98981',
-    description: 'RTM codes (similar structure)',
-    reimbursement: 'Similar range',
-  },
-  {
-    // Source: "G0511 | RHC/FQHC Comprehensive Care Management | Consolidated"
-    code: 'G0511',
-    description: 'RHC/FQHC Comprehensive Care Management',
-    reimbursement: 'Consolidated',
+    description: 'Remote therapeutic monitoring code family',
+    verification: 'Do not substitute RTM for RPM; verify modality, data, and payer policy.',
   },
 ];
 
-// Source: "Revenue Potential: $150-200/month per high-risk patient with full capture."
-export const REVENUE_POTENTIAL =
-  '$150-200/month per high-risk patient with full capture';
+export const CMS_2026_PFS_URL =
+  'https://www.cms.gov/medicare/payment/fee-schedules/physician/federal-regulation-notices/cms-1832-f';
 
 // ==========================================================================
 // TIM-HF2 Evidence — Section 5.1

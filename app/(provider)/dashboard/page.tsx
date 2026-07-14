@@ -11,6 +11,9 @@ import { MetricCards, MetricCardsSkeleton } from './_components/metric-cards';
 import { RpmTracker } from './_components/rpm-tracker';
 import { UrgentNowSection } from './_components/urgent-now-section';
 import { ProviderPageDisclaimer } from '@/components/disclaimers/provider-page-disclaimer';
+import { getDailyLoop } from '@/lib/daily-loop/queries';
+import { DailyLoop } from './_components/daily-loop';
+import { ProductEventTracker } from '@/components/analytics/product-event-tracker';
 
 /**
  * Provider Dashboard -- Server Component
@@ -44,15 +47,45 @@ export default async function ProviderDashboard({
 
   if (!user) redirect('/login');
 
-  const patients = await getLinkedPatients(supabase, user.id, sortBy);
+  const [dailyLoop, patientResult] = await Promise.all([
+    getDailyLoop(supabase, user.id),
+    getLinkedPatients(supabase, user.id, sortBy)
+      .then((patients) => ({ patients, error: null as string | null }))
+      .catch(() => ({
+        patients: [],
+        error: 'The patient panel could not be loaded. Do not interpret this as an empty panel.',
+      })),
+  ]);
+  const patients = patientResult.patients;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-          Patient Dashboard
-        </h1>
-        <SortControls currentSort={sortBy} />
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">Operational workspace</p>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-950">Daily Loop</h1>
+          <p className="mt-1 text-sm text-gray-600">Priority, action, owner, deadline, and outcome in one queue.</p>
+        </div>
+      </div>
+
+      <ProductEventTracker eventName="daily_loop_view" area="provider_home" />
+
+      {dailyLoop.error ? (
+        <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-medium text-red-900">
+          {dailyLoop.error}
+        </div>
+      ) : (
+        <DailyLoop sections={dailyLoop.sections} metrics={dailyLoop.metrics} />
+      )}
+
+      <div className="border-t pt-6">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-950">Patient panel</h2>
+            <p className="text-sm text-slate-600">Panel context and program metrics. Daily work remains above.</p>
+          </div>
+          <SortControls currentSort={sortBy} />
+        </div>
       </div>
 
       {/* Metric cards + RPM tracker (METR-01..05) */}
@@ -66,7 +99,11 @@ export default async function ProviderDashboard({
       {/* Urgent Now triage section (EFFI-01) */}
       <UrgentNowSection patients={patients} />
 
-      {patients.length === 0 ? (
+      {patientResult.error ? (
+        <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-medium text-red-900">
+          {patientResult.error}
+        </div>
+      ) : patients.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Users className="h-12 w-12 text-gray-300 mb-4" />
           <p className="text-lg text-gray-600 mb-2">No patients linked yet</p>
@@ -74,7 +111,7 @@ export default async function ProviderDashboard({
             Invite patients to connect with you using a unique invite code.
           </p>
           <Link
-            href="/dashboard/manage"
+            href="/patients/manage"
             className="min-h-[48px] px-6 py-3 text-base font-semibold bg-blue-600 text-white rounded-lg inline-flex items-center hover:bg-blue-700 transition-colors"
           >
             Invite a Patient

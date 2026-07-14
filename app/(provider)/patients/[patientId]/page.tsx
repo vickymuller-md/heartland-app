@@ -10,6 +10,11 @@ import { Badge } from '@/components/ui/badge';
 import { PatientDetailTabs } from './_components/patient-detail-tabs';
 import { SetupPrompt } from './_components/setup-prompt';
 import { ProviderPageDisclaimer } from '@/components/disclaimers/provider-page-disclaimer';
+import { getPatientOperationalView } from '@/lib/patient/operational';
+import { PatientBrief } from './_components/patient-brief';
+import { PatientTimeline } from './_components/patient-timeline';
+import { ActionCenter } from './_components/action-center';
+import { ProductEventTracker } from '@/components/analytics/product-event-tracker';
 
 /**
  * Patient Detail -- Server Component
@@ -58,6 +63,7 @@ export default async function PatientDetailPage({
 
   const { patient, vitals, symptoms, adherenceSummary, educationProgress, notes, openAlerts } = detail;
   const messages = await getPatientMessages(supabase, patientId);
+  const operationalView = await getPatientOperationalView(supabase, user.id, patientId);
   const tierStyle = patient.risk_tier ? TIER_DISPLAY[patient.risk_tier] : null;
   const trackLabel = patient.track_assignment ? TRACK_DISPLAY[patient.track_assignment] : null;
 
@@ -161,19 +167,31 @@ export default async function PatientDetailPage({
       {/* Setup prompt */}
       <SetupPrompt patientId={patientId} setupComplete={setupComplete} />
 
+      <ProductEventTracker eventName="patient_brief_view" area="patient_workspace" />
+      {operationalView.error && (
+        <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-medium text-red-900">
+          {operationalView.error}
+        </div>
+      )}
+      <PatientBrief brief={operationalView.brief} />
+      <ActionCenter patientId={patientId} />
+      <PatientTimeline events={operationalView.timeline} />
+
       {/* Tabs */}
-      <PatientDetailTabs
-        patientId={patientId}
-        vitals={vitals}
-        symptoms={symptoms}
-        adherenceSummary={adherenceSummary}
-        educationProgress={educationProgress}
-        notes={notes}
-        messages={messages}
-        openAlerts={openAlerts}
-        comorbidities={(clinicalData?.comorbidities ?? []) as string[]}
-        patientInfo={patientInfo}
-      />
+      <div id="patient-record-tabs" className="scroll-mt-4">
+        <PatientDetailTabs
+          patientId={patientId}
+          vitals={vitals}
+          symptoms={symptoms}
+          adherenceSummary={adherenceSummary}
+          educationProgress={educationProgress}
+          notes={notes}
+          messages={messages}
+          openAlerts={openAlerts}
+          comorbidities={(clinicalData?.comorbidities ?? []) as string[]}
+          patientInfo={patientInfo}
+        />
+      </div>
 
       {/* Risk Framework disclaimer -- header shows risk_tier badge */}
       {patient.risk_tier && <ProviderPageDisclaimer variant="framework" />}

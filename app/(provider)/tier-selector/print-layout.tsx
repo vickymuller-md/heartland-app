@@ -124,7 +124,7 @@ export function PrintLayout({ result }: PrintLayoutProps) {
           })}
         </p>
         <p>
-          This tool is designed for healthcare professionals as a educational
+          This tool is designed for healthcare professionals as an educational
           implementation-support resource. It does not provide medical diagnoses,
           treatment recommendations for individual patients, or replace
           clinical judgment. Not intended for direct patient care. For

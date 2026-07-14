@@ -14,7 +14,7 @@ const ROWS = [
     trial: "FINEARTS-HF",
     citation: "NEJM, 2024",
     finding:
-      "Finerenone delivers a 16% reduction in cardiovascular death and HF events.",
+      "FINEARTS-HF reported a 16% lower rate of cardiovascular death and total worsening heart-failure events.",
   },
   {
     trial: "Hozho Trial",

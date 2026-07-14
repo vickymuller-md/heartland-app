@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { evaluateSafetyGates, canProceedPastSafetyGates, getTitrationAction } from '@/lib/titration/engine';
 import type { VitalSigns } from '@/lib/titration/types';
 
-const NORMAL_VITALS: VitalSigns = { sbp: 120, hr: 70, potassium: 4.0, creatinine: 1.0 };
+const NORMAL_VITALS: VitalSigns = { sbp: 120, hr: 70, potassium: 4.0, creatinine: 1.0, egfr: 60 };
 
 // ==========================================================================
 // TITR-02: Safety Gate Assessment
@@ -130,11 +130,11 @@ describe('getTitrationAction', () => {
 // Source: ACC/AHA 2022 HF Guidelines — renal safety thresholds
 // ==========================================================================
 describe('eGFR safety gate (SAFE-03)', () => {
-  it('returns "pass" with advisory when eGFR is undefined (backward compat)', () => {
-    const results = evaluateSafetyGates(NORMAL_VITALS);
+  it('blocks the pathway when eGFR is undefined', () => {
+    const results = evaluateSafetyGates({ ...NORMAL_VITALS, egfr: undefined });
     const gate = results.find((r) => r.parameter === 'eGFR (mL/min)');
     expect(gate).toBeDefined();
-    expect(gate!.status).toBe('pass');
+    expect(gate!.status).toBe('blocked');
     expect(gate!.action).toBe('Enter eGFR for complete renal check');
   });
 
@@ -169,8 +169,7 @@ describe('eGFR safety gate (SAFE-03)', () => {
   });
 
   it('existing 4-gate tests still pass with egfr field absent', () => {
-    // NORMAL_VITALS has no egfr -- the original 4 gates should still return pass
-    const results = evaluateSafetyGates(NORMAL_VITALS);
+    const results = evaluateSafetyGates({ ...NORMAL_VITALS, egfr: undefined });
     const nonEgfr = results.filter((r) => r.parameter !== 'eGFR (mL/min)');
     expect(nonEgfr).toHaveLength(4);
     nonEgfr.forEach((r) => expect(r.status).toBe('pass'));

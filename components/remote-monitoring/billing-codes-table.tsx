@@ -7,13 +7,13 @@ import {
   TableRow,
   TableCell,
 } from '@/components/ui/table';
-import { BILLING_CODES, REVENUE_POTENTIAL } from '@/lib/remote-monitoring/constants';
+import { BILLING_CODES, CMS_2026_PFS_URL } from '@/lib/remote-monitoring/constants';
 
 export function BillingCodesTable() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>RPM Billing Code Reference (2025)</CardTitle>
+        <CardTitle>Remote Monitoring Billing Navigation</CardTitle>
       </CardHeader>
       <CardContent>
         <Table>
@@ -21,7 +21,7 @@ export function BillingCodesTable() {
             <TableRow>
               <TableHead>Code</TableHead>
               <TableHead>Description</TableHead>
-              <TableHead>Approximate Reimbursement</TableHead>
+              <TableHead>Verification required</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -31,17 +31,21 @@ export function BillingCodesTable() {
                   {code.code}
                 </TableCell>
                 <TableCell>{code.description}</TableCell>
-                <TableCell>{code.reimbursement}</TableCell>
+                <TableCell>{code.verification}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
 
-        {/* Revenue potential callout */}
-        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-          <p className="text-sm font-medium text-emerald-800">
-            Revenue Potential: {REVENUE_POTENTIAL}
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+          <p className="font-medium">Reference only — not a billing eligibility determination.</p>
+          <p className="mt-1">
+            Patient-entered HEARTLAND data does not by itself establish RPM eligibility. Verify current CMS descriptors,
+            connected-device and automatic-transmission requirements, supervision, time, consent, documentation, and payer policy.
           </p>
+          <a href={CMS_2026_PFS_URL} target="_blank" rel="noreferrer" className="mt-2 inline-block underline">
+            CMS CY 2026 Physician Fee Schedule
+          </a>
         </div>
       </CardContent>
     </Card>

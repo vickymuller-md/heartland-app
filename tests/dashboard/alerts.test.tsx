@@ -140,7 +140,7 @@ describe('AlertInbox', () => {
     render(<AlertInbox alerts={[]} statusFilter="open" />);
     expect(screen.getByText(/No open alerts/)).toBeInTheDocument();
     expect(
-      screen.getByText(/All patient alerts have been addressed/)
+      screen.getByText(/query loaded successfully and returned no items/)
     ).toBeInTheDocument();
   });
 });

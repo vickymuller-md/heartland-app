@@ -57,10 +57,10 @@ export const COMORBIDITY_DATA: ComorbidityDetail[] = [
     keyConsiderations:
       'Limits GDMT dosing; hyperkalemia risk with MRA/ARNI',
     whatToDo:
-      'Adjust doses per eGFR, monitor K+ closely, consider finerenone over spironolactone',
+      'Adjust doses per eGFR, monitor K+ closely, and select MRA therapy from current indication, guideline, and patient context',
     gdmtInteractions: [
       'ARNI: use cautiously if eGFR <30; hold if eGFR <20',
-      'MRA (spironolactone): hold if eGFR <30 or K+ >=5.0; finerenone preferred if eGFR 25-60',
+      'MRA therapy: apply agent-specific current labeling/guidelines; finerenone is not automatically preferred by eGFR alone',
       'SGLT2i: minimum eGFR 20 for HF indication (not glycemic control)',
       'Beta-blocker: no dose adjustment needed for CKD',
       'Monitor BMP 1-2 weeks after any GDMT change',

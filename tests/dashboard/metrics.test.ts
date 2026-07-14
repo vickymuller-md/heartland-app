@@ -11,8 +11,7 @@ import { describe, it } from 'vitest';
 // Commented out to follow Phase 1/4/5/6/7/8/9/10 Wave 0 pattern
 // import { getProviderMetrics } from '@/lib/dashboard/metrics-queries';
 // import { computeGdmtRate } from '@/lib/dashboard/metrics-queries';
-// import { getRpmEligiblePatients } from '@/lib/dashboard/metrics-queries';
-// import { computeBillingSummary } from '@/lib/dashboard/metrics-queries';
+// import { getRpmDataCompletenessPatients } from '@/lib/dashboard/metrics-queries';
 
 describe('getProviderMetrics', () => {
   it.todo('METR-01: returns totalPatients, activeAlerts, noCheckinCount, avgAdherence for linked patients');
@@ -26,12 +25,11 @@ describe('gdmt rate (METR-02)', () => {
 });
 
 describe('RPM eligibility (METR-03)', () => {
-  it.todo('METR-03: getRpmEligiblePatients returns patients with >= 16 distinct vitals days this calendar month');
+  it.todo('METR-03: getRpmDataCompletenessPatients returns patients with >= 16 distinct app-entry days this month');
   it.todo('METR-03: patient with 15 vitals days is NOT included in eligible list');
   it.todo('METR-03: vitals days counted as distinct calendar dates in UTC');
 });
 
 describe('billing summary (METR-05)', () => {
-  it.todo('METR-05: computeBillingSummary returns { eligibleCount, lowEstimate, highEstimate } with correct arithmetic');
   it.todo('METR-05: lowEstimate = eligibleCount * 150, highEstimate = eligibleCount * 200');
 });

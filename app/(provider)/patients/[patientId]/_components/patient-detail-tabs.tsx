@@ -50,6 +50,7 @@ export function PatientDetailTabs({
   patientId,
   vitals,
   symptoms,
+  adherenceSummary,
   educationProgress,
   notes,
   messages,
@@ -110,7 +111,7 @@ export function PatientDetailTabs({
       </TabsContent>
 
       <TabsContent value="medications" className="mt-4">
-        <MedicationSummary patientId={patientId} />
+        <MedicationSummary patientId={patientId} adherenceSummary={adherenceSummary} />
       </TabsContent>
 
       <TabsContent value="education" className="mt-4">

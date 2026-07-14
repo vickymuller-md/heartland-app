@@ -66,7 +66,7 @@ describe('PatientLayout', () => {
     await waitFor(() => expect(mockClearOfflineData).toHaveBeenCalledOnce());
   });
 
-  it('renders bottom-tab navigation with 5 tabs: Today, History, Meds, Learn, Profile', () => {
+  it('renders six task-oriented bottom tabs and a separate profile link', () => {
     render(
       <PatientLayout>
         <div>content</div>
@@ -76,8 +76,10 @@ describe('PatientLayout', () => {
     expect(screen.getByText('Today')).toBeInTheDocument();
     expect(screen.getByText('History')).toBeInTheDocument();
     expect(screen.getByText('Meds')).toBeInTheDocument();
+    expect(screen.getByText('Plan')).toBeInTheDocument();
     expect(screen.getByText('Learn')).toBeInTheDocument();
-    expect(screen.getByText('Profile')).toBeInTheDocument();
+    expect(screen.getByText('Privacy')).toBeInTheDocument();
+    expect(document.querySelector('a[href="/profile"]')).toBeInTheDocument();
   });
 
   it('highlights active tab based on current pathname', () => {
@@ -113,10 +115,11 @@ describe('PatientLayout', () => {
         link.getAttribute('href') === '/today' ||
         link.getAttribute('href') === '/history' ||
         link.getAttribute('href') === '/medications' ||
+        link.getAttribute('href') === '/plan' ||
         link.getAttribute('href') === '/education' ||
-        link.getAttribute('href') === '/profile'
+        link.getAttribute('href') === '/privacy'
     );
-    expect(tabLinks).toHaveLength(5);
+    expect(tabLinks).toHaveLength(6);
 
     tabLinks.forEach((link) => {
       expect(link.className).toContain('min-h-[48px]');
@@ -132,7 +135,7 @@ describe('PatientLayout', () => {
     );
 
     // Each tab has both an SVG icon and a text span
-    const tabLabels = ['Today', 'History', 'Meds', 'Learn', 'Profile'];
+    const tabLabels = ['Today', 'History', 'Meds', 'Plan', 'Learn', 'Privacy'];
     tabLabels.forEach((label) => {
       const textElement = screen.getByText(label);
       expect(textElement).toBeInTheDocument();

@@ -364,7 +364,7 @@ export function GuideContent() {
         </div>
 
         <Tip>
-          The RPM Billing Tracker on the Dashboard shows which patients have logged 16+ days of data this month, making them eligible for CPT 99454 billing.
+          The dashboard shows patients with 16+ app-entry days as a workflow completeness marker. It is not a CPT 99454 eligibility determination.
         </Tip>
       </Section>
 
@@ -511,7 +511,7 @@ export function GuideContent() {
       <Section id="remote-monitoring" title="Remote Monitoring & Track Assignment" icon={Radio}>
         <p>
           The Remote Monitoring tool helps you assign patients to the appropriate monitoring track and provides
-          billing code references for RPM reimbursement.
+          billing code navigation with explicit verification requirements.
         </p>
 
         <h3 className="font-semibold text-gray-900 mt-4 mb-2">Track Assignment Criteria</h3>
@@ -533,14 +533,14 @@ export function GuideContent() {
           </table>
         </div>
 
-        <h3 className="font-semibold text-gray-900 mt-6 mb-2">RPM Billing Codes</h3>
-        <p className="text-sm">For eligible patients (16+ days of data per month), the following CPT codes apply:</p>
+        <h3 className="font-semibold text-gray-900 mt-6 mb-2">Remote Monitoring Billing Navigation</h3>
+        <p className="text-sm">
+          Codes 99453, 99454, 99457, 99458, and the 98975&ndash;98981 family may be relevant only after independent verification of the current code descriptor, modality, connected-device and automatic-transmission rules, monitoring days, time, communication, supervision, consent, documentation, and payer policy.
+        </p>
         <ul className="list-disc list-inside text-sm space-y-1 ml-4 mt-2">
-          <li><strong>CPT 99453:</strong> Initial device setup and patient education (~$19)</li>
-          <li><strong>CPT 99454:</strong> Monthly device supply (16+ days of data) (~$55)</li>
-          <li><strong>CPT 99457:</strong> First 20 min of clinical staff/provider time (~$51)</li>
-          <li><strong>CPT 99458:</strong> Each additional 20 min (~$42)</li>
-          <li><strong>G0511:</strong> Rural Health Clinic bundled rate (~$95)</li>
+          <li>Manual or patient-entered HEARTLAND records do not prove qualifying automatic device transmission.</li>
+          <li>No amount, eligibility status, or reimbursement outcome is represented by this app.</li>
+          <li><a className="underline" href="https://www.cms.gov/medicare/payment/fee-schedules/physician/federal-regulation-notices/cms-1832-f" target="_blank" rel="noreferrer">Verify the CMS CY 2026 Physician Fee Schedule</a> and payer-specific policy.</li>
         </ul>
       </Section>
 
@@ -630,7 +630,7 @@ export function GuideContent() {
         </ul>
 
         <Warning>
-          Critical alerts should be addressed within 1 hour. If you cannot reach the patient, document the attempt as a clinical note and try again within 4 hours.
+          HEARTLAND does not establish a safe response-time guarantee. Each organization must approve, staff, test, and monitor its own alert SLA, backup coverage, unreachable-patient workflow, emergency escalation, and downtime procedure before clinical use.
         </Warning>
       </Section>
 

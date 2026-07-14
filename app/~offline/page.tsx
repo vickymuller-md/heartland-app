@@ -33,8 +33,8 @@ export default function OfflinePage() {
         </h2>
 
         <p className="mt-2 max-w-sm text-base text-gray-600">
-          Don&apos;t worry — your vitals entries are saved on this device and
-          will sync automatically when you reconnect.
+          New health entries cannot be saved while offline. Reconnect before
+          submitting; if symptoms are urgent, use your emergency or care-team instructions.
         </p>
       </div>
 
@@ -42,11 +42,8 @@ export default function OfflinePage() {
 
       <footer className="mt-12 max-w-md border-t border-gray-200 pt-4">
         <p className="text-xs text-gray-400">
-          This tool is designed for healthcare professionals as a educational
-          implementation-support resource. It does not provide medical diagnoses,
-          treatment recommendations for individual patients, or replace clinical
-          judgment. Not intended for direct patient care. For professional use
-          only.
+          Controlled evaluation only. No real PHI or unsupervised clinical use
+          until organizational security, privacy, validation, and governance gates are approved.
         </p>
       </footer>
     </div>

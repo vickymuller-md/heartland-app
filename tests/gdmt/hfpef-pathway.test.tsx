@@ -19,14 +19,13 @@ describe('GDMT-03: HFpEF Pathway', () => {
   it('priority 1 shows SGLT2i with "Established" evidence label', () => {
     render(<HfpefPanel />);
     expect(screen.getByText('Dapagliflozin or Empagliflozin')).toBeInTheDocument();
-    expect(screen.getByText('Established')).toBeInTheDocument();
+    expect(screen.getAllByText('Established').length).toBeGreaterThanOrEqual(2);
   });
 
-  it('priority 2 shows MRA (Finerenone OR Spironolactone) with "Emerging" label', () => {
+  it('priority 2 shows current-label finerenone context with established evidence label', () => {
     render(<HfpefPanel />);
-    expect(screen.getByText('Finerenone OR Spironolactone')).toBeInTheDocument();
-    const emergingBadges = screen.getAllByText('Emerging');
-    expect(emergingBadges.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Finerenone \(LVEF >=40 indication\)/)).toBeInTheDocument();
+    expect(screen.getAllByText('Established').length).toBeGreaterThanOrEqual(2);
   });
 
   it('priority 3 shows GLP-1 RA (Semaglutide) with "Emerging" label', () => {
@@ -56,7 +55,7 @@ describe('GDMT-03: HFpEF Pathway', () => {
 describe('GDMT-04: Finerenone vs Spironolactone Guide', () => {
   it('renders 5 clinical scenarios', () => {
     render(<FinerenoneGuide />);
-    expect(screen.getByText('HFpEF with eGFR 25-60, K+ <5.0')).toBeInTheDocument();
+    expect(screen.getByText('HF with LVEF >=40%; label criteria reviewed')).toBeInTheDocument();
     expect(screen.getByText('History of hyperkalemia on MRA')).toBeInTheDocument();
     expect(screen.getByText('Significant cost barrier')).toBeInTheDocument();
     expect(screen.getByText('HFrEF')).toBeInTheDocument();
@@ -65,9 +64,9 @@ describe('GDMT-04: Finerenone vs Spironolactone Guide', () => {
 
   it('each scenario shows clinical scenario, suggested approach, and rationale', () => {
     render(<FinerenoneGuide />);
-    expect(screen.getByText('Consider finerenone')).toBeInTheDocument();
-    expect(screen.getByText('Finerenone preferred (monitor K+ closely)')).toBeInTheDocument();
+    expect(screen.getByText('Evaluate current finerenone label and patient context')).toBeInTheDocument();
+    expect(screen.getByText('No automatic preference; reassess risk and monitoring')).toBeInTheDocument();
     expect(screen.getByText(/~\$4\/month generic vs/)).toBeInTheDocument();
-    expect(screen.getByText('Established guideline recommendation')).toBeInTheDocument();
+    expect(screen.getByText('Verify current label and heart-failure guideline')).toBeInTheDocument();
   });
 });

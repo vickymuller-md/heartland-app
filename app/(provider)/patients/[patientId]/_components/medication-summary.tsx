@@ -11,6 +11,7 @@ interface Medication {
   frequency: string | null;
   timing: string | null;
   active: boolean;
+  adherence_pct?: number;
 }
 
 interface MedicationSummaryProps {
@@ -18,25 +19,32 @@ interface MedicationSummaryProps {
   adherenceSummary?: unknown;
 }
 
-export function MedicationSummary({ patientId }: MedicationSummaryProps) {
-  const [medications, setMedications] = useState<Medication[]>([]);
-  const [loading, setLoading] = useState(true);
+export function MedicationSummary({ patientId, adherenceSummary }: MedicationSummaryProps) {
+  const supplied = adherenceSummary && typeof adherenceSummary === 'object' && 'medications' in adherenceSummary
+    ? (adherenceSummary as { medications?: Medication[] }).medications ?? []
+    : null;
+  const [medications, setMedications] = useState<Medication[]>(supplied ?? []);
+  const [loading, setLoading] = useState(supplied === null);
 
   useEffect(() => {
     async function fetchMeds() {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from('medications')
-        .select('id, name, dosage, frequency, timing, active')
-        .eq('patient_id', patientId)
-        .eq('active', true)
-        .order('name');
+      if (supplied !== null) return;
+      try {
+        const supabase = createClient();
+        const { data } = await supabase
+          .from('medications')
+          .select('id, name, dosage, frequency, timing, active')
+          .eq('patient_id', patientId)
+          .eq('active', true)
+          .order('name');
 
-      setMedications(data ?? []);
-      setLoading(false);
+        setMedications(data ?? []);
+      } finally {
+        setLoading(false);
+      }
     }
-    fetchMeds();
-  }, [patientId]);
+    void fetchMeds();
+  }, [patientId, supplied]);
 
   if (loading) {
     return (
@@ -82,7 +90,7 @@ export function MedicationSummary({ patientId }: MedicationSummaryProps) {
               </div>
             </div>
             <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-              Active
+              {typeof med.adherence_pct === 'number' ? `${med.adherence_pct}%` : 'Active'}
             </span>
           </div>
         ))}

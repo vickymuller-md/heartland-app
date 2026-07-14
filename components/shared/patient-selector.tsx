@@ -48,13 +48,19 @@ export function PatientSelector({ onSelect, selectedPatient, onClear }: PatientS
   const [search, setSearch] = useState('');
   const [allPatients, setAllPatients] = useState<PatientMatch[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Load all linked patients once on mount
   useEffect(() => {
     async function loadPatients() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setLoadError('Patient list unavailable: authenticated provider session required.');
+          setLoaded(true);
+          return;
+        }
 
       // Get linked patient IDs
       const { data: links } = await supabase
@@ -63,7 +69,7 @@ export function PatientSelector({ onSelect, selectedPatient, onClear }: PatientS
         .eq('provider_id', user.id)
         .eq('status', 'active');
 
-      if (!links || links.length === 0) { setLoaded(true); return; }
+        if (!links || links.length === 0) { setLoaded(true); return; }
       const ids = links.map(l => l.patient_id);
 
       // Get profiles
@@ -80,13 +86,17 @@ export function PatientSelector({ onSelect, selectedPatient, onClear }: PatientS
 
       const riskMap = new Map((patients ?? []).map(p => [p.id, p.risk_tier]));
 
-      setAllPatients((profiles ?? []).map(p => ({
-        ...p,
-        risk_tier: riskMap.get(p.id) ?? null,
-      })));
-      setLoaded(true);
+        setAllPatients((profiles ?? []).map(p => ({
+          ...p,
+          risk_tier: riskMap.get(p.id) ?? null,
+        })));
+        setLoaded(true);
+      } catch {
+        setLoadError('Patient list could not be loaded. Do not interpret this as an empty panel.');
+        setLoaded(true);
+      }
     }
-    loadPatients();
+    void loadPatients();
   }, []);
 
   // Client-side filtering
@@ -173,6 +183,7 @@ export function PatientSelector({ onSelect, selectedPatient, onClear }: PatientS
           disabled={!loaded}
         />
       </div>
+      {loadError && <p role="alert" className="text-sm font-medium text-red-700">{loadError}</p>}
 
       {/* Search results dropdown */}
       {filtered.length > 0 && (

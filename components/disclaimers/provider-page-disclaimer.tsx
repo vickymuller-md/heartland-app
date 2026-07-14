@@ -36,11 +36,12 @@ export function ProviderPageDisclaimer({
     >
       <p className="font-medium mb-1">Clinical Use Disclaimer</p>
       <p>
-        This tool is designed for healthcare professionals as a educational
-        implementation-support resource. It does not provide medical diagnoses,
-        treatment recommendations for individual patients, or replace clinical
-        judgment. Not intended for direct patient care. For professional use
-        only.
+        Controlled-evaluation implementation support for healthcare professionals.
+        Outputs are informational and do not independently diagnose, prescribe,
+        establish billing eligibility, replace source-record review, or replace
+        clinical judgment and institutional policy. Real PHI and unsupervised
+        clinical use are not authorized until organizational security, privacy,
+        validation, staffing, and governance gates are approved.
       </p>
       {variant === "framework" && (
         <p className="mt-2">

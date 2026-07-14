@@ -31,6 +31,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { SignOutButton } from '@/components/auth/sign-out-button';
+import { ConnectivityBanner } from '@/components/shared/connectivity-banner';
 
 // ---------- NAV_GROUPS: Grouped sidebar navigation ----------
 
@@ -38,9 +39,9 @@ export const NAV_GROUPS = [
   {
     label: 'Daily',
     items: [
-      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, showBadge: false },
+      { href: '/dashboard', label: 'Daily Loop', icon: LayoutDashboard, showBadge: false },
       { href: '/patients', label: 'Patients', icon: Users, showBadge: false },
-      { href: '/alerts', label: 'Alerts', icon: Bell, showBadge: true },
+      { href: '/alerts', label: 'Inbox', icon: Bell, showBadge: true },
       { href: '/titration-worklist', label: 'Titration Worklist', icon: ClipboardCheck, showBadge: false },
     ],
   },
@@ -145,7 +146,7 @@ export function ProviderShell({ children, urgentCount }: ProviderShellProps) {
       </aside>
 
       {/* Main content area */}
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         {/* Mobile top bar */}
         <header className="flex h-16 items-center border-b border-gray-200 bg-white px-4 print:hidden lg:hidden">
           <button
@@ -159,6 +160,8 @@ export function ProviderShell({ children, urgentCount }: ProviderShellProps) {
             HEARTLAND
           </h1>
         </header>
+
+        <ConnectivityBanner workspace="provider" />
 
         {/* Page content */}
         <main className="flex-1 p-6">{children}</main>

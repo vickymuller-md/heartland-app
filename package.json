@@ -2,7 +2,7 @@
   "name": "heartland-app",
   "version": "0.1.0",
   "private": true,
-  "description": "HEARTLAND Protocol - Clinical Decision Support Tool for Rural Heart Failure Management",
+  "description": "HEARTLAND Protocol clinical implementation companion for rural heart failure workflows",
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",

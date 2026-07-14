@@ -145,9 +145,9 @@ export const SAFETY_GATES: SafetyGateDefinition[] = [
           parameter: 'eGFR (mL/min)',
           value: 0,
           threshold: 'eGFR not provided',
-          status: 'pass',
+          status: 'blocked',
           action: 'Enter eGFR for complete renal check',
-          details: 'eGFR not entered. Renal safety gates require eGFR value.',
+          details: 'eGFR not entered. A renal-sensitive medication decision must not proceed from an incomplete gate.',
         };
       }
 
@@ -169,7 +169,7 @@ export const SAFETY_GATES: SafetyGateDefinition[] = [
           threshold: `eGFR < ${eGFR_FINERENONE_THRESHOLD} mL/min`,
           status: 'blocked',
           action: 'HOLD finerenone; hold MRA (spironolactone)',
-          details: 'eGFR below finerenone threshold per ACC/AHA 2022 HF guidelines.',
+          details: 'eGFR is below the current finerenone initiation threshold; verify the current FDA label and agent-specific guidance.',
         };
       }
 

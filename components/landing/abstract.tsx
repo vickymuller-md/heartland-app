@@ -49,11 +49,10 @@ export function Abstract() {
         {/* Required disclaimers — verbatim text mandated by NIW_INTEGRATION.md */}
         <div className="mt-20 grid grid-cols-1 gap-5 md:grid-cols-2 md:gap-6">
           <Disclaimer heading="Professional use only">
-            This tool is designed for healthcare professionals as a educational
-            implementation-support resource. It does not provide medical diagnoses,
-            treatment recommendations for individual patients, or replace
-            clinical judgment. Not intended for direct patient care. For
-            professional use only.
+            Public tools are an educational sandbox. The authenticated workspace
+            is a controlled evaluation environment, not authorization for real
+            PHI or unsupervised clinical use. Outputs do not replace independent
+            review, clinical judgment, or institutional policy.
           </Disclaimer>
           <Disclaimer heading="Framework in development">
             The HEARTLAND Risk Stratification Framework is a proposed tool

@@ -46,6 +46,8 @@ const PROVIDER_PREFIXES = [
 
 const PATIENT_PREFIXES = [
   "/today",
+  "/plan",
+  "/privacy",
   "/medications",
   "/education",
   "/profile",

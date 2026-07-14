@@ -56,12 +56,12 @@ export const HFPEF_MEDICATIONS: Medication[] = [
   {
     id: 'mra-hfpef',
     drugClass: 'MRA',
-    agent: 'Finerenone OR Spironolactone',
+    agent: 'Finerenone (LVEF >=40 indication) or guideline-selected spironolactone',
     startingDose: '10-20 mg / 12.5-25 mg',
     targetDose: '10-20 mg / 12.5-25 mg',
     safetyGates: ['K+ <5.0', 'eGFR >=25'],
-    evidenceLevel: 'emerging',
-    evidenceContext: 'Finerenone: FINEARTS-HF 16% reduction CV death/HF events. Requires K+ <5.0 and eGFR >=25.',
+    evidenceLevel: 'established',
+    evidenceContext: 'Finerenone: FDA-labeled in adults with HF and LVEF >=40% (July 2025 label), informed by FINEARTS-HF. Apply the current label, including potassium and eGFR monitoring.',
     priority: 2,
   },
   {
@@ -91,14 +91,14 @@ export const HFPEF_MEDICATIONS: Medication[] = [
 // Source: reference/clinical_content.md Finerenone vs. Spironolactone Decision Guide
 export const FINERENONE_SCENARIOS: FinerenoneScenario[] = [
   {
-    clinicalScenario: 'HFpEF with eGFR 25-60, K+ <5.0',
-    suggestedApproach: 'Consider finerenone',
-    rationale: 'FINEARTS-HF population; requires eGFR >=25 and K+ <5.0',
+    clinicalScenario: 'HF with LVEF >=40%; label criteria reviewed',
+    suggestedApproach: 'Evaluate current finerenone label and patient context',
+    rationale: 'FDA-labeled indication added in 2025; verify potassium, eGFR, interactions, dose, and monitoring in the current label',
   },
   {
     clinicalScenario: 'History of hyperkalemia on MRA',
-    suggestedApproach: 'Finerenone preferred (monitor K+ closely)',
-    rationale: 'Lower hyperkalemia incidence in trials',
+    suggestedApproach: 'No automatic preference; reassess risk and monitoring',
+    rationale: 'Finerenone can also cause hyperkalemia; use current labeling and individualized clinical review',
   },
   {
     clinicalScenario: 'Significant cost barrier',
@@ -107,15 +107,18 @@ export const FINERENONE_SCENARIOS: FinerenoneScenario[] = [
   },
   {
     clinicalScenario: 'HFrEF',
-    suggestedApproach: 'Either acceptable',
-    rationale: 'Both have supporting evidence',
+    suggestedApproach: 'Use guideline-directed HFrEF MRA selection',
+    rationale: 'Do not use this tool to substitute finerenone for established steroidal MRA therapy in HFrEF',
   },
   {
     clinicalScenario: 'Uncertain, guideline-adherent approach',
-    suggestedApproach: 'Spironolactone',
-    rationale: 'Established guideline recommendation',
+    suggestedApproach: 'Verify current label and heart-failure guideline',
+    rationale: 'Indication, phenotype, renal function, potassium, interactions, access, and monitoring all matter',
   },
 ];
+
+export const FINERENONE_FDA_LABEL_URL =
+  'https://www.accessdata.fda.gov/drugsatfda_docs/label/2025/215341s009lbl.pdf';
 
 // Source: reference/clinical_content.md Titration Safety Gates Summary
 export const SAFETY_GATE_RULES: SafetyGateRule[] = [

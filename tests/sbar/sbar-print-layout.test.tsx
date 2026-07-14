@@ -32,10 +32,10 @@ describe('SbarPrintLayout', () => {
     expect(heading.textContent).toContain('HEARTLAND');
   });
 
-  it('renders the clinical decision support disclaimer text', () => {
+  it('renders the controlled-evaluation handoff disclaimer', () => {
     render(<SbarPrintLayout {...defaultProps} />);
     expect(
-      screen.getByText(/clinical decision support resource/i)
+      screen.getByText(/Verify every handoff against source records/i)
     ).toBeInTheDocument();
   });
 

@@ -15,6 +15,12 @@ const { mockGetUser, mockFrom } = vi.hoisted(() => ({
   mockFrom: vi.fn(),
 }));
 
+const { mockAuthorize } = vi.hoisted(() => ({ mockAuthorize: vi.fn() }));
+
+vi.mock('@/lib/auth/authorization', () => ({
+  authorize: mockAuthorize,
+}));
+
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn().mockResolvedValue({
     auth: { getUser: mockGetUser },
@@ -38,6 +44,12 @@ describe('markOnboardingSeen (PTUX-01)', () => {
     const mockEq = vi.fn().mockResolvedValue({ data: null, error: null });
     const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
     mockFrom.mockReturnValue({ update: mockUpdate });
+    mockAuthorize.mockResolvedValue({
+      authorized: true,
+      user: { id: 'patient-1' },
+      role: 'patient',
+      supabase: { from: mockFrom },
+    });
 
     await markOnboardingSeen();
 
@@ -53,6 +65,7 @@ describe('markOnboardingSeen (PTUX-01)', () => {
       data: { user: null },
       error: null,
     });
+    mockAuthorize.mockResolvedValue({ authorized: false, error: 'Not authenticated' });
 
     // Should not throw
     await expect(markOnboardingSeen()).resolves.toBeUndefined();

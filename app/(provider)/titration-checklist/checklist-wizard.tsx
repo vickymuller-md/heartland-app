@@ -20,7 +20,7 @@ import { evaluateSafetyGates, canProceedPastSafetyGates, getTitrationAction, get
 import { saveTitrationNote } from '@/lib/integration/actions';
 import type { TitrationNoteData } from '@/lib/integration/types';
 import type { TitrationFormData } from '@/lib/titration/schema';
-import type { VitalSigns, DrugClass } from '@/lib/titration/types';
+import type { VitalSigns, DrugClass, TitrationAction } from '@/lib/titration/types';
 import { ChevronLeft, ChevronRight, Printer, Save } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -32,6 +32,7 @@ export function ChecklistWizard() {
   const [patientName, setPatientName] = useState<string>('');
   const [labCollectedAt, setLabCollectedAt] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [providerDecision, setProviderDecision] = useState<TitrationAction['action'] | null>(null);
 
   // Derived lab staleness values (EFFI-04)
   const labDaysOld = labCollectedAt
@@ -60,6 +61,7 @@ export function ChecklistWizard() {
 
   // Handle patient selection — pre-populate vitals and medications
   const handlePatientSelect = (data: SelectedPatientData) => {
+    setProviderDecision(null);
     setSelectedPatient(data.patient);
     setPatientName(data.patient.full_name);
 
@@ -89,6 +91,7 @@ export function ChecklistWizard() {
   };
 
   const handlePatientClear = () => {
+    setProviderDecision(null);
     setSelectedPatient(null);
     setPatientName('');
     setLabCollectedAt(null);
@@ -151,7 +154,7 @@ export function ChecklistWizard() {
   });
 
   const handleSaveNote = async () => {
-    if (!selectedPatient) return;
+    if (!selectedPatient || !providerDecision) return;
     setIsSaving(true);
 
     const noteData: TitrationNoteData = {
@@ -169,8 +172,8 @@ export function ChecklistWizard() {
         status: g.status,
       })),
       titrationAction: {
-        action: titrationAction.action,
-        details: titrationAction.details,
+        action: providerDecision,
+        details: `Provider-selected decision after review. Advisory signal: ${titrationAction.action.toUpperCase()} — ${titrationAction.details}`,
       },
       perDrugRecommendations: perDrugRecs.map(r => ({
         drugClass: r.drugClass,
@@ -198,10 +201,20 @@ export function ChecklistWizard() {
       if (!valid) return;
     }
     if (currentStep === 2 && !canProceed) return;
+    if (currentStep === 3) {
+      if (!providerDecision) {
+        toast.error('Select the provider final decision before continuing');
+        return;
+      }
+      if (providerDecision !== titrationAction.action && providerNotes.trim().length < 3) {
+        toast.error('Document the reason when the final decision differs from the advisory signal');
+        return;
+      }
+    }
     next();
   };
 
-  const isNextDisabled = currentStep === 2 && !canProceed;
+  const isNextDisabled = (currentStep === 2 && !canProceed) || (currentStep === 3 && !providerDecision);
 
   const renderStep = () => {
     switch (currentStep) {
@@ -217,6 +230,8 @@ export function ChecklistWizard() {
             vitals={vitals}
             providerNotes={providerNotes}
             onNotesChange={setProviderNotes}
+            selectedAction={providerDecision}
+            onActionChange={setProviderDecision}
             perDrugRecommendations={perDrugRecs}
             showAceiWarning={showAceiWarning}
           />
@@ -302,7 +317,13 @@ export function ChecklistWizard() {
           vitals={vitals}
           medications={getValues('medications') || []}
           safetyGateResults={safetyGateResults}
-          titrationAction={titrationAction}
+          titrationAction={providerDecision ? {
+            action: providerDecision,
+            details: `Provider-selected decision. Advisory signal: ${titrationAction.action.toUpperCase()} — ${titrationAction.details}`,
+          } : {
+            action: titrationAction.action,
+            details: `No provider final decision recorded. Advisory signal only: ${titrationAction.details}`,
+          }}
           providerNotes={providerNotes}
           followUpPlan={{
             nextCallDate: getValues('nextCallDate'),

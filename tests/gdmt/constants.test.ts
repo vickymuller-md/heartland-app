@@ -42,9 +42,9 @@ describe('GDMT-05: Evidence Labels', () => {
     });
   });
 
-  it('HFpEF medications have correct evidence levels: established, emerging, emerging, pragmatic', () => {
+  it('HFpEF medications reflect the 2025 finerenone label update', () => {
     const levels = HFPEF_MEDICATIONS.map((m) => m.evidenceLevel);
-    expect(levels).toEqual(['established', 'emerging', 'emerging', 'pragmatic']);
+    expect(levels).toEqual(['established', 'established', 'emerging', 'pragmatic']);
   });
 
   it('EVIDENCE_LEVEL_CONFIG has entries for all three levels: established, emerging, pragmatic', () => {

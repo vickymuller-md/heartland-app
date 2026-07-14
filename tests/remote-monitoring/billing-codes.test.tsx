@@ -3,7 +3,7 @@ import {
   RED_FLAG_ALERTS,
   BILLING_CODES,
   TIM_HF2_EVIDENCE,
-  REVENUE_POTENTIAL,
+  CMS_2026_PFS_URL,
 } from '@/lib/remote-monitoring/constants';
 
 // ==========================================================================
@@ -70,58 +70,51 @@ describe('RMON-03: Red Flag Alert Criteria', () => {
 // Protocol v3.3 Module 5, Section 5.3
 // ==========================================================================
 describe('RMON-04: RPM Billing Codes', () => {
-  it('BILLING_CODES has at least 6 entries', () => {
-    expect(BILLING_CODES.length).toBeGreaterThanOrEqual(6);
+  it('BILLING_CODES has the core RPM and RTM references', () => {
+    expect(BILLING_CODES.length).toBeGreaterThanOrEqual(5);
   });
 
-  it('includes CPT 99453 (RPM initial setup, $19-21)', () => {
+  it('includes CPT 99453 without a reimbursement claim', () => {
     const code = BILLING_CODES.find((c) => c.code === '99453');
     expect(code).toBeDefined();
     expect(code!.description).toContain('initial setup');
-    expect(code!.reimbursement).toBe('$19-21');
+    expect(code!.verification).toContain('payer requirements');
   });
 
-  it('includes CPT 99454 (RPM monthly device, $48-55)', () => {
+  it('requires device and transmission verification for CPT 99454', () => {
     const code = BILLING_CODES.find((c) => c.code === '99454');
     expect(code).toBeDefined();
-    expect(code!.reimbursement).toBe('$48-55');
+    expect(code!.verification).toContain('connected-device');
   });
 
-  it('includes CPT 99457 (RPM first 20 min management, $48-52)', () => {
+  it('requires communication and time verification for CPT 99457', () => {
     const code = BILLING_CODES.find((c) => c.code === '99457');
     expect(code).toBeDefined();
-    expect(code!.reimbursement).toBe('$48-52');
+    expect(code!.verification).toContain('interactive communication');
   });
 
-  it('includes CPT 99458 (RPM additional 20 min, $38-42)', () => {
+  it('requires base-code verification for CPT 99458', () => {
     const code = BILLING_CODES.find((c) => c.code === '99458');
     expect(code).toBeDefined();
-    expect(code!.reimbursement).toBe('$38-42');
+    expect(code!.verification).toContain('base-code');
   });
 
   it('includes RTM codes 98975-98981', () => {
     const code = BILLING_CODES.find((c) => c.code === '98975-98981');
     expect(code).toBeDefined();
-    expect(code!.reimbursement).toContain('Similar');
+    expect(code!.verification).toContain('Do not substitute');
   });
 
-  it('includes G0511 (RHC/FQHC)', () => {
-    const code = BILLING_CODES.find((c) => c.code === 'G0511');
-    expect(code).toBeDefined();
-    expect(code!.description).toContain('RHC/FQHC');
-  });
-
-  it('every billing code has code, description, and reimbursement', () => {
+  it('every billing code has code, description, and a verification warning', () => {
     BILLING_CODES.forEach((code) => {
       expect(code.code).toBeTruthy();
       expect(code.description).toBeTruthy();
-      expect(code.reimbursement).toBeTruthy();
+      expect(code.verification).toBeTruthy();
     });
   });
 
-  it('REVENUE_POTENTIAL contains $150-200/month', () => {
-    expect(REVENUE_POTENTIAL).toContain('$150-200/month');
-    expect(REVENUE_POTENTIAL).toContain('high-risk patient');
+  it('links the current CMS CY 2026 fee schedule', () => {
+    expect(CMS_2026_PFS_URL).toContain('cms-1832-f');
   });
 });
 

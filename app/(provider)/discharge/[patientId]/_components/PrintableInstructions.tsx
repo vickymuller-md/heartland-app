@@ -97,7 +97,7 @@ export function PrintableInstructions({
           {/* Disclaimer */}
           <div className="mt-8 border-t pt-4">
             <p className="text-xs italic text-gray-500">
-              This tool is designed for healthcare professionals as a educational
+              This tool is designed for healthcare professionals as an educational
               implementation-support resource. It does not provide medical diagnoses,
               treatment recommendations for individual patients, or replace
               clinical judgment. Not intended for direct patient care. For

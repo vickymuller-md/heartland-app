@@ -16,6 +16,58 @@ import { getRecentVitals } from './queries';
 import type { VitalsRow, RedFlag, VitalsActionState, BatchRowResult, BatchVitalsActionState } from './types';
 import { parseBatchFormData, isBlankRow } from './batch-schema';
 import { z } from 'zod';
+import { shouldDeduplicate } from '@/lib/dashboard/alert-engine';
+
+const RED_FLAG_TO_ALERT_FLAG: Record<string, string> = {
+  weight_gain_3lb_2d: 'weight_gain_3lb_2d',
+  weight_gain_5lb_7d: 'weight_gain_5lb_7d',
+  sbp_low_symptomatic: 'sbp_low',
+  spo2_low: 'spo2_low',
+  dyspnea_rest: 'dyspnea_severe',
+};
+
+async function persistImmediateAlert(
+  patientId: string,
+  vitalsId: string,
+  redFlags: RedFlag[],
+): Promise<boolean> {
+  if (redFlags.length === 0) return true;
+
+  const mappedFlags = [...new Set(
+    redFlags.map((flag) => RED_FLAG_TO_ALERT_FLAG[flag.id]).filter(Boolean),
+  )];
+  if (mappedFlags.length === 0) return true;
+
+  // Load the service client only when an actionable red flag exists. This
+  // keeps normal form rendering and non-alert submissions independent of the
+  // privileged client while the server-only alert write remains explicit.
+  const { supabaseAdmin } = await import('@/lib/supabase/admin');
+
+  const { data: existing, error: existingError } = await supabaseAdmin
+    .from('alerts')
+    .select('flags, status, created_at')
+    .eq('patient_id', patientId)
+    .in('status', ['open', 'acknowledged']);
+  if (existingError) return false;
+
+  const actionableFlags = mappedFlags.filter(
+    (flag) => !shouldDeduplicate(flag, existing ?? [], 24),
+  );
+  if (actionableFlags.length === 0) return true;
+
+  const severity = redFlags.some(
+    (flag) => flag.severity === 'critical' && actionableFlags.includes(RED_FLAG_TO_ALERT_FLAG[flag.id]),
+  ) ? 'critical' : 'warning';
+
+  const { error } = await supabaseAdmin.from('alerts').insert({
+    patient_id: patientId,
+    vitals_id: vitalsId,
+    flags: actionableFlags,
+    severity,
+    status: 'open',
+  });
+  return !error;
+}
 
 export async function submitVitals(
   prevState: VitalsActionState | null,
@@ -83,6 +135,15 @@ export async function submitVitals(
   });
 
   if (symptomsError) return { error: 'Failed to save symptoms' };
+
+  const alertConfirmed = await persistImmediateAlert(auth.user.id, vitals.id, redFlags);
+  if (!alertConfirmed) {
+    return {
+      error: 'Check-in saved, but care-team alert delivery could not be confirmed. Follow the red-flag instructions and contact your care team now.',
+      vitals: vitals as VitalsRow,
+      redFlags,
+    };
+  }
 
   return { success: true, vitals: vitals as VitalsRow, redFlags };
 }
@@ -161,6 +222,15 @@ export async function submitVitalsAsProvider(
     red_flag: redFlags.length > 0,
   });
   if (symptomsError) return { error: 'Failed to save symptoms' };
+
+  const alertConfirmed = await persistImmediateAlert(patientId, vitals.id, redFlags);
+  if (!alertConfirmed) {
+    return {
+      error: 'Vitals saved, but operational alert delivery could not be confirmed. Escalate through the manual workflow.',
+      vitals: vitals as VitalsRow,
+      redFlags,
+    };
+  }
 
   return { success: true, vitals: vitals as VitalsRow, redFlags };
 }
@@ -281,7 +351,14 @@ export async function submitBatchVitalsAsProvider(
     // 5g. Append to accumulator so next row sees this entry for trend detection
     historyAccumulator.unshift({ weight_lbs: weightLbs, recorded_at: recordedAt } as VitalsRow);
 
-    results.push({ rowIndex: i, date, success: true, redFlags });
+    const alertConfirmed = await persistImmediateAlert(patientId, vitals.id, redFlags);
+    results.push({
+      rowIndex: i,
+      date,
+      success: true,
+      redFlags,
+      error: alertConfirmed ? undefined : 'Saved; operational alert delivery was not confirmed',
+    });
   }
 
   return {

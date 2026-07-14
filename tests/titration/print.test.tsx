@@ -31,7 +31,7 @@ describe('PrintLayout', () => {
 
   it('displays clinical disclaimer text', () => {
     render(<PrintLayout {...mockProps} />);
-    expect(screen.getByText(/clinical decision support resource/)).toBeInTheDocument();
+    expect(screen.getByText(/Controlled-evaluation implementation support/)).toBeInTheDocument();
   });
 
   it('shows entered vital sign values in summary', () => {

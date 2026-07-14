@@ -3,17 +3,19 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Heart, TrendingUp, Pill, BookOpen, User } from "lucide-react";
+import { Heart, TrendingUp, Pill, BookOpen, CalendarDays, Shield, UserRound } from "lucide-react";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { clearOfflineData } from "@/lib/offline/db";
+import { ConnectivityBanner } from "@/components/shared/connectivity-banner";
 
 const tabs = [
   { href: "/today", label: "Today", icon: Heart },
   { href: "/history", label: "History", icon: TrendingUp },
   { href: "/medications", label: "Meds", icon: Pill },
+  { href: "/plan", label: "Plan", icon: CalendarDays },
   { href: "/education", label: "Learn", icon: BookOpen },
-  { href: "/profile", label: "Profile", icon: User },
+  { href: "/privacy", label: "Privacy", icon: Shield },
 ];
 
 export default function PatientLayout({
@@ -35,11 +37,22 @@ export default function PatientLayout({
         <h1 className="text-lg font-bold tracking-wide text-slate-900">
           HEARTLAND
         </h1>
-        <SignOutButton className="text-gray-500 hover:text-gray-700" />
+        <div className="flex items-center gap-3">
+          <Link
+            href="/profile"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+            aria-label="Profile"
+          >
+            <UserRound className="size-5" />
+          </Link>
+          <SignOutButton className="text-gray-500 hover:text-gray-700" />
+        </div>
       </header>
 
       {/* PWA install prompt -- self-managing visibility */}
       <InstallPrompt />
+
+      <ConnectivityBanner workspace="patient" />
 
       {/* Main content -- pb-20 clears the fixed bottom nav */}
       <main className="px-4 pt-4 pb-20 max-w-lg mx-auto">{children}</main>
@@ -49,7 +62,7 @@ export default function PatientLayout({
         className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="flex justify-around max-w-lg mx-auto">
+        <div className="grid grid-cols-6 max-w-lg mx-auto">
           {tabs.map(({ href, label, icon: Icon }) => {
             const active = pathname.startsWith(href);
             return (

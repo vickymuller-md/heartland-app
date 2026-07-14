@@ -7,24 +7,24 @@ import { DisclaimerFooter } from '@/components/disclaimers/disclaimer-footer';
 // Verbatim text from reference/app_statement.md Primary Disclaimer
 // ==========================================================================
 describe('DisclaimerFooter (DISC-01)', () => {
-  it('renders the primary disclaimer text verbatim from app_statement.md', () => {
+  it('states the controlled-evaluation boundary', () => {
     render(<DisclaimerFooter />);
     expect(
-      screen.getByText(/clinical decision support tool/i),
+      screen.getByText(/controlled evaluation only/i),
     ).toBeInTheDocument();
   });
 
-  it('disclaimer text includes "clinical decision support tool"', () => {
+  it('disclaimer blocks unsupported real-PHI use', () => {
     render(<DisclaimerFooter />);
     expect(
-      screen.getByText(/clinical decision support tool/i),
+      screen.getByText(/Real PHI and unsupervised clinical use are not authorized/i),
     ).toBeInTheDocument();
   });
 
-  it('disclaimer text includes "For professional use only"', () => {
+  it('disclaimer preserves independent clinical judgment', () => {
     render(<DisclaimerFooter />);
     expect(
-      screen.getByText(/For professional use only/),
+      screen.getByText(/clinical judgment/i),
     ).toBeInTheDocument();
   });
 

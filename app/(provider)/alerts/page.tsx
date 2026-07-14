@@ -35,7 +35,13 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
     ? (statusParam as AlertStatus | 'all')
     : 'open';
 
-  const alerts = await getAlerts(supabase, user.id, statusFilter);
+  let alerts: Awaited<ReturnType<typeof getAlerts>> = [];
+  let loadError = false;
+  try {
+    alerts = await getAlerts(supabase, user.id, statusFilter);
+  } catch {
+    loadError = true;
+  }
 
   return (
     <div className="space-y-6">
@@ -68,7 +74,13 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
         })}
       </nav>
 
-      <AlertInbox alerts={alerts} statusFilter={statusFilter} />
+      {loadError ? (
+        <div role="alert" className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm font-medium text-red-900">
+          Alert inbox could not be loaded. Do not interpret this as an empty queue; use your facility escalation workflow and try again.
+        </div>
+      ) : (
+        <AlertInbox alerts={alerts} statusFilter={statusFilter} />
+      )}
     </div>
   );
 }

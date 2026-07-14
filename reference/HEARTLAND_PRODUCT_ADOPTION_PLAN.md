@@ -1,8 +1,34 @@
 # HEARTLAND — Plano de Produto, Usabilidade e Adoção
 
-**Status:** proposta para aprovação
+**Status:** fundação de produto implementada; validação e piloto pendentes
 **Data-base:** 13 de julho de 2026
+**Última atualização:** 14 de julho de 2026
 **Escopo:** experiência provider/patient, utilidade diária, organização funcional, validação, adoção e implantação
+
+## 0. Estado de implementação — 14 de julho de 2026
+
+Implementado nesta release:
+
+- Daily Loop canônico com `Now`, `Today`, `This week` e `Watching`;
+- cards com prioridade, severidade, freshness, owner, prazo, motivo e ações rastreáveis;
+- brief de 60 segundos, timeline unificada e action center no workspace do paciente;
+- persistência imediata e idempotente de red flags na fila de alertas;
+- portal do paciente orientado a `Today`, plano de cuidado, contato e histórico de acesso;
+- fila, eventos imutáveis, telemetria sem identificador clínico e políticas RLS no banco;
+- estados explícitos para erro, vazio, offline, dado ausente e entrega não confirmada;
+- boundaries de uso, claims financeiros e conteúdo clínico revisados para reduzir overreach;
+- testes automatizados, build de produção, auditoria de dependências e migration hospedada validados.
+
+Ainda não concluído — depende de pessoas, contratos ou evidência externa:
+
+- entrevistas e testes moderados com usuários-alvo;
+- revisão clínica independente e silent mode;
+- piloto assistido em uma facility;
+- BAA, definição formal de data controller/processor e aceite de risco;
+- fechamento integral dos controles organizacionais e de infraestrutura do plano de segurança;
+- evidência de retenção, impacto clínico, economia ou reimbursement.
+
+**Estado de liberação:** adequado para sandbox público e avaliação controlada com dados sintéticos. Não aprovado para PHI real, cuidado não supervisionado ou claims clínicos/financeiros até todos os gates das seções 9–12 e do plano de segurança passarem.
 
 ## 1. Objetivo
 

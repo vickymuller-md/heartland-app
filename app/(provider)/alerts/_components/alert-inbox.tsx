@@ -35,7 +35,7 @@ export function AlertInbox({ alerts, statusFilter }: AlertInboxProps) {
         <h3 className="text-lg font-medium">No{statusLabel} alerts</h3>
         <p className="mt-1 text-sm text-muted-foreground">
           {statusFilter === 'open'
-            ? 'All patient alerts have been addressed.'
+            ? 'The open-alert query loaded successfully and returned no items.'
             : statusFilter === 'resolved'
               ? 'No resolved alerts to display.'
               : 'No alerts matching this filter.'}

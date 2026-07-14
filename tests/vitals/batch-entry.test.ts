@@ -17,6 +17,25 @@ import { parseBatchFormData, isBlankRow } from '@/lib/vitals/batch-schema';
 
 const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
+const { mockAuthorizeProvider } = vi.hoisted(() => ({
+  mockAuthorizeProvider: vi.fn(),
+}));
+
+vi.mock('@/lib/auth/authorization', () => ({
+  authorizeProviderForPatient: mockAuthorizeProvider,
+  authorize: vi.fn(),
+}));
+
+vi.mock('@/lib/supabase/admin', () => ({
+  supabaseAdmin: {
+    from: () => ({
+      select: () => ({
+        eq: () => ({ in: vi.fn().mockResolvedValue({ data: [], error: null }) }),
+      }),
+      insert: vi.fn().mockResolvedValue({ error: null }),
+    }),
+  },
+}));
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(() =>
@@ -122,40 +141,35 @@ function setupLinkedPatient() {
 describe('submitBatchVitalsAsProvider', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAuthorizeProvider.mockResolvedValue({
+      authorized: true,
+      user: { id: 'provider-1' },
+      role: 'provider',
+      supabase: { from: mockFrom },
+    });
   });
 
   it('rejects unauthenticated caller', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
-    const fd = buildBatchFormData('patient-1', []);
+    mockAuthorizeProvider.mockResolvedValueOnce({ authorized: false, error: 'Not authenticated' });
+    const fd = buildBatchFormData('11111111-1111-4111-8111-111111111111', []);
     const result = await submitBatchVitalsAsProvider(null, fd);
     expect(result.error).toBe('Not authenticated');
   });
 
   it('rejects unlinked patient', async () => {
-    setupAuthenticatedProvider();
-    mockFrom.mockImplementation(() => ({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              maybeSingle: vi.fn().mockResolvedValue({ data: null }),
-            }),
-          }),
-        }),
-      }),
-    }));
-    const fd = buildBatchFormData('patient-1', [
+    mockAuthorizeProvider.mockResolvedValueOnce({ authorized: false, error: 'Unauthorized' });
+    const fd = buildBatchFormData('11111111-1111-4111-8111-111111111111', [
       { weight: '160', sbp: '120', dbp: '80', heartRate: '72' },
     ]);
     const result = await submitBatchVitalsAsProvider(null, fd);
-    expect(result.error).toBe('Patient not linked to this provider');
+    expect(result.error).toBe('Unauthorized');
   });
 
   it('each non-blank row inserts to vitals with source="provider_entry"', async () => {
     setupAuthenticatedProvider();
     const { vitalsChain } = setupLinkedPatient();
 
-    const fd = buildBatchFormData('patient-1', [
+    const fd = buildBatchFormData('11111111-1111-4111-8111-111111111111', [
       { weight: '160', sbp: '120', dbp: '80', heartRate: '72', recordedAt: '2026-03-21' },
       { weight: '161', sbp: '118', dbp: '78', heartRate: '70', recordedAt: '2026-03-22' },
     ]);
@@ -177,7 +191,7 @@ describe('submitBatchVitalsAsProvider', () => {
     setupAuthenticatedProvider();
     const { vitalsChain } = setupLinkedPatient();
 
-    const fd = buildBatchFormData('patient-1', [
+    const fd = buildBatchFormData('11111111-1111-4111-8111-111111111111', [
       { weight: '160', sbp: '120', dbp: '80', heartRate: '72', recordedAt: '2026-03-21' },
     ]);
     for (let i = 1; i < 7; i++) {
@@ -204,7 +218,7 @@ describe('submitBatchVitalsAsProvider', () => {
       .mockReturnValueOnce([{ id: 'spo2_low', severity: 'critical', message: 'Low SpO2', action: 'Seek urgent evaluation' }])
       .mockReturnValueOnce([]);
 
-    const fd = buildBatchFormData('patient-1', [
+    const fd = buildBatchFormData('11111111-1111-4111-8111-111111111111', [
       { weight: '160', sbp: '120', dbp: '80', heartRate: '72', spo2: '88', recordedAt: '2026-03-21' },
       { weight: '161', sbp: '118', dbp: '78', heartRate: '70', spo2: '97', recordedAt: '2026-03-22' },
     ]);
@@ -224,7 +238,7 @@ describe('submitBatchVitalsAsProvider', () => {
     setupAuthenticatedProvider();
     setupLinkedPatient();
 
-    const fd = buildBatchFormData('patient-1', [
+    const fd = buildBatchFormData('11111111-1111-4111-8111-111111111111', [
       { weight: '160', sbp: '120', dbp: '80', heartRate: '72', recordedAt: '2026-03-21' },
       { weight: '165', sbp: '118', dbp: '78', heartRate: '70', recordedAt: '2026-03-22' },
     ]);
@@ -250,7 +264,7 @@ describe('submitBatchVitalsAsProvider', () => {
     for (let i = 0; i < 5; i++) {
       rows.push({ weight: String(160 + i), sbp: '120', dbp: '80', heartRate: '72', recordedAt: `2026-03-${21 + i}` });
     }
-    const fd = buildBatchFormData('patient-1', rows);
+    const fd = buildBatchFormData('11111111-1111-4111-8111-111111111111', rows);
     for (let i = 5; i < 7; i++) {
       fd.set(`row_${i}_dyspnea`, '0');
       fd.set(`row_${i}_recordedAt`, `2026-03-${21 + i}`);
@@ -271,7 +285,7 @@ describe('submitBatchVitalsAsProvider', () => {
       { id: 'weight_gain_5lb_7d', severity: 'critical', message: 'Weight gain', action: 'Urgent' },
     ]);
 
-    const fd = buildBatchFormData('patient-1', [
+    const fd = buildBatchFormData('11111111-1111-4111-8111-111111111111', [
       { weight: '160', sbp: '120', dbp: '80', heartRate: '72', recordedAt: '2026-03-21' },
     ]);
     for (let i = 1; i < 7; i++) {
@@ -290,7 +304,7 @@ describe('submitBatchVitalsAsProvider', () => {
 describe('BatchEntryGrid', () => {
   it('renders 7 rows with date, weight, SBP, DBP, HR, SpO2 (optional), and dyspnea columns', () => {
     const { container } = render(
-      React.createElement(BatchEntryGrid, { patientId: 'patient-1' })
+      React.createElement(BatchEntryGrid, { patientId: '11111111-1111-4111-8111-111111111111' })
     );
     // 7 body rows
     const tbody = container.querySelector('tbody');
@@ -323,7 +337,7 @@ describe('BatchEntryGrid', () => {
       false,
     ];
 
-    render(React.createElement(BatchEntryGrid, { patientId: 'patient-1' }));
+    render(React.createElement(BatchEntryGrid, { patientId: '11111111-1111-4111-8111-111111111111' }));
 
     // Should show per-row results section (multiple rows may match "Saved")
     const savedElements = screen.getAllByText(/Saved/);

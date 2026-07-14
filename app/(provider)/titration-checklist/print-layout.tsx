@@ -44,9 +44,8 @@ export function PrintLayout({
 
         {/* Disclaimer */}
         <p className="text-xs italic border p-2 mb-6">
-          This tool is designed for healthcare professionals as a educational implementation-support resource.
-          It does not provide medical diagnoses, treatment recommendations for individual patients,
-          or replace clinical judgment. Not intended for direct patient care. For professional use only.
+          Controlled-evaluation implementation support. The algorithm output is advisory and does not replace
+          independent review, clinical judgment, institutional policy, or emergency escalation.
         </p>
 
         {/* Section 1: Pre-Call Vitals */}
@@ -139,7 +138,7 @@ export function PrintLayout({
         {/* Section 4: Titration Decision */}
         <h2 className="font-semibold mt-4 mb-2 border-b pb-1">Titration Decision</h2>
         <p className="mb-1">
-          <span className="font-medium">Recommendation:</span>{' '}
+          <span className="font-medium">Provider-recorded final decision:</span>{' '}
           <span className="font-bold uppercase">{titrationAction.action}</span>
         </p>
         <p className="text-sm mb-2">{titrationAction.details}</p>

@@ -13,7 +13,7 @@ const NORMAL_VITALS: VitalSigns = { sbp: 120, hr: 70, potassium: 4.0, creatinine
 // Source: HEARTLAND Protocol v3.3 Module 3
 // ==========================================================================
 describe('getPerDrugRecommendations', () => {
-  it('K+ 5.8 -> MRA=hold, ARNI=hold, Beta-blocker=uptitrate, SGLT2i=uptitrate', () => {
+  it('K+ 5.8 -> MRA=hold, ARNI=hold, Beta-blocker=uptitrate, SGLT2i incomplete without eGFR', () => {
     const recs = getPerDrugRecommendations(
       { ...NORMAL_VITALS, potassium: 5.8 },
       ['MRA', 'ARNI', 'Beta-blocker', 'SGLT2i'],
@@ -26,10 +26,10 @@ describe('getPerDrugRecommendations', () => {
     expect(mra!.action).toBe('hold');
     expect(arni!.action).toBe('hold');
     expect(bb!.action).toBe('uptitrate');
-    expect(sglt2!.action).toBe('uptitrate');
+    expect(sglt2!.action).toBe('not-applicable');
   });
 
-  it('HR 45 -> Beta-blocker=reduce, MRA=uptitrate', () => {
+  it('HR 45 -> Beta-blocker=reduce, MRA incomplete without eGFR', () => {
     const recs = getPerDrugRecommendations(
       { ...NORMAL_VITALS, hr: 45 },
       ['Beta-blocker', 'MRA'],
@@ -38,7 +38,7 @@ describe('getPerDrugRecommendations', () => {
     const mra = recs.find((r) => r.drugClass === 'MRA');
 
     expect(bb!.action).toBe('reduce');
-    expect(mra!.action).toBe('uptitrate');
+    expect(mra!.action).toBe('not-applicable');
   });
 
   it('SBP 85 -> ARNI=reduce, Beta-blocker=uptitrate (SBP only blocks ARNI)', () => {
@@ -78,7 +78,7 @@ describe('getPerDrugRecommendations', () => {
     expect(sglt2!.action).toBe('hold');
   });
 
-  it('egfr undefined -> both MRA and SGLT2i uptitrate (no eGFR gate fires)', () => {
+  it('egfr undefined -> renal-sensitive signals are not applicable', () => {
     const recs = getPerDrugRecommendations(
       { ...NORMAL_VITALS },
       ['MRA', 'SGLT2i'],
@@ -86,8 +86,8 @@ describe('getPerDrugRecommendations', () => {
     const mra = recs.find((r) => r.drugClass === 'MRA');
     const sglt2 = recs.find((r) => r.drugClass === 'SGLT2i');
 
-    expect(mra!.action).toBe('uptitrate');
-    expect(sglt2!.action).toBe('uptitrate');
+    expect(mra!.action).toBe('not-applicable');
+    expect(sglt2!.action).toBe('not-applicable');
   });
 });
 

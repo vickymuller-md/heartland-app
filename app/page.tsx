@@ -41,6 +41,9 @@ export default async function Home() {
         ]}
         cta={{ label: "Request access", href: "/request-access" }}
       />
+      <aside className="border-b border-amber-900/40 bg-amber-950 px-6 py-3 text-center font-editorial text-sm leading-relaxed text-amber-100">
+        Public routes: educational sandbox. Authenticated workspace: controlled evaluation only. Real PHI and unsupervised clinical use are not authorized until organizational security, privacy, validation, staffing, and governance gates are approved.
+      </aside>
       <Hero />
       <Abstract />
       <Modules />

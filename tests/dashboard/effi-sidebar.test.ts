@@ -30,13 +30,13 @@ describe('NAV_GROUPS (EFFI-02)', () => {
     expect(labels).toEqual(['Daily', 'Clinical Tools', 'Reference']);
   });
 
-  it('Daily group contains: Dashboard, Patients, Alerts, Titration Worklist', () => {
+  it('Daily group contains: Daily Loop, Patients, Inbox, Titration Worklist', () => {
     const dailyGroup = NAV_GROUPS.find((g) => g.label === 'Daily');
     expect(dailyGroup).toBeDefined();
     const dailyLabels = dailyGroup!.items.map((i) => i.label);
-    expect(dailyLabels).toContain('Dashboard');
+    expect(dailyLabels).toContain('Daily Loop');
     expect(dailyLabels).toContain('Patients');
-    expect(dailyLabels).toContain('Alerts');
+    expect(dailyLabels).toContain('Inbox');
     expect(dailyLabels).toContain('Titration Worklist');
   });
 
