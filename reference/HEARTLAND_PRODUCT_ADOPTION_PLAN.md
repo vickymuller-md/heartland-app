@@ -1,6 +1,6 @@
 # HEARTLAND — Plano de Produto, Usabilidade e Adoção
 
-**Status:** fundação de produto implementada; validação e piloto pendentes
+**Status:** execução técnica de P0–P3 implementada; validação independente e piloto pendentes
 **Data-base:** 13 de julho de 2026
 **Última atualização:** 14 de julho de 2026
 **Escopo:** experiência provider/patient, utilidade diária, organização funcional, validação, adoção e implantação
@@ -18,6 +18,14 @@ Implementado nesta release:
 - estados explícitos para erro, vazio, offline, dado ausente e entrega não confirmada;
 - boundaries de uso, claims financeiros e conteúdo clínico revisados para reduzir overreach;
 - testes automatizados, build de produção, auditoria de dependências e migration hospedada validados.
+- inbox operacional unifica work items e mensagens com evidência explícita de disponibilidade/leitura;
+- delegação governada por organization, workload com aging e owner, e revisão mensal de acesso;
+- filtros pessoais salvos por status, severidade, prioridade e origem no Daily Loop;
+- settings por organization para timezone, target operacional e contato de downtime;
+- playbook degradado público, imprimível e sem PHI, também precacheado para indisponibilidade;
+- registro versionado das regras clínicas de maior risco, fechado por padrão até revisão independente;
+- MFA TOTP obrigatório para provider em proxy, Server Actions e RLS;
+- monitor diário agregado de postura, CI com lint/test/build/pgTAP/SBOM/CodeQL e Dependabot.
 
 Ainda não concluído — depende de pessoas, contratos ou evidência externa:
 
@@ -27,6 +35,8 @@ Ainda não concluído — depende de pessoas, contratos ou evidência externa:
 - BAA, definição formal de data controller/processor e aceite de risco;
 - fechamento integral dos controles organizacionais e de infraestrutura do plano de segurança;
 - evidência de retenção, impacto clínico, economia ou reimbursement.
+- nomeação de owners operacionais/clínicos e aprovação dos targets pela facility;
+- aprovação independente dos seis rule sets atualmente marcados como `pending_independent_review`.
 
 **Estado de liberação:** adequado para sandbox público e avaliação controlada com dados sintéticos. Não aprovado para PHI real, cuidado não supervisionado ou claims clínicos/financeiros até todos os gates das seções 9–12 e do plano de segurança passarem.
 
