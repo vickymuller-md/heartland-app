@@ -1,7 +1,8 @@
 "use server";
 
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { createHmac } from "node:crypto";
+import { headers } from "next/headers";
 
 const US_STATE = /^[A-Z]{2}$/;
 
@@ -24,6 +25,7 @@ const RequestAccessSchema = z.object({
   facility: z.string().trim().max(160).optional().or(z.literal("")),
   role_claim: z.string().trim().max(40).optional().or(z.literal("")),
   message: z.string().trim().max(1200).optional().or(z.literal("")),
+  website: z.string().max(200).optional().or(z.literal("")),
 });
 
 export type RequestAccessInput = z.infer<typeof RequestAccessSchema>;
@@ -60,15 +62,47 @@ export async function submitAccessRequest(
     message: parsed.data.message || null,
   };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from("access_requests").insert(row);
+  // Honeypot submissions are accepted silently so automated clients receive
+  // no signal that their request was discarded.
+  if (parsed.data.website) return { ok: true };
 
-  if (error) {
-    console.error("[access-request] insert failed");
+  const requestHeaders = await headers();
+  const forwarded = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const clientAddress = requestHeaders.get("x-real-ip")?.trim() || forwarded || `email:${row.email}`;
+  const rateSecret =
+    process.env.ACCESS_REQUEST_RATE_LIMIT_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!rateSecret) {
     return {
       ok: false,
       errors: {},
       formError: "We could not register your request. Please try again shortly.",
+    };
+  }
+  const requesterHash = createHmac("sha256", rateSecret)
+    .update(`heartland-access-request:${clientAddress}`)
+    .digest("hex");
+
+  const { supabaseAdmin } = await import("@/lib/supabase/admin");
+  const { error } = await supabaseAdmin.rpc("submit_access_request", {
+    p_requester_hash: requesterHash,
+    p_full_name: row.full_name,
+    p_email: row.email,
+    p_npi: row.npi,
+    p_state: row.state,
+    p_facility: row.facility,
+    p_role_claim: row.role_claim,
+    p_message: row.message,
+  });
+
+  if (error) {
+    const limited = error.message.includes("rate limit exceeded");
+    console.error("[access-request] controlled RPC failed");
+    return {
+      ok: false,
+      errors: {},
+      formError: limited
+        ? "Request limit reached. Please wait before submitting again."
+        : "We could not register your request. Please try again shortly.",
     };
   }
 

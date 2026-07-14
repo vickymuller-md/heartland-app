@@ -30,6 +30,11 @@ export default function PublicLayout({
       <Colophon
         currentSite="app"
         version="v1.0.2"
+        legal={
+          <>
+            Built by Vicky Muller Ferreira, MD. Public pages contain no patient data. Authenticated workspaces remain controlled evaluation only; real PHI and unsupervised clinical use require approved organizational release gates.
+          </>
+        }
         extraBlocks={[
           {
             title: "Platform",

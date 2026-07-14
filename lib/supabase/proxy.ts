@@ -12,6 +12,7 @@ const PUBLIC_PREFIXES = [
   "/error",
   "/about",
   "/request-access",
+  "/downtime",
   // Public demo access: the educational tools are client-side, use no
   // account data and no PHI (all bundled data is synthetic), so they are
   // open for anonymous evaluation. Account workflows (dashboard, patients,
@@ -22,9 +23,10 @@ const PUBLIC_PREFIXES = [
   "/remote-monitoring",
   "/tier-selector",
   "/pocket-cards",
-  "/tools",
   "/guide",
 ];
+
+const MFA_SETUP_PATH = "/security/mfa";
 
 // Exactly-matched paths that are public (no session required).
 // Using exact match avoids "/" inadvertently matching every route.
@@ -42,6 +44,7 @@ const PROVIDER_PREFIXES = [
   "/comorbidity-manager",
   "/quality-metrics",
   "/reports",
+  "/team",
 ];
 
 const PATIENT_PREFIXES = [
@@ -174,7 +177,9 @@ export async function updateSession(request: NextRequest) {
     if (!consent) return supabaseResponse;
 
     const url = request.nextUrl.clone();
-    url.pathname = role === "provider" ? "/dashboard" : "/today";
+    url.pathname = role === "provider"
+      ? claims.aal === "aal2" ? "/dashboard" : MFA_SETUP_PATH
+      : "/today";
     url.search = "";
     return NextResponse.redirect(url);
   }
@@ -187,12 +192,28 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  if (path === MFA_SETUP_PATH && role !== "provider") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/today";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
+  // Providers must complete MFA before any clinical workspace route. This is
+  // enforced again in Server Actions and RLS; proxy handling improves UX only.
+  if (role === "provider" && claims.aal !== "aal2" && path !== MFA_SETUP_PATH) {
+    const url = request.nextUrl.clone();
+    url.pathname = MFA_SETUP_PATH;
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
   // 3. Root path is public (landing) for anonymous visitors, but authenticated
   //    users should be sent to their role-appropriate portal.
   if (path === "/") {
     const url = request.nextUrl.clone();
     if (role === "provider") {
-      url.pathname = "/dashboard";
+      url.pathname = claims.aal === "aal2" ? "/dashboard" : MFA_SETUP_PATH;
     } else if (role === "patient") {
       url.pathname = "/today";
     } else {

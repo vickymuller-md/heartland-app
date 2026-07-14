@@ -29,6 +29,7 @@ import {
   FileBarChart2,
   BarChart2,
   BookOpen,
+  ShieldCheck,
 } from 'lucide-react';
 import { SignOutButton } from '@/components/auth/sign-out-button';
 import { ConnectivityBanner } from '@/components/shared/connectivity-banner';
@@ -42,6 +43,7 @@ export const NAV_GROUPS = [
       { href: '/dashboard', label: 'Daily Loop', icon: LayoutDashboard, showBadge: false },
       { href: '/patients', label: 'Patients', icon: Users, showBadge: false },
       { href: '/alerts', label: 'Inbox', icon: Bell, showBadge: true },
+      { href: '/team', label: 'Team & Access', icon: Users, showBadge: false },
       { href: '/titration-worklist', label: 'Titration Worklist', icon: ClipboardCheck, showBadge: false },
     ],
   },
@@ -65,6 +67,7 @@ export const NAV_GROUPS = [
       { href: '/reports', label: 'Reports', icon: FileBarChart2, showBadge: false },
       { href: '/invite', label: 'Invite Patient', icon: Users, showBadge: false },
       { href: '/guide', label: 'User Guide', icon: BookOpen, showBadge: false },
+      { href: '/security/mfa', label: 'Session Security', icon: ShieldCheck, showBadge: false },
       { href: '/about', label: 'About', icon: Info, showBadge: false },
     ],
   },

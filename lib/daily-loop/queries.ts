@@ -3,9 +3,11 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { extractFullName, extractPatientFullName } from '@/lib/supabase/types';
 import type {
+  DailyLoopFilter,
   DailyLoopMetrics,
   DailyLoopResult,
   DailyLoopSections,
+  SavedQueueView,
   WorkItem,
 } from './types';
 
@@ -70,36 +72,61 @@ export function groupDailyLoopItems(
 export async function getDailyLoop(
   supabase: SupabaseClient,
   providerId: string,
+  filter: DailyLoopFilter = {},
 ): Promise<DailyLoopResult> {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
+  let itemsQuery = supabase
+    .from('work_items')
+    .select(
+      'id, organization_id, patient_id, provider_id, assigned_to, source_type, source_id, title, reason, change_summary, priority, severity, status, due_at, freshness_at, data_quality, created_at, updated_at, patients!work_items_patient_id_fkey(profiles(full_name)), assignee:profiles!work_items_assigned_to_fkey(full_name)'
+    )
+    .eq('assigned_to', providerId)
+    .neq('status', 'closed')
+    .order('due_at', { ascending: true, nullsFirst: false });
+  let closedQuery = supabase
+    .from('work_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('assigned_to', providerId)
+    .eq('status', 'closed')
+    .gte('closed_at', sevenDaysAgo.toISOString());
+  let createdQuery = supabase
+    .from('work_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('assigned_to', providerId)
+    .gte('created_at', sevenDaysAgo.toISOString());
+  let createdClosedQuery = supabase
+    .from('work_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('assigned_to', providerId)
+    .eq('status', 'closed')
+    .gte('created_at', sevenDaysAgo.toISOString());
+
+  if (filter.severity) {
+    itemsQuery = itemsQuery.eq('severity', filter.severity);
+    closedQuery = closedQuery.eq('severity', filter.severity);
+    createdQuery = createdQuery.eq('severity', filter.severity);
+    createdClosedQuery = createdClosedQuery.eq('severity', filter.severity);
+  }
+  if (filter.priority) {
+    itemsQuery = itemsQuery.eq('priority', filter.priority);
+    closedQuery = closedQuery.eq('priority', filter.priority);
+    createdQuery = createdQuery.eq('priority', filter.priority);
+    createdClosedQuery = createdClosedQuery.eq('priority', filter.priority);
+  }
+  if (filter.sourceType) {
+    itemsQuery = itemsQuery.eq('source_type', filter.sourceType);
+    closedQuery = closedQuery.eq('source_type', filter.sourceType);
+    createdQuery = createdQuery.eq('source_type', filter.sourceType);
+    createdClosedQuery = createdClosedQuery.eq('source_type', filter.sourceType);
+  }
+
   const [itemsResult, closedResult, createdResult, createdClosedResult] = await Promise.all([
-    supabase
-      .from('work_items')
-      .select(
-        'id, patient_id, provider_id, assigned_to, source_type, source_id, title, reason, change_summary, priority, severity, status, due_at, freshness_at, data_quality, created_at, updated_at, patients!work_items_patient_id_fkey(profiles(full_name)), assignee:profiles!work_items_assigned_to_fkey(full_name)'
-      )
-      .eq('provider_id', providerId)
-      .neq('status', 'closed')
-      .order('due_at', { ascending: true, nullsFirst: false }),
-    supabase
-      .from('work_items')
-      .select('id', { count: 'exact', head: true })
-      .eq('provider_id', providerId)
-      .eq('status', 'closed')
-      .gte('closed_at', sevenDaysAgo.toISOString()),
-    supabase
-      .from('work_items')
-      .select('id', { count: 'exact', head: true })
-      .eq('provider_id', providerId)
-      .gte('created_at', sevenDaysAgo.toISOString()),
-    supabase
-      .from('work_items')
-      .select('id', { count: 'exact', head: true })
-      .eq('provider_id', providerId)
-      .eq('status', 'closed')
-      .gte('created_at', sevenDaysAgo.toISOString()),
+    itemsQuery,
+    closedQuery,
+    createdQuery,
+    createdClosedQuery,
   ]);
 
   if (itemsResult.error) {
@@ -112,6 +139,7 @@ export async function getDailyLoop(
 
   const items = (itemsResult.data ?? []).map((row) => ({
     id: row.id,
+    organization_id: row.organization_id,
     patient_id: row.patient_id,
     patient_name: extractPatientFullName(row.patients) ?? 'Patient',
     provider_id: row.provider_id,
@@ -169,9 +197,9 @@ export async function getPatientWorkItems(
   const { data, error } = await supabase
     .from('work_items')
     .select(
-      'id, patient_id, provider_id, assigned_to, source_type, source_id, title, reason, change_summary, priority, severity, status, due_at, freshness_at, data_quality, created_at, updated_at, patients!work_items_patient_id_fkey(profiles(full_name)), assignee:profiles!work_items_assigned_to_fkey(full_name)'
+      'id, organization_id, patient_id, provider_id, assigned_to, source_type, source_id, title, reason, change_summary, priority, severity, status, due_at, freshness_at, data_quality, created_at, updated_at, patients!work_items_patient_id_fkey(profiles(full_name)), assignee:profiles!work_items_assigned_to_fkey(full_name)'
     )
-    .eq('provider_id', providerId)
+    .eq('assigned_to', providerId)
     .eq('patient_id', patientId)
     .order('created_at', { ascending: false })
     .limit(30);
@@ -179,6 +207,7 @@ export async function getPatientWorkItems(
   if (error) return { items: [], error: 'Patient work could not be loaded.' };
   const items = (data ?? []).map((row) => ({
     id: row.id,
+    organization_id: row.organization_id,
     patient_id: row.patient_id,
     patient_name: extractPatientFullName(row.patients) ?? 'Patient',
     provider_id: row.provider_id,
@@ -199,4 +228,17 @@ export async function getPatientWorkItems(
     updated_at: row.updated_at,
   })) as WorkItem[];
   return { items, error: null };
+}
+
+export async function getSavedQueueViews(
+  supabase: SupabaseClient,
+  providerId: string,
+): Promise<{ views: SavedQueueView[]; error: string | null }> {
+  const { data, error } = await supabase
+    .from('provider_saved_views')
+    .select('id, name, severity, priority, source_type')
+    .eq('provider_id', providerId)
+    .order('name');
+  if (error) return { views: [], error: 'Saved queue views could not be loaded.' };
+  return { views: (data ?? []) as SavedQueueView[], error: null };
 }

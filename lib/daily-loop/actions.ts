@@ -49,7 +49,6 @@ export async function transitionWorkItem(
     .update(update)
     .eq('id', parsed.data.workItemId)
     .eq('patient_id', parsed.data.patientId)
-    .eq('provider_id', auth.user.id)
     .select('id');
 
   if (error || !data?.length) {
@@ -123,4 +122,85 @@ export async function createManualWorkItem(
   revalidatePath('/dashboard');
   revalidatePath(`/patients/${parsed.data.patientId}`);
   return { success: true };
+}
+
+const assignmentSchema = z.object({
+  workItemId: z.uuid(),
+  assigneeId: z.uuid(),
+});
+
+export async function assignWorkItem(input: z.infer<typeof assignmentSchema>): Promise<{ success: boolean; error?: string }> {
+  const parsed = assignmentSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: 'Invalid assignment' };
+  const auth = await authorize('provider');
+  if (!auth.authorized) return { success: false, error: auth.error };
+
+  const { data, error } = await auth.supabase
+    .from('work_items')
+    .update({ assigned_to: parsed.data.assigneeId })
+    .eq('id', parsed.data.workItemId)
+    .select('id, patient_id');
+  if (error || !data?.length) return { success: false, error: 'Work could not be reassigned.' };
+
+  await trackProductEvent({ eventName: 'work_item_reassigned', area: 'team' });
+  revalidatePath('/dashboard');
+  revalidatePath('/team');
+  revalidatePath(`/patients/${data[0].patient_id}`);
+  return { success: true };
+}
+
+const savedViewSchema = z.object({
+  name: z.string().trim().min(2).max(60),
+  severity: z.enum(['critical', 'warning', 'informational']).optional(),
+  priority: z.enum(['now', 'today', 'week', 'watching']).optional(),
+  sourceType: z.enum([
+    'alert', 'scheduled_followup', 'discharge_followup', 'manual', 'titration', 'data_quality',
+  ]).optional(),
+});
+
+export async function saveQueueView(
+  _state: { success?: boolean; error?: string } | null,
+  formData: FormData,
+): Promise<{ success?: boolean; error?: string }> {
+  const valueOrUndefined = (name: string) => {
+    const value = String(formData.get(name) ?? '');
+    return value || undefined;
+  };
+  const parsed = savedViewSchema.safeParse({
+    name: formData.get('name'),
+    severity: valueOrUndefined('severity'),
+    priority: valueOrUndefined('priority'),
+    sourceType: valueOrUndefined('sourceType'),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid view' };
+  if (!parsed.data.severity && !parsed.data.priority && !parsed.data.sourceType) {
+    return { error: 'Choose at least one filter.' };
+  }
+
+  const auth = await authorize('provider');
+  if (!auth.authorized) return { error: auth.error };
+  const { error } = await auth.supabase.from('provider_saved_views').insert({
+    provider_id: auth.user.id,
+    name: parsed.data.name,
+    severity: parsed.data.severity ?? null,
+    priority: parsed.data.priority ?? null,
+    source_type: parsed.data.sourceType ?? null,
+  });
+  if (error) return { error: 'This view could not be saved. Use a unique name.' };
+  await trackProductEvent({ eventName: 'saved_view_created', area: 'provider_home' });
+  revalidatePath('/dashboard');
+  return { success: true };
+}
+
+export async function deleteQueueView(formData: FormData): Promise<void> {
+  const viewId = z.uuid().safeParse(formData.get('viewId'));
+  if (!viewId.success) return;
+  const auth = await authorize('provider');
+  if (!auth.authorized) return;
+  await auth.supabase
+    .from('provider_saved_views')
+    .delete()
+    .eq('id', viewId.data)
+    .eq('provider_id', auth.user.id);
+  revalidatePath('/dashboard');
 }

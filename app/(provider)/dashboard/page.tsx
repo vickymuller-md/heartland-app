@@ -11,9 +11,11 @@ import { MetricCards, MetricCardsSkeleton } from './_components/metric-cards';
 import { RpmTracker } from './_components/rpm-tracker';
 import { UrgentNowSection } from './_components/urgent-now-section';
 import { ProviderPageDisclaimer } from '@/components/disclaimers/provider-page-disclaimer';
-import { getDailyLoop } from '@/lib/daily-loop/queries';
+import { getDailyLoop, getSavedQueueViews } from '@/lib/daily-loop/queries';
 import { DailyLoop } from './_components/daily-loop';
 import { ProductEventTracker } from '@/components/analytics/product-event-tracker';
+import { getTeamDirectory } from '@/lib/team/queries';
+import { QueueViewControls } from './_components/queue-view-controls';
 
 /**
  * Provider Dashboard -- Server Component
@@ -26,7 +28,7 @@ import { ProductEventTracker } from '@/components/analytics/product-event-tracke
  */
 
 interface DashboardPageProps {
-  searchParams: Promise<{ sort?: string }>;
+  searchParams: Promise<{ sort?: string; view?: string }>;
 }
 
 const VALID_SORTS: SortKey[] = ['status', 'vitals_date', 'risk_tier'];
@@ -47,8 +49,17 @@ export default async function ProviderDashboard({
 
   if (!user) redirect('/login');
 
+  const [savedViews, teamDirectory] = await Promise.all([
+    getSavedQueueViews(supabase, user.id),
+    getTeamDirectory(supabase),
+  ]);
+  const selectedView = savedViews.views.find((view) => view.id === params.view);
   const [dailyLoop, patientResult] = await Promise.all([
-    getDailyLoop(supabase, user.id),
+    getDailyLoop(supabase, user.id, selectedView ? {
+      severity: selectedView.severity ?? undefined,
+      priority: selectedView.priority ?? undefined,
+      sourceType: selectedView.source_type ?? undefined,
+    } : {}),
     getLinkedPatients(supabase, user.id, sortBy)
       .then((patients) => ({ patients, error: null as string | null }))
       .catch(() => ({
@@ -70,12 +81,27 @@ export default async function ProviderDashboard({
 
       <ProductEventTracker eventName="daily_loop_view" area="provider_home" />
 
+      {savedViews.error ? (
+        <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{savedViews.error}</div>
+      ) : (
+        <QueueViewControls views={savedViews.views} selectedViewId={selectedView?.id} />
+      )}
+
+      {teamDirectory.error && (
+        <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{teamDirectory.error} Delegation is unavailable.</div>
+      )}
+
       {dailyLoop.error ? (
         <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-medium text-red-900">
           {dailyLoop.error}
         </div>
       ) : (
-        <DailyLoop sections={dailyLoop.sections} metrics={dailyLoop.metrics} />
+        <DailyLoop
+          sections={dailyLoop.sections}
+          metrics={dailyLoop.metrics}
+          teamMembers={teamDirectory.members}
+          manageableOrganizationIds={teamDirectory.manageableOrganizationIds}
+        />
       )}
 
       <div className="border-t pt-6">

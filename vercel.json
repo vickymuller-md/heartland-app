@@ -7,6 +7,10 @@
     {
       "path": "/api/alert-scan",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/security-monitor",
+      "schedule": "0 9 * * *"
     }
   ]
 }

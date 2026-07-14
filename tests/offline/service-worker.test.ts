@@ -44,7 +44,8 @@ describe('PWA Cache Security', () => {
 
   it('sets no-store for APIs and baseline browser security headers', () => {
     expect(nextConfig).toContain('private, no-store, max-age=0, must-revalidate');
-    expect(nextConfig).toContain('Content-Security-Policy-Report-Only');
+    expect(nextConfig).toContain('{ key: "Content-Security-Policy"');
+    expect(nextConfig).not.toContain('Content-Security-Policy-Report-Only');
     expect(nextConfig).toContain('X-Content-Type-Options');
     expect(nextConfig).toContain('X-Frame-Options');
     expect(nextConfig).toContain('Strict-Transport-Security');

@@ -6,7 +6,7 @@ export type AppRole = "provider" | "patient";
 
 type AuthorizationFailure = {
   authorized: false;
-  error: "Not authenticated" | "Unauthorized" | "Consent required";
+  error: "Not authenticated" | "Unauthorized" | "Consent required" | "MFA required";
 };
 
 type AuthorizationSuccess = {
@@ -20,6 +20,7 @@ export type AuthorizationResult = AuthorizationFailure | AuthorizationSuccess;
 
 interface AuthorizationOptions {
   requireConsent?: boolean;
+  requireMfa?: boolean;
 }
 
 const UUID_PATTERN =
@@ -74,6 +75,15 @@ export async function authorize(
 
     if (consentError || !consent) {
       return { authorized: false, error: "Consent required" };
+    }
+  }
+
+  const requireMfa = options.requireMfa ?? requiredRole === "provider";
+  if (requireMfa && profile.role === "provider") {
+    const { data: assurance, error: assuranceError } =
+      await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (assuranceError || assurance?.currentLevel !== "aal2") {
+      return { authorized: false, error: "MFA required" };
     }
   }
 

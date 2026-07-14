@@ -5,6 +5,7 @@ export type DataQuality = 'verified' | 'partial' | 'stale' | 'unknown';
 
 export interface WorkItem {
   id: string;
+  organization_id: string;
   patient_id: string;
   patient_name: string;
   provider_id: string;
@@ -23,6 +24,20 @@ export interface WorkItem {
   data_quality: DataQuality;
   created_at: string;
   updated_at: string;
+}
+
+export interface SavedQueueView {
+  id: string;
+  name: string;
+  severity: WorkSeverity | null;
+  priority: WorkPriority | null;
+  source_type: string | null;
+}
+
+export interface DailyLoopFilter {
+  severity?: WorkSeverity;
+  priority?: WorkPriority;
+  sourceType?: string;
 }
 
 export interface DailyLoopSections {

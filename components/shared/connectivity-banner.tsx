@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { WifiOff } from 'lucide-react';
+import Link from 'next/link';
 
 export function ConnectivityBanner({ workspace = 'provider' }: { workspace?: 'provider' | 'patient' }) {
   const [online, setOnline] = useState(true);
@@ -31,6 +32,9 @@ export function ConnectivityBanner({ workspace = 'provider' }: { workspace?: 'pr
         {workspace === 'provider'
           ? 'Do not acknowledge, close, or document work until connectivity returns.'
           : 'Your entries are not stored on this device; reconnect before submitting.'}
+        {workspace === 'provider' && (
+          <> <Link href="/downtime" className="font-semibold underline">Open downtime playbook.</Link></>
+        )}
       </span>
     </div>
   );

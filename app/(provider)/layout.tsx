@@ -45,7 +45,13 @@ export default async function ProviderLayout({
 }) {
   const auth = await authorize('provider');
   if (!auth.authorized) {
-    redirect(auth.error === 'Consent required' ? '/consent' : '/login');
+    redirect(
+      auth.error === 'Consent required'
+        ? '/consent'
+        : auth.error === 'MFA required'
+          ? '/security/mfa'
+          : '/login',
+    );
   }
   const supabase = auth.supabase;
 

@@ -17,14 +17,15 @@ describe('Patient Linkage Request (AUTH-06)', () => {
     expect(source).toContain('^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$');
   });
 
-  it('uses the minimum-disclosure provider lookup RPC', () => {
-    expect(source).toContain('.rpc("lookup_provider_by_code", { p_code: code })');
+  it('uses the atomic, rate-limited provider linkage RPC', () => {
+    expect(source).toContain('.rpc("request_provider_linkage", { p_code: code })');
     expect(source).not.toContain('.eq("provider_code", code)');
   });
 
-  it('binds a pending request to the authenticated patient', () => {
-    expect(source).toContain('patient_id: auth.user.id');
-    expect(source).toContain('status: "pending"');
+  it('does not create linkage rows directly from the application', () => {
+    const requestSource = source.slice(0, source.indexOf('export async function acceptLinkage'));
+    expect(requestSource).not.toContain('.from("provider_patient_links")');
+    expect(requestSource).not.toContain('.insert({');
   });
 
   it('does not expose database errors', () => {

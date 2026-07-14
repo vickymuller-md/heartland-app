@@ -64,7 +64,7 @@ export function LoginForm() {
         </p>
         <CardTitle className="text-2xl">Sign In</CardTitle>
         <CardDescription>
-          Enter your credentials to access your portal
+          Enter your credentials. Provider workspaces also require an authenticator code.
         </CardDescription>
       </CardHeader>
       <CardContent>

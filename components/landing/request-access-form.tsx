@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { submitAccessRequest, type RequestAccessInput } from "@/app/actions/request-access";
-import { GA_EVENTS } from "@/lib/analytics";
 
 const US_STATES: { code: string; name: string }[] = [
   ["AL", "Alabama"], ["AK", "Alaska"], ["AZ", "Arizona"], ["AR", "Arkansas"],
@@ -55,18 +54,13 @@ export function RequestAccessForm() {
       facility: (formData.get("facility") as string) ?? "",
       role_claim: (formData.get("role_claim") as string) ?? "",
       message: (formData.get("message") as string) ?? "",
+      website: (formData.get("website") as string) ?? "",
     };
 
     startTransition(async () => {
       const result = await submitAccessRequest(input);
       if (result.ok) {
         setSubmitted(true);
-        if (typeof window !== "undefined" && typeof window.gtag === "function") {
-          window.gtag("event", GA_EVENTS.ACCESS_REQUEST_SUBMITTED, {
-            role: input.role_claim || "unspecified",
-            state: input.state || "unspecified",
-          });
-        }
       } else {
         setErrors(result.errors ?? {});
         if (result.formError) setFormError(result.formError);
@@ -80,6 +74,10 @@ export function RequestAccessForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8" noValidate>
+      <div className="absolute -left-[10000px] top-auto size-px overflow-hidden" aria-hidden="true">
+        <label htmlFor="request-website">Website</label>
+        <input id="request-website" name="website" type="text" tabIndex={-1} autoComplete="off" />
+      </div>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <Field
           label="Full name"
@@ -312,10 +310,4 @@ function SubmittedPanel() {
       </div>
     </div>
   );
-}
-
-declare global {
-  interface Window {
-    gtag?: (command: string, eventName: string, params?: Record<string, unknown>) => void;
-  }
 }

@@ -17,6 +17,7 @@ const withSerwist = withSerwistInit({
   additionalPrecacheEntries: [
     { url: "/", revision },
     { url: "/~offline", revision },
+    { url: "/downtime", revision },
   ],
 });
 
@@ -50,12 +51,14 @@ const contentSecurityPolicy = [
 ].join("; ");
 
 const securityHeaders = [
-  { key: "Content-Security-Policy-Report-Only", value: contentSecurityPolicy },
+  { key: "Content-Security-Policy", value: contentSecurityPolicy },
   { key: "Referrer-Policy", value: "no-referrer" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  { key: "X-DNS-Prefetch-Control", value: "off" },
   {
     key: "Permissions-Policy",
     value: "camera=(), geolocation=(), microphone=(), payment=(), usb=()",

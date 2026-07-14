@@ -13,10 +13,12 @@ import {
   Eye,
   Loader2,
   ShieldCheck,
+  UserRoundCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { transitionWorkItem } from '@/lib/daily-loop/actions';
+import { assignWorkItem, transitionWorkItem } from '@/lib/daily-loop/actions';
+import type { TeamMember } from '@/lib/team/types';
 import type {
   DailyLoopMetrics,
   DailyLoopSections,
@@ -85,7 +87,15 @@ function MetricStrip({ metrics }: { metrics: DailyLoopMetrics }) {
   );
 }
 
-function WorkItemCard({ item }: { item: WorkItem }) {
+function WorkItemCard({
+  item,
+  teamMembers,
+  canManage,
+}: {
+  item: WorkItem;
+  teamMembers: TeamMember[];
+  canManage: boolean;
+}) {
   const [pending, startTransition] = useTransition();
   const [mode, setMode] = useState<'none' | 'awaiting' | 'closed'>('none');
   const [error, setError] = useState<string | null>(null);
@@ -96,6 +106,9 @@ function WorkItemCard({ item }: { item: WorkItem }) {
   const freshLabel = item.freshness_at
     ? formatDistanceToNow(new Date(item.freshness_at), { addSuffix: true })
     : 'Unknown freshness';
+  const assignableMembers = teamMembers.filter(
+    (member) => member.organization_id === item.organization_id,
+  );
 
   const transition = (
     status: 'reviewed' | 'actioned' | 'awaiting' | 'closed',
@@ -111,6 +124,14 @@ function WorkItemCard({ item }: { item: WorkItem }) {
       });
       if (!result.success) setError(result.error ?? 'Unable to update work');
       else setMode('none');
+    });
+  };
+
+  const assign = (assigneeId: string) => {
+    setError(null);
+    startTransition(async () => {
+      const result = await assignWorkItem({ workItemId: item.id, assigneeId });
+      if (!result.success) setError(result.error ?? 'Unable to reassign work');
     });
   };
 
@@ -211,7 +232,7 @@ function WorkItemCard({ item }: { item: WorkItem }) {
       )}
 
       {mode === 'none' && (
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           {(item.status === 'new' || item.status === 'due') && (
             <Button size="sm" variant="outline" disabled={pending} onClick={() => transition('reviewed')}>
               <CircleDot className="mr-1 size-3.5" /> Review
@@ -229,13 +250,39 @@ function WorkItemCard({ item }: { item: WorkItem }) {
             {pending ? <Loader2 className="mr-1 size-3.5 animate-spin" /> : <CheckCircle2 className="mr-1 size-3.5" />}
             Close
           </Button>
+          {canManage && assignableMembers.length > 1 && (
+            <label className="ml-auto inline-flex items-center gap-2 text-xs font-medium text-slate-700">
+              <UserRoundCheck className="size-4" /> Delegate
+              <select
+                aria-label={`Assign ${item.title}`}
+                defaultValue={item.assigned_to}
+                disabled={pending}
+                onChange={(event) => assign(event.target.value)}
+                className="min-h-9 rounded-md border bg-white px-2"
+              >
+                {assignableMembers.map((member) => (
+                  <option key={member.member_id} value={member.member_id}>{member.member_name}</option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
       )}
     </article>
   );
 }
 
-function DailyLoopSection({ sectionKey, items }: { sectionKey: keyof DailyLoopSections; items: WorkItem[] }) {
+function DailyLoopSection({
+  sectionKey,
+  items,
+  teamMembers,
+  manageableOrganizationIds,
+}: {
+  sectionKey: keyof DailyLoopSections;
+  items: WorkItem[];
+  teamMembers: TeamMember[];
+  manageableOrganizationIds: string[];
+}) {
   const config = SECTION_CONFIG[sectionKey];
   const Icon = config.icon;
   return (
@@ -254,13 +301,30 @@ function DailyLoopSection({ sectionKey, items }: { sectionKey: keyof DailyLoopSe
           No work in this time horizon. Queue loaded successfully.
         </div>
       ) : (
-        <div className="space-y-3">{items.map((item) => <WorkItemCard key={item.id} item={item} />)}</div>
+        <div className="space-y-3">{items.map((item) => (
+          <WorkItemCard
+            key={item.id}
+            item={item}
+            teamMembers={teamMembers}
+            canManage={manageableOrganizationIds.includes(item.organization_id)}
+          />
+        ))}</div>
       )}
     </section>
   );
 }
 
-export function DailyLoop({ sections, metrics }: { sections: DailyLoopSections; metrics: DailyLoopMetrics }) {
+export function DailyLoop({
+  sections,
+  metrics,
+  teamMembers = [],
+  manageableOrganizationIds = [],
+}: {
+  sections: DailyLoopSections;
+  metrics: DailyLoopMetrics;
+  teamMembers?: TeamMember[];
+  manageableOrganizationIds?: string[];
+}) {
   const total = useMemo(() => Object.values(sections).reduce((sum, items) => sum + items.length, 0), [sections]);
   return (
     <div className="space-y-5" data-testid="daily-loop">
@@ -272,7 +336,13 @@ export function DailyLoop({ sections, metrics }: { sections: DailyLoopSections; 
       )}
       <div className="grid gap-5 xl:grid-cols-2">
         {(Object.keys(SECTION_CONFIG) as Array<keyof DailyLoopSections>).map((key) => (
-          <DailyLoopSection key={key} sectionKey={key} items={sections[key]} />
+          <DailyLoopSection
+            key={key}
+            sectionKey={key}
+            items={sections[key]}
+            teamMembers={teamMembers}
+            manageableOrganizationIds={manageableOrganizationIds}
+          />
         ))}
       </div>
     </div>

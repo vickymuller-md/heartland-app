@@ -44,6 +44,12 @@ function makeClient(fixture: ClientFixture) {
         data: { user: fixture.user ?? null },
         error: fixture.authError ?? null,
       }),
+      mfa: {
+        getAuthenticatorAssuranceLevel: vi.fn().mockResolvedValue({
+          data: { currentLevel: 'aal2', nextLevel: 'aal2' },
+          error: null,
+        }),
+      },
     },
     from: vi.fn((table: string) => tables[table]),
     tables,
@@ -89,6 +95,24 @@ describe('central authorization guard', () => {
     await expect(authorize('provider')).resolves.toEqual({
       authorized: false,
       error: 'Consent required',
+    });
+  });
+
+  it('fails closed when a provider session has not reached AAL2', async () => {
+    const client = makeClient({
+      user: { id: 'provider-1' },
+      profile: { role: 'provider' },
+      consent: { id: 'consent-1' },
+    });
+    client.auth.mfa.getAuthenticatorAssuranceLevel.mockResolvedValue({
+      data: { currentLevel: 'aal1', nextLevel: 'aal2' },
+      error: null,
+    });
+    mockCreateClient.mockResolvedValue(client);
+
+    await expect(authorize('provider')).resolves.toEqual({
+      authorized: false,
+      error: 'MFA required',
     });
   });
 
