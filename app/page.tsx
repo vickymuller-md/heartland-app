@@ -31,7 +31,7 @@ export default async function Home() {
         currentSite="app"
         navItems={[
           { label: "The Protocol", href: "/about" },
-          { label: "Try the tools", href: "/tools" },
+          { label: "Access options", href: "/request-access" },
           {
             label: "Research",
             href: "https://doi.org/10.5281/zenodo.18566403",
@@ -52,6 +52,15 @@ export default async function Home() {
       <Colophon
         currentSite="app"
         version="v1.0.2"
+        legal={
+          <>
+            Built by Vicky Muller Ferreira, MD. For licensed clinicians only.
+            Not a medical device. Public routes use synthetic data;
+            authenticated workspaces remain controlled evaluation only. Real
+            PHI and unsupervised clinical use are not authorized until release
+            gates are approved.
+          </>
+        }
         extraBlocks={[
           {
             title: "Platform",

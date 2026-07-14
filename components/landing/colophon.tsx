@@ -24,8 +24,9 @@ export function Colophon() {
             </p>
             <p className="mt-6 font-editorial text-[12.5px] leading-relaxed text-stone">
               Built by Vicky Muller Ferreira, MD. For licensed clinicians
-              only. Not a medical device. Not for direct patient care. No
-              patient health information is ever stored.
+              only. Not a medical device. Public routes use synthetic data;
+              authenticated workspaces remain controlled evaluation only. Real
+              PHI is not authorized until release gates are approved.
             </p>
           </div>
 

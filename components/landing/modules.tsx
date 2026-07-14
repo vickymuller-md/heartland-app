@@ -55,7 +55,7 @@ const MODULES: Module[] = [
     title: "Discharge transitions",
     body: "SBAR handoff, 48-hour follow-up, and medication reconciliation for hospitals without HF coordinators.",
     icon: <Glyph d="M 4 4 H 16 L 20 8 V 20 H 4 Z M 16 4 V 8 H 20 M 8 13 H 16 M 8 17 H 14" />,
-    available: false,
+    available: true,
   },
   {
     title: "Remote monitoring",
@@ -75,7 +75,7 @@ const MODULES: Module[] = [
     icon: (
       <Glyph d="M 8 7 a 3 3 0 1 0 0 -0.1 Z M 16 7 a 3 3 0 1 0 0 -0.1 Z M 4 19 c 0 -3 2 -5 4 -5 c 2 0 4 2 4 5 M 12 19 c 0 -3 2 -5 4 -5 c 2 0 4 2 4 5" />
     ),
-    available: false,
+    available: true,
   },
   {
     title: "Implementation tier",
@@ -101,9 +101,9 @@ export function Modules() {
               </span>
             </h2>
             <p className="mt-6 max-w-md font-editorial text-[15.5px] leading-relaxed text-cool/70">
-              Each module is a direct translation of the published protocol
-              text — tested for non-specialist primary care teams and
-              optimized for low-bandwidth, paper-tolerant workflows.
+              Each module translates the published protocol into workflows
+              designed for non-specialist primary care teams and
+              low-bandwidth, paper-tolerant settings.
             </p>
           </div>
           <div className="md:col-span-7" />

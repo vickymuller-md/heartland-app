@@ -56,8 +56,9 @@ export function Hero() {
 
             <p className="mt-12 max-w-md font-editorial text-[12.5px] leading-relaxed text-stone">
               Built for licensed clinicians. Not a medical device. Not for
-              direct patient care. Synthetic data only — no PHI is ever
-              collected.
+              direct patient care. Public routes use synthetic data;
+              authenticated workspaces remain controlled evaluation only. Real
+              PHI is not authorized until release gates are approved.
             </p>
           </div>
 
