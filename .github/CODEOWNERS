@@ -1,0 +1,8 @@
+* @vickymuller-md
+
+/.github/ @vickymuller-md
+/supabase/migrations/ @vickymuller-md
+/supabase/tests/ @vickymuller-md
+/lib/auth/ @vickymuller-md
+/lib/supabase/ @vickymuller-md
+/app/api/ @vickymuller-md

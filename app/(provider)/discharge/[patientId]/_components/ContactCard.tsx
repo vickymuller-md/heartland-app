@@ -41,7 +41,7 @@ const STATUS_CONFIG = {
   },
 } as const;
 
-export function ContactCard({ followup, patientId }: ContactCardProps) {
+export function ContactCard({ followup, patientId: _patientId }: ContactCardProps) {
   const [showNotes, setShowNotes] = useState(false);
   const [notes, setNotes] = useState('');
   const [isPending, startTransition] = useTransition();

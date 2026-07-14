@@ -26,7 +26,7 @@ export function DoseLogGrid({ medications, todayLogs }: DoseLogGridProps) {
   const [optimisticLogs, setOptimisticLogs] = useState<
     Record<string, boolean>
   >({});
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   // Filter out as_needed medications (0 scheduled doses)
   const scheduledMeds = medications.filter(

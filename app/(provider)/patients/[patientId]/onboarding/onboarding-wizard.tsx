@@ -41,7 +41,7 @@ function findFirstIncomplete(bitmask: number): number {
 
 export function OnboardingWizard({
   patientId,
-  patientName,
+  patientName: _patientName,
   completedSteps: initialCompleted,
 }: OnboardingWizardProps) {
   const [completedSteps, setCompletedSteps] = useState(initialCompleted);

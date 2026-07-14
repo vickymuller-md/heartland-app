@@ -20,7 +20,7 @@ export default function TierSelectorPage() {
           Implementation Tier Selector
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Assess your facility's resources to determine the appropriate
+          Assess your facility&apos;s resources to determine the appropriate
           HEARTLAND Protocol implementation tier.
         </p>
       </div>

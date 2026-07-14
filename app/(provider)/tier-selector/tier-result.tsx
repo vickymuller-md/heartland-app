@@ -6,7 +6,7 @@ import {
   CardTitle,
   CardContent,
 } from "@/components/ui/card";
-import { TIER_COLORS, TIER_LABELS } from "@/lib/tier-selector/constants";
+import { TIER_COLORS } from "@/lib/tier-selector/constants";
 import type { TierResult } from "@/lib/tier-selector/types";
 
 interface TierResultCardProps {

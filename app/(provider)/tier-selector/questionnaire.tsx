@@ -12,7 +12,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import {
   CATEGORY_DEFINITIONS,
-  TIER_LABELS,
   TIER_COLORS,
 } from "@/lib/tier-selector/constants";
 import type {

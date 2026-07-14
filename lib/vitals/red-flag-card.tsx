@@ -13,7 +13,7 @@
 import { RED_FLAG_CRITERIA } from './constants';
 
 export default function RedFlagCard() {
-  const { weight_gain_3lb_2d, weight_gain_5lb_7d, sbp_low_symptomatic, spo2_low, dyspnea_rest } =
+  const { weight_gain_3lb_2d, weight_gain_5lb_7d, sbp_low_symptomatic, spo2_low } =
     RED_FLAG_CRITERIA;
 
   return (

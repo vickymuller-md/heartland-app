@@ -32,6 +32,7 @@ supabase/seed_v4.sql
 
 # macOS
 .DS_Store
+*.swp
 
 # Claude CLI state
 .claude/

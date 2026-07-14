@@ -6,7 +6,6 @@ import { getPatientDetail } from '@/lib/dashboard/queries';
 import { getPatientMessages } from '@/lib/messages/queries';
 import { getSetupStatus } from '@/lib/onboarding/queries';
 import { ALL_STEPS_COMPLETE } from '@/lib/onboarding/constants';
-import { Badge } from '@/components/ui/badge';
 import { PatientDetailTabs } from './_components/patient-detail-tabs';
 import { SetupPrompt } from './_components/setup-prompt';
 import { ProviderPageDisclaimer } from '@/components/disclaimers/provider-page-disclaimer';

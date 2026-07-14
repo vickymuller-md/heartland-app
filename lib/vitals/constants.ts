@@ -5,8 +5,6 @@
  * Source: HEARTLAND Protocol v3.3, Module 5, Section 5.2
  */
 
-import type { RedFlag } from './types';
-
 /**
  * Red Flag Alert Criteria
  * HEARTLAND Protocol v3.3, Module 5, Section 5.2

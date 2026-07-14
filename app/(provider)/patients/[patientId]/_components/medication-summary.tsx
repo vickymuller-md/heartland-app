@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pill, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -20,9 +20,12 @@ interface MedicationSummaryProps {
 }
 
 export function MedicationSummary({ patientId, adherenceSummary }: MedicationSummaryProps) {
-  const supplied = adherenceSummary && typeof adherenceSummary === 'object' && 'medications' in adherenceSummary
-    ? (adherenceSummary as { medications?: Medication[] }).medications ?? []
-    : null;
+  const supplied = useMemo(
+    () => adherenceSummary && typeof adherenceSummary === 'object' && 'medications' in adherenceSummary
+      ? (adherenceSummary as { medications?: Medication[] }).medications ?? []
+      : null,
+    [adherenceSummary],
+  );
   const [medications, setMedications] = useState<Medication[]>(supplied ?? []);
   const [loading, setLoading] = useState(supplied === null);
 

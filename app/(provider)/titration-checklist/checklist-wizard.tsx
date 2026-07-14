@@ -116,7 +116,8 @@ export function ChecklistWizard() {
   );
 
   // Watch medications for per-drug recommendations
-  const watchedMeds = useWatch({ control, name: 'medications' }) ?? [];
+  const watchedMedsValue = useWatch({ control, name: 'medications' });
+  const watchedMeds = useMemo(() => watchedMedsValue ?? [], [watchedMedsValue]);
 
   // Derive active drug classes from medication names
   const activeDrugClasses = useMemo<DrugClass[]>(() => {

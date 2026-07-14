@@ -107,7 +107,7 @@ export function TeachBackCard({
             onClick={handleReadComplete}
             className="mt-4 min-h-[48px] w-full rounded-lg bg-blue-600 text-lg font-semibold text-white hover:bg-blue-700"
           >
-            I've Read This
+            I&apos;ve Read This
           </button>
         </div>
       )}
@@ -163,7 +163,7 @@ export function TeachBackCard({
               <div className="flex items-center gap-2 mb-2">
                 <XCircle className="h-6 w-6 text-amber-600" />
                 <span className="text-lg font-bold text-amber-800">
-                  Not quite. Let's review.
+                  Not quite. Let&apos;s review.
                 </span>
               </div>
               <p className="text-base text-amber-700">

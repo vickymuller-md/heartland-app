@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useCallback, useEffect, useState } from 'react';
 import { FlaskConical, Loader2, TrendingUp, TrendingDown, Minus, Plus, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { saveLabResult } from '@/lib/dashboard/actions';
@@ -184,7 +184,7 @@ export function LabResultsTab({ patientId }: { patientId: string }) {
   const [showForm, setShowForm] = useState(false);
   const [formKey, setFormKey] = useState(0);
 
-  const fetchLabs = async () => {
+  const fetchLabs = useCallback(async () => {
     const supabase = createClient();
     const { data } = await supabase
       .from('lab_results')
@@ -195,16 +195,16 @@ export function LabResultsTab({ patientId }: { patientId: string }) {
 
     setLabs(data ?? []);
     setLoading(false);
-  };
+  }, [patientId]);
 
   useEffect(() => {
-    fetchLabs();
-  }, [patientId]);
+    void fetchLabs();
+  }, [fetchLabs]);
 
   const handleFormSuccess = () => {
     setShowForm(false);
     setFormKey((k) => k + 1);
-    fetchLabs();
+    void fetchLabs();
   };
 
   if (loading) {
