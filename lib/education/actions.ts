@@ -8,11 +8,16 @@
  */
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { authorize } from '@/lib/auth/authorization';
+import { EDUCATION_DOMAINS } from './constants';
 
 export interface EducationActionState {
   success?: boolean;
   error?: string;
+}
+
+function isKnownDomain(domainId: string): boolean {
+  return EDUCATION_DOMAINS.some((domain) => domain.id === domainId);
 }
 
 /**
@@ -24,19 +29,16 @@ export async function completeModule(
   formData: FormData
 ): Promise<EducationActionState> {
   const domainId = formData.get('domain_id') as string;
-  if (!domainId) return { error: 'Missing domain_id' };
+  if (!isKnownDomain(domainId)) return { error: 'Invalid domain_id' };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: 'Not authenticated' };
+  const auth = await authorize('patient');
+  if (!auth.authorized) return { error: auth.error };
 
-  const { error } = await supabase
+  const { error } = await auth.supabase
     .from('education_progress')
     .upsert(
       {
-        patient_id: user.id,
+        patient_id: auth.user.id,
         domain_id: domainId,
         completed: true,
         completed_at: new Date().toISOString(),
@@ -57,27 +59,25 @@ export async function completeModule(
 export async function incrementAttempts(
   domainId: string
 ): Promise<EducationActionState> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: 'Not authenticated' };
+  if (!isKnownDomain(domainId)) return { error: 'Invalid domain_id' };
+  const auth = await authorize('patient');
+  if (!auth.authorized) return { error: auth.error };
 
   // First try to get existing record
-  const { data: existing } = await supabase
+  const { data: existing } = await auth.supabase
     .from('education_progress')
     .select('attempts')
-    .eq('patient_id', user.id)
+    .eq('patient_id', auth.user.id)
     .eq('domain_id', domainId)
     .single();
 
   const currentAttempts = existing?.attempts ?? 0;
 
-  const { error } = await supabase
+  const { error } = await auth.supabase
     .from('education_progress')
     .upsert(
       {
-        patient_id: user.id,
+        patient_id: auth.user.id,
         domain_id: domainId,
         attempts: currentAttempts + 1,
       },
@@ -96,23 +96,22 @@ export async function incrementAttempts(
 export async function resetModule(
   domainId: string
 ): Promise<EducationActionState> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: 'Not authenticated' };
+  if (!isKnownDomain(domainId)) return { error: 'Invalid domain_id' };
+  const auth = await authorize('patient');
+  if (!auth.authorized) return { error: auth.error };
 
-  const { error } = await supabase
+  const { data, error } = await auth.supabase
     .from('education_progress')
     .update({
       completed: false,
       completed_at: null,
       attempts: 0,
     })
-    .eq('patient_id', user.id)
-    .eq('domain_id', domainId);
+    .eq('patient_id', auth.user.id)
+    .eq('domain_id', domainId)
+    .select('id');
 
-  if (error) return { error: 'Failed to reset module' };
+  if (error || !data?.length) return { error: 'Failed to reset module' };
 
   revalidatePath('/education');
   return { success: true };

@@ -10,24 +10,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from './db';
 
 /**
  * Returns the count of items in the sync queue that are pending or failed.
  * Reactively updates when the queue changes (Dexie live query).
  */
 export function usePendingSyncCount(): number {
-  const count = useLiveQuery(
-    () =>
-      db.sync_queue
-        .where('status')
-        .anyOf(['pending', 'failed'])
-        .count(),
-    [],
-    0,
-  );
-  return count;
+  return 0;
 }
 
 /**

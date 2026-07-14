@@ -1,40 +1,52 @@
-/**
- * PWA Configuration — Unit Test Stubs
- * Requirements: PWA-01 (installable PWA), PWA-02 (offline caching strategies)
- * Source: HEARTLAND Protocol v3.3
- *
- * These stubs define the expected behavior of the PWA manifest and
- * service worker cache strategies. Plan 08-01 will implement PWA config
- * and make these tests green.
- */
+import { describe, expect, it } from 'vitest';
+import fs from 'fs';
+import path from 'path';
 
-import { describe, it } from 'vitest';
-// import manifest from '@/app/manifest';
+const serviceWorker = fs.readFileSync(
+  path.resolve(__dirname, '../../app/sw.ts'),
+  'utf-8',
+);
+const nextConfig = fs.readFileSync(
+  path.resolve(__dirname, '../../next.config.ts'),
+  'utf-8',
+);
 
-// ==========================================================================
-// PWA-01: Installable PWA with manifest, icons, and service worker
-// PWA-02: Offline caching — static cache-first, RSC network-first
-// ==========================================================================
-
-describe('PWA Configuration', () => {
-  describe('manifest', () => {
-    it.todo('exports a function returning MetadataRoute.Manifest');
-    it.todo('has name "HEARTLAND Protocol"');
-    it.todo('has display "standalone"');
-    it.todo('has start_url "/"');
-    it.todo('includes 192x192, 512x512, and maskable icons');
+describe('PWA Cache Security', () => {
+  it('does not import broad defaults or cache documents, RSC, Next data, or APIs', () => {
+    expect(serviceWorker).not.toContain('defaultCache');
+    expect(serviceWorker).not.toContain('new NetworkFirst');
+    expect(serviceWorker).not.toContain('request.headers.get("RSC")');
+    expect(serviceWorker).not.toContain('cacheName: "pages-rsc"');
   });
 
-  describe('cache strategies', () => {
-    it.todo('static assets (images, fonts) use CacheFirst strategy');
-    it.todo('RSC navigation requests use NetworkFirst strategy');
-    it.todo('RSC prefetch requests use StaleWhileRevalidate strategy');
-    it.todo('CSS/JS bundles use StaleWhileRevalidate strategy');
+  it('runtime-caches only same-origin immutable assets and icons', () => {
+    expect(serviceWorker).toContain('sameOrigin &&');
+    expect(serviceWorker).toContain('pathname.startsWith("/_next/static/")');
+    expect(serviceWorker).toContain('pathname.startsWith("/icons/")');
+    expect(serviceWorker).toContain('cacheName: "static-assets"');
+    expect(serviceWorker).toContain('cacheName: "static-js-css"');
   });
 
-  describe('next.config', () => {
-    it.todo('withSerwist wraps config with swSrc and swDest');
-    it.todo('service worker disabled in development mode');
-    it.todo('reloadOnOnline set to false');
+  it('deletes legacy caches capable of containing clinical responses', () => {
+    for (const marker of [
+      'pages-rsc-prefetch', 'pages-rsc', 'pages-html', 'next-data',
+      'static-data-assets', 'apis', 'others',
+    ]) {
+      expect(serviceWorker).toContain(`"${marker}"`);
+    }
+    expect(serviceWorker).toContain('caches.delete(cacheName)');
+  });
+
+  it('disables navigation caching in the Serwist build configuration', () => {
+    expect(nextConfig).toContain('cacheOnNavigation: false');
+    expect(nextConfig).toContain('reloadOnOnline: false');
+  });
+
+  it('sets no-store for APIs and baseline browser security headers', () => {
+    expect(nextConfig).toContain('private, no-store, max-age=0, must-revalidate');
+    expect(nextConfig).toContain('Content-Security-Policy-Report-Only');
+    expect(nextConfig).toContain('X-Content-Type-Options');
+    expect(nextConfig).toContain('X-Frame-Options');
+    expect(nextConfig).toContain('Strict-Transport-Security');
   });
 });

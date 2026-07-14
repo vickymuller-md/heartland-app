@@ -8,6 +8,7 @@
  * Source: HEARTLAND Protocol v3.3 -- Phase 21
  */
 
+import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   MonthlyReportData,

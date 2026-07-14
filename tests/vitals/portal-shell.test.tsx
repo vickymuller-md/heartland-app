@@ -3,8 +3,12 @@
  * Requirement: VITL-08 (elderly-optimized UI)
  */
 
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
+
+const { mockClearOfflineData } = vi.hoisted(() => ({
+  mockClearOfflineData: vi.fn().mockResolvedValue(undefined),
+}));
 
 // Mock next/navigation
 const mockPathname = vi.fn(() => '/today');
@@ -41,17 +45,27 @@ vi.mock('@/components/pwa/InstallPrompt', () => ({
   InstallPrompt: () => null,
 }));
 
-// Mock offline modules (use IndexedDB, not available in jsdom)
-vi.mock('@/lib/offline/register-sync', () => ({
-  registerSyncListeners: () => () => {},
-}));
-vi.mock('@/lib/offline/sync', () => ({
-  flushQueue: () => Promise.resolve(),
+vi.mock('@/lib/offline/db', () => ({
+  clearOfflineData: mockClearOfflineData,
 }));
 
 import PatientLayout from '@/app/(patient)/layout';
 
 describe('PatientLayout', () => {
+  beforeEach(() => {
+    mockClearOfflineData.mockClear();
+  });
+
+  it('purges legacy offline clinical data on portal entry', async () => {
+    render(
+      <PatientLayout>
+        <div>content</div>
+      </PatientLayout>
+    );
+
+    await waitFor(() => expect(mockClearOfflineData).toHaveBeenCalledOnce());
+  });
+
   it('renders bottom-tab navigation with 5 tabs: Today, History, Meds, Learn, Profile', () => {
     render(
       <PatientLayout>

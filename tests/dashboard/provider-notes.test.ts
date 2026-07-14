@@ -14,19 +14,20 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }));
 
-// Mock Supabase server client
 const mockInsert = vi.fn();
-const mockGetUser = vi.fn();
 const mockFrom = vi.fn(() => ({
   insert: mockInsert,
 }));
-const mockSupabase = {
-  auth: { getUser: mockGetUser },
-  from: mockFrom,
-};
+const mockAuthorizeProviderForPatient = vi.fn();
 
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(() => Promise.resolve(mockSupabase)),
+vi.mock('@/lib/auth/authorization', () => ({
+  authorize: vi.fn(),
+  authorizeProviderForPatient: (...args: unknown[]) =>
+    mockAuthorizeProviderForPatient(...args),
+}));
+
+vi.mock('@/lib/supabase/admin', () => ({
+  supabaseAdmin: { from: vi.fn() },
 }));
 
 import { addProviderNote } from '@/lib/dashboard/actions';
@@ -38,8 +39,11 @@ import { addProviderNote } from '@/lib/dashboard/actions';
 describe('addProviderNote', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetUser.mockResolvedValue({
-      data: { user: { id: 'provider-123' } },
+    mockAuthorizeProviderForPatient.mockResolvedValue({
+      authorized: true,
+      user: { id: 'provider-123' },
+      role: 'provider',
+      supabase: { from: mockFrom },
     });
     mockInsert.mockResolvedValue({ error: null });
   });
@@ -75,7 +79,10 @@ describe('addProviderNote', () => {
   });
 
   it('returns error when user is not authenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockAuthorizeProviderForPatient.mockResolvedValue({
+      authorized: false,
+      error: 'Not authenticated',
+    });
 
     const formData = new FormData();
     formData.set('patientId', '550e8400-e29b-41d4-a716-446655440000');

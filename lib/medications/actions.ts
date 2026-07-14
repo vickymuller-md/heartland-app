@@ -9,7 +9,7 @@
  */
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { authorize } from '@/lib/auth/authorization';
 import { addMedicationSchema, logDoseSchema } from './schema';
 import type { MedicationActionState } from './types';
 
@@ -20,11 +20,8 @@ export async function addMedication(
   prevState: MedicationActionState | null,
   formData: FormData
 ): Promise<MedicationActionState> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: 'Not authenticated' };
+  const auth = await authorize('patient');
+  if (!auth.authorized) return { error: auth.error };
 
   // Parse timing as array (sent as multiple form entries with same name)
   const timing = formData.getAll('timing') as string[];
@@ -34,8 +31,8 @@ export async function addMedication(
     return { errors: result.error.flatten().fieldErrors };
   }
 
-  const { error } = await supabase.from('medications').insert({
-    patient_id: user.id,
+  const { error } = await auth.supabase.from('medications').insert({
+    patient_id: auth.user.id,
     name: result.data.name,
     dosage: result.data.dosage,
     frequency: result.data.frequency,
@@ -55,11 +52,8 @@ export async function updateMedication(
   prevState: MedicationActionState | null,
   formData: FormData
 ): Promise<MedicationActionState> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: 'Not authenticated' };
+  const auth = await authorize('patient');
+  if (!auth.authorized) return { error: auth.error };
 
   const medicationId = formData.get('id') as string;
   if (!medicationId) return { error: 'Medication ID required' };
@@ -71,7 +65,7 @@ export async function updateMedication(
     return { errors: result.error.flatten().fieldErrors };
   }
 
-  const { error } = await supabase
+  const { data, error } = await auth.supabase
     .from('medications')
     .update({
       name: result.data.name,
@@ -80,9 +74,10 @@ export async function updateMedication(
       timing: result.data.timing,
     })
     .eq('id', medicationId)
-    .eq('patient_id', user.id);
+    .eq('patient_id', auth.user.id)
+    .select('id');
 
-  if (error) return { error: 'Failed to update medication' };
+  if (error || !data?.length) return { error: 'Failed to update medication' };
   revalidatePath('/medications');
   return { success: true };
 }
@@ -93,19 +88,17 @@ export async function updateMedication(
 export async function deactivateMedication(
   medicationId: string
 ): Promise<MedicationActionState> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: 'Not authenticated' };
+  const auth = await authorize('patient');
+  if (!auth.authorized) return { error: auth.error };
 
-  const { error } = await supabase
+  const { data, error } = await auth.supabase
     .from('medications')
     .update({ active: false })
     .eq('id', medicationId)
-    .eq('patient_id', user.id);
+    .eq('patient_id', auth.user.id)
+    .select('id');
 
-  if (error) return { error: 'Failed to deactivate medication' };
+  if (error || !data?.length) return { error: 'Failed to deactivate medication' };
   revalidatePath('/medications');
   return { success: true };
 }
@@ -118,11 +111,8 @@ export async function logDose(
   prevState: MedicationActionState | null,
   formData: FormData
 ): Promise<MedicationActionState> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: 'Not authenticated' };
+  const auth = await authorize('patient');
+  if (!auth.authorized) return { error: auth.error };
 
   const medicationId = formData.get('medication_id') as string;
   const scheduledDate = formData.get('scheduled_date') as string;
@@ -139,10 +129,10 @@ export async function logDose(
     return { errors: result.error.flatten().fieldErrors };
   }
 
-  const { error } = await supabase.from('medication_logs').upsert(
+  const { error } = await auth.supabase.from('medication_logs').upsert(
     {
       medication_id: result.data.medication_id,
-      patient_id: user.id,
+      patient_id: auth.user.id,
       scheduled_date: result.data.scheduled_date,
       dose_number: result.data.dose_number,
       taken: result.data.taken,

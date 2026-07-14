@@ -1,53 +1,34 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import { UnitToggle } from "./unit-toggle";
 import { SymptomForm } from "./symptom-form";
 import { vitalsSchema } from "@/lib/vitals/schema";
-import { enqueueVitals, enqueueSymptoms } from "@/lib/offline/queue";
-import { flushQueue } from "@/lib/offline/sync";
-import { createClient } from "@/lib/supabase/client";
+import { submitVitals } from "@/lib/vitals/actions";
 import { useIsOnline } from "@/lib/offline/hooks";
-import { evaluateRedFlags } from "@/lib/vitals/red-flags";
 import type { RedFlag } from "@/lib/vitals/types";
 import { RedFlagAlert } from "./red-flag-alert";
 
 /**
- * Combined vitals + symptoms entry form -- offline-first.
+ * Combined vitals + symptoms entry form.
  *
- * Phase 8 rewrites submission to use IndexedDB queue:
+ * Clinical values stay in the form until the authenticated server action
+ * confirms persistence. The app intentionally refuses offline submission.
  * 1. Client-side Zod validation
- * 2. Write to IndexedDB via enqueueVitals/enqueueSymptoms
- * 3. If online, fire-and-forget flushQueue()
- * 4. Show success regardless of connectivity
+ * 2. Submit through the authenticated Server Action
+ * 3. Show success only after the database confirms the write
  *
  * Elderly-optimized: 48px tap targets, 16px+ fonts, single-column layout.
- * Red flags evaluated server-side after sync (Phase 10 alert pipeline).
+ * Red flags are evaluated server-side with recent patient history.
  */
 export function VitalsEntryForm({ providerPhone }: { providerPhone?: string | null } = {}) {
   const [errors, setErrors] = useState<Record<string, string[]> | null>(null);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [patientId, setPatientId] = useState<string | null>(null);
   const [immediateFlags, setImmediateFlags] = useState<RedFlag[]>([]);
   const isOnline = useIsOnline();
   const formRef = useRef<HTMLFormElement>(null);
-
-  // Cache patient_id on mount — try getUser first, fallback to getSession
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        setPatientId(user.id);
-      } else {
-        // Fallback: try session (less secure but works when getUser fails)
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (session?.user) setPatientId(session.user.id);
-        });
-      }
-    });
-  }, []);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
@@ -57,6 +38,13 @@ export function VitalsEntryForm({ providerPhone }: { providerPhone?: string | nu
       setGeneralError(null);
 
       try {
+        if (!isOnline) {
+          setGeneralError(
+            "You are offline. Reconnect before submitting; this clinical data has not been saved."
+          );
+          return;
+        }
+
         const formData = new FormData(e.currentTarget);
         const raw = Object.fromEntries(formData.entries());
 
@@ -71,69 +59,24 @@ export function VitalsEntryForm({ providerPhone }: { providerPhone?: string | nu
             fieldErrors[key].push(issue.message);
           }
           setErrors(fieldErrors);
-          setSubmitting(false);
           return;
         }
 
-        if (!patientId) {
+        const response = await submitVitals(null, formData);
+        if (response.errors) {
+          setErrors(response.errors);
+          return;
+        }
+        if (!response.success) {
           setGeneralError(
-            "Unable to identify your account. Please sign out and sign back in."
+            response.error === "Not authenticated"
+              ? "Your session expired. Sign in again before submitting."
+              : "Something went wrong saving your check-in. Please try again."
           );
-          setSubmitting(false);
           return;
         }
 
-        const data = result.data;
-        const recordedAt = new Date().toISOString();
-
-        // Convert kg to lbs if needed
-        const weightLbs =
-          data.weightUnit === "kg"
-            ? Math.round(data.weight * 2.20462 * 10) / 10
-            : data.weight;
-
-        // Build vitals payload
-        const vitalsPayload = {
-          patient_id: patientId,
-          recorded_at: recordedAt,
-          weight_lbs: weightLbs,
-          sbp: data.sbp,
-          dbp: data.dbp,
-          heart_rate: data.heartRate,
-          spo2: data.spo2 ?? null,
-          source: "patient_app" as const,
-        };
-
-        // SAFE-01: Evaluate red flags client-side before enqueue
-        // recentHistory is empty in offline path -- weight trend checks skip silently
-        // but SBP, SpO2, dyspnea absolute threshold checks fire immediately
-        const immediateRedFlags = evaluateRedFlags(
-          { weight_lbs: weightLbs, sbp: data.sbp, spo2: data.spo2 ?? null },
-          [],
-          { dyspnea: data.dyspnea, edema: data.edema, orthopnea: data.orthopnea, fatigue: data.fatigue }
-        );
-        setImmediateFlags(immediateRedFlags);
-
-        // Build symptoms payload
-        const symptomsPayload = {
-          patient_id: patientId,
-          recorded_at: recordedAt,
-          dyspnea: data.dyspnea,
-          edema: data.edema,
-          orthopnea: data.orthopnea,
-          fatigue: data.fatigue,
-          red_flag: immediateRedFlags.length > 0,
-        };
-
-        // Write to IndexedDB queue
-        await enqueueVitals(vitalsPayload);
-        await enqueueSymptoms(symptomsPayload);
-
-        // If online, fire-and-forget sync (don't block UI)
-        if (navigator.onLine) {
-          flushQueue();
-        }
-
+        setImmediateFlags(response.redFlags ?? []);
         setSuccess(true);
       } catch {
         setGeneralError("Something went wrong saving your vitals. Please try again.");
@@ -141,7 +84,7 @@ export function VitalsEntryForm({ providerPhone }: { providerPhone?: string | nu
         setSubmitting(false);
       }
     },
-    [patientId]
+    [isOnline]
   );
 
   // Success state
@@ -160,11 +103,6 @@ export function VitalsEntryForm({ providerPhone }: { providerPhone?: string | nu
           <p className="text-base text-green-700">
             Your vitals and symptoms have been recorded. Keep up the good work!
           </p>
-          {!isOnline && immediateFlags.length === 0 && (
-            <p className="text-sm text-gray-600 mt-2">
-              Your vitals will be checked for any concerns once synced.
-            </p>
-          )}
           <button
             type="button"
             onClick={() => {

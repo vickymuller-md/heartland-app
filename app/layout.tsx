@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Inter, Geist, Sora, Instrument_Serif } from "next/font/google";
-import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { DisclaimerFooter } from "@/components/disclaimers/disclaimer-footer";
@@ -61,9 +60,6 @@ export default function RootLayout({
         <main className="flex-1">{children}</main>
         <DisclaimerFooter />
       </body>
-      {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
-        <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID} />
-      )}
     </html>
   );
 }

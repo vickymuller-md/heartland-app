@@ -1,60 +1,70 @@
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { authorize } from "@/lib/auth/authorization";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
+
+const emailSchema = z.string().trim().toLowerCase().email().max(320);
+
+function getInviteRedirect(): string | null {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL;
+  if (!configured && process.env.NODE_ENV === "production") return null;
+
+  try {
+    const siteUrl = new URL(configured ?? "http://localhost:3000");
+    if (
+      siteUrl.protocol !== "https:" &&
+      !(process.env.NODE_ENV !== "production" && siteUrl.hostname === "localhost")
+    ) return null;
+
+    const confirmationUrl = new URL("/confirm", siteUrl);
+    confirmationUrl.searchParams.set("next", "/consent?invited=1");
+    return confirmationUrl.toString();
+  } catch {
+    return null;
+  }
+}
 
 export async function invitePatient(formData: FormData) {
-  // 1. Verify the caller is authenticated
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
+  const auth = await authorize("provider");
+  if (!auth.authorized) return { error: auth.error };
 
-  // 2. Verify the caller is a provider
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, full_name")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "provider") return { error: "Unauthorized" };
-
-  // 3. Validate email input
-  const patientEmail = formData.get("email") as string;
-  if (!patientEmail || typeof patientEmail !== "string" || !patientEmail.includes("@")) {
+  const parsedEmail = emailSchema.safeParse(formData.get("email"));
+  if (!parsedEmail.success) {
     return { error: "Please enter a valid email address" };
   }
+  const patientEmail = parsedEmail.data;
 
-  // 4. Create an invite record in provider_patient_links
-  const { error: linkError } = await supabaseAdmin
+  const redirectTo = getInviteRedirect();
+  if (!redirectTo) return { error: "Invitation service is not configured" };
+
+  // Create through the caller-scoped client so RLS remains authoritative.
+  const { data: link, error: linkError } = await auth.supabase
     .from("provider_patient_links")
     .insert({
-      provider_id: user.id,
+      provider_id: auth.user.id,
       invite_email: patientEmail,
       status: "invited",
       invite_sent_at: new Date().toISOString(),
-    });
+    })
+    .select("id")
+    .single();
 
-  if (linkError) return { error: linkError.message };
+  if (linkError || !link) return { error: "Unable to send invitation" };
 
-  // 5. Send invite email via admin API
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(patientEmail, {
+    redirectTo,
+  });
 
-  const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-    patientEmail,
-    {
-      data: {
-        role: "patient",
-        invited_by_provider: user.id,
-        invited_by_name: profile.full_name,
-      },
-      redirectTo: `${siteUrl}/register?invite_provider=${user.id}`,
-    }
-  );
-
-  if (error) return { error: error.message };
+  if (error) {
+    await supabaseAdmin
+      .from("provider_patient_links")
+      .delete()
+      .eq("id", link.id)
+      .eq("status", "invited");
+    return { error: "Unable to send invitation" };
+  }
 
   revalidatePath("/patients/manage");
   return { success: true };

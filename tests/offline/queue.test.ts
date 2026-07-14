@@ -1,138 +1,106 @@
-/**
- * Offline Queue (Dexie IndexedDB) — Unit Tests
- * Requirements: VITL-09 (offline vitals capture), PWA-03 (offline queue + sync)
- * Source: HEARTLAND Protocol v3.3, Module 5
- */
-
 import 'fake-indexeddb/auto';
-import { describe, it, expect, beforeEach } from 'vitest';
-import Dexie from 'dexie';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  clearSynced,
+  enqueueSymptoms,
+  enqueueVitals,
+  getPendingItems,
+  OfflineClinicalStorageDisabledError,
+} from '@/lib/offline/queue';
+import { clearClientSecurityState, clearOfflineData, db } from '@/lib/offline/db';
 
-// These imports will fail until implementation exists — that's the RED phase
-import { enqueueVitals, enqueueSymptoms, getPendingItems, clearSynced } from '@/lib/offline/queue';
-import { db } from '@/lib/offline/db';
+function createStorageMock(): Storage {
+  const values = new Map<string, string>();
+  return {
+    get length() { return values.size; },
+    clear: () => values.clear(),
+    getItem: (key) => values.get(key) ?? null,
+    key: (index) => Array.from(values.keys())[index] ?? null,
+    removeItem: (key) => { values.delete(key); },
+    setItem: (key, value) => { values.set(key, String(value)); },
+  };
+}
 
-describe('Offline Queue (Dexie)', () => {
+Object.defineProperty(window, 'localStorage', {
+  configurable: true,
+  value: createStorageMock(),
+});
+Object.defineProperty(window, 'sessionStorage', {
+  configurable: true,
+  value: createStorageMock(),
+});
+
+describe('Offline Clinical Storage Shutdown', () => {
   beforeEach(async () => {
-    // Clear database between tests
     await db.sync_queue.clear();
+    window.localStorage.clear();
+    window.sessionStorage.clear();
   });
 
-  describe('enqueueVitals', () => {
-    it('writes a record to sync_queue with status "pending"', async () => {
-      const vitals = { patient_id: 'p1', weight_lbs: 180, sbp: 120, dbp: 80, heart_rate: 72, spo2: 98, source: 'patient_app' };
-      await enqueueVitals(vitals);
-
-      const items = await db.sync_queue.toArray();
-      expect(items).toHaveLength(1);
-      expect(items[0].status).toBe('pending');
-      expect(items[0].table).toBe('vitals');
-    });
-
-    it('generates a UUID client_id in the payload', async () => {
-      const vitals = { patient_id: 'p1', weight_lbs: 180 };
-      const id = await enqueueVitals(vitals);
-
-      const item = await db.sync_queue.get(id);
-      expect(item).toBeDefined();
-      expect(item!.payload).toHaveProperty('client_id');
-      // UUID format: 8-4-4-4-12 hex chars
-      expect(item!.payload.client_id).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-      );
-      // client_id should match the returned id
-      expect(item!.payload.client_id).toBe(id);
-    });
-
-    it('sets attempts to 0 and created_at to current timestamp', async () => {
-      const before = Date.now();
-      await enqueueVitals({ patient_id: 'p1' });
-      const after = Date.now();
-
-      const items = await db.sync_queue.toArray();
-      expect(items[0].attempts).toBe(0);
-      expect(items[0].created_at).toBeGreaterThanOrEqual(before);
-      expect(items[0].created_at).toBeLessThanOrEqual(after);
-    });
-
-    it('returns the generated client_id', async () => {
-      const id = await enqueueVitals({ patient_id: 'p1' });
-      expect(id).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-      );
-    });
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
-  describe('enqueueSymptoms', () => {
-    it('writes a symptoms record to sync_queue with table "symptoms"', async () => {
-      const symptoms = { patient_id: 'p1', dyspnea: 1, edema: 0, orthopnea: false, fatigue: 1 };
-      const id = await enqueueSymptoms(symptoms);
-
-      const item = await db.sync_queue.get(id);
-      expect(item).toBeDefined();
-      expect(item!.table).toBe('symptoms');
-      expect(item!.status).toBe('pending');
-      expect(item!.payload.client_id).toBe(id);
-    });
+  it('refuses to persist vitals in IndexedDB', async () => {
+    await expect(enqueueVitals({ patient_id: 'p1', sbp: 120 })).rejects.toBeInstanceOf(
+      OfflineClinicalStorageDisabledError,
+    );
+    expect(await db.sync_queue.count()).toBe(0);
   });
 
-  describe('getPendingItems', () => {
-    it('returns items with status "pending" or "failed"', async () => {
-      await db.sync_queue.bulkAdd([
-        { id: '1', table: 'vitals', payload: {}, status: 'pending', attempts: 0, created_at: Date.now() },
-        { id: '2', table: 'vitals', payload: {}, status: 'failed', attempts: 2, created_at: Date.now() },
-      ]);
-
-      const items = await getPendingItems();
-      expect(items).toHaveLength(2);
-    });
-
-    it('excludes items with status "synced"', async () => {
-      await db.sync_queue.bulkAdd([
-        { id: '1', table: 'vitals', payload: {}, status: 'pending', attempts: 0, created_at: Date.now() },
-        { id: '2', table: 'vitals', payload: {}, status: 'synced', attempts: 0, created_at: Date.now(), synced_at: Date.now() },
-      ]);
-
-      const items = await getPendingItems();
-      expect(items).toHaveLength(1);
-      expect(items[0].id).toBe('1');
-    });
-
-    it('excludes items with attempts >= 5', async () => {
-      await db.sync_queue.bulkAdd([
-        { id: '1', table: 'vitals', payload: {}, status: 'failed', attempts: 5, created_at: Date.now() },
-        { id: '2', table: 'vitals', payload: {}, status: 'failed', attempts: 3, created_at: Date.now() },
-      ]);
-
-      const items = await getPendingItems();
-      expect(items).toHaveLength(1);
-      expect(items[0].id).toBe('2');
-    });
+  it('refuses to persist symptoms in IndexedDB', async () => {
+    await expect(enqueueSymptoms({ patient_id: 'p1', dyspnea: 2 })).rejects.toBeInstanceOf(
+      OfflineClinicalStorageDisabledError,
+    );
+    expect(await db.sync_queue.count()).toBe(0);
   });
 
-  describe('clearSynced', () => {
-    it('removes all items with status "synced"', async () => {
-      await db.sync_queue.bulkAdd([
-        { id: '1', table: 'vitals', payload: {}, status: 'synced', attempts: 0, created_at: Date.now(), synced_at: Date.now() },
-        { id: '2', table: 'vitals', payload: {}, status: 'synced', attempts: 0, created_at: Date.now(), synced_at: Date.now() },
-      ]);
-
-      const count = await clearSynced();
-      expect(count).toBe(2);
-      expect(await db.sync_queue.count()).toBe(0);
+  it('purges legacy records instead of returning them for sync', async () => {
+    await db.sync_queue.add({
+      id: 'legacy',
+      table: 'vitals',
+      payload: { patient_id: 'p1', sbp: 120 },
+      status: 'pending',
+      attempts: 0,
+      created_at: Date.now(),
     });
 
-    it('does not remove pending or failed items', async () => {
-      await db.sync_queue.bulkAdd([
-        { id: '1', table: 'vitals', payload: {}, status: 'pending', attempts: 0, created_at: Date.now() },
-        { id: '2', table: 'vitals', payload: {}, status: 'failed', attempts: 1, created_at: Date.now() },
-        { id: '3', table: 'vitals', payload: {}, status: 'synced', attempts: 0, created_at: Date.now(), synced_at: Date.now() },
-      ]);
+    await expect(getPendingItems()).resolves.toEqual([]);
+    expect(await db.sync_queue.count()).toBe(0);
+  });
 
-      await clearSynced();
-      const remaining = await db.sync_queue.toArray();
-      expect(remaining).toHaveLength(2);
-      expect(remaining.map(r => r.id).sort()).toEqual(['1', '2']);
+  it('clearSynced now purges every legacy queue state', async () => {
+    await db.sync_queue.bulkAdd([
+      { id: '1', table: 'vitals', payload: {}, status: 'pending', attempts: 0, created_at: Date.now() },
+      { id: '2', table: 'symptoms', payload: {}, status: 'synced', attempts: 0, created_at: Date.now() },
+    ]);
+
+    await expect(clearSynced()).resolves.toBe(2);
+    expect(await db.sync_queue.count()).toBe(0);
+  });
+
+  it('clearOfflineData is idempotent', async () => {
+    await clearOfflineData();
+    await clearOfflineData();
+    expect(await db.sync_queue.count()).toBe(0);
+  });
+
+  it('logout cleanup removes app storage and every origin cache', async () => {
+    window.localStorage.setItem('heartland:provider_phone', '555-0100');
+    window.localStorage.setItem('unrelated', 'keep');
+    window.sessionStorage.setItem('heartland-session-ui', 'value');
+
+    const deleteCache = vi.fn().mockResolvedValue(true);
+    vi.stubGlobal('caches', {
+      keys: vi.fn().mockResolvedValue(['precache', 'pages-rsc']),
+      delete: deleteCache,
     });
+
+    await clearClientSecurityState();
+
+    expect(window.localStorage.getItem('heartland:provider_phone')).toBeNull();
+    expect(window.sessionStorage.getItem('heartland-session-ui')).toBeNull();
+    expect(window.localStorage.getItem('unrelated')).toBe('keep');
+    expect(deleteCache).toHaveBeenCalledTimes(2);
   });
 });

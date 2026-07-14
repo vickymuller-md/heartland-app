@@ -29,8 +29,15 @@ import {
 import { PROACTIVE_DEDUP_HOURS } from '@/lib/dashboard/constants';
 import { getAdherenceData } from '@/lib/medications/queries';
 import type { ExistingAlertForDedup } from '@/lib/dashboard/types';
+import { timingSafeEqual } from 'node:crypto';
 
 export const dynamic = 'force-dynamic';
+
+function validCronAuthorization(header: string | null, secret: string): boolean {
+  const actual = Buffer.from(header ?? '', 'utf8');
+  const expected = Buffer.from(`Bearer ${secret}`, 'utf8');
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
 
 export async function GET(request: Request) {
   // Fail loudly if CRON_SECRET is missing in prod -- prevents silent auth-deny
@@ -45,7 +52,7 @@ export async function GET(request: Request) {
 
   // Authorization gate (Vercel cron pattern)
   const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!validCronAuthorization(authHeader, process.env.CRON_SECRET)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -344,8 +351,8 @@ export async function GET(request: Request) {
       alerts_created: alertsCreated,
       timestamp: now.toISOString(),
     });
-  } catch (error) {
-    console.error('[alert-scan] Error:', error);
+  } catch {
+    console.error('[alert-scan] Scan failed');
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

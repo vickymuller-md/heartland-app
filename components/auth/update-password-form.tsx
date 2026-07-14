@@ -65,7 +65,7 @@ export function UpdatePasswordForm() {
       <CardHeader>
         <CardTitle className="text-2xl">Set New Password</CardTitle>
         <CardDescription>
-          Enter your new password below. It must be at least 8 characters.
+          Enter your new password below. It must be at least 15 characters.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -76,7 +76,7 @@ export function UpdatePasswordForm() {
             <Input
               id="new-password"
               type="password"
-              placeholder="Minimum 8 characters"
+              placeholder="Minimum 15 characters"
               aria-invalid={!!errors.password}
               {...register("password")}
             />

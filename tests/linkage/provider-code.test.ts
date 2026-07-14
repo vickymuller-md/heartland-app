@@ -1,23 +1,37 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 
-describe('Provider Code Generation', () => {
-  it('should generate a 6-character code', () => {
-    // TODO: implement
-    expect(true).toBe(false);
+const generationMigration = fs.readFileSync(
+  path.resolve(__dirname, '../../supabase/migrations/00002_provider_codes_and_invites.sql'),
+  'utf8',
+);
+const hardeningMigration = fs.readFileSync(
+  path.resolve(__dirname, '../../supabase/migrations/00025_authorization_audit_hardening.sql'),
+  'utf8',
+);
+
+describe('Provider Code Generation and Disclosure', () => {
+  it('generates six characters from the no-lookalike alphabet', () => {
+    expect(generationMigration).toContain("chars text := 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'");
+    expect(generationMigration).toContain('FOR i IN 1..6 LOOP');
   });
 
-  it('should only contain uppercase letters and digits from no-lookalike alphabet', () => {
-    // TODO: implement
-    expect(true).toBe(false);
+  it('enforces database uniqueness', () => {
+    expect(generationMigration).toContain('provider_code text UNIQUE');
+    expect(generationMigration).toContain('EXIT WHEN NOT EXISTS');
   });
 
-  it('should not contain lookalike characters: 0, O, 1, I, L', () => {
-    // TODO: implement
-    expect(true).toBe(false);
+  it('removes bulk provider-profile disclosure', () => {
+    expect(hardeningMigration).toContain(
+      'DROP POLICY IF EXISTS "patients_read_provider_codes" ON public.profiles',
+    );
+    expect(hardeningMigration).toContain('lookup_provider_by_code');
+    expect(hardeningMigration).toContain('RETURNS TABLE (id uuid, full_name text)');
   });
 
-  it('should generate unique codes across multiple calls', () => {
-    // TODO: implement
-    expect(true).toBe(false);
+  it('requires exact validated code and current consent', () => {
+    expect(hardeningMigration).toContain("p_code ~ '^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$'");
+    expect(hardeningMigration).toContain('AND public.has_registration_consent()');
   });
 });

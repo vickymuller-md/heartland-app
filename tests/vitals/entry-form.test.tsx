@@ -8,6 +8,11 @@ import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+const { mockSubmitVitals, mockUseIsOnline } = vi.hoisted(() => ({
+  mockSubmitVitals: vi.fn(),
+  mockUseIsOnline: vi.fn<() => boolean>(),
+}));
+
 // Mock localStorage
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
@@ -32,57 +37,18 @@ Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 
 // Mock the server action
 vi.mock('@/lib/vitals/actions', () => ({
-  submitVitals: vi.fn(),
-}));
-
-// Mock useActionState to render the form without server action
-vi.mock('react', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('react')>();
-  return {
-    ...actual,
-    useActionState: () => [null, vi.fn(), false],
-  };
-});
-
-// Mock evaluateRedFlags -- SAFE-01
-const mockEvaluateRedFlags = vi.fn().mockReturnValue([]);
-vi.mock('@/lib/vitals/red-flags', () => ({
-  evaluateRedFlags: (...args: unknown[]) => mockEvaluateRedFlags(...args),
-}));
-
-// Mock offline queue
-vi.mock('@/lib/offline/queue', () => ({
-  enqueueVitals: vi.fn().mockResolvedValue(undefined),
-  enqueueSymptoms: vi.fn().mockResolvedValue(undefined),
-}));
-
-// Mock offline sync
-vi.mock('@/lib/offline/sync', () => ({
-  flushQueue: vi.fn(),
-}));
-
-// Mock Supabase client for auth
-vi.mock('@/lib/supabase/client', () => ({
-  createClient: () => ({
-    auth: {
-      getUser: vi.fn().mockResolvedValue({
-        data: { user: { id: 'test-patient-id' } },
-      }),
-      getSession: vi.fn().mockResolvedValue({
-        data: { session: null },
-      }),
-    },
-  }),
+  submitVitals: mockSubmitVitals,
 }));
 
 // Mock useIsOnline
 vi.mock('@/lib/offline/hooks', () => ({
-  useIsOnline: () => true,
+  useIsOnline: () => mockUseIsOnline(),
 }));
 
 beforeEach(() => {
   localStorageMock.clear();
-  mockEvaluateRedFlags.mockReset().mockReturnValue([]);
+  mockUseIsOnline.mockReturnValue(true);
+  mockSubmitVitals.mockReset().mockResolvedValue({ success: true, redFlags: [] });
 });
 
 import { VitalsEntryForm } from '@/app/(patient)/today/_components/vitals-form';
@@ -242,7 +208,7 @@ describe('VitalsEntryForm', () => {
     });
   });
 
-  describe('SAFE-01: offline red flag evaluation', () => {
+  describe('secure server submission', () => {
     async function fillAndSubmitForm(user: ReturnType<typeof userEvent.setup>, overrides?: { sbp?: string; spo2?: string }) {
       // Fill required fields
       await user.type(screen.getByLabelText(/weight/i), '165');
@@ -257,25 +223,24 @@ describe('VitalsEntryForm', () => {
       await user.click(screen.getByRole('button', { name: /submit daily check-in/i }));
     }
 
-    it('calls evaluateRedFlags with empty history array after form submission', async () => {
+    it('submits through the authenticated Server Action', async () => {
       const user = userEvent.setup();
       render(<VitalsEntryForm />);
 
       await fillAndSubmitForm(user);
 
       await waitFor(() => {
-        expect(mockEvaluateRedFlags).toHaveBeenCalledWith(
-          expect.objectContaining({ weight_lbs: expect.any(Number), sbp: expect.any(Number) }),
-          [], // empty history for offline path
-          expect.objectContaining({ dyspnea: expect.any(Number), fatigue: expect.any(Number) }),
-        );
+        expect(mockSubmitVitals).toHaveBeenCalledWith(null, expect.any(FormData));
       });
     });
 
-    it('renders RedFlagAlert when evaluateRedFlags returns critical flags (SBP 70)', async () => {
-      mockEvaluateRedFlags.mockReturnValue([
-        { id: 'sbp_low_symptomatic', severity: 'critical', message: 'Low blood pressure with symptoms', action: 'Hold medications' },
-      ]);
+    it('renders RedFlagAlert when the server returns critical flags', async () => {
+      mockSubmitVitals.mockResolvedValue({
+        success: true,
+        redFlags: [
+          { id: 'sbp_low_symptomatic', severity: 'critical', message: 'Low blood pressure with symptoms', action: 'Hold medications' },
+        ],
+      });
 
       const user = userEvent.setup();
       render(<VitalsEntryForm />);
@@ -288,9 +253,7 @@ describe('VitalsEntryForm', () => {
       });
     });
 
-    it('shows success message when no red flags are returned', async () => {
-      mockEvaluateRedFlags.mockReturnValue([]);
-
+    it('shows success only after the server confirms persistence', async () => {
       const user = userEvent.setup();
       render(<VitalsEntryForm />);
 
@@ -301,6 +264,18 @@ describe('VitalsEntryForm', () => {
       });
       // No alert should render
       expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('refuses offline submission and does not claim the data was saved', async () => {
+      mockUseIsOnline.mockReturnValue(false);
+      const user = userEvent.setup();
+      render(<VitalsEntryForm />);
+
+      await fillAndSubmitForm(user);
+
+      expect(await screen.findByText(/clinical data has not been saved/i)).toBeInTheDocument();
+      expect(mockSubmitVitals).not.toHaveBeenCalled();
+      expect(screen.queryByText(/check-in complete/i)).toBeNull();
     });
   });
 });

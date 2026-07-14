@@ -13,8 +13,9 @@
  * Requirements: DASH-08 (realtime alert delivery), EFFI-02 (urgentCount badge)
  */
 
-import { createClient } from '@/lib/supabase/server';
+import { authorize } from '@/lib/auth/authorization';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { redirect } from 'next/navigation';
 import { Toaster } from 'sonner';
 import { ProviderShell } from './_components/provider-shell';
 import { QueryProvider } from './_components/query-provider';
@@ -42,24 +43,23 @@ export default async function ProviderLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const auth = await authorize('provider');
+  if (!auth.authorized) {
+    redirect(auth.error === 'Consent required' ? '/consent' : '/login');
+  }
+  const supabase = auth.supabase;
 
   // Fetch linked patient IDs for Realtime subscription filtering
   let linkedPatientIds: string[] = [];
-  const providerId = user?.id ?? '';
+  const providerId = auth.user.id;
 
-  if (user) {
-    const { data: links } = await supabase
-      .from('provider_patient_links')
-      .select('patient_id')
-      .eq('provider_id', user.id)
-      .eq('status', 'active');
+  const { data: links } = await supabase
+    .from('provider_patient_links')
+    .select('patient_id')
+    .eq('provider_id', providerId)
+    .eq('status', 'active');
 
-    linkedPatientIds = (links ?? []).map((l) => l.patient_id);
-  }
+  linkedPatientIds = (links ?? []).map((l) => l.patient_id);
 
   // Fetch urgent alert count for sidebar badge (EFFI-02)
   const urgentCount = linkedPatientIds.length > 0

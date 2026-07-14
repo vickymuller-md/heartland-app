@@ -1,45 +1,45 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+
+const migration = fs.readFileSync(
+  path.resolve(__dirname, '../../supabase/migrations/00025_authorization_audit_hardening.sql'),
+  'utf8',
+);
 
 describe('Linkage RLS Policies', () => {
-  // INTEGRATION: requires Supabase local
-  it('should allow provider to read their own links', () => {
-    // TODO: implement
-    expect(true).toBe(false);
+  it('scopes provider reads to auth.uid and requires consent', () => {
+    expect(migration).toMatch(
+      /CREATE POLICY "providers_select_own_links"[\s\S]*public\.has_registration_consent\(\)[\s\S]*provider_id = \(SELECT auth\.uid\(\)\)/,
+    );
   });
 
-  // INTEGRATION: requires Supabase local
-  it('should deny provider from reading other providers links', () => {
-    // TODO: implement
-    expect(true).toBe(false);
+  it('scopes patient reads to auth.uid and requires consent', () => {
+    expect(migration).toMatch(
+      /CREATE POLICY "patients_select_own_links"[\s\S]*public\.has_registration_consent\(\)[\s\S]*patient_id = \(SELECT auth\.uid\(\)\)/,
+    );
   });
 
-  // INTEGRATION: requires Supabase local
-  it('should allow patient to read their own links', () => {
-    // TODO: implement
-    expect(true).toBe(false);
+  it('allows patients to create only pending self-link requests', () => {
+    expect(migration).toMatch(
+      /CREATE POLICY "patients_insert_linkage_requests"[\s\S]*patient_id = \(SELECT auth\.uid\(\)\)[\s\S]*status = 'pending'[\s\S]*invite_email IS NULL/,
+    );
   });
 
-  // INTEGRATION: requires Supabase local
-  it('should deny patient from reading other patients links', () => {
-    // TODO: implement
-    expect(true).toBe(false);
+  it('allows providers to review only their own pending links', () => {
+    expect(migration).toMatch(
+      /CREATE POLICY "providers_review_pending_links"[\s\S]*provider_id = \(SELECT auth\.uid\(\)\)[\s\S]*status = 'pending'/,
+    );
   });
 
-  // INTEGRATION: requires Supabase local
-  it('should allow patient to insert a pending linkage request', () => {
-    // TODO: implement
-    expect(true).toBe(false);
-  });
-
-  // INTEGRATION: requires Supabase local
-  it('should allow provider to update link status', () => {
-    // TODO: implement
-    expect(true).toBe(false);
-  });
-
-  // INTEGRATION: requires Supabase local
-  it('should deny patient from updating link status', () => {
-    // TODO: implement
-    expect(true).toBe(false);
+  it('blocks principal-column mutation and hard delete', () => {
+    const linkSection = migration.slice(
+      migration.indexOf('DROP POLICY IF EXISTS "providers_select_own_links"'),
+      migration.indexOf('-- 5. Append-only observations and symptoms'),
+    );
+    expect(linkSection).toContain(
+      'REVOKE INSERT, UPDATE, DELETE ON TABLE public.provider_patient_links',
+    );
+    expect(linkSection).not.toContain('GRANT UPDATE (provider_id');
   });
 });

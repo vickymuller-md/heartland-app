@@ -4,14 +4,12 @@ export const registerSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z
     .string()
-    .min(8, "Password must be at least 8 characters"),
+    .min(15, "Password must be at least 15 characters"),
   full_name: z
     .string()
     .min(2, "Name must be at least 2 characters")
     .max(100, "Name must be 100 characters or fewer"),
-  role: z.enum(["provider", "patient"], {
-    error: "Please select a role",
-  }),
+  role: z.literal("patient"),
   // consent_accepted is validated by the consent dialog flow, not by Zod
   // The dialog must be accepted before doSignUp() is called
   consent_accepted: z.boolean().optional(),
@@ -30,7 +28,7 @@ export const updatePasswordSchema = z
   .object({
     password: z
       .string()
-      .min(8, "Password must be at least 8 characters"),
+      .min(15, "Password must be at least 15 characters"),
     confirm_password: z.string(),
   })
   .refine((data) => data.password === data.confirm_password, {

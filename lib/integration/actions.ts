@@ -14,7 +14,7 @@
  * Requirements: INTG-01 through INTG-05
  */
 
-import { createClient } from '@/lib/supabase/server';
+import { authorizeProviderForPatient } from '@/lib/auth/authorization';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { SaveResult, TitrationNoteData, GdmtMedicationInput } from './types';
@@ -68,11 +68,10 @@ export async function saveRiskScore(
     return { success: false, error: 'Validation failed' };
   }
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Not authenticated' };
+  const auth = await authorizeProviderForPatient(parsed.data.patientId);
+  if (!auth.authorized) return { success: false, error: auth.error };
 
-  const { data, error } = await supabase
+  const { data, error } = await auth.supabase
     .from('patients')
     .update({
       risk_tier: parsed.data.tier,
@@ -82,9 +81,8 @@ export async function saveRiskScore(
     .eq('id', parsed.data.patientId)
     .select('id');
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: 'Unable to save risk score' };
   if (!data || data.length === 0) {
-    console.warn(`[saveRiskScore] No rows updated for patient ${parsed.data.patientId} — RLS may have blocked`);
     return { success: false, error: 'Patient not found or not linked to provider' };
   }
 
@@ -113,19 +111,17 @@ export async function saveFacilityTier(
     return { success: false, error: 'Validation failed' };
   }
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Not authenticated' };
+  const auth = await authorizeProviderForPatient(parsed.data.patientId);
+  if (!auth.authorized) return { success: false, error: auth.error };
 
-  const { data, error } = await supabase
+  const { data, error } = await auth.supabase
     .from('patients')
     .update({ facility_tier: parsed.data.facilityTier })
     .eq('id', parsed.data.patientId)
     .select('id');
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: 'Unable to save facility tier' };
   if (!data || data.length === 0) {
-    console.warn(`[saveFacilityTier] No rows updated for patient ${parsed.data.patientId} — RLS may have blocked`);
     return { success: false, error: 'Patient not found or not linked to provider' };
   }
 
@@ -158,19 +154,17 @@ export async function saveTrackAssignment(
     return { success: false, error: 'Invalid track value' };
   }
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Not authenticated' };
+  const auth = await authorizeProviderForPatient(parsed.data.patientId);
+  if (!auth.authorized) return { success: false, error: auth.error };
 
-  const { data, error } = await supabase
+  const { data, error } = await auth.supabase
     .from('patients')
     .update({ track_assignment: dbTrack })
     .eq('id', parsed.data.patientId)
     .select('id');
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: 'Unable to save track assignment' };
   if (!data || data.length === 0) {
-    console.warn(`[saveTrackAssignment] No rows updated for patient ${parsed.data.patientId} — RLS may have blocked`);
     return { success: false, error: 'Patient not found or not linked to provider' };
   }
 
@@ -196,17 +190,16 @@ export async function saveTitrationNote(
 
   const noteContent = formatTitrationNote(data);
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Not authenticated' };
+  const auth = await authorizeProviderForPatient(patientId);
+  if (!auth.authorized) return { success: false, error: auth.error };
 
-  const { error } = await supabase.from('provider_notes').insert({
+  const { error } = await auth.supabase.from('provider_notes').insert({
     patient_id: patientId,
-    provider_id: user.id,
+    provider_id: auth.user.id,
     content: noteContent,
   });
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: 'Unable to save titration note' };
 
   revalidatePath(`/patients/${patientId}`);
   return { success: true };
@@ -232,9 +225,8 @@ export async function saveGdmtMedications(
     return { success: true }; // Nothing to insert -- all duplicates
   }
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Not authenticated' };
+  const auth = await authorizeProviderForPatient(patientId);
+  if (!auth.authorized) return { success: false, error: auth.error };
 
   const rows = newMeds.map(m => ({
     patient_id: patientId,
@@ -244,9 +236,9 @@ export async function saveGdmtMedications(
     active: true,
   }));
 
-  const { error } = await supabase.from('medications').insert(rows);
+  const { error } = await auth.supabase.from('medications').insert(rows);
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: 'Unable to save medications' };
 
   revalidatePath(`/patients/${patientId}`);
   return { success: true };

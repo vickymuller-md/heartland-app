@@ -24,15 +24,13 @@ vi.mock('next/cache', () => ({
 
 // ---------- Supabase mock setup ----------
 
-const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
+const mockAuthorizeProviderForPatient = vi.fn();
 
-// Regular client (for lab_results insert via RLS)
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn().mockResolvedValue({
-    auth: { getUser: () => mockGetUser() },
-    from: (...args: unknown[]) => mockFrom(...args),
-  }),
+vi.mock('@/lib/auth/authorization', () => ({
+  authorize: vi.fn(),
+  authorizeProviderForPatient: (...args: unknown[]) =>
+    mockAuthorizeProviderForPatient(...args),
 }));
 
 // Admin client (for alert insert bypassing RLS)
@@ -80,9 +78,13 @@ describe('saveLabResult -- SAFE-04', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Default: authenticated user
-    mockGetUser.mockResolvedValue({
-      data: { user: { id: USER_ID } },
+    mockAuthorizeProviderForPatient.mockResolvedValue({
+      authorized: true,
+      user: { id: USER_ID },
+      role: 'provider',
+      supabase: {
+        from: (...args: unknown[]) => mockFrom(...args),
+      },
     });
 
     // Default: lab insert succeeds
@@ -213,8 +215,9 @@ describe('saveLabResult -- SAFE-04', () => {
   });
 
   it('returns error when unauthenticated', async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
+    mockAuthorizeProviderForPatient.mockResolvedValue({
+      authorized: false,
+      error: 'Not authenticated',
     });
 
     const fd = makeFormData({

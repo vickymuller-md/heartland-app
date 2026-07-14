@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { authorize } from '@/lib/auth/authorization';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod/v4';
 import type { MetricKey } from './types';
@@ -18,7 +18,9 @@ const UpsertSchema = z.object({
   period_month: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be yyyy-MM-dd format'),
   numerator: z.number().int().min(0),
   denominator: z.number().int().min(1),
-  notes: z.string().optional(),
+  notes: z.string().max(2000).optional(),
+}).refine(({ numerator, denominator }) => numerator <= denominator, {
+  message: 'Numerator cannot exceed denominator',
 });
 
 /**
@@ -33,11 +35,8 @@ export async function upsertQualityMetricRecord(data: {
   denominator: number;
   notes?: string;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: 'Unauthorized' };
+  const auth = await authorize('provider');
+  if (!auth.authorized) return { error: auth.error };
 
   const parsed = UpsertSchema.safeParse(data);
   if (!parsed.success) return { error: 'Invalid input' };
@@ -47,11 +46,11 @@ export async function upsertQualityMetricRecord(data: {
   // Compute rate -- denominator already validated >= 1
   const rate_pct = (numerator / denominator) * 100;
 
-  const { error } = await supabase
+  const { error } = await auth.supabase
     .from('quality_metric_records')
     .upsert(
       {
-        provider_id: user.id,
+        provider_id: auth.user.id,
         metric_key,
         period_month,
         numerator,
@@ -62,7 +61,7 @@ export async function upsertQualityMetricRecord(data: {
       { onConflict: 'provider_id,metric_key,period_month' },
     );
 
-  if (error) return { error: error.message };
+  if (error) return { error: 'Unable to save quality metric' };
 
   revalidatePath('/quality-metrics');
   return { success: true };

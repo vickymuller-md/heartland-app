@@ -42,16 +42,13 @@ describe('GA4 Layout Integration (ANLYT-01)', () => {
   const layoutPath = path.resolve(__dirname, '../../app/layout.tsx');
   const layoutContent = fs.readFileSync(layoutPath, 'utf-8');
 
-  it('root layout includes GoogleAnalytics component', () => {
-    expect(layoutContent).toContain('GoogleAnalytics');
+  it('root layout does not load Google Analytics on authenticated surfaces', () => {
+    expect(layoutContent).not.toContain('GoogleAnalytics');
   });
 
-  it('GoogleAnalytics uses NEXT_PUBLIC_GA_MEASUREMENT_ID env var', () => {
-    expect(layoutContent).toContain('NEXT_PUBLIC_GA_MEASUREMENT_ID');
-  });
-
-  it('layout imports from @next/third-parties/google', () => {
-    expect(layoutContent).toContain('@next/third-parties/google');
+  it('root layout contains no analytics environment hook or Google import', () => {
+    expect(layoutContent).not.toContain('NEXT_PUBLIC_GA_MEASUREMENT_ID');
+    expect(layoutContent).not.toContain('@next/third-parties/google');
   });
 });
 

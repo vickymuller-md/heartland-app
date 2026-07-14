@@ -7,12 +7,10 @@ import Link from "next/link";
 import { Eye, EyeOff, UserCheck } from "lucide-react";
 import { registerSchema, type RegisterInput } from "@/lib/schemas/auth";
 import { createClient } from "@/lib/supabase/client";
-import { recordConsent } from "@/app/actions/auth";
 import { ConsentDialog } from "@/components/auth/consent-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 interface RegisterFormProps {
@@ -40,12 +38,10 @@ export function RegisterForm({ inviteProviderId, inviterName }: RegisterFormProp
       email: "",
       password: "",
       full_name: "",
-      role: isInvited ? "patient" : undefined,
+      role: "patient",
       consent_accepted: false,
     },
   });
-
-  const role = watch("role");
 
   function handleFormSubmit() {
     // Open consent dialog before proceeding
@@ -74,11 +70,10 @@ export function RegisterForm({ inviteProviderId, inviterName }: RegisterFormProp
     try {
       const supabase = createClient();
       const origin = window.location.origin;
-      const redirectPath = data.role === "provider" ? "/dashboard" : "/today";
 
       const signUpMetadata: Record<string, string> = {
-        role: data.role,
         full_name: data.full_name,
+        consent_accepted: "true",
       };
 
       // Include invite provider metadata for invited patients
@@ -91,27 +86,23 @@ export function RegisterForm({ inviteProviderId, inviterName }: RegisterFormProp
         password: data.password,
         options: {
           data: signUpMetadata,
-          emailRedirectTo: `${origin}/confirm?next=${redirectPath}`,
+          emailRedirectTo: `${origin}/confirm?next=/today`,
         },
       });
 
       if (error) {
-        setMessage({ type: "error", text: error.message });
+        setMessage({
+          type: "error",
+          text: "Unable to create the account. Check your details or sign in if you already registered.",
+        });
         return;
-      }
-
-      // Record consent in database
-      if (signUpData.user?.id) {
-        const consentResult = await recordConsent(signUpData.user.id);
-        if (!consentResult.success) {
-          console.error("Failed to record consent:", consentResult.error);
-          // Non-blocking: user is created, consent recording failure is logged
-        }
       }
 
       setMessage({
         type: "success",
-        text: "Check your email to confirm your account. You can close this page.",
+        text: signUpData.user
+          ? "Check your email to confirm your account. You can close this page."
+          : "If the account can be created, confirmation instructions will be sent by email.",
       });
     } catch {
       setMessage({ type: "error", text: "An unexpected error occurred. Please try again." });
@@ -148,7 +139,7 @@ export function RegisterForm({ inviteProviderId, inviterName }: RegisterFormProp
               <Input
                 id="full_name"
                 type="text"
-                placeholder="Dr. Jane Smith"
+                placeholder="Jane Smith"
                 aria-invalid={!!errors.full_name}
                 {...register("full_name")}
               />
@@ -179,7 +170,7 @@ export function RegisterForm({ inviteProviderId, inviterName }: RegisterFormProp
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Minimum 8 characters"
+                  placeholder="Minimum 15 characters"
                   aria-invalid={!!errors.password}
                   {...register("password")}
                 />
@@ -197,40 +188,22 @@ export function RegisterForm({ inviteProviderId, inviterName }: RegisterFormProp
               )}
             </div>
 
-            {/* Role Selection */}
+            {/* Public registration is intentionally patient-only. */}
             <div className="space-y-1.5">
-              <Label>I am a...</Label>
-              {isInvited ? (
-                /* Invited: role locked to patient */
-                <div className="rounded-lg border bg-muted/50 p-3">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Patient (assigned via provider invitation)
-                  </p>
-                </div>
-              ) : (
-                /* Normal: role selectable */
-                <RadioGroup
-                  value={role}
-                  onValueChange={(value: string) =>
-                    setValue("role", value as "provider" | "patient", { shouldValidate: true })
-                  }
-                >
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem value="provider" id="role-provider" />
-                    <Label htmlFor="role-provider" className="font-normal cursor-pointer">
-                      Healthcare Professional
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem value="patient" id="role-patient" />
-                    <Label htmlFor="role-patient" className="font-normal cursor-pointer">
-                      Patient
-                    </Label>
-                  </div>
-                </RadioGroup>
-              )}
-              {errors.role && (
-                <p className="text-sm text-destructive">{errors.role.message}</p>
+              <Label>Account type</Label>
+              <div className="rounded-lg border bg-muted/50 p-3">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Patient{isInvited ? " (provider invitation)" : ""}
+                </p>
+              </div>
+              {!isInvited && (
+                <p className="text-sm text-muted-foreground">
+                  Healthcare professional?{" "}
+                  <Link href="/request-access" className="font-medium text-primary hover:underline">
+                    Request verified access
+                  </Link>
+                  .
+                </p>
               )}
             </div>
 

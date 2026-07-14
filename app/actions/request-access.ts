@@ -34,7 +34,7 @@ export type RequestAccessResult =
 
 /**
  * Submit a professional-access request.
- * Relies on the public INSERT RLS policy on access_requests (migration 00022).
+ * Relies on the write-only, pending-state RLS policy in migration 00025.
  * Returns a normalized result so the client form can render field-level errors.
  */
 export async function submitAccessRequest(
@@ -64,7 +64,7 @@ export async function submitAccessRequest(
   const { error } = await supabase.from("access_requests").insert(row);
 
   if (error) {
-    console.error("[access-request] insert failed", error);
+    console.error("[access-request] insert failed");
     return {
       ok: false,
       errors: {},

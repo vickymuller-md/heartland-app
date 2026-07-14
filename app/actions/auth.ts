@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { authorize } from "@/lib/auth/authorization";
 
 interface RecordConsentResult {
   success: boolean;
@@ -8,30 +8,42 @@ interface RecordConsentResult {
 }
 
 export async function recordConsent(
-  userId: string,
   consentVersion: string = "v1.0",
   consentType: string = "registration",
 ): Promise<RecordConsentResult> {
   try {
-    const supabase = await createClient();
+    if (consentVersion !== "v1.0" || consentType !== "registration") {
+      return { success: false, error: "Unsupported consent" };
+    }
 
-    const { error } = await supabase.from("consents").insert({
-      user_id: userId,
-      consent_version: consentVersion,
-      consent_type: consentType,
-      accepted: true,
-      accepted_at: new Date().toISOString(),
-    });
+    const auth = await authorize(undefined, { requireConsent: false });
+    if (!auth.authorized) {
+      return { success: false, error: auth.error };
+    }
+
+    const { error } = await auth.supabase
+      .from("consents")
+      .upsert(
+        {
+          user_id: auth.user.id,
+          consent_version: "v1.0",
+          consent_type: "registration",
+          accepted: true,
+        },
+        {
+          onConflict: "user_id,consent_version,consent_type",
+          ignoreDuplicates: true,
+        },
+      );
 
     if (error) {
-      console.error("Failed to record consent:", error.message);
-      return { success: false, error: error.message };
+      console.error("Failed to record consent");
+      return { success: false, error: "Unable to record consent" };
     }
 
     return { success: true };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Consent recording exception:", message);
-    return { success: false, error: message };
+  } catch {
+    console.error("Consent recording exception");
+    return { success: false, error: "Unable to record consent" };
   }
 }

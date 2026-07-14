@@ -6,7 +6,7 @@
  * Source: HEARTLAND Protocol v3.3
  */
 
-import { createClient } from '@/lib/supabase/server';
+import { authorizeProviderForPatient } from '@/lib/auth/authorization';
 import { revalidatePath } from 'next/cache';
 import { markStep } from './constants';
 
@@ -19,32 +19,30 @@ export async function markSetupStep(
   patientId: string,
   stepBit: number
 ): Promise<{ success?: boolean; error?: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return { error: 'Not authenticated' };
+  if (![1, 2, 4, 8, 16].includes(stepBit)) return { error: 'Invalid setup step' };
+  const auth = await authorizeProviderForPatient(patientId);
+  if (!auth.authorized) return { error: auth.error };
 
   // Fetch current bitmask
-  const { data: patient, error: fetchError } = await supabase
+  const { data: patient, error: fetchError } = await auth.supabase
     .from('patients')
     .select('setup_completed_steps')
     .eq('id', patientId)
     .single();
 
-  if (fetchError) return { error: fetchError.message };
+  if (fetchError || !patient) return { error: 'Unable to load setup progress' };
 
   const currentSteps = patient?.setup_completed_steps ?? 0;
   const newSteps = markStep(currentSteps, stepBit);
 
   // Update bitmask
-  const { error: updateError } = await supabase
+  const { data, error: updateError } = await auth.supabase
     .from('patients')
     .update({ setup_completed_steps: newSteps })
-    .eq('id', patientId);
+    .eq('id', patientId)
+    .select('id');
 
-  if (updateError) return { error: updateError.message };
+  if (updateError || !data?.length) return { error: 'Unable to update setup progress' };
 
   revalidatePath(`/patients/${patientId}/onboarding`);
   revalidatePath('/dashboard');

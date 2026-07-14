@@ -9,10 +9,14 @@
  * Requirements: DASH-05 (alert acknowledge/resolve), DASH-09 (provider notes)
  */
 
-import { createClient } from '@/lib/supabase/server';
+import { authorize, authorizeProviderForPatient } from '@/lib/auth/authorization';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { shouldDeduplicate } from '@/lib/dashboard/alert-engine';
-import { PROACTIVE_DEDUP_HOURS, PROTECTED_ALERT_TYPES } from '@/lib/dashboard/constants';
+import {
+  FLAG_LABELS,
+  PROACTIVE_DEDUP_HOURS,
+  PROTECTED_ALERT_TYPES,
+} from '@/lib/dashboard/constants';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
@@ -78,18 +82,11 @@ export async function saveLabResult(
     return { error: parsed.error.issues.map((i) => i.message).join(', ') };
   }
 
-  // 2. Verify authentication
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return { error: 'Not authenticated' };
-
   const { patientId, potassium, egfr, creatinine, sodium, notes } = parsed.data;
+  const auth = await authorizeProviderForPatient(patientId);
+  if (!auth.authorized) return { error: auth.error };
 
-  // 3. Insert lab result (provider RLS allows it)
-  const { error: labError } = await supabase.from('lab_results').insert({
+  const { error: labError } = await auth.supabase.from('lab_results').insert({
     patient_id: patientId,
     potassium: potassium ?? null,
     egfr: egfr ?? null,
@@ -99,7 +96,7 @@ export async function saveLabResult(
     collected_at: new Date().toISOString(),
   });
 
-  if (labError) return { error: labError.message };
+  if (labError) return { error: 'Unable to save lab result' };
 
   // 4. Immediate critical lab check (SAFE-04 specific thresholds)
   const immediateFlags: string[] = [];
@@ -125,7 +122,6 @@ export async function saveLabResult(
       if (!shouldDeduplicate(flag, existingAlerts ?? [], dedupHours, now)) {
         await supabaseAdmin.from('alerts').insert({
           patient_id: patientId,
-          provider_id: user.id,
           flags: [flag],
           severity: 'critical',
           status: 'open',
@@ -149,24 +145,23 @@ export async function saveLabResult(
 export async function acknowledgeAlert(
   alertId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  if (!z.string().uuid().safeParse(alertId).success) {
+    return { success: false, error: 'Invalid alert ID' };
+  }
+  const auth = await authorize('provider');
+  if (!auth.authorized) return { success: false, error: auth.error };
 
-  if (!user) return { success: false, error: 'Not authenticated' };
-
-  const { error } = await supabase
+  const { data, error } = await auth.supabase
     .from('alerts')
     .update({
       status: 'acknowledged',
-      acknowledged_by: user.id,
-      acknowledged_at: new Date().toISOString(),
     })
     .eq('id', alertId)
-    .eq('status', 'open');
+    .eq('status', 'open')
+    .select('id');
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: 'Unable to acknowledge alert' };
+  if (!data?.length) return { success: false, error: 'Alert not found' };
 
   revalidatePath('/dashboard');
   revalidatePath('/alerts');
@@ -180,24 +175,23 @@ export async function acknowledgeAlert(
 export async function resolveAlert(
   alertId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  if (!z.string().uuid().safeParse(alertId).success) {
+    return { success: false, error: 'Invalid alert ID' };
+  }
+  const auth = await authorize('provider');
+  if (!auth.authorized) return { success: false, error: auth.error };
 
-  if (!user) return { success: false, error: 'Not authenticated' };
-
-  const { error } = await supabase
+  const { data, error } = await auth.supabase
     .from('alerts')
     .update({
       status: 'resolved',
-      resolved_by: user.id,
-      resolved_at: new Date().toISOString(),
     })
     .eq('id', alertId)
-    .in('status', ['open', 'acknowledged']);
+    .in('status', ['open', 'acknowledged'])
+    .select('id');
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: 'Unable to resolve alert' };
+  if (!data?.length) return { success: false, error: 'Alert not found' };
 
   revalidatePath('/dashboard');
   revalidatePath('/alerts');
@@ -215,23 +209,22 @@ export async function muteAlertType(
   patientId: string,
   alertType: string
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return { success: false, error: 'Not authenticated' };
+  if (!Object.hasOwn(FLAG_LABELS, alertType)) {
+    return { success: false, error: 'Invalid alert type' };
+  }
+  const auth = await authorizeProviderForPatient(patientId);
+  if (!auth.authorized) return { success: false, error: auth.error };
 
   // SAFE-06: Server-side guard prevents muting patient-safety-critical alert types
   if (PROTECTED_ALERT_TYPES.includes(alertType)) {
     return { success: false, error: 'This alert type cannot be muted for patient safety.' };
   }
 
-  const { error } = await supabase
+  const { error } = await auth.supabase
     .from('alert_preferences')
     .upsert(
       {
-        provider_id: user.id,
+        provider_id: auth.user.id,
         patient_id: patientId,
         alert_type: alertType,
         muted: true,
@@ -239,7 +232,7 @@ export async function muteAlertType(
       { onConflict: 'provider_id,patient_id,alert_type' }
     );
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: 'Unable to update alert preference' };
 
   revalidatePath('/alerts');
   revalidatePath(`/patients/${patientId}`);
@@ -253,18 +246,17 @@ export async function unmuteAlertType(
   patientId: string,
   alertType: string
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  if (!Object.hasOwn(FLAG_LABELS, alertType)) {
+    return { success: false, error: 'Invalid alert type' };
+  }
+  const auth = await authorizeProviderForPatient(patientId);
+  if (!auth.authorized) return { success: false, error: auth.error };
 
-  if (!user) return { success: false, error: 'Not authenticated' };
-
-  const { error } = await supabase
+  const { error } = await auth.supabase
     .from('alert_preferences')
     .upsert(
       {
-        provider_id: user.id,
+        provider_id: auth.user.id,
         patient_id: patientId,
         alert_type: alertType,
         muted: false,
@@ -272,7 +264,7 @@ export async function unmuteAlertType(
       { onConflict: 'provider_id,patient_id,alert_type' }
     );
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: 'Unable to update alert preference' };
 
   revalidatePath('/alerts');
   revalidatePath(`/patients/${patientId}`);
@@ -315,22 +307,16 @@ export async function addProviderNote(
     return { errors: fieldErrors };
   }
 
-  // 2. Verify authentication
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const auth = await authorizeProviderForPatient(parsed.data.patientId);
+  if (!auth.authorized) return { error: auth.error };
 
-  if (!user) return { error: 'Not authenticated' };
-
-  // 3. Insert note (RLS enforces linked-patient check)
-  const { error } = await supabase.from('provider_notes').insert({
+  const { error } = await auth.supabase.from('provider_notes').insert({
     patient_id: parsed.data.patientId,
-    provider_id: user.id,
+    provider_id: auth.user.id,
     content: parsed.data.content,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: 'Unable to save provider note' };
 
   revalidatePath(`/patients/${parsed.data.patientId}`);
   return { success: true };

@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { authorizeProviderForPatient } from '@/lib/auth/authorization';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod/v4';
 
@@ -14,32 +14,19 @@ const UpdateCkmStageSchema = z.object({
  * RLS ensures the provider is linked to this patient via provider_patient_links.
  */
 export async function updateCkmStage(patientId: string, stage: number) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: 'Unauthorized' };
-
   const parsed = UpdateCkmStageSchema.safeParse({ patientId, stage });
   if (!parsed.success) return { error: 'Invalid input' };
 
-  // Verify provider is linked to patient
-  const { data: link } = await supabase
-    .from('provider_patient_links')
-    .select('id')
-    .eq('provider_id', user.id)
-    .eq('patient_id', parsed.data.patientId)
-    .eq('status', 'active')
-    .maybeSingle();
+  const auth = await authorizeProviderForPatient(parsed.data.patientId);
+  if (!auth.authorized) return { error: auth.error };
 
-  if (!link) return { error: 'Not linked to this patient' };
-
-  const { error } = await supabase
+  const { data, error } = await auth.supabase
     .from('patients')
     .update({ ckm_stage: parsed.data.stage })
-    .eq('id', parsed.data.patientId);
+    .eq('id', parsed.data.patientId)
+    .select('id');
 
-  if (error) return { error: error.message };
+  if (error || !data?.length) return { error: 'Unable to update CKM stage' };
 
   revalidatePath(`/patients/${parsed.data.patientId}`);
   return { success: true };

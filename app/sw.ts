@@ -1,9 +1,7 @@
-import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
 import {
   Serwist,
   CacheFirst,
-  NetworkFirst,
   StaleWhileRevalidate,
   ExpirationPlugin,
 } from "serwist";
@@ -16,49 +14,45 @@ declare global {
 
 declare const self: ServiceWorkerGlobalScope;
 
+const LEGACY_SENSITIVE_CACHE_MARKERS = [
+  "pages-rsc-prefetch",
+  "pages-rsc",
+  "pages-html",
+  "next-data",
+  "static-data-assets",
+  "apis",
+  "others",
+];
+
+// Remove caches created by previous releases that could contain authenticated
+// documents, RSC payloads, API responses, or other clinical application data.
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) =>
+      Promise.all(
+        cacheNames
+          .filter((cacheName) =>
+            LEGACY_SENSITIVE_CACHE_MARKERS.some((marker) => cacheName.includes(marker)),
+          )
+          .map((cacheName) => caches.delete(cacheName)),
+      ),
+    ),
+  );
+});
+
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching: [
-    // RSC prefetch requests -- stale-while-revalidate
+    // Only immutable, same-origin build assets and public app icons are cached.
     {
       matcher: ({ request, url: { pathname }, sameOrigin }) =>
-        request.headers.get("RSC") === "1" &&
-        request.headers.get("Next-Router-Prefetch") === "1" &&
         sameOrigin &&
-        !pathname.startsWith("/api/"),
-      handler: new StaleWhileRevalidate({
-        cacheName: "pages-rsc-prefetch",
-        plugins: [
-          new ExpirationPlugin({
-            maxEntries: 200,
-            maxAgeSeconds: 24 * 60 * 60,
-          }),
-        ],
-      }),
-    },
-    // RSC navigation -- network-first (fresh data, cache as fallback)
-    {
-      matcher: ({ request, url: { pathname }, sameOrigin }) =>
-        request.headers.get("RSC") === "1" &&
-        sameOrigin &&
-        !pathname.startsWith("/api/"),
-      handler: new NetworkFirst({
-        cacheName: "pages-rsc",
-        plugins: [
-          new ExpirationPlugin({
-            maxEntries: 200,
-            maxAgeSeconds: 24 * 60 * 60,
-          }),
-        ],
-      }),
-    },
-    // Static assets (images, fonts, icons) -- cache-first
-    {
-      matcher: ({ request }) =>
-        request.destination === "image" || request.destination === "font",
+        request.method === "GET" &&
+        (request.destination === "image" || request.destination === "font") &&
+        (pathname.startsWith("/_next/static/") || pathname.startsWith("/icons/")),
       handler: new CacheFirst({
         cacheName: "static-assets",
         plugins: [
@@ -69,10 +63,13 @@ const serwist = new Serwist({
         ],
       }),
     },
-    // CSS/JS bundles -- stale-while-revalidate
+    // Next.js static CSS/JS bundles contain code, never patient responses.
     {
-      matcher: ({ request }) =>
-        request.destination === "script" || request.destination === "style",
+      matcher: ({ request, url: { pathname }, sameOrigin }) =>
+        sameOrigin &&
+        request.method === "GET" &&
+        pathname.startsWith("/_next/static/") &&
+        (request.destination === "script" || request.destination === "style"),
       handler: new StaleWhileRevalidate({
         cacheName: "static-js-css",
         plugins: [
@@ -83,8 +80,6 @@ const serwist = new Serwist({
         ],
       }),
     },
-    // Remaining routes handled by defaultCache
-    ...defaultCache,
   ],
   fallbacks: {
     entries: [

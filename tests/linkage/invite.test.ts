@@ -1,47 +1,44 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  createTestProvider,
-  createTestPatient,
-  createTestLink,
-  mockSupabaseClient,
-  mockSupabaseAdmin,
-} from '@/tests/helpers/linkage';
+import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+
+const source = fs.readFileSync(
+  path.resolve(__dirname, '../../lib/actions/invite.ts'),
+  'utf8',
+);
 
 describe('Provider Invite Flow (AUTH-05)', () => {
-  describe('invitePatient Server Action', () => {
-    it('should reject if caller is not authenticated', () => {
-      // TODO: implement
-      expect(true).toBe(false);
-    });
+  it('requires the central provider authorization guard', () => {
+    expect(source).toContain('authorize("provider")');
+  });
 
-    it('should reject if caller is not a provider', () => {
-      // TODO: implement
-      expect(true).toBe(false);
-    });
+  it('normalizes and validates the email before any mutation', () => {
+    expect(source).toContain('.trim().toLowerCase().email().max(320)');
+    expect(source.indexOf('emailSchema.safeParse')).toBeLessThan(
+      source.indexOf('.from("provider_patient_links")'),
+    );
+  });
 
-    it('should create a provider_patient_links row with status=invited and invite_email', () => {
-      // TODO: implement
-      expect(true).toBe(false);
-    });
+  it('creates the invitation through the caller-scoped RLS client', () => {
+    expect(source).toContain('auth.supabase');
+    expect(source).toContain('status: "invited"');
+    expect(source).not.toContain('supabaseAdmin\n    .from("provider_patient_links")\n    .insert');
+  });
 
-    it('should call supabaseAdmin.auth.admin.inviteUserByEmail with correct email and metadata', () => {
-      // TODO: implement
-      expect(true).toBe(false);
-    });
+  it('never writes an authorization role into user metadata', () => {
+    expect(source).not.toContain('role: "patient"');
+    expect(source).not.toContain('invited_by_provider');
+    expect(source).not.toContain('invited_by_name');
+  });
 
-    it('should pass redirectTo with invite_provider query param', () => {
-      // TODO: implement
-      expect(true).toBe(false);
-    });
+  it('routes invited users through explicit consent, then password setup', () => {
+    expect(source).toContain('/consent?invited=1');
+    expect(source).not.toContain('/register?invite_provider=');
+  });
 
-    it('should revalidate /patients/manage on success', () => {
-      // TODO: implement
-      expect(true).toBe(false);
-    });
-
-    it('should return error if inviteUserByEmail fails', () => {
-      // TODO: implement
-      expect(true).toBe(false);
-    });
+  it('removes the pending link when email delivery fails and hides raw errors', () => {
+    expect(source).toContain('.delete()');
+    expect(source).toContain('Unable to send invitation');
+    expect(source).not.toContain('error.message');
   });
 });

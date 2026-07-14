@@ -6,8 +6,7 @@ import { usePathname } from "next/navigation";
 import { Heart, TrendingUp, Pill, BookOpen, User } from "lucide-react";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
-import { registerSyncListeners } from "@/lib/offline/register-sync";
-import { flushQueue } from "@/lib/offline/sync";
+import { clearOfflineData } from "@/lib/offline/db";
 
 const tabs = [
   { href: "/today", label: "Today", icon: Heart },
@@ -24,16 +23,9 @@ export default function PatientLayout({
 }) {
   const pathname = usePathname();
 
-  // Register sync listeners on mount; flush any pending records from previous sessions
+  // Purge plaintext clinical records left by versions that supported offline writes.
   useEffect(() => {
-    const cleanup = registerSyncListeners();
-
-    // Initial flush of any pending records from previous sessions
-    if (navigator.onLine) {
-      flushQueue();
-    }
-
-    return cleanup;
+    void clearOfflineData();
   }, []);
 
   return (

@@ -10,9 +10,21 @@
  * Requirement: REPT-02 (Patient Summary PDF)
  */
 
-import { createClient } from '@/lib/supabase/server';
+import { authorizeProviderForPatient } from '@/lib/auth/authorization';
 import { getPatientSummaryData } from '@/lib/reports/queries';
 import type { PatientSummaryData, ReportDateRange } from '@/lib/reports/types';
+import { z } from 'zod';
+
+const reportRequestSchema = z.object({
+  patientId: z.string().uuid(),
+  from: z.iso.date(),
+  to: z.iso.date(),
+})
+  .refine(({ from, to }) => from <= to, { message: 'Invalid date range' })
+  .refine(
+    ({ from, to }) => Date.parse(to) - Date.parse(from) <= 366 * 86_400_000,
+    { message: 'Date range is too large' },
+  );
 
 /**
  * Fetch patient summary data for PDF export.
@@ -23,13 +35,16 @@ export async function fetchPatientSummary(
   from: string,
   to: string
 ): Promise<PatientSummaryData | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const parsed = reportRequestSchema.safeParse({ patientId, from, to });
+  if (!parsed.success) return null;
+  const auth = await authorizeProviderForPatient(parsed.data.patientId);
+  if (!auth.authorized) return null;
 
-  if (!user) return null;
-
-  const range: ReportDateRange = { from, to };
-  return getPatientSummaryData(supabase, patientId, user.id, range);
+  const range: ReportDateRange = { from: parsed.data.from, to: parsed.data.to };
+  return getPatientSummaryData(
+    auth.supabase,
+    parsed.data.patientId,
+    auth.user.id,
+    range,
+  );
 }

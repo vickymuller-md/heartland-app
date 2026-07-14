@@ -11,7 +11,7 @@
  * Requirements: MSG-01, MSG-04
  */
 
-import { createClient } from '@/lib/supabase/server';
+import { authorize, authorizeProviderForPatient } from '@/lib/auth/authorization';
 import { revalidatePath } from 'next/cache';
 import { sendMessageSchema } from './schema';
 
@@ -53,24 +53,18 @@ export async function sendMessage(
     return { errors: fieldErrors };
   }
 
-  // 2. Verify authentication
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const auth = await authorizeProviderForPatient(parsed.data.patientId);
+  if (!auth.authorized) return { error: auth.error };
 
-  if (!user) return { error: 'Not authenticated' };
-
-  // 3. Insert message (RLS enforces linked-patient check)
-  const { error } = await supabase.from('provider_messages').insert({
+  const { error } = await auth.supabase.from('provider_messages').insert({
     patient_id: parsed.data.patientId,
-    provider_id: user.id,
+    provider_id: auth.user.id,
     template_type: parsed.data.templateType,
     subject: parsed.data.subject,
     body: parsed.data.body,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: 'Unable to send message' };
 
   // 4. Revalidate both provider detail page and patient today view
   revalidatePath(`/provider/patients/${parsed.data.patientId}`);
@@ -88,20 +82,22 @@ export async function sendMessage(
 export async function markMessageRead(
   messageId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  if (!sendMessageSchema.shape.patientId.safeParse(messageId).success) {
+    return { success: false, error: 'Invalid message ID' };
+  }
+  const auth = await authorize('patient');
+  if (!auth.authorized) return { success: false, error: auth.error };
 
-  if (!user) return { success: false, error: 'Not authenticated' };
-
-  const { error } = await supabase
+  const { data, error } = await auth.supabase
     .from('provider_messages')
     .update({ read_at: new Date().toISOString() })
     .eq('id', messageId)
-    .is('read_at', null); // idempotent: only update if not yet read
+    .eq('patient_id', auth.user.id)
+    .is('read_at', null)
+    .select('id');
 
-  if (error) return { success: false, error: error.message };
+  if (error) return { success: false, error: 'Unable to update message' };
+  if (!data?.length) return { success: true };
 
   revalidatePath('/today');
   return { success: true };

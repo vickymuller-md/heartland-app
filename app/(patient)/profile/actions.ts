@@ -6,7 +6,7 @@
  * Source: HEARTLAND Protocol v3.3 -- Phase 28 Reporting & NIW Evidence
  */
 
-import { createClient } from '@/lib/supabase/server';
+import { authorize } from '@/lib/auth/authorization';
 import { revalidatePath } from 'next/cache';
 
 /**
@@ -16,19 +16,20 @@ import { revalidatePath } from 'next/cache';
 export async function updateProfileState(
   state: string
 ): Promise<{ success?: boolean; error?: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const normalizedState = state.trim().toUpperCase();
+  if (normalizedState && !/^[A-Z]{2}$/.test(normalizedState)) {
+    return { error: 'Invalid state' };
+  }
+  const auth = await authorize('patient');
+  if (!auth.authorized) return { error: auth.error };
 
-  if (!user) return { error: 'Not authenticated' };
-
-  const { error } = await supabase
+  const { data, error } = await auth.supabase
     .from('profiles')
-    .update({ state: state || null })
-    .eq('id', user.id);
+    .update({ state: normalizedState || null })
+    .eq('id', auth.user.id)
+    .select('id');
 
-  if (error) return { error: error.message };
+  if (error || !data?.length) return { error: 'Unable to update profile' };
 
   revalidatePath('/profile');
   return { success: true };

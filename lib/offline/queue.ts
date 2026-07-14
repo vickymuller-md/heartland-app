@@ -1,31 +1,24 @@
-/**
- * Offline Queue — CRUD Functions for Dexie sync_queue
- *
- * Enqueue vitals/symptoms for later sync. Each record gets a client-generated
- * UUID that becomes the onConflict key in Supabase, making retries idempotent.
- *
- * Requirements: VITL-09 (offline vitals), PWA-03 (offline queue)
- */
+/** Offline clinical writes are intentionally disabled until encrypted,
+ * user-bound storage and a formally reviewed threat model are available. */
 
-import { db } from './db';
+import { clearOfflineData, db } from './db';
+
+export class OfflineClinicalStorageDisabledError extends Error {
+  constructor() {
+    super('Offline clinical storage is disabled. Reconnect before submitting.');
+    this.name = 'OfflineClinicalStorageDisabledError';
+  }
+}
 
 /**
  * Enqueue a vitals record for offline sync.
  * Generates a UUID client_id, stores in IndexedDB, returns the client_id.
  */
 export async function enqueueVitals(
-  vitals: Record<string, unknown>,
+  _vitals: Record<string, unknown>,
 ): Promise<string> {
-  const id = crypto.randomUUID();
-  await db.sync_queue.add({
-    id,
-    table: 'vitals',
-    payload: { ...vitals, client_id: id },
-    status: 'pending',
-    attempts: 0,
-    created_at: Date.now(),
-  });
-  return id;
+  await clearOfflineData();
+  throw new OfflineClinicalStorageDisabledError();
 }
 
 /**
@@ -33,18 +26,10 @@ export async function enqueueVitals(
  * Same pattern as enqueueVitals but targets the symptoms table.
  */
 export async function enqueueSymptoms(
-  symptoms: Record<string, unknown>,
+  _symptoms: Record<string, unknown>,
 ): Promise<string> {
-  const id = crypto.randomUUID();
-  await db.sync_queue.add({
-    id,
-    table: 'symptoms',
-    payload: { ...symptoms, client_id: id },
-    status: 'pending',
-    attempts: 0,
-    created_at: Date.now(),
-  });
-  return id;
+  await clearOfflineData();
+  throw new OfflineClinicalStorageDisabledError();
 }
 
 /**
@@ -52,11 +37,8 @@ export async function enqueueSymptoms(
  * Items with attempts >= 5 are dead-lettered and excluded.
  */
 export async function getPendingItems() {
-  return db.sync_queue
-    .where('status')
-    .anyOf(['pending', 'failed'])
-    .and((item) => item.attempts < 5)
-    .toArray();
+  await clearOfflineData();
+  return [];
 }
 
 /**
@@ -64,5 +46,7 @@ export async function getPendingItems() {
  * Returns the number of items deleted.
  */
 export async function clearSynced(): Promise<number> {
-  return db.sync_queue.where('status').equals('synced').delete();
+  const count = await db.sync_queue.count();
+  await clearOfflineData();
+  return count;
 }

@@ -1,5 +1,12 @@
-import { createClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
+
+function validCronAuthorization(header: string | null, secret: string): boolean {
+  const actual = Buffer.from(header ?? "", "utf8");
+  const expected = Buffer.from(`Bearer ${secret}`, "utf8");
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
 
 export async function GET(request: Request) {
   // Vercel cron pings this every 3 days. Require auth to prevent public probing.
@@ -12,16 +19,15 @@ export async function GET(request: Request) {
   }
 
   const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!validCronAuthorization(authHeader, process.env.CRON_SECRET)) {
     return NextResponse.json({ status: "error", error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.from("profiles").select("id").limit(1);
+  const { error } = await supabaseAdmin.from("profiles").select("id").limit(1);
 
   if (error) {
     return NextResponse.json(
-      { status: "error", error: error.message },
+      { status: "error", error: "Database unavailable" },
       { status: 500 },
     );
   }
