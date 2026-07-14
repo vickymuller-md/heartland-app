@@ -5,6 +5,7 @@
 | File | Content |
 |-|-|
 | `HEARTLAND_1page_summary.md` | One-page protocol summary |
+| `HEARTLAND_PRODUCT_ADOPTION_PLAN.md` | Product, usability, daily workflow, validation, and adoption plan |
 | `HEARTLAND_References.md` | 71 references with DOIs (if permissions fixed) |
 | `HEARTLAND_Protocol_Complete.md` | Full 8-module protocol text (if permissions fixed) |
 | `figures/` | 10 JPGs — pocket cards, checklists, reference cards |
