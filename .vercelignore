@@ -1,0 +1,24 @@
+# Local agent and project context
+.codex/
+.claude/
+AGENTS.md
+CLAUDE.md
+HANDOFF.md
+graphify-out/
+
+# Private security posture and local-only planning
+reference/HEARTLAND_SECURITY_PLAN.md
+.planning/
+
+# Local secrets and development state
+.env
+.env.*
+!.env.local.example
+.vercel/
+
+# Database tooling and test-only assets are not needed at runtime
+supabase/.branches/
+supabase/.temp/
+coverage/
+test-results/
+playwright-report/
