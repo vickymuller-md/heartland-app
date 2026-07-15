@@ -1,5 +1,7 @@
 'use server';
 
+import { createHmac, randomUUID } from 'node:crypto';
+import { headers } from 'next/headers';
 import { authorize } from '@/lib/auth/authorization';
 import { z } from 'zod';
 
@@ -43,12 +45,47 @@ const eventSchema = z.object({
 
 export type ProductEventInput = z.infer<typeof eventSchema>;
 
+const PUBLIC_SANDBOX_EVENTS = new Set<ProductEventInput['eventName']>([
+  'sandbox_view',
+  'sandbox_first_action',
+  'sandbox_task_completed',
+  'sandbox_returned',
+]);
+
+async function trackPublicSandboxEvent(data: ProductEventInput): Promise<void> {
+  if (data.area !== 'sandbox' || !PUBLIC_SANDBOX_EVENTS.has(data.eventName)) return;
+
+  const rateSecret = process.env.ACCESS_REQUEST_RATE_LIMIT_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!rateSecret) return;
+
+  const requestHeaders = await headers();
+  const forwarded = requestHeaders.get('x-forwarded-for')?.split(',')[0]?.trim();
+  const clientAddress = requestHeaders.get('x-real-ip')?.trim() || forwarded || 'unknown';
+  const dailyBucket = new Date().toISOString().slice(0, 10);
+  const requesterHash = createHmac('sha256', rateSecret)
+    .update(`heartland-public-sandbox:${dailyBucket}:${clientAddress}`)
+    .digest('hex');
+
+  const { supabaseAdmin } = await import('@/lib/supabase/admin');
+  const { error } = await supabaseAdmin.rpc('record_public_sandbox_event', {
+    p_requester_hash: requesterHash,
+    p_event_id: data.eventId ?? randomUUID(),
+    p_event_name: data.eventName,
+    p_device_class: data.deviceClass ?? null,
+    p_duration_ms: data.durationMs ?? null,
+  });
+  if (error) console.error('[public-sandbox-telemetry] controlled RPC failed');
+}
+
 export async function trackProductEvent(input: ProductEventInput): Promise<void> {
   const parsed = eventSchema.safeParse(input);
   if (!parsed.success) return;
 
   const auth = await authorize();
-  if (!auth.authorized) return;
+  if (!auth.authorized) {
+    await trackPublicSandboxEvent(parsed.data);
+    return;
+  }
 
   if (parsed.data.eventId && parsed.data.durationMs !== undefined) {
     const { data } = await auth.supabase

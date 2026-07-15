@@ -15,7 +15,7 @@ Implementado nesta release:
 - workflow interativo completo de revisar, agir, aguardar, fechar com resultado, revisar em lote, reatribuir, documentar, fazer check-in e resetar;
 - Patient 360 com brief de 60 segundos, tendências, sinais, exames, medicamentos, timeline, plano, educação e acesso;
 - pathways conectados às seis ferramentas públicas reais, com status de evidência e boundaries de uso explícitos;
-- progresso local por sete dias, restauração segura, validação defensiva de storage adulterado e telemetria sem identificadores clínicos;
+- progresso local por sete dias, restauração segura, validação defensiva de storage adulterado e telemetria pública sem PII, com allowlist, HMAC rotativo e rate limit;
 - cadastro `tester` self-service com e-mail próprio, papel isolado, expiração em 30 dias e sandbox exclusivamente sintético;
 - MFA/AAL2 restrito ao Clinical Workspace: tester não recebe barreira de authenticator e nunca recebe autorização clínica;
 - sandbox orientado ao primeiro valor com fila sintética, revisão/fechamento de tarefas e funil de ativação;
@@ -42,8 +42,8 @@ Implementado nesta release:
 - coalescência transacional de alertas: 4.109 duplicatas históricas consolidadas em 162 sinais ativos, preservando trilha imutável;
 - export FHIR R4 read-only autenticado, mínimo necessário, auditado e sem alegação de writeback/US Core;
 - acessibilidade, reduced motion, skip links, estados globais e E2E desktop/mobile: 26 cenários aprovados;
-- suíte técnica: 1.034 testes aprovados, typecheck, lint, build, scan de segurança e auditoria npm sem vulnerabilidades;
-- migrations `00028`–`00030` e Edge Function `alert-eval` aplicadas no Supabase hospedado;
+- suíte técnica: 1.037 testes aprovados, typecheck, lint, build, scan de segurança e auditoria npm sem vulnerabilidades;
+- migrations `00028`–`00031` e Edge Function `alert-eval` aplicadas no Supabase hospedado;
 - Auth hospedado corrigido para domínio/callback de produção, senha mínima de 15 caracteres e reautenticação em troca de senha;
 - acesso anônimo direto às tabelas e execução pública de funções internas removidos; RLS continua como boundary dos usuários autenticados.
 
