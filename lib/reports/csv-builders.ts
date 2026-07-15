@@ -4,7 +4,7 @@
  * Pure functions for building CSV data arrays and triggering downloads.
  * All functions are testable without Supabase dependency.
  *
- * Requirements: REPT-03 (CSV export with RFC 4180 quoting and de-identification)
+ * Requirements: REPT-03 (CSV export with RFC 4180 quoting and privacy-minimizing transformations)
  * Source: HEARTLAND Protocol v3.3 -- Phase 21
  */
 
@@ -15,11 +15,13 @@ import type {
   VitalsRow,
 } from './types';
 
-// ---------- HIPAA Safe Harbor Date Truncation ----------
+// ---------- Year-Only Date Reduction ----------
 
 /**
- * Truncate an ISO date/timestamp string to year-only per HIPAA Safe Harbor.
- * 45 CFR 164.514(b)(2)(i)(C): all date elements except year must be removed.
+ * Reduce an ISO date/timestamp string to year only. Removing date elements
+ * except year is one transformation described in the HIPAA Safe Harbor method
+ * at 45 CFR 164.514(b)(2)(i)(C), but this function does not evaluate the other
+ * identifiers or independently establish de-identification or HIPAA compliance.
  * Uses string slicing (not Date constructor) to avoid timezone off-by-one.
  */
 export function truncateToYear(dateString: string | null | undefined): string {
@@ -69,7 +71,7 @@ export function downloadCSV(filename: string, rows: string[][]): void {
   URL.revokeObjectURL(url);
 }
 
-// ---------- De-identification Helper ----------
+// ---------- Identifier Substitution Helper ----------
 
 function deidentifyId(
   patientId: string,

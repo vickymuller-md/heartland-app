@@ -28,9 +28,9 @@ export function AccessCta() {
                 </span>
               </h2>
               <p className="mt-6 max-w-xl font-editorial text-[16px] leading-relaxed text-terminal/80">
-                Explore the complete provider workflow with synthetic data in
-                instantly. No account, approval, email confirmation, or
-                authenticator setup.
+                Explore the complete provider workflow instantly with synthetic
+                data. No account, approval, email confirmation, or authenticator
+                setup.
                 Verified clinical workspaces remain separately governed.
               </p>
 
@@ -68,7 +68,7 @@ export function AccessCta() {
                   "Telephone titration workflow with safety gates",
                   "Remote monitoring assignment + billing reference",
                   "Monthly aggregate adoption report",
-                  "CSV export with HIPAA Safe-Harbor date truncation",
+                  "Privacy-minimized CSV export with identifier substitution and year-only dates",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-3">
                     <span className="mt-[0.55em] inline-block h-1.5 w-1.5 flex-none rounded-full bg-alert-on-dark" />
@@ -76,6 +76,10 @@ export function AccessCta() {
                   </li>
                 ))}
               </ul>
+              <p className="mt-5 font-editorial text-[12.5px] leading-relaxed text-terminal/70">
+                Export transformations reduce direct identifiers but do not
+                independently establish de-identification or HIPAA compliance.
+              </p>
             </aside>
           </div>
         </div>

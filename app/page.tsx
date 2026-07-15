@@ -51,14 +51,16 @@ export default async function Home() {
       <AccessCta />
       <Colophon
         currentSite="app"
-        version="v1.0.2"
+        version="v1.1.0"
         legal={
           <>
             Built by Vicky Muller Ferreira, MD. For licensed clinicians only.
-            Not a medical device. Public routes use synthetic data;
-            authenticated workspaces remain controlled evaluation only. Real
-            PHI and unsupervised clinical use are not authorized until release
-            gates are approved.
+            This release does not establish FDA clearance or authorization and
+            does not resolve medical-device classification. It does not replace
+            clinical judgment or institutional policy. Public routes use
+            synthetic data; authenticated workspaces remain controlled
+            evaluation only. Real PHI and unsupervised clinical use are not
+            authorized until release gates are approved.
           </>
         }
         extraBlocks={[

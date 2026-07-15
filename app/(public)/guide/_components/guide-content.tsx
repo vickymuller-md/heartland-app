@@ -153,7 +153,7 @@ export function GuideContent() {
         <ul className="list-disc list-inside space-y-1 text-sm">
           <li><strong>Offline-First:</strong> Works without internet. Vitals are saved locally and sync when connectivity returns.</li>
           <li><strong>Mobile-Friendly:</strong> Installable as a phone app (PWA). No App Store download needed.</li>
-          <li><strong>No Patient Data Stored on Device:</strong> All data syncs to a secure cloud database. HIPAA-ready architecture.</li>
+          <li><strong>Controlled Evaluation Boundary:</strong> Authenticated workspaces use organization-scoped access controls and cloud storage, with limited offline state available for resilience. This release does not establish HIPAA readiness or compliance; real-PHI use remains unauthorized until institutional security, privacy, legal, operational, and assurance gates are completed.</li>
           <li><strong>Print-Ready:</strong> Every tool can be printed for paper-based workflows.</li>
           <li><strong>Dual Track:</strong> Track A (Digital) for smartphone patients, Track B (Analog) for paper-based patients.</li>
         </ul>
@@ -845,7 +845,7 @@ export function GuideContent() {
           </div>
           <div className="rounded-lg border p-3">
             <h4 className="font-medium">CSV Data Export</h4>
-            <p className="text-xs text-gray-600 mt-1">Export vitals, labs, or medication data as CSV files for research or external analysis. De-identified option available.</p>
+            <p className="text-xs text-gray-600 mt-1">Export vitals, labs, or medication data as CSV files for research or external analysis. The privacy-minimized option substitutes patient identifiers and reduces dates to year only; it does not independently establish de-identification or HIPAA compliance.</p>
           </div>
         </div>
 

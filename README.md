@@ -14,7 +14,7 @@ A Progressive Web Application that operationalizes the HEARTLAND Protocol — *H
 
 > *"The HEARTLAND Risk Stratification Framework is a proposed tool under development. It has not been validated against clinical outcomes data. Formal validation through registry data is a defined research objective."*
 
-This app is **not a medical device**, **not FDA-cleared**, and **not HIPAA-certified**. The schema can store health information, but **real PHI and unsupervised clinical use are not authorized** until organizational security, privacy, validation, staffing, incident-response, backup, legal/BAA, and governance gates are approved. Use synthetic or formally approved evaluation data only.
+This release **does not establish FDA clearance or authorization and does not resolve medical-device classification**. It does not replace clinical judgment or institutional policy and does not establish HIPAA readiness or compliance. The schema can store health information, but **real PHI and unsupervised clinical use are not authorized** until organizational security, privacy, validation, staffing, incident-response, backup, legal/BAA, and governance gates are approved. Use synthetic or formally approved evaluation data only.
 
 ---
 
@@ -22,7 +22,7 @@ This app is **not a medical device**, **not FDA-cleared**, and **not HIPAA-certi
 
 Heart failure affects over 6.7 million Americans and drives more than 1 million hospitalizations annually. Rural populations bear a 53% higher mortality rate, exacerbated by limited cardiology access — 86% of rural U.S. counties have no cardiologist. Despite strong clinical evidence for guideline-directed medical therapy (GDMT), fewer than 20% of eligible patients receive all four recommended medication classes simultaneously.
 
-This app translates the eight HEARTLAND Protocol modules into interactive decision support tools tuned for non-specialist providers in Critical Access Hospitals, rural clinics, and community health centers.
+This app translates the eight HEARTLAND Protocol modules into interactive implementation-support workflows for non-specialist providers in Critical Access Hospitals, rural clinics, and community health centers.
 
 ## Features
 
@@ -94,7 +94,7 @@ Protocol content and research materials are available through the existing depos
 
 ## License
 
-[MIT](./LICENSE). The app is free to use, modify, and redistribute for research, education, and professional clinical decision support — subject to the disclaimers above. Not a medical device.
+[MIT](./LICENSE). The app is free to use, modify, and redistribute for research, education, and professional implementation support — subject to the release and intended-use boundaries above.
 
 ## Author
 

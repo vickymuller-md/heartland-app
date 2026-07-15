@@ -100,9 +100,9 @@ describe('REPT-03 buildMedsCSV', () => {
   it.todo('returns correct data row shape once medication query is defined');
 });
 
-// ---------- REPT-08 HIPAA Safe Harbor Date Truncation ----------
+// ---------- REPT-08 Year-Only Date Reduction ----------
 
-describe('REPT-08 HIPAA Safe Harbor date truncation', () => {
+describe('REPT-08 year-only date reduction', () => {
   describe('truncateToYear', () => {
     it('truncates ISO timestamp to year-only', () => {
       expect(truncateToYear('2026-03-27T14:30:00Z')).toBe('2026');

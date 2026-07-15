@@ -24,9 +24,12 @@ export function Colophon() {
             </p>
             <p className="mt-6 font-editorial text-[12.5px] leading-relaxed text-stone">
               Built by Vicky Muller Ferreira, MD. For licensed clinicians
-              only. Not a medical device. Public routes use synthetic data;
-              authenticated workspaces remain controlled evaluation only. Real
-              PHI is not authorized until release gates are approved.
+              only. This release does not establish FDA clearance or
+              authorization and does not resolve medical-device classification.
+              It does not replace clinical judgment or institutional policy.
+              Public routes use synthetic data; authenticated workspaces remain
+              controlled evaluation only. Real PHI is not authorized until
+              release gates are approved.
             </p>
           </div>
 
@@ -73,7 +76,7 @@ export function Colophon() {
 
         <div className="mt-14 flex flex-col gap-3 border-t border-grid pt-6 font-editorial text-[12.5px] text-stone md:flex-row md:items-center md:justify-between">
           <p>© 2026 Vicky Muller Ferreira, MD · Released under MIT</p>
-          <p>Heartland v3.2 · open source</p>
+          <p>HEARTLAND App v1.1.0 · open source</p>
         </div>
       </div>
     </footer>

@@ -372,8 +372,8 @@ async function sendEmailAlert(
           <p><a href="${appUrl}/alerts">View Alert in Dashboard</a></p>
           <hr>
           <p style="color: #666; font-size: 12px;">
-            This is an automated alert from the HEARTLAND Protocol Clinical Decision Support Tool.
-            This tool is for healthcare professionals only.
+            This is an automated alert from the HEARTLAND Protocol implementation-support resource.
+            It does not replace source-record review, clinical judgment, or institutional policy.
           </p>
         `,
       }),

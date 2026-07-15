@@ -55,10 +55,12 @@ export function Hero() {
             </div>
 
             <p className="mt-12 max-w-md font-editorial text-[12.5px] leading-relaxed text-stone">
-              Built for licensed clinicians. Not a medical device. Not for
-              direct patient care. Public routes use synthetic data;
-              authenticated workspaces remain controlled evaluation only. Real
-              PHI is not authorized until release gates are approved.
+              Built for licensed clinicians. This release does not establish
+              FDA clearance or authorization and does not resolve
+              medical-device classification. It does not replace clinical
+              judgment or institutional policy. Public routes use synthetic
+              data; authenticated workspaces remain controlled evaluation only.
+              Real PHI is not authorized until release gates are approved.
             </p>
           </div>
 

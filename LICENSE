@@ -22,12 +22,14 @@ SOFTWARE.
 
 ---
 
-Notice — Not a Medical Device
+Notice — Release and Intended-Use Boundary
 
-This software is designed for healthcare professionals as a clinical decision
-support resource. It does not provide medical diagnoses, treatment
-recommendations for individual patients, or replace clinical judgment. It is
-not intended for direct patient care, not FDA-cleared, and not HIPAA-certified.
-It is not a medical device. The HEARTLAND Risk Stratification Framework is a
-proposed tool under development; it has not been validated against clinical
-outcomes data.
+This software is designed for healthcare professionals as a professional
+implementation-support resource. It does not independently diagnose, prescribe,
+determine individual treatment, or replace clinical judgment and institutional policy.
+This release does not establish FDA clearance or authorization and does not
+resolve medical-device classification. It does not establish HIPAA readiness
+or compliance. Real-PHI and unsupervised clinical use are not authorized until
+applicable institutional release gates are completed. The HEARTLAND Risk
+Stratification Framework is a proposed tool under development; it has not been
+validated against clinical outcomes data.

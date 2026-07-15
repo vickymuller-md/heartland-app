@@ -13,7 +13,7 @@ Heart Failure Evidence-based Access in Rural Treatment, Linking Advanced Network
 
 ### Subheadline
 
-A clinical decision support toolkit for primary care-led heart failure management in rural and resource-limited United States settings.
+A clinical implementation companion for primary care-led heart failure management in rural and resource-limited United States settings.
 
 ### The Problem (3 stats)
 
@@ -39,7 +39,7 @@ The HEARTLAND Protocol addresses this gap. Published as a peer-reviewed Technica
 
 ### What This App Does
 
-This app translates the eight HEARTLAND Protocol modules into interactive clinical decision support tools:
+This app translates the eight HEARTLAND Protocol modules into interactive implementation-support tools:
 
 1. **Risk Stratification Calculator** — Calculate the HEARTLAND Risk Score using 10 variables including distance to cardiology care and social support, generating a risk tier (Low/Moderate/High) with recommended monitoring intensity and care pathways.
 
@@ -110,7 +110,7 @@ Email: vickymuller@heartlandprotocol.org
 
 ### Primary Disclaimer
 
-> This application is a clinical decision support tool designed exclusively for healthcare professionals. It does not provide medical diagnoses, individual treatment recommendations, or replace clinical judgment. Not intended for direct patient care or use by patients. For professional use only.
+> This application is a professional implementation-support resource. It does not independently diagnose, prescribe, determine individual treatment, or replace clinical judgment and institutional policy. This release does not establish FDA clearance or authorization and does not resolve medical-device classification. It is intended for professional education and controlled evaluation; real-PHI and unsupervised clinical use remain unauthorized until applicable institutional release gates are completed.
 
 ### Risk Score Disclaimer
 

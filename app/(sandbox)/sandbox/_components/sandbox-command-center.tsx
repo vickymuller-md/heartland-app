@@ -29,7 +29,11 @@ export function SandboxCommandCenter({ taskStates, visitedSections, onNavigate }
               <Button className="min-h-11 bg-white text-slate-950 hover:bg-slate-100" onClick={() => onNavigate(nextSection)}>
                 Continue guided tour <ArrowRight className="ml-2 size-4" />
               </Button>
-              <Button className="min-h-11 border-slate-600 text-white" variant="outline" onClick={() => onNavigate('patient-360')}>
+              <Button
+                className="min-h-11 border border-white bg-white text-slate-950 shadow-sm hover:border-blue-200 hover:bg-blue-50 hover:text-slate-950 focus-visible:ring-white/70"
+                data-testid="sandbox-open-patient-360"
+                onClick={() => onNavigate('patient-360')}
+              >
                 Open Patient 360
               </Button>
             </div>

@@ -50,7 +50,7 @@ PDF also available at: `heartland-app/reference/protocol_v33.pdf`
 | Rurality | No | No | No | **Yes** |
 | Primary care feasibility | Moderate | Low (hospital-designed) | Low (complex) | **High** |
 | Validation status | Validated (39,372 pts) | Validated (hospital registry) | Validated (multiple cohorts) | **Pragmatic heuristic (not yet validated)** |
-| Intended use | Prognostic | Prognostic | Prognostic | **Clinical decision support** |
+| Intended use | Prognostic | Prognostic | Prognostic | **Implementation support** |
 
 **IMPORTANT DISCLAIMER:** This score is a pragmatic heuristic designed to supplement — not replace — validated prognostic instruments. It has not been statistically validated through derivation/validation cohorts with ROC analysis or calibration testing. Formal validation using registry data is a planned next step.
 

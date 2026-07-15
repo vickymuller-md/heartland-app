@@ -6,6 +6,8 @@ test('landing exposes immediate sandbox and separate clinical access', async ({ 
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Heart failure care');
   await expect(page.getByRole('link', { name: /try the sandbox now/i })).toHaveAttribute('href', '/sandbox');
   await expect(page.getByRole('link', { name: /request a clinical workspace/i })).toHaveAttribute('href', '/request-access');
+  await expect(page.locator('footer').filter({ hasText: 'Heartland · App' })).toContainText('v1.1.0');
+  await expect(page.locator('body')).not.toContainText(/not a medical device|clinical decision support|no PHI is ever collected/i);
 });
 
 test('complete synthetic sandbox opens without an account', async ({ page }) => {
@@ -14,6 +16,10 @@ test('complete synthetic sandbox opens without an account', async ({ page }) => 
   await expect(page.getByTestId('sandbox-command-center')).toBeVisible();
   await expect(page.getByText('1/7 areas explored')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Create account' })).toHaveAttribute('href', '/register?mode=tester');
+  const patient360Cta = page.getByTestId('sandbox-open-patient-360');
+  await expect(patient360Cta).toBeVisible();
+  await expect(patient360Cta).toHaveClass(/bg-white/);
+  await expect(patient360Cta).toHaveClass(/text-slate-950/);
 
   await page.getByTestId('sandbox-nav-daily-loop').click();
   await expect(page.getByTestId('sandbox-daily-loop')).toBeVisible();
@@ -25,6 +31,12 @@ test('complete synthetic sandbox opens without an account', async ({ page }) => 
     await expect(page.getByTestId(`sandbox-${section}`)).toBeVisible();
   }
   await expect(page.getByText('7/7 areas explored')).toBeVisible();
+});
+
+test('public guide states bounded privacy and regulatory claims', async ({ page }) => {
+  await page.goto('/guide');
+  await expect(page.locator('body')).not.toContainText(/HIPAA-ready|not a medical device|clinical decision support|no PHI is ever collected/i);
+  await expect(page.getByText(/does not establish HIPAA readiness or compliance/i)).toBeVisible();
 });
 
 test('tester registration is self-service and authenticator-free', async ({ page }) => {

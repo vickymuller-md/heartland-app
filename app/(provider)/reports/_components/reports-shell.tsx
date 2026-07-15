@@ -82,7 +82,7 @@ export function ReportsShell({ data, patients, from, to }: ReportsShellProps) {
     try {
       const supabase = createClient();
 
-      // Build patient map for de-identification
+      // Build local export labels for identifier substitution.
       const patientMap = new Map<string, string>();
       patients.forEach((p, i) => {
         patientMap.set(p.id, `P${String(i + 1).padStart(3, '0')}`);
@@ -253,15 +253,16 @@ export function ReportsShell({ data, patients, from, to }: ReportsShellProps) {
           ))}
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:gap-4">
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
               checked={deidentify}
               onChange={(e) => setDeidentify(e.target.checked)}
+              aria-describedby="privacy-minimized-export-note"
               className="rounded border-gray-300"
             />
-            De-identified (research export)
+            Privacy-minimized research export
           </label>
 
           <button
@@ -274,6 +275,9 @@ export function ReportsShell({ data, patients, from, to }: ReportsShellProps) {
             {csvLoading ? 'Downloading...' : 'Download CSV'}
           </button>
         </div>
+        <p id="privacy-minimized-export-note" className="mt-3 max-w-3xl text-xs leading-5 text-gray-600">
+          When selected, patient IDs are replaced with local export labels and dates are reduced to year only. These transformations do not independently establish de-identification or HIPAA compliance; authorized reviewers must assess the complete dataset and intended disclosure.
+        </p>
       </section>
     </div>
   );
