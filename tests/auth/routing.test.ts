@@ -54,9 +54,10 @@ describe('Cross-Role Blocking (AUTH-09)', () => {
     expect(proxySource).not.toContain('user_metadata');
   });
 
-  it('routes tester accounts only to the synthetic sandbox without MFA', () => {
+  it('routes tester accounts to the synthetic sandbox without MFA while clinical areas remain role-bound', () => {
     expect(proxySource).toContain('role !== "tester"');
     expect(proxySource).toContain('SANDBOX_PREFIX');
+    expect(proxySource).toContain('"/sandbox"');
     expect(proxySource).toMatch(/role === "provider" && claims\.aal !== "aal2"/);
     expect(proxySource).not.toMatch(/role === "tester" && claims\.aal/);
   });

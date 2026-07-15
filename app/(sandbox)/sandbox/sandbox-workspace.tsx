@@ -1,37 +1,135 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, RotateCcw, ShieldCheck } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Activity, BarChart3, BookOpenCheck, ClipboardList, HeartPulse, RotateCcw, Stethoscope, Users } from 'lucide-react';
 import { trackProductEvent } from '@/lib/product-analytics/actions';
-import { SANDBOX_PATIENTS, SANDBOX_TASKS, type SandboxTask } from '@/lib/sandbox/fixtures';
+import { SANDBOX_PATHWAYS, SANDBOX_PATIENTS, SANDBOX_SECTIONS, SANDBOX_TASKS } from '@/lib/sandbox/fixtures';
+import type { SandboxDemoState, SandboxSectionId, SandboxTask, SandboxTaskState, SandboxTaskStatus } from '@/lib/sandbox/types';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { SandboxCommandCenter } from './_components/sandbox-command-center';
+import { SandboxDailyLoop } from './_components/sandbox-daily-loop';
+import { SandboxPatientWorkspace } from './_components/sandbox-patient-workspace';
+import { SandboxPathways } from './_components/sandbox-pathways';
+import { SandboxCoordination } from './_components/sandbox-coordination';
+import { SandboxPatientView } from './_components/sandbox-patient-view';
+import { SandboxImpact } from './_components/sandbox-impact';
 
-type TaskState = 'open' | 'reviewed' | 'closed';
-const SANDBOX_STORAGE_KEY = 'heartland_synthetic_sandbox_v1';
+const SANDBOX_STORAGE_KEY = 'heartland_synthetic_sandbox_v2';
+const MAX_LOCAL_AGE_MS = 7 * 86_400_000;
+const SECTION_ICONS = [Stethoscope, ClipboardList, Activity, BookOpenCheck, Users, HeartPulse, BarChart3];
+const TASK_STATUSES: SandboxTaskStatus[] = ['open', 'reviewed', 'actioned', 'awaiting', 'closed'];
+const PATIENT_CHECK_IN_IDS = new Set(SANDBOX_PATIENTS.flatMap((patient) =>
+  ['weight', 'meds', 'symptoms', 'education', 'message', 'call'].map((suffix) => `${patient.id}-${suffix}`),
+));
+
+function initialTaskStates(): Record<string, SandboxTaskState> {
+  return Object.fromEntries(SANDBOX_TASKS.map((task) => [task.id, {
+    status: 'open' as const,
+    owner: task.owner,
+    updatedLabel: 'Not yet reviewed',
+  }]));
+}
+
+function initialDemoState(): SandboxDemoState {
+  return {
+    taskStates: initialTaskStates(),
+    selectedPatientId: SANDBOX_PATIENTS[0].id,
+    selectedSection: 'command',
+    visitedSections: ['command'],
+    exploredPathways: [],
+    patientCheckIns: [],
+    documentedActions: [],
+    savedAt: Date.now(),
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function safeString(value: unknown, fallback: string, maxLength = 180): string {
+  return typeof value === 'string' && value.length > 0 && value.length <= maxLength ? value : fallback;
+}
+
+function safeStringList(value: unknown, allowed?: Set<string>, limit = 30): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((item): item is string => (
+    typeof item === 'string' && item.length > 0 && item.length <= 180 && (!allowed || allowed.has(item))
+  )))].slice(0, limit);
+}
+
+function restoreDemoState(value: unknown): SandboxDemoState | null {
+  if (!isRecord(value) || typeof value.savedAt !== 'number' || value.savedAt <= Date.now() - MAX_LOCAL_AGE_MS) return null;
+
+  const initial = initialDemoState();
+  const sectionIds = new Set(SANDBOX_SECTIONS.map((section) => section.id));
+  const patientIds = new Set(SANDBOX_PATIENTS.map((patient) => patient.id));
+  const pathwayIds = new Set(SANDBOX_PATHWAYS.map((pathway) => pathway.id));
+  const selectedSection = typeof value.selectedSection === 'string' && sectionIds.has(value.selectedSection as SandboxSectionId)
+    ? value.selectedSection as SandboxSectionId
+    : initial.selectedSection;
+  const visitedSections = safeStringList(value.visitedSections, sectionIds) as SandboxSectionId[];
+  if (!visitedSections.includes(selectedSection)) visitedSections.push(selectedSection);
+
+  const storedTaskStates = isRecord(value.taskStates) ? value.taskStates : {};
+  const taskStates = initialTaskStates();
+  for (const task of SANDBOX_TASKS) {
+    const stored = storedTaskStates[task.id];
+    if (!isRecord(stored)) continue;
+    const status = typeof stored.status === 'string' && TASK_STATUSES.includes(stored.status as SandboxTaskStatus)
+      ? stored.status as SandboxTaskStatus
+      : taskStates[task.id].status;
+    taskStates[task.id] = {
+      status,
+      owner: safeString(stored.owner, taskStates[task.id].owner, 100),
+      outcome: typeof stored.outcome === 'string' && stored.outcome.length <= 300 ? stored.outcome : undefined,
+      updatedLabel: safeString(stored.updatedLabel, taskStates[task.id].updatedLabel, 100),
+    };
+  }
+
+  return {
+    taskStates,
+    selectedPatientId: typeof value.selectedPatientId === 'string' && patientIds.has(value.selectedPatientId)
+      ? value.selectedPatientId
+      : initial.selectedPatientId,
+    selectedSection,
+    visitedSections,
+    exploredPathways: safeStringList(value.exploredPathways, pathwayIds),
+    patientCheckIns: safeStringList(value.patientCheckIns, PATIENT_CHECK_IN_IDS),
+    documentedActions: safeStringList(value.documentedActions, undefined, 20),
+    savedAt: value.savedAt,
+  };
+}
+
+function hasMeaningfulAction(state: SandboxDemoState): boolean {
+  return Object.values(state.taskStates).some((task) => task.status !== 'open')
+    || state.exploredPathways.length > 0
+    || state.patientCheckIns.length > 0
+    || state.documentedActions.length > 0;
+}
 
 export function SandboxWorkspace() {
-  const [states, setStates] = useState<Record<string, TaskState>>({});
+  const [demo, setDemo] = useState<SandboxDemoState>(initialDemoState);
   const [hydrated, setHydrated] = useState(false);
-  const [selectedPatientId, setSelectedPatientId] = useState(SANDBOX_PATIENTS[0].id);
-  const selectedPatient = SANDBOX_PATIENTS.find((patient) => patient.id === selectedPatientId) ?? SANDBOX_PATIENTS[0];
-  const openTasks = useMemo(
-    () => SANDBOX_TASKS.filter((task) => states[task.id] !== 'closed'),
-    [states],
-  );
+  const startedAt = useRef(Date.now());
+  const firstActionTracked = useRef(false);
+  const selectedPatient = SANDBOX_PATIENTS.find((patient) => patient.id === demo.selectedPatientId) ?? SANDBOX_PATIENTS[0];
+  const currentSectionIndex = SANDBOX_SECTIONS.findIndex((section) => section.id === demo.selectedSection);
+  const progress = Math.round((demo.visitedSections.length / SANDBOX_SECTIONS.length) * 100);
 
   useEffect(() => {
     try {
       const stored = localStorage.getItem(SANDBOX_STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored) as { states?: Record<string, TaskState>; savedAt?: number };
-        if (parsed.states && parsed.savedAt && parsed.savedAt > Date.now() - 7 * 86_400_000) {
-          setStates(parsed.states);
+        const restored = restoreDemoState(JSON.parse(stored));
+        if (restored) {
+          setDemo(restored);
+          firstActionTracked.current = hasMeaningfulAction(restored);
           void trackProductEvent({ eventName: 'sandbox_returned', area: 'sandbox' });
         }
       }
     } catch {
-      localStorage.removeItem(SANDBOX_STORAGE_KEY);
+      try { localStorage.removeItem(SANDBOX_STORAGE_KEY); } catch { /* Storage can be unavailable in hardened browsers. */ }
     } finally {
       setHydrated(true);
     }
@@ -39,117 +137,138 @@ export function SandboxWorkspace() {
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(SANDBOX_STORAGE_KEY, JSON.stringify({ states, savedAt: Date.now() }));
-  }, [hydrated, states]);
+    try {
+      localStorage.setItem(SANDBOX_STORAGE_KEY, JSON.stringify({ ...demo, savedAt: Date.now() }));
+    } catch {
+      // The sandbox remains fully usable when local persistence is blocked.
+    }
+  }, [demo, hydrated]);
 
-  function updateTask(task: SandboxTask, next: TaskState, elapsedMs?: number) {
-    const isFirstAction = Object.keys(states).length === 0;
-    setStates((current) => ({ ...current, [task.id]: next }));
-    if (isFirstAction) {
-      void trackProductEvent({
-        eventName: 'sandbox_first_action',
-        area: 'sandbox',
-        durationMs: Math.min(Math.max(Math.round(elapsedMs ?? 0), 0), 3_600_000),
-      });
-    }
-    if (next === 'closed') {
-      void trackProductEvent({ eventName: 'sandbox_task_completed', area: 'sandbox' });
-    }
+  function trackFirstAction() {
+    if (firstActionTracked.current) return;
+    firstActionTracked.current = true;
+    void trackProductEvent({
+      eventName: 'sandbox_first_action',
+      area: 'sandbox',
+      durationMs: Math.min(Date.now() - startedAt.current, 3_600_000),
+    });
   }
+
+  function navigate(section: SandboxSectionId) {
+    setDemo((current) => ({
+      ...current,
+      selectedSection: section,
+      visitedSections: current.visitedSections.includes(section) ? current.visitedSections : [...current.visitedSections, section],
+    }));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function updateTask(task: SandboxTask, status: SandboxTaskStatus, outcome?: string) {
+    trackFirstAction();
+    setDemo((current) => ({
+      ...current,
+      taskStates: {
+        ...current.taskStates,
+        [task.id]: {
+          ...current.taskStates[task.id],
+          status,
+          owner: current.taskStates[task.id]?.owner ?? task.owner,
+          outcome,
+          updatedLabel: status === 'closed' ? 'Closed this visit' : status === 'awaiting' ? 'Returned with future due date' : 'Updated this visit',
+        },
+      },
+    }));
+    if (status === 'closed') void trackProductEvent({ eventName: 'sandbox_task_completed', area: 'sandbox' });
+  }
+
+  function bulkReview(tasks: SandboxTask[]) {
+    if (tasks.length === 0) return;
+    trackFirstAction();
+    setDemo((current) => {
+      const taskStates = { ...current.taskStates };
+      for (const task of tasks) taskStates[task.id] = { ...taskStates[task.id], status: 'reviewed', owner: taskStates[task.id]?.owner ?? task.owner, updatedLabel: 'Bulk reviewed this visit' };
+      return { ...current, taskStates };
+    });
+  }
+
+  function openPatient(patientId: string) {
+    setDemo((current) => ({
+      ...current,
+      selectedPatientId: patientId,
+      selectedSection: 'patient-360',
+      visitedSections: current.visitedSections.includes('patient-360') ? current.visitedSections : [...current.visitedSections, 'patient-360'],
+    }));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function explorePathway(pathwayId: string) {
+    trackFirstAction();
+    setDemo((current) => ({ ...current, exploredPathways: current.exploredPathways.includes(pathwayId) ? current.exploredPathways : [...current.exploredPathways, pathwayId] }));
+  }
+
+  function documentAction(action: string) {
+    trackFirstAction();
+    setDemo((current) => ({ ...current, documentedActions: current.documentedActions.includes(action) ? current.documentedActions : [...current.documentedActions, action] }));
+  }
+
+  function checkIn(checkInId: string) {
+    trackFirstAction();
+    setDemo((current) => ({ ...current, patientCheckIns: current.patientCheckIns.includes(checkInId) ? current.patientCheckIns : [...current.patientCheckIns, checkInId] }));
+  }
+
+  function reassign(taskId: string, owner: string) {
+    trackFirstAction();
+    setDemo((current) => ({ ...current, taskStates: { ...current.taskStates, [taskId]: { ...current.taskStates[taskId], owner, updatedLabel: 'Reassigned this visit' } } }));
+  }
+
+  function reset() {
+    try { localStorage.removeItem(SANDBOX_STORAGE_KEY); } catch { /* Storage can be unavailable in hardened browsers. */ }
+    firstActionTracked.current = false;
+    startedAt.current = Date.now();
+    setDemo(initialDemoState());
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  const sectionContent = (() => {
+    switch (demo.selectedSection) {
+      case 'daily-loop': return <SandboxDailyLoop taskStates={demo.taskStates} onTaskState={updateTask} onOpenPatient={openPatient} onBulkReview={bulkReview} />;
+      case 'patient-360': return <SandboxPatientWorkspace patient={selectedPatient} documentedActions={demo.documentedActions} onPatientChange={(patientId) => setDemo((current) => ({ ...current, selectedPatientId: patientId }))} onDocumentAction={documentAction} />;
+      case 'pathways': return <SandboxPathways exploredPathways={demo.exploredPathways} onExplore={explorePathway} />;
+      case 'coordination': return <SandboxCoordination taskStates={demo.taskStates} onReassign={reassign} onDocumentAction={documentAction} />;
+      case 'patient-view': return <SandboxPatientView patient={selectedPatient} patientCheckIns={demo.patientCheckIns} onCheckIn={checkIn} />;
+      case 'impact': return <SandboxImpact visitedSections={demo.visitedSections} exploredPathways={demo.exploredPathways} taskStates={demo.taskStates} documentedActions={demo.documentedActions} patientCheckIns={demo.patientCheckIns} onReset={reset} />;
+      default: return <SandboxCommandCenter taskStates={demo.taskStates} visitedSections={demo.visitedSections} onNavigate={navigate} />;
+    }
+  })();
+
+  const previousSection = currentSectionIndex > 0 ? SANDBOX_SECTIONS[currentSectionIndex - 1] : null;
+  const nextSection = currentSectionIndex < SANDBOX_SECTIONS.length - 1 ? SANDBOX_SECTIONS[currentSectionIndex + 1] : null;
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-violet-200 bg-violet-50 p-5" aria-labelledby="sandbox-title">
-        <p className="text-sm font-semibold uppercase tracking-wide text-violet-800">Interactive synthetic workspace</p>
-        <h1 id="sandbox-title" className="mt-1 text-3xl font-bold tracking-tight text-slate-950">See the next action, not another alert pile.</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
-          Everything here is synthetic. Actions stay in this browser session, send no clinical message, and never touch a patient record.
-        </p>
+      <section className="sticky top-0 z-20 -mx-4 border-y bg-slate-50/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6" aria-label="Sandbox product navigation">
+        <div className="mx-auto max-w-7xl">
+          <div className="flex items-center justify-between gap-4">
+            <div><p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Sandbox coverage</p><p className="text-sm font-bold text-slate-950">{demo.visitedSections.length}/{SANDBOX_SECTIONS.length} areas explored</p></div>
+            <div className="flex items-center gap-3"><div className="hidden h-2 w-40 overflow-hidden rounded-full bg-slate-200 sm:block"><div className="h-full rounded-full bg-violet-600 transition-all" style={{ width: `${progress}%` }} /></div><Button size="sm" variant="ghost" className="min-h-11" onClick={reset}><RotateCcw className="mr-1 size-4" /> Reset</Button></div>
+          </div>
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+            {SANDBOX_SECTIONS.map((section, index) => {
+              const Icon = SECTION_ICONS[index];
+              const active = demo.selectedSection === section.id;
+              return <button key={section.id} type="button" data-testid={`sandbox-nav-${section.id}`} aria-current={active ? 'page' : undefined} onClick={() => navigate(section.id)} className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition ${active ? 'bg-slate-950 text-white' : 'border bg-white text-slate-700 hover:border-violet-300'}`}><Icon className="size-4" />{section.shortLabel}</button>;
+            })}
+          </div>
+        </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Synthetic queue metrics">
-        {[
-          ['Open', openTasks.length],
-          ['Needs action now', openTasks.filter((task) => task.priority === 'now').length],
-          ['Persistent signals', openTasks.filter((task) => task.occurrences > 1).length],
-          ['Completed this visit', SANDBOX_TASKS.length - openTasks.length],
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-xl border bg-white p-4">
-            <p className="text-2xl font-bold text-slate-950">{value}</p>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-          </div>
-        ))}
-      </section>
+      <div aria-live="polite">{sectionContent}</div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.8fr)]">
-        <section aria-labelledby="next-actions-title" className="space-y-3">
-          <div>
-            <h2 id="next-actions-title" className="text-xl font-bold text-slate-950">Top five next actions</h2>
-            <p className="text-sm text-slate-600">Repeated signals are coalesced into one evolving work item.</p>
-          </div>
-          {openTasks.length === 0 ? (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-8 text-center">
-              <CheckCircle2 className="mx-auto size-8 text-emerald-700" aria-hidden="true" />
-              <h3 className="mt-3 font-bold text-emerald-950">Synthetic queue complete</h3>
-              <Button className="mt-4 min-h-11" variant="outline" onClick={() => setStates({})}>
-                <RotateCcw className="mr-2 size-4" /> Reset demonstration
-              </Button>
-            </div>
-          ) : openTasks.map((task) => {
-            const state = states[task.id] ?? 'open';
-            return (
-              <article key={task.id} className="rounded-2xl border bg-white p-4 shadow-sm">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button className="min-h-11 font-semibold text-blue-700 hover:underline" onClick={() => setSelectedPatientId(task.patientId)}>
-                        {task.patientName}
-                      </button>
-                      <Badge variant="outline">{task.severity}</Badge>
-                      {task.occurrences > 1 && <Badge variant="secondary">{task.occurrences} observations</Badge>}
-                    </div>
-                    <h3 className="mt-1 font-bold text-slate-950">{task.title}</h3>
-                    <p className="mt-1 text-sm text-slate-600">{task.reason}</p>
-                    <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-amber-800">
-                      <AlertTriangle className="size-3.5" aria-hidden="true" /> {task.signal}
-                    </p>
-                  </div>
-                  <button onClick={() => setSelectedPatientId(task.patientId)} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white">
-                    Open brief <ChevronRight className="size-4" aria-hidden="true" />
-                  </button>
-                </div>
-                <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-3">
-                  <span className="mr-auto inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-slate-600">
-                    <Clock3 className="size-4" aria-hidden="true" /> {task.dueLabel}
-                  </span>
-                  {state === 'open' && (
-                    <Button className="min-h-11" variant="outline" onClick={(event) => updateTask(task, 'reviewed', event.timeStamp)}>
-                      <ShieldCheck className="mr-1 size-4" /> Mark reviewed
-                    </Button>
-                  )}
-                  <Button className="min-h-11" onClick={(event) => updateTask(task, 'closed', event.timeStamp)}>
-                    <CheckCircle2 className="mr-1 size-4" /> Complete
-                  </Button>
-                </div>
-              </article>
-            );
-          })}
-        </section>
-
-        <aside className="h-fit rounded-2xl border bg-white p-5 lg:sticky lg:top-6" aria-labelledby="brief-title">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Synthetic patient brief</p>
-          <h2 id="brief-title" className="mt-1 text-xl font-bold text-slate-950">{selectedPatient.name}</h2>
-          <p className="text-sm text-slate-600">Age {selectedPatient.age} · {selectedPatient.region}</p>
-          <dl className="mt-5 space-y-4 text-sm">
-            <div><dt className="font-semibold text-slate-500">Risk tier</dt><dd className="font-bold text-slate-950">{selectedPatient.riskTier}</dd></div>
-            <div><dt className="font-semibold text-slate-500">Latest signal</dt><dd className="font-medium text-slate-950">{selectedPatient.latestSignal}</dd></div>
-            <div><dt className="font-semibold text-slate-500">Data freshness</dt><dd className="font-medium text-emerald-800">{selectedPatient.dataAsOf}</dd></div>
-          </dl>
-          <div className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-700">
-            Educational implementation support only. This synthetic brief does not diagnose, prescribe, or replace clinical judgment.
-          </div>
-        </aside>
-      </div>
+      <nav className="flex flex-col gap-3 rounded-2xl border bg-white p-4 sm:flex-row sm:items-center sm:justify-between" aria-label="Guided sandbox tour">
+        <div>{previousSection && <Button variant="outline" className="min-h-11" onClick={() => navigate(previousSection.id)}>← {previousSection.title}</Button>}</div>
+        <p className="text-center text-xs font-semibold uppercase tracking-wide text-slate-500">Step {currentSectionIndex + 1} of {SANDBOX_SECTIONS.length}</p>
+        <div className="sm:text-right">{nextSection ? <Button className="min-h-11" onClick={() => navigate(nextSection.id)}>{nextSection.title} →</Button> : <Button className="min-h-11" onClick={() => navigate('command')}>Return to Command Center</Button>}</div>
+      </nav>
     </div>
   );
 }

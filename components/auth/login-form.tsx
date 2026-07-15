@@ -123,7 +123,7 @@ export function LoginForm() {
           {/* Links */}
           <p className="text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
-            <Link href="/register?mode=tester" className="font-medium text-primary hover:underline">
+            <Link href="/sandbox" className="font-medium text-primary hover:underline">
               Start a sandbox
             </Link>
           </p>

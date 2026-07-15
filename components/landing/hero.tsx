@@ -34,7 +34,7 @@ export function Hero() {
 
             <div className="mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
               <Link
-                href="/register?mode=tester"
+                href="/sandbox"
                 data-landing-cta="start-sandbox"
                 className="group inline-flex items-center gap-3 rounded-full bg-cool px-7 py-4 font-editorial text-[15px] font-medium text-terminal transition-colors hover:bg-alert hover:text-cool"
               >

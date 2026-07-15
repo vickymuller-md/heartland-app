@@ -24,6 +24,7 @@ const PUBLIC_PREFIXES = [
   "/tier-selector",
   "/pocket-cards",
   "/guide",
+  "/sandbox",
 ];
 
 const MFA_SETUP_PATH = "/security/mfa";
@@ -238,14 +239,6 @@ export async function updateSession(request: NextRequest) {
     // Non-patient accessing patient routes -- redirect to provider portal
     const url = request.nextUrl.clone();
     url.pathname = role === "tester" ? SANDBOX_PREFIX : "/dashboard";
-    return NextResponse.redirect(url);
-  }
-
-  if ((path === SANDBOX_PREFIX || path.startsWith(`${SANDBOX_PREFIX}/`)) && role !== "tester") {
-    const url = request.nextUrl.clone();
-    url.pathname = role === "provider"
-      ? claims.aal === "aal2" ? "/dashboard" : MFA_SETUP_PATH
-      : "/today";
     return NextResponse.redirect(url);
   }
 

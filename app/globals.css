@@ -77,6 +77,8 @@
 }
 
 :root {
+    /* Override the shared package's lighter token to meet WCAG AA on terminal backgrounds. */
+    --color-stone: #5f6975;
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
     --card: oklch(1 0 0);

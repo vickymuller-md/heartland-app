@@ -29,13 +29,14 @@ export function AccessCta() {
               </h2>
               <p className="mt-6 max-w-xl font-editorial text-[16px] leading-relaxed text-terminal/80">
                 Explore the complete provider workflow with synthetic data in
-                under two minutes. No approval and no authenticator setup.
+                instantly. No account, approval, email confirmation, or
+                authenticator setup.
                 Verified clinical workspaces remain separately governed.
               </p>
 
               <div className="mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
                 <Link
-                  href="/register?mode=tester"
+                  href="/sandbox"
                   data-landing-cta="start-sandbox-primary"
                   className="group inline-flex items-center gap-3 rounded-full bg-alert-on-dark px-7 py-4 font-editorial text-[15px] font-medium text-cool transition-colors hover:bg-terminal hover:text-cool"
                 >

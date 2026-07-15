@@ -59,7 +59,7 @@ For research collaborations, pilot deployments at Critical Access Hospitals, or 
 | Stream | State |
 |-|-|
 | Product workspace | Daily Loop, patient 60-second brief, action center, patient Today/Plan/Privacy, and privacy-safe product telemetry implemented |
-| Public sandbox | Self-service tester role and synthetic workflow implemented; custom SMTP remains required for confirmation delivery to arbitrary external emails |
+| Public sandbox | Sandbox 2.0 instantâneo, sem conta, com sete áreas conectadas, três casos sintéticos profundos e workflow persistente; conta tester é opcional e SMTP próprio ainda é necessário para confirmação confiável |
 | Clinical release posture | Controlled evaluation only; real-PHI and pilot go-live gates remain closed pending independent validation and organizational controls |
 | Product plan | Published in [`reference/HEARTLAND_PRODUCT_ADOPTION_PLAN.md`](./reference/HEARTLAND_PRODUCT_ADOPTION_PLAN.md) |
 | NIW petition integration | Tracked in [`NIW_INTEGRATION.md`](./NIW_INTEGRATION.md) |

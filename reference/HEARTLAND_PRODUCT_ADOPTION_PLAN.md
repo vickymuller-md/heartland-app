@@ -1,6 +1,6 @@
 # HEARTLAND — Plano de Produto, Usabilidade e Adoção
 
-**Status:** execução técnica de P0–P3 publicada; validação independente, SMTP transacional e piloto pendentes
+**Status:** execução técnica de P0–P3 publicada; Sandbox 2.0 implementado; validação independente, SMTP transacional e piloto pendentes
 **Data-base:** 13 de julho de 2026
 **Última atualização:** 14 de julho de 2026
 **Escopo:** experiência provider/patient, utilidade diária, organização funcional, validação, adoção e implantação
@@ -9,6 +9,13 @@
 
 Implementado nesta release:
 
+- Sandbox 2.0 público e instantâneo, sem conta, e-mail, aprovação ou authenticator; cadastro tester permanece opcional;
+- tour guiado por sete áreas conectadas: Command Center, Daily Loop, Patient 360, Pathways, Care Coordination, Patient View e Impact;
+- três pacientes sintéticos longitudinais, oito work items priorizados, sinais coalescidos, source freshness, owners, outcomes e retorno à fila;
+- workflow interativo completo de revisar, agir, aguardar, fechar com resultado, revisar em lote, reatribuir, documentar, fazer check-in e resetar;
+- Patient 360 com brief de 60 segundos, tendências, sinais, exames, medicamentos, timeline, plano, educação e acesso;
+- pathways conectados às seis ferramentas públicas reais, com status de evidência e boundaries de uso explícitos;
+- progresso local por sete dias, restauração segura, validação defensiva de storage adulterado e telemetria sem identificadores clínicos;
 - cadastro `tester` self-service com e-mail próprio, papel isolado, expiração em 30 dias e sandbox exclusivamente sintético;
 - MFA/AAL2 restrito ao Clinical Workspace: tester não recebe barreira de authenticator e nunca recebe autorização clínica;
 - sandbox orientado ao primeiro valor com fila sintética, revisão/fechamento de tarefas e funil de ativação;
@@ -34,15 +41,15 @@ Implementado nesta release:
 - timezone por organization/patient com tratamento de DST, freshness explícita e contato parcialmente mascarado;
 - coalescência transacional de alertas: 4.109 duplicatas históricas consolidadas em 162 sinais ativos, preservando trilha imutável;
 - export FHIR R4 read-only autenticado, mínimo necessário, auditado e sem alegação de writeback/US Core;
-- acessibilidade, reduced motion, skip links, estados globais e E2E desktop/mobile: 22 cenários aprovados;
-- suíte técnica: 1.029 testes aprovados, typecheck, lint, build, scan de segurança e auditoria npm sem vulnerabilidades;
+- acessibilidade, reduced motion, skip links, estados globais e E2E desktop/mobile: 26 cenários aprovados;
+- suíte técnica: 1.034 testes aprovados, typecheck, lint, build, scan de segurança e auditoria npm sem vulnerabilidades;
 - migrations `00028`–`00030` e Edge Function `alert-eval` aplicadas no Supabase hospedado;
 - Auth hospedado corrigido para domínio/callback de produção, senha mínima de 15 caracteres e reautenticação em troca de senha;
 - acesso anônimo direto às tabelas e execução pública de funções internas removidos; RLS continua como boundary dos usuários autenticados.
 
 Ainda não concluído — depende de pessoas, contratos ou evidência externa:
 
-- SMTP transacional próprio: sem credenciais externas, Supabase recusa confirmação para e-mails fora do time e limita o serviço padrão a duas mensagens/hora;
+- SMTP transacional próprio: sem credencial Resend configurada, criação opcional de conta tester ainda depende do serviço limitado do Supabase; isso não bloqueia o sandbox público;
 - proteção de senha vazada/HIBP: Management API recusou ativação porque exige plano Supabase Pro;
 - CAPTCHA de Auth: exige conta e chaves de um provedor compatível antes da ativação;
 - entrevistas e testes moderados com usuários-alvo;
@@ -54,7 +61,7 @@ Ainda não concluído — depende de pessoas, contratos ou evidência externa:
 - nomeação de owners operacionais/clínicos e aprovação dos targets pela facility;
 - aprovação independente dos seis rule sets atualmente marcados como `pending_independent_review`.
 
-**Estado de liberação:** código e infraestrutura adequados para sandbox público e avaliação controlada com dados sintéticos. Abertura real para e-mails externos depende de SMTP transacional próprio. Não aprovado para PHI real, cuidado não supervisionado ou claims clínicos/financeiros até todos os gates das seções 9–12 e do plano de segurança passarem.
+**Estado de liberação:** sandbox público liberável sem login, usando somente dados sintéticos e estado local. Confirmação de contas opcionais para e-mails externos depende de SMTP transacional próprio. Não aprovado para PHI real, cuidado não supervisionado ou claims clínicos/financeiros até todos os gates das seções 9–12 e do plano de segurança passarem.
 
 ## 1. Objetivo
 

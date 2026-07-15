@@ -3,8 +3,8 @@ import { ProductEventTracker } from '@/components/analytics/product-event-tracke
 import { SandboxWorkspace } from './sandbox-workspace';
 
 export const metadata: Metadata = {
-  title: 'HEARTLAND Sandbox · Synthetic provider workflow',
-  description: 'Explore the HEARTLAND operational workflow with synthetic data and no PHI.',
+  title: 'Full Synthetic Sandbox | HEARTLAND Protocol',
+  description: 'Explore HEARTLAND end to end with synthetic patients, operational workflows, pathways, coordination, patient experience, and impact reporting.',
 };
 
 export default function SandboxPage() {
