@@ -290,7 +290,7 @@ Regras:
 - Owner, status, prazo e outcome em todas ações.
 - Design system de severity, freshness e data quality.
 - Empty/error/loading/offline states padronizados.
-- Instrumentação privacy-safe para funil e task completion.
+- Instrumentação privacy-minimized para funil e task completion.
 
 ### P2 — Daily Loop
 
