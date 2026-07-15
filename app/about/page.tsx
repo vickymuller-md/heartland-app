@@ -251,12 +251,12 @@ export default function AboutPage() {
           <li>
             <strong>Zenodo</strong>:{" "}
             <a
-              href="https://doi.org/10.5281/zenodo.18566403"
+              href="https://doi.org/10.5281/zenodo.19101219"
               target="_blank"
               rel="noopener noreferrer"
               className="text-blue-600 underline hover:text-blue-800"
             >
-              DOI 10.5281/zenodo.18566403
+              DOI 10.5281/zenodo.19101219
             </a>
           </li>
           <li>

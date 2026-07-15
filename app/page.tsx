@@ -34,7 +34,7 @@ export default async function Home() {
           { label: "Try sandbox", href: "/sandbox" },
           {
             label: "Research",
-            href: "https://doi.org/10.5281/zenodo.18566403",
+            href: "https://doi.org/10.5281/zenodo.19101219",
             external: true,
           },
           { label: "Sign in", href: "/login" },

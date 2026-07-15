@@ -20,7 +20,7 @@ export default function PublicLayout({
           { label: "Try sandbox", href: "/register?mode=tester" },
           {
             label: "Research",
-            href: "https://doi.org/10.5281/zenodo.18566403",
+            href: "https://doi.org/10.5281/zenodo.19101219",
             external: true,
           },
         ]}

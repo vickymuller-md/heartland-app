@@ -47,7 +47,7 @@ An 8-module clinical implementation toolkit designed for primary care providers 
 
 ## Public Repositories
 
-- Zenodo: DOI 10.5281/zenodo.18566403
+- Zenodo: DOI 10.5281/zenodo.19101219
 - OSF: DOI 10.17605/OSF.IO/YUSGH
 
 ## Contact

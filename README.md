@@ -88,7 +88,7 @@ npm test
 Protocol content and research materials are available through the existing deposits:
 
 - **Cureus** (peer-reviewed, indexed PubMed/PMC/Scopus)
-- **Zenodo** (protocol): [`10.5281/zenodo.18566403`](https://doi.org/10.5281/zenodo.18566403)
+- **Zenodo** (protocol): [`10.5281/zenodo.19101219`](https://doi.org/10.5281/zenodo.19101219)
 - **OSF**: [`10.17605/OSF.IO/YUSGH`](https://doi.org/10.17605/OSF.IO/YUSGH)
 - **medRxiv**: three complementary systematic reviews registered in PROSPERO
 

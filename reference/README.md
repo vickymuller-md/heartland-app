@@ -30,7 +30,7 @@ cp ~/NIW-project/protocol/HEARTLAND_References.md ~/NIW-project/heartland-app/re
 ## Alternative Sources (Always Accessible)
 
 - Published Cureus article: DOI 10.7759/cureus.104817
-- Zenodo deposit: DOI 10.5281/zenodo.18566403
+- Zenodo deposit: DOI 10.5281/zenodo.19101219
 - OSF deposit: DOI 10.17605/OSF.IO/YUSGH
 - Summary: `~/NIW-project/HEARTLAND_1page_summary.md`
 - Professional Plan v10 (contains module descriptions): `~/NIW-project/professional_plan_v10.Rmd`

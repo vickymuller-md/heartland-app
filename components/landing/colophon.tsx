@@ -38,7 +38,7 @@ export function Colophon() {
               Cureus article (PMID 41948265)
             </FooterLink>
             <FooterLink
-              href="https://doi.org/10.5281/zenodo.18566403"
+              href="https://doi.org/10.5281/zenodo.19101219"
               external
             >
               Zenodo deposit

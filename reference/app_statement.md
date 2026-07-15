@@ -93,7 +93,7 @@ The HEARTLAND Protocol is directly aligned with federal programs addressing rura
 The HEARTLAND Protocol is freely available:
 
 - **Published article**: Cureus (Springer Nature) — peer-reviewed, indexed in PubMed/PMC/Scopus
-- **Zenodo**: DOI 10.5281/zenodo.18566403
+- **Zenodo**: DOI 10.5281/zenodo.19101219
 - **OSF**: DOI 10.17605/OSF.IO/YUSGH
 - **Systematic Reviews**: Three complementary reviews registered in PROSPERO with preprints on medRxiv
 
