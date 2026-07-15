@@ -1,6 +1,6 @@
 {
-  "title": "HEARTLAND Protocol App — Clinical Decision Support Tool for Rural Heart Failure Management",
-  "description": "Progressive Web Application operationalizing the HEARTLAND Protocol (Heart failure Evidence-based Access in Rural Treatment, Linking Advanced Network Delivery) for primary care-led heart failure management in rural and resource-limited United States settings. Eight interactive modules — risk stratification, GDMT optimization, telephone titration, discharge transitions, remote monitoring, comorbidity management, linkage to primary care, and implementation guidance — built with Next.js 16, React 19, and TypeScript. Synthetic data only; no PHI. For professional use only; not a medical device.",
+  "title": "HEARTLAND Protocol App — Clinical Implementation Companion for Rural Heart Failure",
+  "description": "Progressive Web Application operationalizing the HEARTLAND Protocol (Heart failure Evidence-based Access in Rural Treatment, Linking Advanced Network Delivery) for primary care-led heart failure workflows in rural and resource-limited United States settings. Version 1.1.0 adds a no-login public sandbox with synthetic patient journeys, an operational Daily Loop and patient brief, governed multi-organization workspaces, protected provider access with MFA, privacy-safe adoption telemetry, and expanded reliability and interoperability safeguards. Built with Next.js 16, React 19, TypeScript, and Supabase. The public sandbox contains synthetic data only. This software supports implementation and evaluation; it does not establish clinical efficacy, replace clinical judgment, or authorize unsupervised patient care.",
   "creators": [
     {
       "name": "Muller Ferreira, Vicky",
@@ -16,12 +16,17 @@
     "GDMT",
     "telehealth",
     "remote patient monitoring",
+    "care coordination",
+    "clinical workflow",
+    "FHIR",
     "primary care",
     "Critical Access Hospital",
     "progressive web application",
     "open source health software"
   ],
   "license": "MIT",
+  "version": "1.1.0",
+  "publication_date": "2026-07-15",
   "upload_type": "software",
   "access_right": "open",
   "language": "eng",
@@ -42,5 +47,5 @@
   "communities": [
     { "identifier": "open-science" }
   ],
-  "notes": "Disclaimer: This software is designed for healthcare professionals as a clinical decision support resource. It does not provide medical diagnoses, treatment recommendations for individual patients, or replace clinical judgment. Not intended for direct patient care. For professional use only. The HEARTLAND Risk Stratification Framework is a proposed tool under development; formal validation against clinical outcomes data is a defined research objective."
+  "notes": "Release boundary: the public sandbox uses synthetic data and is intended for demonstration and usability evaluation. Authenticated workspaces use organization-scoped access controls and are intended for controlled evaluation. This release does not establish clinical efficacy, reimbursement eligibility, HIPAA readiness, regulatory clearance, or authorization for real-PHI or unsupervised clinical use. The HEARTLAND Risk Stratification Framework remains a proposed tool under development; formal validation against clinical outcomes data is a defined research objective."
 }

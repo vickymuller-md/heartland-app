@@ -1,0 +1,34 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+title: "HEARTLAND Protocol App — Clinical Implementation Companion for Rural Heart Failure"
+type: software
+authors:
+  - family-names: "Muller Ferreira"
+    given-names: "Vicky"
+    orcid: "https://orcid.org/0009-0009-1099-5690"
+version: 1.1.0
+date-released: 2026-07-15
+repository-code: "https://github.com/vickymuller-md/heartland-app"
+url: "https://app.heartlandprotocol.org"
+license: MIT
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.19600593"
+    description: "Concept DOI for all HEARTLAND Protocol App versions"
+abstract: >-
+  Progressive Web Application operationalizing the HEARTLAND Protocol for
+  primary care-led heart failure workflows in rural and resource-limited
+  settings. Version 1.1.0 includes a public synthetic-data sandbox, an
+  operational Daily Loop and patient brief, governed multi-organization
+  workspaces, protected provider access, privacy-safe adoption telemetry,
+  and reliability and interoperability safeguards. The software supports
+  implementation and evaluation and does not replace clinical judgment.
+keywords:
+  - heart failure
+  - rural health
+  - implementation science
+  - clinical workflow
+  - care coordination
+  - GDMT
+  - telehealth
+  - FHIR
