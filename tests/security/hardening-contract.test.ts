@@ -8,6 +8,8 @@ function read(relativePath: string): string {
 
 const authorization = read('lib/auth/authorization.ts');
 const migration = read('supabase/migrations/00025_authorization_audit_hardening.sql');
+const roleHotfix = read('supabase/migrations/00029_restore_authoritative_role_lookup.sql');
+const publicSurfaceHardening = read('supabase/migrations/00030_reduce_public_database_surface.sql');
 const alertCron = read('app/api/alert-scan/route.ts');
 const healthCron = read('app/api/health/route.ts');
 const dischargeAction = read('lib/discharge/actions.ts');
@@ -34,9 +36,35 @@ describe('Authoritative application authorization', () => {
     expect(authorization).toContain('.eq("patient_id", patientId)');
     expect(authorization).toContain('.eq("status", "active")');
   });
+
+  it('keeps database roles authoritative when the optional Auth Hook is absent', () => {
+    expect(roleHotfix).toContain('FROM (SELECT (SELECT auth.uid()) AS user_id)');
+    expect(roleHotfix).toContain('LEFT JOIN public.profiles AS profile');
+    expect(roleHotfix).toContain("('provider', 'patient', 'tester')");
+    expect(roleHotfix).not.toContain('user_metadata');
+    expect(roleHotfix).not.toContain('auth.jwt()');
+  });
 });
 
 describe('Database hardening', () => {
+  it('removes anonymous application-table and trigger-function access', () => {
+    expect(publicSurfaceHardening).toContain('FROM anon;');
+    expect(publicSurfaceHardening).toContain('public.vitals');
+    expect(publicSurfaceHardening).toContain('public.profiles');
+    expect(publicSurfaceHardening).toContain("'handle_new_user'");
+    expect(publicSurfaceHardening).toContain("'notify_vitals_insert'");
+    expect(publicSurfaceHardening).toContain(
+      'FROM PUBLIC, anon, authenticated',
+    );
+  });
+
+  it('fixes the Auth Hook search path and preserves only its service caller', () => {
+    expect(publicSurfaceHardening).toContain(
+      "ALTER FUNCTION public.custom_access_token_hook(jsonb)\n  SET search_path = '';",
+    );
+    expect(publicSurfaceHardening).toContain('TO supabase_auth_admin;');
+  });
+
   it.each([
     'patients',
     'vitals',

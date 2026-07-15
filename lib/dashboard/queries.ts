@@ -238,8 +238,11 @@ export async function getPatientDetail(
 export async function getAlerts(
   supabase: SupabaseClient,
   providerId: string,
-  statusFilter?: AlertStatus | 'all'
-): Promise<AlertRow[]> {
+  statusFilter?: AlertStatus | 'all',
+  pagination: { limit?: number; offset?: number } = {},
+): Promise<{ alerts: AlertRow[]; total: number }> {
+  const limit = Math.min(Math.max(pagination.limit ?? 25, 1), 50);
+  const offset = Math.max(pagination.offset ?? 0, 0);
   // Get linked patient IDs
   const { data: links } = await supabase
     .from('provider_patient_links')
@@ -247,24 +250,26 @@ export async function getAlerts(
     .eq('provider_id', providerId)
     .eq('status', 'active');
 
-  if (!links || links.length === 0) return [];
+  if (!links || links.length === 0) return { alerts: [], total: 0 };
   const patientIds = links.map((l) => l.patient_id);
 
   // Build query with optional status filter
   let query = supabase
     .from('alerts')
-    .select('id, patient_id, vitals_id, flags, severity, status, acknowledged_by, acknowledged_at, resolved_by, resolved_at, created_at, patients!inner(profiles(full_name))')
+    .select('id, patient_id, vitals_id, flags, severity, status, acknowledged_by, acknowledged_at, resolved_by, resolved_at, created_at, occurrence_count, first_seen_at, last_seen_at, patients!inner(profiles(full_name))', { count: 'exact' })
     .in('patient_id', patientIds)
-    .order('created_at', { ascending: false });
+    .order('last_seen_at', { ascending: false })
+    .order('id', { ascending: true })
+    .range(offset, offset + limit - 1);
 
   if (statusFilter && statusFilter !== 'all') {
     query = query.eq('status', statusFilter);
   }
 
-  const { data, error } = await query;
+  const { data, error, count } = await query;
   if (error) throw error;
 
-  return (data ?? []).map((row) => {
+  const alerts = (data ?? []).map((row) => {
     return {
       id: row.id,
       patient_id: row.patient_id,
@@ -278,8 +283,12 @@ export async function getAlerts(
       resolved_by: row.resolved_by,
       resolved_at: row.resolved_at,
       created_at: row.created_at,
+      occurrence_count: row.occurrence_count,
+      first_seen_at: row.first_seen_at,
+      last_seen_at: row.last_seen_at,
     };
   });
+  return { alerts, total: count ?? 0 };
 }
 
 /**

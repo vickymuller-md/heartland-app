@@ -50,7 +50,7 @@ export const NiwTractionPrint = React.forwardRef<
         {new Date().toLocaleDateString()}
       </p>
 
-      {/* Stats grid: 3x2 */}
+      {/* Stats grid: clinical adoption plus self-service sandbox activation */}
       <div className="grid grid-cols-3 gap-4 mb-8">
         <div className="border rounded-lg p-4 text-center">
           <div className="text-3xl font-bold text-blue-800">
@@ -93,6 +93,18 @@ export const NiwTractionPrint = React.forwardRef<
           <div className="text-xs text-gray-600 mt-1">
             Pending Access Requests
           </div>
+        </div>
+        <div className="border rounded-lg p-4 text-center">
+          <div className="text-3xl font-bold text-violet-700">{data.uniqueSandboxTesters30d}</div>
+          <div className="text-xs text-gray-600 mt-1">Unique Sandbox Testers · 30d</div>
+        </div>
+        <div className="border rounded-lg p-4 text-center">
+          <div className="text-3xl font-bold text-violet-700">{data.sandboxActivationRate30d === null ? '—' : `${data.sandboxActivationRate30d}%`}</div>
+          <div className="text-xs text-gray-600 mt-1">First-action Activation · 30d</div>
+        </div>
+        <div className="border rounded-lg p-4 text-center">
+          <div className="text-3xl font-bold text-violet-700">{data.medianSandboxDurationSeconds === null ? '—' : `${data.medianSandboxDurationSeconds}s`}</div>
+          <div className="text-xs text-gray-600 mt-1">Median Sandbox Session · 30d</div>
         </div>
       </div>
 

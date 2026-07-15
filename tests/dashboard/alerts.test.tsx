@@ -84,14 +84,14 @@ describe('AlertInbox', () => {
 
   it('renders alerts in reverse chronological order', () => {
     render(<AlertInbox alerts={mockAlerts} statusFilter="all" />);
-    const table = screen.getByTestId('alert-table');
-    const rows = within(table).getAllByTestId('alert-row');
+    const table = screen.getByTestId('alert-list');
+    const rows = within(table).getAllByTestId('alert-card');
     expect(rows).toHaveLength(3);
   });
 
   it('displays patient name, trigger reason, timestamp, severity badge', () => {
     render(<AlertInbox alerts={mockAlerts} statusFilter="all" />);
-    const table = screen.getByTestId('alert-table');
+    const table = screen.getByTestId('alert-list');
 
     // Patient names
     expect(within(table).getByText('John Doe')).toBeInTheDocument();
@@ -113,7 +113,7 @@ describe('AlertInbox', () => {
 
   it('shows resolution status: open / acknowledged / resolved', () => {
     render(<AlertInbox alerts={mockAlerts} statusFilter="all" />);
-    const table = screen.getByTestId('alert-table');
+    const table = screen.getByTestId('alert-list');
     const statusBadges = within(table).getAllByTestId('status-badge');
 
     const statusTexts = statusBadges.map((b) => b.textContent);
@@ -125,14 +125,14 @@ describe('AlertInbox', () => {
   it('acknowledge button appears for open alerts', () => {
     const openAlerts = mockAlerts.filter((a) => a.status === 'open');
     render(<AlertInbox alerts={openAlerts} statusFilter="open" />);
-    const table = screen.getByTestId('alert-table');
+    const table = screen.getByTestId('alert-list');
     expect(within(table).getByTestId('acknowledge-btn')).toBeInTheDocument();
   });
 
   it('resolve button appears for acknowledged alerts', () => {
     const ackedAlerts = mockAlerts.filter((a) => a.status === 'acknowledged');
     render(<AlertInbox alerts={ackedAlerts} statusFilter="acknowledged" />);
-    const table = screen.getByTestId('alert-table');
+    const table = screen.getByTestId('alert-list');
     expect(within(table).getByTestId('resolve-btn')).toBeInTheDocument();
   });
 

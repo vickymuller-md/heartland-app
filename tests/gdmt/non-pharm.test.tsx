@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { NonPharmacological } from '@/app/(provider)/gdmt-pathway/non-pharmacological';
+import { NonPharmacological } from '@/app/(public)/gdmt-pathway/non-pharmacological';
 
 // ==========================================================================
 // GDMT-07: Non-Pharmacological Management Display

@@ -1,6 +1,6 @@
 import { describe, it } from 'vitest';
 
-// import { ASMReadiness } from '@/app/(provider)/tier-selector/asm-readiness';
+// import { ASMReadiness } from '@/app/(public)/tier-selector/asm-readiness';
 
 // ==========================================================================
 // TIER-05: ASM 2027 Readiness Component

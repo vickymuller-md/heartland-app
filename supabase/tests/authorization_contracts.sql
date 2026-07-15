@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(18);
+SELECT plan(26);
 
 SELECT ok(
   (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.work_items'::regclass),
@@ -84,6 +84,48 @@ SELECT ok(
       AND policyname = 'patients_insert_linkage_requests'
   ),
   'patients cannot insert linkage rows directly'
+);
+
+SELECT ok(
+  EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'public.profiles'::regclass
+      AND conname = 'profiles_role_check'
+      AND pg_get_constraintdef(oid) LIKE '%tester%'
+  ),
+  'tester is a distinct database identity role'
+);
+SELECT has_function('public', 'get_patient_timezone', ARRAY[]::text[], 'patient timezone helper exists');
+SELECT has_function(
+  'public',
+  'coalesce_patient_alert',
+  ARRAY['uuid', 'uuid', 'text', 'text[]'],
+  'active patient signal coalescence exists'
+);
+SELECT ok(
+  NOT has_function_privilege('anon', 'public.coalesce_patient_alert(uuid,uuid,text,text[])', 'EXECUTE'),
+  'anonymous users cannot coalesce clinical alerts'
+);
+SELECT ok(
+  NOT has_function_privilege('authenticated', 'public.coalesce_patient_alert(uuid,uuid,text,text[])', 'EXECUTE'),
+  'authenticated clients cannot invoke trusted alert coalescence'
+);
+SELECT ok(
+  (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.data_export_events'::regclass),
+  'FHIR export audit has RLS enabled'
+);
+SELECT ok(
+  NOT has_column_privilege('authenticated', 'public.profiles', 'role', 'UPDATE'),
+  'accounts cannot promote themselves from tester to provider'
+);
+SELECT ok(
+  EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgrelid = 'public.data_export_events'::regclass
+      AND tgname = 'reject_data_export_event_mutation'
+      AND NOT tgisinternal
+  ),
+  'FHIR export audit is append-only'
 );
 
 SELECT * FROM finish();

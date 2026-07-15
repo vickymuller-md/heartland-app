@@ -16,6 +16,9 @@ const transitionSchema = z.object({
   if (value.status === 'closed' && !value.outcome) {
     context.addIssue({ code: 'custom', path: ['outcome'], message: 'Outcome is required' });
   }
+  if (value.status === 'actioned' && !value.outcome) {
+    context.addIssue({ code: 'custom', path: ['outcome'], message: 'Document the action taken' });
+  }
   if (value.status === 'awaiting' && (!value.snoozeReason || !value.dueAt)) {
     context.addIssue({ code: 'custom', path: ['snoozeReason'], message: 'Reason and due date are required' });
   }
@@ -38,7 +41,9 @@ export async function transitionWorkItem(
   if (!auth.authorized) return { success: false, error: auth.error };
 
   const update: Record<string, string | null> = { status: parsed.data.status };
-  if (parsed.data.status === 'closed') update.outcome = parsed.data.outcome ?? null;
+  if (parsed.data.status === 'closed' || parsed.data.status === 'actioned') {
+    update.outcome = parsed.data.outcome ?? null;
+  }
   if (parsed.data.status === 'awaiting') {
     update.snooze_reason = parsed.data.snoozeReason ?? null;
     update.due_at = parsed.data.dueAt ?? null;
@@ -66,6 +71,29 @@ export async function transitionWorkItem(
   revalidatePath('/dashboard');
   revalidatePath(`/patients/${parsed.data.patientId}`);
   return { success: true };
+}
+
+const bulkReviewSchema = z.array(z.uuid()).min(1).max(50);
+
+export async function bulkReviewWorkItems(
+  workItemIds: string[],
+): Promise<{ success: boolean; updated?: number; error?: string }> {
+  const parsed = bulkReviewSchema.safeParse([...new Set(workItemIds)]);
+  if (!parsed.success) return { success: false, error: 'Select between 1 and 50 eligible items.' };
+  const auth = await authorize('provider');
+  if (!auth.authorized) return { success: false, error: auth.error };
+
+  const { data, error } = await auth.supabase
+    .from('work_items')
+    .update({ status: 'reviewed' })
+    .in('id', parsed.data)
+    .eq('assigned_to', auth.user.id)
+    .in('status', ['new', 'due'])
+    .select('id');
+  if (error) return { success: false, error: 'Selected work could not be reviewed.' };
+
+  revalidatePath('/dashboard');
+  return { success: true, updated: data?.length ?? 0 };
 }
 
 const manualWorkItemSchema = z.object({

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { CardGallery } from '@/app/(provider)/pocket-cards/card-gallery';
+import { CardGallery } from '@/app/(public)/pocket-cards/card-gallery';
 import { POCKET_CARDS, CARDS_BY_MODULE } from '@/lib/pocket-cards/constants';
 
 // Mock next/image to render a plain <img> in tests

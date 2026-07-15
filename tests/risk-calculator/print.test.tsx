@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { PrintHeader } from '@/app/(provider)/risk-calculator/print-header';
-import { CalculatorForm } from '@/app/(provider)/risk-calculator/calculator-form';
+import { PrintHeader } from '@/app/(public)/risk-calculator/print-header';
+import { CalculatorForm } from '@/app/(public)/risk-calculator/calculator-form';
 
 // Mock window.print
 vi.stubGlobal('print', vi.fn());

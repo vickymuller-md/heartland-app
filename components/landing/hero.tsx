@@ -34,20 +34,20 @@ export function Hero() {
 
             <div className="mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
               <Link
-                href="/request-access"
-                data-landing-cta="request-access"
+                href="/register?mode=tester"
+                data-landing-cta="start-sandbox"
                 className="group inline-flex items-center gap-3 rounded-full bg-cool px-7 py-4 font-editorial text-[15px] font-medium text-terminal transition-colors hover:bg-alert hover:text-cool"
               >
-                Request professional access
+                Try the sandbox now
                 <span className="transition-transform group-hover:translate-x-1">
                   →
                 </span>
               </Link>
               <Link
-                href="/login"
+                href="/request-access"
                 className="group inline-flex items-center gap-2 font-editorial text-[15px] font-medium text-cool/85 transition-colors hover:text-alert"
               >
-                I have an invitation
+                Request a clinical workspace
                 <span className="transition-transform group-hover:translate-x-1">
                   →
                 </span>

@@ -17,6 +17,7 @@ describe('Auth Callback Redirects', () => {
     expect(getSafeConfirmRedirect('/today')).toBe('/today');
     expect(getSafeConfirmRedirect('/dashboard')).toBe('/dashboard');
     expect(getSafeConfirmRedirect('/update-password')).toBe('/update-password');
+    expect(getSafeConfirmRedirect('/sandbox')).toBe('/sandbox');
   });
 
   it.each([
@@ -51,6 +52,13 @@ describe('Cross-Role Blocking (AUTH-09)', () => {
   it('uses verified server-controlled claims and never user metadata', () => {
     expect(proxySource).toContain('supabase.auth.getClaims()');
     expect(proxySource).not.toContain('user_metadata');
+  });
+
+  it('routes tester accounts only to the synthetic sandbox without MFA', () => {
+    expect(proxySource).toContain('role !== "tester"');
+    expect(proxySource).toContain('SANDBOX_PREFIX');
+    expect(proxySource).toMatch(/role === "provider" && claims\.aal !== "aal2"/);
+    expect(proxySource).not.toMatch(/role === "tester" && claims\.aal/);
   });
 });
 

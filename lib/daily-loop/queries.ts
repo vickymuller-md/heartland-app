@@ -7,9 +7,11 @@ import type {
   DailyLoopMetrics,
   DailyLoopResult,
   DailyLoopSections,
+  DailyLoopPaginationInput,
   SavedQueueView,
   WorkItem,
 } from './types';
+import { addZonedDays, DEFAULT_TIME_ZONE, getZonedDayBounds } from '@/lib/timezone';
 
 const EMPTY_SECTIONS: DailyLoopSections = {
   now: [],
@@ -26,9 +28,13 @@ const EMPTY_METRICS: DailyLoopMetrics = {
   completionRate7Days: null,
 };
 
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 50;
+
 export function groupDailyLoopItems(
   items: WorkItem[],
   now = new Date(),
+  timeZone = DEFAULT_TIME_ZONE,
 ): DailyLoopSections {
   const sections: DailyLoopSections = {
     now: [],
@@ -36,10 +42,8 @@ export function groupDailyLoopItems(
     week: [],
     watching: [],
   };
-  const endToday = new Date(now);
-  endToday.setHours(23, 59, 59, 999);
-  const endWeek = new Date(now);
-  endWeek.setDate(endWeek.getDate() + 7);
+  const { endExclusive: endToday } = getZonedDayBounds(now, timeZone);
+  const endWeek = addZonedDays(now, 7, timeZone);
 
   for (const item of items) {
     const due = item.due_at ? new Date(item.due_at) : null;
@@ -73,18 +77,61 @@ export async function getDailyLoop(
   supabase: SupabaseClient,
   providerId: string,
   filter: DailyLoopFilter = {},
+  paginationInput: DailyLoopPaginationInput = {},
 ): Promise<DailyLoopResult> {
-  const sevenDaysAgo = new Date();
+  const now = new Date();
+  const sevenDaysAgo = new Date(now);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const limit = Math.min(Math.max(paginationInput.limit ?? DEFAULT_PAGE_SIZE, 1), MAX_PAGE_SIZE);
+  const offset = Math.max(paginationInput.offset ?? 0, 0);
+
+  const { data: membership } = await supabase
+    .from('organization_memberships')
+    .select('organizations(timezone)')
+    .eq('user_id', providerId)
+    .eq('status', 'active')
+    .order('is_default', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const organization = Array.isArray(membership?.organizations)
+    ? membership?.organizations[0]
+    : membership?.organizations;
+  const requestedTimeZone = organization && typeof organization === 'object' && 'timezone' in organization
+    ? String(organization.timezone)
+    : DEFAULT_TIME_ZONE;
+  const dayBounds = getZonedDayBounds(now, requestedTimeZone);
 
   let itemsQuery = supabase
     .from('work_items')
     .select(
-      'id, organization_id, patient_id, provider_id, assigned_to, source_type, source_id, title, reason, change_summary, priority, severity, status, due_at, freshness_at, data_quality, created_at, updated_at, patients!work_items_patient_id_fkey(profiles(full_name)), assignee:profiles!work_items_assigned_to_fkey(full_name)'
+      'id, organization_id, patient_id, provider_id, assigned_to, source_type, source_id, title, reason, change_summary, priority, severity, status, due_at, freshness_at, data_quality, created_at, updated_at, patients!work_items_patient_id_fkey(profiles(full_name)), assignee:profiles!work_items_assigned_to_fkey(full_name)',
+      { count: 'exact' },
     )
     .eq('assigned_to', providerId)
     .neq('status', 'closed')
-    .order('due_at', { ascending: true, nullsFirst: false });
+    .order('due_at', { ascending: true, nullsFirst: false })
+    .order('id', { ascending: true })
+    .range(offset, offset + limit - 1);
+  let overdueQuery = supabase
+    .from('work_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('assigned_to', providerId)
+    .neq('status', 'closed')
+    .lt('due_at', now.toISOString());
+  let dueTodayQuery = supabase
+    .from('work_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('assigned_to', providerId)
+    .neq('status', 'closed')
+    .gte('due_at', dayBounds.start.toISOString())
+    .lt('due_at', dayBounds.endExclusive.toISOString());
+  let priorityTodayWithoutDueQuery = supabase
+    .from('work_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('assigned_to', providerId)
+    .neq('status', 'closed')
+    .eq('priority', 'today')
+    .is('due_at', null);
   let closedQuery = supabase
     .from('work_items')
     .select('id', { count: 'exact', head: true })
@@ -105,34 +152,60 @@ export async function getDailyLoop(
 
   if (filter.severity) {
     itemsQuery = itemsQuery.eq('severity', filter.severity);
+    overdueQuery = overdueQuery.eq('severity', filter.severity);
+    dueTodayQuery = dueTodayQuery.eq('severity', filter.severity);
+    priorityTodayWithoutDueQuery = priorityTodayWithoutDueQuery.eq('severity', filter.severity);
     closedQuery = closedQuery.eq('severity', filter.severity);
     createdQuery = createdQuery.eq('severity', filter.severity);
     createdClosedQuery = createdClosedQuery.eq('severity', filter.severity);
   }
   if (filter.priority) {
     itemsQuery = itemsQuery.eq('priority', filter.priority);
+    overdueQuery = overdueQuery.eq('priority', filter.priority);
+    dueTodayQuery = dueTodayQuery.eq('priority', filter.priority);
+    priorityTodayWithoutDueQuery = priorityTodayWithoutDueQuery.eq('priority', filter.priority);
     closedQuery = closedQuery.eq('priority', filter.priority);
     createdQuery = createdQuery.eq('priority', filter.priority);
     createdClosedQuery = createdClosedQuery.eq('priority', filter.priority);
   }
   if (filter.sourceType) {
     itemsQuery = itemsQuery.eq('source_type', filter.sourceType);
+    overdueQuery = overdueQuery.eq('source_type', filter.sourceType);
+    dueTodayQuery = dueTodayQuery.eq('source_type', filter.sourceType);
+    priorityTodayWithoutDueQuery = priorityTodayWithoutDueQuery.eq('source_type', filter.sourceType);
     closedQuery = closedQuery.eq('source_type', filter.sourceType);
     createdQuery = createdQuery.eq('source_type', filter.sourceType);
     createdClosedQuery = createdClosedQuery.eq('source_type', filter.sourceType);
   }
 
-  const [itemsResult, closedResult, createdResult, createdClosedResult] = await Promise.all([
+  const [
+    itemsResult,
+    overdueResult,
+    dueTodayResult,
+    priorityTodayWithoutDueResult,
+    closedResult,
+    createdResult,
+    createdClosedResult,
+  ] = await Promise.all([
     itemsQuery,
+    overdueQuery,
+    dueTodayQuery,
+    priorityTodayWithoutDueQuery,
     closedQuery,
     createdQuery,
     createdClosedQuery,
   ]);
 
-  if (itemsResult.error) {
+  if (
+    itemsResult.error || overdueResult.error || dueTodayResult.error ||
+    priorityTodayWithoutDueResult.error || closedResult.error ||
+    createdResult.error || createdClosedResult.error
+  ) {
     return {
       sections: EMPTY_SECTIONS,
       metrics: EMPTY_METRICS,
+      pagination: { total: 0, limit, offset, hasNext: false, hasPrevious: offset > 0 },
+      timeZone: dayBounds.timeZone,
       error: 'The operational queue could not be loaded. Do not interpret this as no work.',
     };
   }
@@ -160,23 +233,17 @@ export async function getDailyLoop(
     updated_at: row.updated_at,
   })) as WorkItem[];
 
-  const now = new Date();
-  const endToday = new Date(now);
-  endToday.setHours(23, 59, 59, 999);
-  const overdue = items.filter((item) => item.due_at && new Date(item.due_at) < now).length;
-  const dueToday = items.filter((item) => {
-    if (!item.due_at) return item.priority === 'today';
-    const due = new Date(item.due_at);
-    return due >= now && due <= endToday;
-  }).length;
+  const total = itemsResult.count ?? 0;
+  const overdue = overdueResult.count ?? 0;
+  const dueToday = (dueTodayResult.count ?? 0) + (priorityTodayWithoutDueResult.count ?? 0);
   const closedLast7Days = closedResult.count ?? 0;
   const createdLast7Days = createdResult.count ?? 0;
   const createdAndClosedLast7Days = createdClosedResult.count ?? 0;
 
   return {
-    sections: groupDailyLoopItems(items, now),
+    sections: groupDailyLoopItems(items, now, dayBounds.timeZone),
     metrics: {
-      open: items.length,
+      open: total,
       overdue,
       dueToday,
       closedLast7Days,
@@ -185,6 +252,14 @@ export async function getDailyLoop(
           ? Math.round((createdAndClosedLast7Days / createdLast7Days) * 100)
           : null,
     },
+    pagination: {
+      total,
+      limit,
+      offset,
+      hasNext: offset + items.length < total,
+      hasPrevious: offset > 0,
+    },
+    timeZone: dayBounds.timeZone,
     error: null,
   };
 }

@@ -67,7 +67,7 @@ describe('getTodayTaskStatus (PTUX-03)', () => {
       },
     ]);
 
-    const result = await getTodayTaskStatus(mockSupabase, patientId);
+    const result = await getTodayTaskStatus(mockSupabase, patientId, 'UTC');
     expect(result.vitalsLogged).toBe(true);
   });
 

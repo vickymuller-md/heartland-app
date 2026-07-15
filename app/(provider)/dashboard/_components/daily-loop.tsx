@@ -17,10 +17,11 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { assignWorkItem, transitionWorkItem } from '@/lib/daily-loop/actions';
+import { assignWorkItem, bulkReviewWorkItems, transitionWorkItem } from '@/lib/daily-loop/actions';
 import type { TeamMember } from '@/lib/team/types';
 import type {
   DailyLoopMetrics,
+  DailyLoopResult,
   DailyLoopSections,
   WorkItem,
   WorkStatus,
@@ -91,13 +92,17 @@ function WorkItemCard({
   item,
   teamMembers,
   canManage,
+  selected,
+  onSelectionChange,
 }: {
   item: WorkItem;
   teamMembers: TeamMember[];
   canManage: boolean;
+  selected: boolean;
+  onSelectionChange: (selected: boolean) => void;
 }) {
   const [pending, startTransition] = useTransition();
-  const [mode, setMode] = useState<'none' | 'awaiting' | 'closed'>('none');
+  const [mode, setMode] = useState<'none' | 'actioned' | 'awaiting' | 'closed'>('none');
   const [error, setError] = useState<string | null>(null);
 
   const dueLabel = item.due_at
@@ -140,6 +145,12 @@ function WorkItemCard({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
+            {(item.status === 'new' || item.status === 'due') && (
+              <label className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border bg-white" title="Select for bulk review">
+                <span className="sr-only">Select {item.title} for bulk review</span>
+                <input type="checkbox" checked={selected} onChange={(event) => onSelectionChange(event.target.checked)} className="size-4" />
+              </label>
+            )}
             <Link href={`/patients/${item.patient_id}`} className="font-semibold text-blue-700 hover:underline">
               {item.patient_name}
             </Link>
@@ -159,7 +170,7 @@ function WorkItemCard({
         </div>
         <Link
           href={`/patients/${item.patient_id}`}
-          className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1 rounded-lg bg-slate-900 px-3 text-sm font-medium text-white"
+          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1 rounded-lg bg-slate-900 px-3 text-sm font-medium text-white"
         >
           Open case <ChevronRight className="size-4" />
         </Link>
@@ -212,6 +223,22 @@ function WorkItemCard({
         </form>
       )}
 
+      {mode === 'actioned' && (
+        <form
+          className="mt-3 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            transition('actioned', { outcome: String(new FormData(event.currentTarget).get('outcome')) });
+          }}
+        >
+          <label className="block text-sm font-medium text-slate-800">
+            Document action taken
+            <textarea name="outcome" required minLength={3} maxLength={1000} rows={2} className="mt-1 w-full rounded-md border bg-white px-3 py-2" />
+          </label>
+          <div className="flex gap-2"><Button type="submit" className="min-h-11" disabled={pending}>Save action</Button><Button type="button" className="min-h-11" variant="ghost" onClick={() => setMode('none')}>Cancel</Button></div>
+        </form>
+      )}
+
       {mode === 'closed' && (
         <form
           className="mt-3 space-y-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3"
@@ -234,19 +261,19 @@ function WorkItemCard({
       {mode === 'none' && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {(item.status === 'new' || item.status === 'due') && (
-            <Button size="sm" variant="outline" disabled={pending} onClick={() => transition('reviewed')}>
+            <Button className="min-h-11" size="sm" variant="outline" disabled={pending} onClick={() => transition('reviewed')}>
               <CircleDot className="mr-1 size-3.5" /> Review
             </Button>
           )}
           {item.status !== 'actioned' && (
-            <Button size="sm" variant="outline" disabled={pending} onClick={() => transition('actioned')}>
+            <Button className="min-h-11" size="sm" variant="outline" disabled={pending} onClick={() => setMode('actioned')}>
               <ShieldCheck className="mr-1 size-3.5" /> Action taken
             </Button>
           )}
-          <Button size="sm" variant="outline" disabled={pending} onClick={() => setMode('awaiting')}>
+          <Button className="min-h-11" size="sm" variant="outline" disabled={pending} onClick={() => setMode('awaiting')}>
             <Clock3 className="mr-1 size-3.5" /> Awaiting
           </Button>
-          <Button size="sm" disabled={pending} onClick={() => setMode('closed')}>
+          <Button className="min-h-11" size="sm" disabled={pending} onClick={() => setMode('closed')}>
             {pending ? <Loader2 className="mr-1 size-3.5 animate-spin" /> : <CheckCircle2 className="mr-1 size-3.5" />}
             Close
           </Button>
@@ -258,7 +285,7 @@ function WorkItemCard({
                 defaultValue={item.assigned_to}
                 disabled={pending}
                 onChange={(event) => assign(event.target.value)}
-                className="min-h-9 rounded-md border bg-white px-2"
+                className="min-h-11 rounded-md border bg-white px-2"
               >
                 {assignableMembers.map((member) => (
                   <option key={member.member_id} value={member.member_id}>{member.member_name}</option>
@@ -277,11 +304,15 @@ function DailyLoopSection({
   items,
   teamMembers,
   manageableOrganizationIds,
+  selectedIds,
+  onSelectionChange,
 }: {
   sectionKey: keyof DailyLoopSections;
   items: WorkItem[];
   teamMembers: TeamMember[];
   manageableOrganizationIds: string[];
+  selectedIds: Set<string>;
+  onSelectionChange: (itemId: string, selected: boolean) => void;
 }) {
   const config = SECTION_CONFIG[sectionKey];
   const Icon = config.icon;
@@ -307,6 +338,8 @@ function DailyLoopSection({
             item={item}
             teamMembers={teamMembers}
             canManage={manageableOrganizationIds.includes(item.organization_id)}
+            selected={selectedIds.has(item.id)}
+            onSelectionChange={(selected) => onSelectionChange(item.id, selected)}
           />
         ))}</div>
       )}
@@ -317,21 +350,69 @@ function DailyLoopSection({
 export function DailyLoop({
   sections,
   metrics,
+  pagination,
+  page,
+  queryString,
+  timeZone,
   teamMembers = [],
   manageableOrganizationIds = [],
 }: {
   sections: DailyLoopSections;
   metrics: DailyLoopMetrics;
+  pagination: DailyLoopResult['pagination'];
+  page: number;
+  queryString: string;
+  timeZone: string;
   teamMembers?: TeamMember[];
   manageableOrganizationIds?: string[];
 }) {
-  const total = useMemo(() => Object.values(sections).reduce((sum, items) => sum + items.length, 0), [sections]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkPending, startBulkTransition] = useTransition();
+  const [bulkMessage, setBulkMessage] = useState<string | null>(null);
+  const loadedCount = useMemo(() => Object.values(sections).reduce((sum, items) => sum + items.length, 0), [sections]);
+  const setSelected = (itemId: string, selected: boolean) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (selected) next.add(itemId); else next.delete(itemId);
+      return next;
+    });
+  };
+  const reviewSelected = () => {
+    setBulkMessage(null);
+    startBulkTransition(async () => {
+      const result = await bulkReviewWorkItems([...selectedIds]);
+      if (!result.success) setBulkMessage(result.error ?? 'Bulk review failed.');
+      else {
+        setBulkMessage(`${result.updated ?? 0} item(s) marked reviewed.`);
+        setSelectedIds(new Set());
+      }
+    });
+  };
   return (
     <div className="space-y-5" data-testid="daily-loop">
       <MetricStrip metrics={metrics} />
-      {total === 0 && (
+      <div className="flex flex-col gap-2 rounded-xl border bg-white px-4 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+        <p>
+          Showing {pagination.total === 0 ? 0 : pagination.offset + 1}–{Math.min(pagination.offset + pagination.limit, pagination.total)} of {pagination.total.toLocaleString()} assigned items
+        </p>
+        <p className="text-xs">Day boundary: {timeZone}</p>
+      </div>
+      {selectedIds.size > 0 && (
+        <div className="sticky top-2 z-20 flex flex-wrap items-center gap-3 rounded-xl border border-blue-300 bg-blue-50 p-3 shadow-lg" role="region" aria-label="Bulk work actions">
+          <span className="mr-auto text-sm font-bold text-blue-950">{selectedIds.size} selected</span>
+          <Button className="min-h-11" disabled={bulkPending} onClick={reviewSelected}>{bulkPending ? 'Reviewing…' : 'Confirm review selected'}</Button>
+          <Button className="min-h-11" variant="ghost" onClick={() => setSelectedIds(new Set())}>Clear selection</Button>
+        </div>
+      )}
+      {bulkMessage && <p role="status" className="rounded-lg border bg-white p-3 text-sm text-slate-700">{bulkMessage}</p>}
+      {pagination.total === 0 && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
           Queue loaded successfully. No open operational work is assigned to you.
+        </div>
+      )}
+      {pagination.total > 0 && loadedCount === 0 && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+          This page is beyond the current queue. <Link href={`/dashboard?${queryString}`} className="font-semibold underline">Return to the first page</Link>.
         </div>
       )}
       <div className="grid gap-5 xl:grid-cols-2">
@@ -342,9 +423,22 @@ export function DailyLoop({
             items={sections[key]}
             teamMembers={teamMembers}
             manageableOrganizationIds={manageableOrganizationIds}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelected}
           />
         ))}
       </div>
+      {(pagination.hasPrevious || pagination.hasNext) && (
+        <nav className="flex items-center justify-between gap-3 rounded-xl border bg-white p-3" aria-label="Daily Loop pages">
+          {pagination.hasPrevious ? (
+            <Link href={`/dashboard?${queryString}${queryString ? '&' : ''}page=${Math.max(page - 1, 1)}`} className="inline-flex min-h-11 items-center rounded-lg border px-4 text-sm font-semibold">Previous</Link>
+          ) : <span />}
+          <span className="text-sm font-semibold text-slate-700">Page {page} of {Math.max(Math.ceil(pagination.total / pagination.limit), 1)}</span>
+          {pagination.hasNext ? (
+            <Link href={`/dashboard?${queryString}${queryString ? '&' : ''}page=${page + 1}`} className="inline-flex min-h-11 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white">Next</Link>
+          ) : <span />}
+        </nav>
+      )}
     </div>
   );
 }

@@ -6,6 +6,8 @@ import type { WorkItem } from '@/lib/daily-loop/types';
 
 export interface OperationalBrief {
   generatedAt: string;
+  sourceDataAsOf: string | null;
+  sourceDataStale: boolean;
   latestVitals: {
     recordedAt: string;
     weight: number | null;
@@ -141,7 +143,7 @@ export async function getPatientOperationalView(
   const timeline: TimelineEvent[] = [
     ...workItems.map((item) => ({
       id: `work-${item.id}`,
-      occurredAt: item.updated_at,
+      occurredAt: item.freshness_at ?? item.created_at,
       type: 'work' as const,
       title: item.title,
       detail: item.reason,
@@ -185,9 +187,20 @@ export async function getPatientOperationalView(
     })),
   ].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)).slice(0, 30);
 
+  const generatedAt = new Date();
+  const sourceDataAsOf = [
+    latestVital?.recorded_at,
+    latestSymptom?.recorded_at,
+    latestLab?.collected_at,
+  ].filter((value): value is string => Boolean(value)).sort().at(-1) ?? null;
+
   return {
     brief: {
-      generatedAt: new Date().toISOString(),
+      generatedAt: generatedAt.toISOString(),
+      sourceDataAsOf,
+      sourceDataStale: sourceDataAsOf
+        ? generatedAt.getTime() - new Date(sourceDataAsOf).getTime() > 7 * 86_400_000
+        : false,
       latestVitals: latestVital ? {
         recordedAt: latestVital.recorded_at,
         weight: latestVital.weight_lbs,

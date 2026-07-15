@@ -10,6 +10,8 @@ import type { TodayTaskStatus } from "@/lib/patient/today-tasks";
 import { getPatientPlan } from "@/lib/patient/plan";
 import { NextActionCard } from "./_components/next-action-card";
 import { ProductEventTracker } from "@/components/analytics/product-event-tracker";
+import { getPatientTimeZone } from '@/lib/patient/timezone';
+import { formatInTimeZone } from '@/lib/timezone';
 
 export default async function PatientToday() {
   const supabase = await createClient();
@@ -24,6 +26,7 @@ export default async function PatientToday() {
     medsTotal: 0,
     educationRemaining: 0,
   };
+  const timeZone = user ? await getPatientTimeZone(supabase) : 'America/New_York';
   const [messagesResult, taskResult, plan] = await Promise.all([
     user
       ? getUnreadMessages(supabase, user.id)
@@ -31,7 +34,7 @@ export default async function PatientToday() {
           .catch(() => ({ data: [], error: 'Care-team messages could not be loaded.' }))
       : Promise.resolve({ data: [], error: null }),
     user
-      ? getTodayTaskStatus(supabase, user.id)
+      ? getTodayTaskStatus(supabase, user.id, timeZone)
           .then((data) => ({ data, error: null as string | null }))
           .catch(() => ({ data: defaultTaskStatus, error: 'Today checklist status could not be loaded.' }))
       : Promise.resolve({ data: defaultTaskStatus, error: null }),
@@ -56,7 +59,7 @@ export default async function PatientToday() {
   // SAFE-02: Phone comes from the patient-scoped access-history RPC.
   const providerPhone = plan.careContact?.phone ?? null;
 
-  const today = new Date().toLocaleDateString("en-US", {
+  const today = formatInTimeZone(new Date(), timeZone, {
     weekday: "long",
     year: "numeric",
     month: "long",
@@ -66,13 +69,14 @@ export default async function PatientToday() {
   return (
     <div className="space-y-6">
       <OnboardingOverlay showOnboarding={showOnboarding} />
-      <ProductEventTracker eventName="patient_today_view" area="patient_today" />
+      <ProductEventTracker eventName="patient_today_view" area="patient_today" trackDuration />
 
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">
           Daily Check-in
         </h1>
         <p className="text-base text-gray-600 mt-1">{today}</p>
+        <p className="text-xs text-gray-500">Local care-team time · {timeZone}</p>
       </div>
 
       {todayDataError && (

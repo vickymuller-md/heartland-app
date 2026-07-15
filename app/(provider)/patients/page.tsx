@@ -1,85 +1,95 @@
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import { PatientDirectory } from "./_components/patient-directory";
+import Link from 'next/link';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
+import { PatientDirectory } from './_components/patient-directory';
 
-export default async function PatientsPage() {
+const PAGE_SIZE = 25;
+
+function sanitizeSearch(value: string): string {
+  return value.trim().replace(/[^a-zA-Z0-9@.+\- ']/g, '').slice(0, 80);
+}
+function maskEmail(value: string | null): string {
+  if (!value || !value.includes('@')) return 'Not listed';
+  const [local, domain] = value.split('@');
+  return `${local.slice(0, 1)}•••@${domain}`;
+}
+
+function maskPhone(value: string | null): string {
+  if (!value) return 'Not listed';
+  const digits = value.replace(/\D/g, '');
+  return digits.length >= 4 ? `•••-•••-${digits.slice(-4)}` : 'Masked';
+}
+
+export default async function PatientsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; page?: string }>;
+}) {
+  const params = await searchParams;
+  const query = sanitizeSearch(params.q ?? '');
+  const requestedPage = Number.parseInt(params.page ?? '1', 10);
+  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
 
-  if (!user) redirect("/login");
+  const { data: links, error: linkError } = await supabase
+    .from('provider_patient_links')
+    .select('patient_id, linked_at')
+    .eq('provider_id', user.id)
+    .eq('status', 'active');
 
-  // Step 1: Get linked patient IDs
-  const { data: links } = await supabase
-    .from("provider_patient_links")
-    .select("patient_id, linked_at")
-    .eq("provider_id", user.id)
-    .eq("status", "active");
-
-  if (!links || links.length === 0) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Patients</h1>
-        <p className="text-gray-500">No patients linked yet.</p>
-      </div>
-    );
+  if (linkError) {
+    return <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-5 text-sm font-medium text-red-900">Patient directory could not be loaded. Do not interpret this as no linked patients.</div>;
   }
 
-  const patientIds = links.map((l) => l.patient_id);
+  const linkMap = new Map((links ?? []).map((link) => [link.patient_id, link]));
+  const patientIds = [...linkMap.keys()];
+  let profilesQuery = supabase
+    .from('profiles')
+    .select('id, full_name, email, phone, patient_code', { count: 'exact' })
+    .in('id', patientIds.length ? patientIds : ['00000000-0000-0000-0000-000000000000'])
+    .order('full_name', { ascending: true })
+    .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
-  // Step 2: Get profiles for those patient IDs
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, full_name, email, phone, address, patient_code")
-    .in("id", patientIds);
+  if (query) {
+    const escaped = query.replaceAll('%', '\\%').replaceAll('_', '\\_');
+    profilesQuery = profilesQuery.or(`full_name.ilike.%${escaped}%,email.ilike.%${escaped}%,phone.ilike.%${escaped}%,patient_code.ilike.%${escaped}%`);
+  }
 
-  // Step 3: Get patient clinical data
-  const { data: clinicalData } = await supabase
-    .from("patients")
-    .select("id, risk_tier, track_assignment, facility_tier")
-    .in("id", patientIds);
+  const { data: profiles, count, error: profileError } = await profilesQuery;
+  if (profileError) {
+    return <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-5 text-sm font-medium text-red-900">Patient search failed. Try a shorter name or code.</div>;
+  }
 
-  // Merge into a single list
-  const profileMap = new Map(profiles?.map((p) => [p.id, p]) ?? []);
-  const clinicalMap = new Map(clinicalData?.map((c) => [c.id, c]) ?? []);
-  const linkMap = new Map(links.map((l) => [l.patient_id, l]));
-
-  const patients = patientIds.map((pid) => {
-    const profile = profileMap.get(pid);
-    const clinical = clinicalMap.get(pid);
-    const link = linkMap.get(pid);
-
+  const visibleIds = (profiles ?? []).map((profile) => profile.id);
+  const { data: clinicalData } = visibleIds.length
+    ? await supabase.from('patients').select('id, risk_tier, track_assignment, facility_tier').in('id', visibleIds)
+    : { data: [] };
+  const clinicalMap = new Map((clinicalData ?? []).map((clinical) => [clinical.id, clinical]));
+  const patients = (profiles ?? []).map((profile) => {
+    const clinical = clinicalMap.get(profile.id);
     return {
-      id: pid,
-      code: profile?.patient_code ?? "—",
-      full_name: profile?.full_name ?? "Unknown",
-      email: profile?.email ?? "—",
-      phone: profile?.phone ?? "—",
-      address: profile?.address ?? "—",
+      id: profile.id,
+      code: profile.patient_code ?? '—',
+      full_name: profile.full_name ?? 'Unknown',
+      email: maskEmail(profile.email),
+      phone: maskPhone(profile.phone),
       risk_tier: clinical?.risk_tier ?? null,
       track_assignment: clinical?.track_assignment ?? null,
       facility_tier: clinical?.facility_tier ?? null,
-      linked_at: link?.linked_at ?? null,
+      linked_at: linkMap.get(profile.id)?.linked_at ?? null,
     };
   });
-
-  // Sort by name
-  patients.sort((a, b) => a.full_name.localeCompare(b.full_name));
+  const total = count ?? 0;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-          Patients
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          {patients.length} patient{patients.length !== 1 ? "s" : ""} linked to
-          your practice
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div><h1 className="text-2xl font-bold tracking-tight text-gray-900">Patients</h1><p className="mt-1 text-sm text-gray-500">{total} matching linked patient{total === 1 ? '' : 's'} · contact fields masked by default</p></div>
+        <Link href="/patients/manage" className="inline-flex min-h-11 items-center rounded-lg border px-4 text-sm font-semibold text-blue-700">Manage access</Link>
       </div>
-
-      <PatientDirectory patients={patients} />
+      <PatientDirectory patients={patients} query={query} total={total} page={page} pageSize={PAGE_SIZE} />
     </div>
   );
 }

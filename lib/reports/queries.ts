@@ -218,6 +218,7 @@ export async function getNiwTractionStats(): Promise<NiwTractionData> {
     { data: stateRows },
     { data: providersByMonth },
     { data: patientsByMonth },
+    { data: adoptionSummary },
   ] = await Promise.all([
     supabaseAdmin
       .from('profiles')
@@ -250,6 +251,10 @@ export async function getNiwTractionStats(): Promise<NiwTractionData> {
       .from('profiles')
       .select('created_at')
       .eq('role', 'patient'),
+    supabaseAdmin.rpc(
+      'get_adoption_summary',
+      { p_since: new Date(Date.now() - 30 * 86_400_000).toISOString() },
+    ),
   ]);
 
   const activeStates = [
@@ -265,6 +270,12 @@ export async function getNiwTractionStats(): Promise<NiwTractionData> {
   );
 
   const providerCount = totalProviders ?? 0;
+  const adoption = adoptionSummary && typeof adoptionSummary === 'object'
+    ? adoptionSummary as Record<string, number>
+    : {};
+  const sandboxViews30d = adoption.sandbox_views ?? 0;
+  const sandboxFirstActions30d = adoption.sandbox_first_actions ?? 0;
+  const uniqueSandboxTesters30d = adoption.unique_sandbox_testers ?? 0;
 
   return {
     totalProviders: providerCount,
@@ -275,5 +286,16 @@ export async function getNiwTractionStats(): Promise<NiwTractionData> {
     monthlyGrowth,
     approvedProviders: providerCount,
     pendingAccessRequests: pendingAccessRequests ?? 0,
+    activeSandboxAccounts: adoption.active_sandbox_accounts ?? 0,
+    uniqueSandboxTesters30d,
+    sandboxViews30d,
+    sandboxFirstActions30d,
+    sandboxTaskCompletions30d: adoption.sandbox_task_completions ?? 0,
+    sandboxActivationRate30d: uniqueSandboxTesters30d > 0
+      ? Math.round((sandboxFirstActions30d / uniqueSandboxTesters30d) * 100)
+      : null,
+    medianSandboxDurationSeconds: adoption.median_session_duration_ms
+      ? Math.round(adoption.median_session_duration_ms / 1000)
+      : null,
   };
 }

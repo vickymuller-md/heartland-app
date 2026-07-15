@@ -19,10 +19,19 @@ describe('REPT-06 NiwTractionData type shape', () => {
       monthlyGrowth: [{ month: '2026-03', providers: 2, patients: 8 }],
       approvedProviders: 5,
       pendingAccessRequests: 3,
+      activeSandboxAccounts: 12,
+      uniqueSandboxTesters30d: 10,
+      sandboxViews30d: 15,
+      sandboxFirstActions30d: 8,
+      sandboxTaskCompletions30d: 19,
+      sandboxActivationRate30d: 53,
+      medianSandboxDurationSeconds: 142,
     };
     expect(data.totalProviders).toBe(5);
     expect(data.approvedProviders).toBe(5);
     expect(data.pendingAccessRequests).toBe(3);
+    expect(data.uniqueSandboxTesters30d).toBe(10);
+    expect(data.sandboxActivationRate30d).toBe(53);
     expect(data.activeStates).toContain('California');
     expect(data.monthlyGrowth[0].month).toMatch(/^\d{4}-\d{2}$/);
   });

@@ -31,7 +31,9 @@ export function ActionCenter({ patientId }: { patientId: string }) {
         </a>
       </div>
 
-      <form action={action} className="mt-4 grid gap-3 rounded-xl border bg-white p-4 sm:grid-cols-2">
+      <details className="mt-4 rounded-xl border bg-white">
+        <summary className="flex min-h-11 cursor-pointer items-center px-4 text-sm font-semibold text-blue-800">Add a follow-up to Daily Loop</summary>
+      <form action={action} className="grid gap-3 border-t p-4 sm:grid-cols-2">
         <input type="hidden" name="patientId" value={patientId} />
         <label className="text-sm font-medium text-slate-800 sm:col-span-2">
           Follow-up task
@@ -63,6 +65,7 @@ export function ActionCenter({ patientId }: { patientId: string }) {
           <PhoneCall className="mr-2 size-4" /> {pending ? 'Adding…' : 'Add work with owner and deadline'}
         </Button>
       </form>
+      </details>
     </section>
   );
 }

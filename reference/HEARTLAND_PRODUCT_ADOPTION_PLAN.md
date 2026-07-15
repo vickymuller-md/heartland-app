@@ -1,6 +1,6 @@
 # HEARTLAND — Plano de Produto, Usabilidade e Adoção
 
-**Status:** execução técnica de P0–P3 implementada; validação independente e piloto pendentes
+**Status:** execução técnica de P0–P3 publicada; validação independente, SMTP transacional e piloto pendentes
 **Data-base:** 13 de julho de 2026
 **Última atualização:** 14 de julho de 2026
 **Escopo:** experiência provider/patient, utilidade diária, organização funcional, validação, adoção e implantação
@@ -9,6 +9,10 @@
 
 Implementado nesta release:
 
+- cadastro `tester` self-service com e-mail próprio, papel isolado, expiração em 30 dias e sandbox exclusivamente sintético;
+- MFA/AAL2 restrito ao Clinical Workspace: tester não recebe barreira de authenticator e nunca recebe autorização clínica;
+- sandbox orientado ao primeiro valor com fila sintética, revisão/fechamento de tarefas e funil de ativação;
+- sete ferramentas educacionais públicas, fora do shell autenticado: risk calculator, GDMT, titration, remote monitoring, tier selector, pocket cards e guide;
 - Daily Loop canônico com `Now`, `Today`, `This week` e `Watching`;
 - cards com prioridade, severidade, freshness, owner, prazo, motivo e ações rastreáveis;
 - brief de 60 segundos, timeline unificada e action center no workspace do paciente;
@@ -26,9 +30,21 @@ Implementado nesta release:
 - registro versionado das regras clínicas de maior risco, fechado por padrão até revisão independente;
 - MFA TOTP obrigatório para provider em proxy, Server Actions e RLS;
 - monitor diário agregado de postura, CI com lint/test/build/pgTAP/SBOM/CodeQL e Dependabot.
+- paginação server-side nas filas e diretório, filtros rápidos/salvos e revisão em lote;
+- timezone por organization/patient com tratamento de DST, freshness explícita e contato parcialmente mascarado;
+- coalescência transacional de alertas: 4.109 duplicatas históricas consolidadas em 162 sinais ativos, preservando trilha imutável;
+- export FHIR R4 read-only autenticado, mínimo necessário, auditado e sem alegação de writeback/US Core;
+- acessibilidade, reduced motion, skip links, estados globais e E2E desktop/mobile: 22 cenários aprovados;
+- suíte técnica: 1.029 testes aprovados, typecheck, lint, build, scan de segurança e auditoria npm sem vulnerabilidades;
+- migrations `00028`–`00030` e Edge Function `alert-eval` aplicadas no Supabase hospedado;
+- Auth hospedado corrigido para domínio/callback de produção, senha mínima de 15 caracteres e reautenticação em troca de senha;
+- acesso anônimo direto às tabelas e execução pública de funções internas removidos; RLS continua como boundary dos usuários autenticados.
 
 Ainda não concluído — depende de pessoas, contratos ou evidência externa:
 
+- SMTP transacional próprio: sem credenciais externas, Supabase recusa confirmação para e-mails fora do time e limita o serviço padrão a duas mensagens/hora;
+- proteção de senha vazada/HIBP: Management API recusou ativação porque exige plano Supabase Pro;
+- CAPTCHA de Auth: exige conta e chaves de um provedor compatível antes da ativação;
 - entrevistas e testes moderados com usuários-alvo;
 - revisão clínica independente e silent mode;
 - piloto assistido em uma facility;
@@ -38,7 +54,7 @@ Ainda não concluído — depende de pessoas, contratos ou evidência externa:
 - nomeação de owners operacionais/clínicos e aprovação dos targets pela facility;
 - aprovação independente dos seis rule sets atualmente marcados como `pending_independent_review`.
 
-**Estado de liberação:** adequado para sandbox público e avaliação controlada com dados sintéticos. Não aprovado para PHI real, cuidado não supervisionado ou claims clínicos/financeiros até todos os gates das seções 9–12 e do plano de segurança passarem.
+**Estado de liberação:** código e infraestrutura adequados para sandbox público e avaliação controlada com dados sintéticos. Abertura real para e-mails externos depende de SMTP transacional próprio. Não aprovado para PHI real, cuidado não supervisionado ou claims clínicos/financeiros até todos os gates das seções 9–12 e do plano de segurança passarem.
 
 ## 1. Objetivo
 
@@ -368,7 +384,7 @@ Claims de redução de internação, revenue, economia ou melhoria clínica exig
 
 ### Gate de segurança
 
-- Cumprir integralmente o gate para piloto definido em [HEARTLAND_SECURITY_PLAN.md](./HEARTLAND_SECURITY_PLAN.md).
+- Cumprir integralmente o gate para piloto definido no plano privado `HEARTLAND_SECURITY_PLAN.md`.
 
 ### Gate de usabilidade
 

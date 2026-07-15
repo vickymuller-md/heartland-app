@@ -59,38 +59,38 @@ export function PatientDetailTabs({
 }: PatientDetailTabsProps) {
   return (
     <Tabs defaultValue="info">
-      <TabsList className="w-full flex-wrap">
-        <TabsTrigger value="info" className="gap-1.5">
-          <User className="h-4 w-4" />
-          <span className="hidden sm:inline">Info</span>
+      <TabsList className="min-h-12 w-full justify-start overflow-x-auto">
+        <TabsTrigger value="info" className="min-h-11 gap-1.5 px-3">
+          <User className="h-4 w-4" aria-hidden="true" />
+          <span>Info</span>
         </TabsTrigger>
-        <TabsTrigger value="vitals" className="gap-1.5">
-          <Activity className="h-4 w-4" />
-          <span className="hidden sm:inline">Vitals</span>
+        <TabsTrigger value="vitals" className="min-h-11 gap-1.5 px-3">
+          <Activity className="h-4 w-4" aria-hidden="true" />
+          <span>Vitals</span>
         </TabsTrigger>
-        <TabsTrigger value="symptoms" className="gap-1.5">
-          <Stethoscope className="h-4 w-4" />
-          <span className="hidden sm:inline">Symptoms</span>
+        <TabsTrigger value="symptoms" className="min-h-11 gap-1.5 px-3">
+          <Stethoscope className="h-4 w-4" aria-hidden="true" />
+          <span>Symptoms</span>
         </TabsTrigger>
-        <TabsTrigger value="labs" className="gap-1.5">
-          <FlaskConical className="h-4 w-4" />
-          <span className="hidden sm:inline">Labs</span>
+        <TabsTrigger value="labs" className="min-h-11 gap-1.5 px-3">
+          <FlaskConical className="h-4 w-4" aria-hidden="true" />
+          <span>Labs</span>
         </TabsTrigger>
-        <TabsTrigger value="medications" className="gap-1.5">
-          <Pill className="h-4 w-4" />
-          <span className="hidden sm:inline">Medications</span>
+        <TabsTrigger value="medications" className="min-h-11 gap-1.5 px-3">
+          <Pill className="h-4 w-4" aria-hidden="true" />
+          <span>Medications</span>
         </TabsTrigger>
-        <TabsTrigger value="education" className="gap-1.5">
-          <BookOpen className="h-4 w-4" />
-          <span className="hidden sm:inline">Education</span>
+        <TabsTrigger value="education" className="min-h-11 gap-1.5 px-3">
+          <BookOpen className="h-4 w-4" aria-hidden="true" />
+          <span>Education</span>
         </TabsTrigger>
-        <TabsTrigger value="notes" className="gap-1.5">
-          <FileText className="h-4 w-4" />
-          <span className="hidden sm:inline">Notes</span>
+        <TabsTrigger value="notes" className="min-h-11 gap-1.5 px-3">
+          <FileText className="h-4 w-4" aria-hidden="true" />
+          <span>Notes</span>
         </TabsTrigger>
-        <TabsTrigger value="comorbidities" className="gap-1.5">
-          <HeartPulse className="h-4 w-4" />
-          <span className="hidden sm:inline">Comorbidities</span>
+        <TabsTrigger value="comorbidities" className="min-h-11 gap-1.5 px-3">
+          <HeartPulse className="h-4 w-4" aria-hidden="true" />
+          <span>Comorbidities</span>
         </TabsTrigger>
       </TabsList>
 

@@ -9,7 +9,7 @@ export const registerSchema = z.object({
     .string()
     .min(2, "Name must be at least 2 characters")
     .max(100, "Name must be 100 characters or fewer"),
-  role: z.literal("patient"),
+  role: z.enum(["patient", "tester"]),
   // consent_accepted is validated by the consent dialog flow, not by Zod
   // The dialog must be accepted before doSignUp() is called
   consent_accepted: z.boolean().optional(),

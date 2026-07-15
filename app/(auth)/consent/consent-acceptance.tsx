@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { clearClientSecurityState } from "@/lib/offline/db";
 
 interface ConsentAcceptanceProps {
-  nextPath: "/dashboard" | "/today" | "/update-password";
+  nextPath: "/dashboard" | "/today" | "/sandbox" | "/update-password";
 }
 
 export function ConsentAcceptance({ nextPath }: ConsentAcceptanceProps) {

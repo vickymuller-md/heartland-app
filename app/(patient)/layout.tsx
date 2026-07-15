@@ -34,9 +34,9 @@ export default function PatientLayout({
     <div className="min-h-screen pb-20">
       {/* Top bar */}
       <header className="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-4">
-        <h1 className="text-lg font-bold tracking-wide text-slate-900">
+        <span className="text-lg font-bold tracking-wide text-slate-900">
           HEARTLAND
-        </h1>
+        </span>
         <div className="flex items-center gap-3">
           <Link
             href="/profile"
@@ -55,7 +55,7 @@ export default function PatientLayout({
       <ConnectivityBanner workspace="patient" />
 
       {/* Main content -- pb-20 clears the fixed bottom nav */}
-      <main className="px-4 pt-4 pb-20 max-w-lg mx-auto">{children}</main>
+      <main id="main-content" className="px-4 pt-4 pb-20 max-w-lg mx-auto">{children}</main>
 
       {/* Bottom tab navigation -- min 48px tap targets for elderly users (VITL-08) */}
       <nav

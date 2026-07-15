@@ -17,16 +17,18 @@ export default function PublicLayout({
         currentSite="app"
         navItems={[
           { label: "The Protocol", href: "/about" },
+          { label: "Try sandbox", href: "/register?mode=tester" },
           {
             label: "Research",
             href: "https://doi.org/10.5281/zenodo.18566403",
             external: true,
           },
-          { label: "Sign in", href: "/login" },
         ]}
-        cta={{ label: "Request access", href: "/request-access" }}
+        cta={{ label: "Sign in", href: "/login" }}
       />
-      <main>{children}</main>
+      <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {children}
+      </main>
       <Colophon
         currentSite="app"
         version="v1.0.2"
@@ -39,7 +41,8 @@ export default function PublicLayout({
           {
             title: "Platform",
             links: [
-              { label: "Request access", href: "/request-access" },
+              { label: "Try sandbox", href: "/register?mode=tester" },
+              { label: "Request clinical access", href: "/request-access" },
               { label: "Sign in", href: "/login" },
               { label: "About the protocol", href: "/about" },
             ],

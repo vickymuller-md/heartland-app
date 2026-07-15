@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { PrintLayout } from '@/app/(provider)/titration-checklist/print-layout';
+import { PrintLayout } from '@/app/(public)/titration-checklist/print-layout';
 
 const mockProps = {
   vitals: { sbp: 120, hr: 70, potassium: 4.0, creatinine: 1.0 },

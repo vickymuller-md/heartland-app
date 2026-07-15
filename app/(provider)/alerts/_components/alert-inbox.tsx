@@ -12,13 +12,6 @@
 
 import type { AlertRow, AlertStatus } from '@/lib/dashboard/types';
 import { AlertRowComponent } from './alert-row';
-import {
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Bell } from 'lucide-react';
 
 interface AlertInboxProps {
@@ -45,34 +38,10 @@ export function AlertInbox({ alerts, statusFilter }: AlertInboxProps) {
   }
 
   return (
-    <>
-      {/* Desktop: Table */}
-      <div className="hidden md:block" data-testid="alert-table">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Patient</TableHead>
-              <TableHead>Alert</TableHead>
-              <TableHead>Severity</TableHead>
-              <TableHead>Time</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {alerts.map((alert) => (
-              <AlertRowComponent key={alert.id} alert={alert} layout="table" />
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Mobile: Card layout */}
-      <div className="space-y-3 md:hidden" data-testid="alert-cards">
-        {alerts.map((alert) => (
-          <AlertRowComponent key={alert.id} alert={alert} layout="card" />
-        ))}
-      </div>
-    </>
+    <div className="grid gap-3 xl:grid-cols-2" data-testid="alert-list">
+      {alerts.map((alert) => (
+        <AlertRowComponent key={alert.id} alert={alert} layout="card" />
+      ))}
+    </div>
   );
 }

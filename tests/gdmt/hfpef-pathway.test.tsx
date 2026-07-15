@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { HfpefPanel } from '@/app/(provider)/gdmt-pathway/hfpef-panel';
+import { HfpefPanel } from '@/app/(public)/gdmt-pathway/hfpef-panel';
 import { FinerenoneGuide } from '@/components/gdmt/finerenone-guide';
 
 // ==========================================================================

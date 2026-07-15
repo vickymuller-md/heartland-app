@@ -11,6 +11,10 @@
     {
       "path": "/api/security-monitor",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/sandbox-cleanup",
+      "schedule": "30 9 * * *"
     }
   ]
 }

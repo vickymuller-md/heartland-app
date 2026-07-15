@@ -1,4 +1,13 @@
 @import "tailwindcss";
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@heartland/ui/css/theme.css";
@@ -20,11 +29,12 @@
     --color-grid: #e3dcd0;
     --color-grid-hi: #c5bcac;
     --color-cool: #0f2544;
-    --color-stone: #7a8593;
+    --color-stone: #5f6975;
     --color-signal: #2e6f5e;
     --color-signal-deep: #1e4e41;
-    --color-alert: #ff6b55;
-    --color-alert-deep: #e04a35;
+    --color-alert: #c13d31;
+    --color-alert-deep: #a93a32;
+    --color-alert-on-dark: #ff6b55;
     --color-critical: #d63a20;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);

@@ -116,6 +116,18 @@ describe('central authorization guard', () => {
     });
   });
 
+  it('authorizes a tester sandbox without invoking MFA', async () => {
+    const client = makeClient({
+      user: { id: 'tester-1', email: 'tester@example.com' },
+      profile: { role: 'tester' },
+      consent: { id: 'consent-1' },
+    });
+    mockCreateClient.mockResolvedValue(client);
+
+    await expect(authorize('tester')).resolves.toMatchObject({ authorized: true, role: 'tester' });
+    expect(client.auth.mfa.getAuthenticatorAssuranceLevel).not.toHaveBeenCalled();
+  });
+
   it('authorizes patient-scoped provider work only with an active link', async () => {
     const client = makeClient({
       user: { id: 'provider-1', email: 'provider@example.com' },

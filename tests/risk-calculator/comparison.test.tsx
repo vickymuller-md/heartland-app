@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ComparisonTable } from '@/app/(provider)/risk-calculator/comparison-table';
+import { ComparisonTable } from '@/app/(public)/risk-calculator/comparison-table';
 import { COMPARISON_TABLE_DATA } from '@/lib/risk-score/constants';
 
 describe('ComparisonTable (RISK-04)', () => {

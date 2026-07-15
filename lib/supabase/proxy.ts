@@ -58,6 +58,8 @@ const PATIENT_PREFIXES = [
   "/link-provider",
 ];
 
+const SANDBOX_PREFIX = "/sandbox";
+
 function isPublicRoute(path: string): boolean {
   if (PUBLIC_EXACT.has(path)) return true;
   return PUBLIC_PREFIXES.some(
@@ -166,7 +168,7 @@ export async function updateSession(request: NextRequest) {
   ]);
 
   const role = profile?.role;
-  if (role !== "provider" && role !== "patient") {
+  if (role !== "provider" && role !== "patient" && role !== "tester") {
     const url = request.nextUrl.clone();
     url.pathname = "/error";
     url.search = "";
@@ -179,7 +181,7 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = role === "provider"
       ? claims.aal === "aal2" ? "/dashboard" : MFA_SETUP_PATH
-      : "/today";
+      : role === "tester" ? SANDBOX_PREFIX : "/today";
     url.search = "";
     return NextResponse.redirect(url);
   }
@@ -194,7 +196,7 @@ export async function updateSession(request: NextRequest) {
 
   if (path === MFA_SETUP_PATH && role !== "provider") {
     const url = request.nextUrl.clone();
-    url.pathname = "/today";
+    url.pathname = role === "tester" ? SANDBOX_PREFIX : "/today";
     url.search = "";
     return NextResponse.redirect(url);
   }
@@ -216,6 +218,8 @@ export async function updateSession(request: NextRequest) {
       url.pathname = claims.aal === "aal2" ? "/dashboard" : MFA_SETUP_PATH;
     } else if (role === "patient") {
       url.pathname = "/today";
+    } else if (role === "tester") {
+      url.pathname = SANDBOX_PREFIX;
     } else {
       url.pathname = "/login";
     }
@@ -226,14 +230,22 @@ export async function updateSession(request: NextRequest) {
   if (isProviderRoute(path) && role !== "provider") {
     // Non-provider accessing provider routes -- redirect to patient portal
     const url = request.nextUrl.clone();
-    url.pathname = "/today";
+    url.pathname = role === "tester" ? SANDBOX_PREFIX : "/today";
     return NextResponse.redirect(url);
   }
 
   if (isPatientRoute(path) && role !== "patient") {
     // Non-patient accessing patient routes -- redirect to provider portal
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
+    url.pathname = role === "tester" ? SANDBOX_PREFIX : "/dashboard";
+    return NextResponse.redirect(url);
+  }
+
+  if ((path === SANDBOX_PREFIX || path.startsWith(`${SANDBOX_PREFIX}/`)) && role !== "tester") {
+    const url = request.nextUrl.clone();
+    url.pathname = role === "provider"
+      ? claims.aal === "aal2" ? "/dashboard" : MFA_SETUP_PATH
+      : "/today";
     return NextResponse.redirect(url);
   }
 

@@ -22,6 +22,7 @@ vi.mock('@/lib/auth/authorization', () => ({
 
 vi.mock('@/lib/supabase/admin', () => ({
   supabaseAdmin: {
+    rpc: vi.fn().mockResolvedValue({ data: [{ alert_id: 'a-1', created: true }], error: null }),
     from: () => ({
       select: () => ({
         eq: () => ({ in: vi.fn().mockResolvedValue({ data: [], error: null }) }),

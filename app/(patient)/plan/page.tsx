@@ -3,13 +3,18 @@ import { CalendarDays, Phone } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getPatientPlan } from '@/lib/patient/plan';
 import { ProductEventTracker } from '@/components/analytics/product-event-tracker';
+import { getPatientTimeZone } from '@/lib/patient/timezone';
+import { formatInTimeZone } from '@/lib/timezone';
 
 export default async function PatientPlanPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const plan = await getPatientPlan(supabase, user.id);
+  const [plan, timeZone] = await Promise.all([
+    getPatientPlan(supabase, user.id),
+    getPatientTimeZone(supabase),
+  ]);
 
   return (
     <div className="space-y-5">
@@ -32,7 +37,7 @@ export default async function PatientPlanPage() {
                 <CalendarDays className="mt-0.5 size-5 shrink-0 text-blue-700" />
                 <div>
                   <h2 className="font-semibold capitalize text-slate-950">{item.title}</h2>
-                  <p className="mt-1 text-sm text-slate-700">{new Date(item.dueAt).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' })}</p>
+                  <p className="mt-1 text-sm text-slate-700">{formatInTimeZone(new Date(item.dueAt), timeZone, { dateStyle: 'full', timeStyle: 'short' })}</p>
                   {item.detail && <p className="mt-1 text-sm text-slate-600">{item.detail}</p>}
                 </div>
               </div>

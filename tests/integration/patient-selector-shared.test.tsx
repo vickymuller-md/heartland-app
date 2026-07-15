@@ -49,7 +49,7 @@ describe('PatientSelector shared component (INTG-06)', () => {
 
   it('re-exports correctly from titration-checklist patient-selector (backward compat)', async () => {
     const shared = await import('@/components/shared/patient-selector');
-    const reExport = await import('@/app/(provider)/titration-checklist/patient-selector');
+    const reExport = await import('@/app/(public)/titration-checklist/patient-selector');
     // Both should export PatientSelector
     expect(reExport.PatientSelector).toBe(shared.PatientSelector);
   });

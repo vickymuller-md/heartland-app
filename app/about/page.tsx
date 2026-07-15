@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   return (
-    <article className="mx-auto max-w-4xl px-4 py-8 space-y-8">
+    <main id="main-content" className="mx-auto max-w-4xl px-4 py-8 space-y-8">
       <h1 className="text-3xl font-bold tracking-tight">
         About the HEARTLAND Protocol
       </h1>
@@ -307,6 +307,6 @@ export default function AboutPage() {
           </p>
         </div>
       </section>
-    </article>
+    </main>
   );
 }

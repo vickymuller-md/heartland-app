@@ -10,7 +10,7 @@
  * Requirements: DASH-05 (alert status transitions)
  */
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
@@ -71,7 +71,7 @@ function ActionButtons({
   alert: AlertRow;
   isPending: boolean;
   onAcknowledge: () => void;
-  onResolve: () => void;
+  onResolve: (resolutionNote: string) => void;
 }) {
   if (alert.status === 'open') {
     return (
@@ -97,18 +97,7 @@ function ActionButtons({
   }
 
   if (alert.status === 'acknowledged') {
-    return (
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={onResolve}
-        disabled={isPending}
-        data-testid="resolve-btn"
-      >
-        {isPending ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}
-        Resolve
-      </Button>
-    );
+    return <ResolutionControl isPending={isPending} onResolve={onResolve} />;
   }
 
   if (alert.status === 'resolved' && alert.resolved_at) {
@@ -122,6 +111,18 @@ function ActionButtons({
   return null;
 }
 
+function ResolutionControl({ isPending, onResolve }: { isPending: boolean; onResolve: (note: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [note, setNote] = useState('');
+  if (!open) return <Button className="min-h-11" size="sm" variant="outline" onClick={() => setOpen(true)} disabled={isPending} data-testid="resolve-btn">Resolve</Button>;
+  return (
+    <form className="min-w-56 space-y-2" onSubmit={(event) => { event.preventDefault(); onResolve(note); }}>
+      <label className="block text-left text-xs font-semibold">Resolution outcome<textarea value={note} onChange={(event) => setNote(event.target.value)} required minLength={3} maxLength={1000} rows={2} className="mt-1 w-full rounded-md border p-2 text-sm font-normal" /></label>
+      <div className="flex gap-2"><Button className="min-h-11" size="sm" type="submit" disabled={isPending}>{isPending ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}Confirm</Button><Button className="min-h-11" size="sm" type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button></div>
+    </form>
+  );
+}
+
 export function AlertRowComponent({ alert, layout }: AlertRowComponentProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -133,9 +134,9 @@ export function AlertRowComponent({ alert, layout }: AlertRowComponentProps) {
     });
   };
 
-  const handleResolve = () => {
+  const handleResolve = (resolutionNote: string) => {
     startTransition(async () => {
-      await resolveAlert(alert.id);
+      await resolveAlert({ alertId: alert.id, resolutionNote });
       router.refresh();
     });
   };
@@ -162,10 +163,15 @@ export function AlertRowComponent({ alert, layout }: AlertRowComponentProps) {
         <p className="text-sm text-muted-foreground">
           <FlagLabels flags={alert.flags} />
         </p>
+        {(alert.occurrence_count ?? 1) > 1 && (
+          <p className="text-xs font-semibold text-amber-800">
+            Coalesced signal · {alert.occurrence_count} observations since {formatDistanceToNow(new Date(alert.first_seen_at ?? alert.created_at), { addSuffix: true })}
+          </p>
+        )}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <StatusBadge status={alert.status} />
-            <span className="text-xs text-muted-foreground">{timeAgo}</span>
+            <span className="text-xs text-muted-foreground">Last seen {formatDistanceToNow(new Date(alert.last_seen_at ?? alert.created_at), { addSuffix: true })}</span>
           </div>
           <ActionButtons
             alert={alert}

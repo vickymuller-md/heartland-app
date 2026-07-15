@@ -171,51 +171,24 @@ Deno.serve(async (req) => {
       })
     }
 
-    // ---------- Deduplication ----------
-    // For each flag, check if an open/acknowledged alert with the same flag
-    // exists for this patient created within the last 24 hours.
-
-    const { data: existingAlerts } = await supabase
-      .from('alerts')
-      .select('flags, status, created_at')
-      .eq('patient_id', vitals.patient_id)
-      .in('status', ['open', 'acknowledged'])
-      .gte('created_at', new Date(Date.now() - 24 * 3_600_000).toISOString())
-
-    const nonDuplicateFlags = flags.filter((flag) => {
-      if (!existingAlerts || existingAlerts.length === 0) return true
-      return !existingAlerts.some(
-        (alert: { flags: string[]; status: string; created_at: string }) =>
-          alert.flags.includes(flag)
-      )
-    })
-
-    if (nonDuplicateFlags.length === 0) {
-      return new Response(
-        JSON.stringify({ alert: false, deduplicated: true }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      )
-    }
+    const normalizedFlags = [...new Set(flags)]
 
     // ---------- Determine severity ----------
-    const severity: AlertSeverity = nonDuplicateFlags.some((f) =>
+    const severity: AlertSeverity = normalizedFlags.some((f) =>
       (CRITICAL_FLAGS as string[]).includes(f)
     )
       ? 'critical'
       : 'warning'
 
-    // ---------- Insert alert ----------
-    const { data: alert, error } = await supabase
-      .from('alerts')
-      .insert({
-        patient_id: vitals.patient_id,
-        vitals_id: vitals.id,
-        flags: nonDuplicateFlags,
-        severity,
-        status: 'open',
+    // ---------- Coalesce persistent signal ----------
+    const { data: coalesced, error } = await supabase
+      .rpc('coalesce_patient_alert', {
+        p_patient_id: vitals.patient_id,
+        p_vitals_id: vitals.id,
+        p_flags: normalizedFlags,
+        p_severity: severity,
       })
-      .select('id')
-      .single()
+    const alert = coalesced?.[0]
 
     if (error) {
       console.error('Failed to insert alert:', error.message)
@@ -226,20 +199,21 @@ Deno.serve(async (req) => {
     }
 
     // ---------- Send notifications for critical severity only ----------
-    if (severity === 'critical') {
+    if (severity === 'critical' && alert?.created) {
       await sendProviderNotifications(
         supabase,
         vitals.patient_id,
-        nonDuplicateFlags,
-        alert.id
+        normalizedFlags,
+        alert.alert_id
       )
     }
 
     return new Response(
       JSON.stringify({
         alert: true,
-        id: alert.id,
-        flags: nonDuplicateFlags,
+        id: alert?.alert_id,
+        created: alert?.created ?? false,
+        flags: normalizedFlags,
         severity,
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }

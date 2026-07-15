@@ -58,5 +58,18 @@ export interface DailyLoopMetrics {
 export interface DailyLoopResult {
   sections: DailyLoopSections;
   metrics: DailyLoopMetrics;
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasNext: boolean;
+    hasPrevious: boolean;
+  };
+  timeZone: string;
   error: string | null;
+}
+
+export interface DailyLoopPaginationInput {
+  limit?: number;
+  offset?: number;
 }

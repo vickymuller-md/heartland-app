@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { CalculatorForm } from '@/app/(provider)/risk-calculator/calculator-form';
-import { ResultCard } from '@/app/(provider)/risk-calculator/result-card';
-import { ScoreBreakdown } from '@/app/(provider)/risk-calculator/score-breakdown';
+import { CalculatorForm } from '@/app/(public)/risk-calculator/calculator-form';
+import { ResultCard } from '@/app/(public)/risk-calculator/result-card';
+import { ScoreBreakdown } from '@/app/(public)/risk-calculator/score-breakdown';
 import { calculateRiskScore } from '@/lib/risk-score/engine';
 import { RISK_VARIABLES } from '@/lib/risk-score/constants';
 import type { RiskResult } from '@/lib/risk-score/types';

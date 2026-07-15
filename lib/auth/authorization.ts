@@ -2,7 +2,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 
-export type AppRole = "provider" | "patient";
+export type AppRole = "provider" | "patient" | "tester";
 
 type AuthorizationFailure = {
   authorized: false;
@@ -56,7 +56,7 @@ export async function authorize(
   if (
     profileError ||
     !profile ||
-    (profile.role !== "provider" && profile.role !== "patient") ||
+    !(["provider", "patient", "tester"] as const).includes(profile.role as AppRole) ||
     (requiredRole && profile.role !== requiredRole)
   ) {
     return { authorized: false, error: "Unauthorized" };

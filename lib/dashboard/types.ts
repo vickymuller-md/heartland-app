@@ -58,6 +58,9 @@ export interface AlertRow {
   resolved_by: string | null;
   resolved_at: string | null;
   created_at: string;
+  occurrence_count?: number;
+  first_seen_at?: string;
+  last_seen_at?: string;
 }
 
 /** Provider note attached to a patient record (DASH-09) */

@@ -2,10 +2,10 @@
  * Lab Alert Tests -- SAFE-04: Real-time lab alert insertion and dedup
  *
  * Tests saveLabResult Server Action from lib/dashboard/actions.ts:
- * - K+ > 5.5 triggers hyperkalemia alert via admin client
- * - eGFR < 15 triggers low_egfr alert via admin client
+ * - K+ > 5.5 coalesces a hyperkalemia alert via a server-only RPC
+ * - eGFR < 15 coalesces a low_egfr alert via a server-only RPC
  * - Normal values -> no alert inserted
- * - Deduplication suppresses duplicate alerts
+ * - Repeated signals use the same persistent coalescence path
  * - Unauthenticated -> returns error
  *
  * Note: saveLabResult already existed in actions.ts (implemented in a prior phase).
@@ -35,15 +35,12 @@ vi.mock('@/lib/auth/authorization', () => ({
 
 // Admin client (for alert insert bypassing RLS)
 const mockAdminFrom = vi.fn();
+const mockAdminRpc = vi.fn();
 vi.mock('@/lib/supabase/admin', () => ({
   supabaseAdmin: {
     from: (...args: unknown[]) => mockAdminFrom(...args),
+    rpc: (...args: unknown[]) => mockAdminRpc(...args),
   },
-}));
-
-// Mock alert-engine dedup (returns false = no duplicate by default)
-vi.mock('@/lib/dashboard/alert-engine', () => ({
-  shouldDeduplicate: vi.fn().mockReturnValue(false),
 }));
 
 // Mock constants
@@ -57,7 +54,6 @@ vi.mock('@/lib/dashboard/constants', async (importOriginal) => {
 
 // This static import works because mocks are in place
 import { saveLabResult } from '@/lib/dashboard/actions';
-import { shouldDeduplicate } from '@/lib/dashboard/alert-engine';
 
 // ---------- Helpers ----------
 
@@ -92,29 +88,10 @@ describe('saveLabResult -- SAFE-04', () => {
       insert: vi.fn().mockResolvedValue({ error: null }),
     });
 
-    // Default: no existing alerts (dedup check returns empty), alert insert succeeds
-    mockAdminFrom.mockImplementation((table: string) => {
-      if (table === 'alerts') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              in: vi.fn().mockResolvedValue({ data: [], error: null }),
-            }),
-          }),
-          insert: vi.fn().mockResolvedValue({ error: null }),
-        };
-      }
-      return {
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            in: vi.fn().mockResolvedValue({ data: [], error: null }),
-          }),
-        }),
-      };
+    mockAdminRpc.mockResolvedValue({
+      data: [{ alert_id: 'alert-1', created: true }],
+      error: null,
     });
-
-    // Default: no dedup
-    vi.mocked(shouldDeduplicate).mockReturnValue(false);
   });
 
   it('inserts hyperkalemia alert when K+ = 6.2', async () => {
@@ -128,8 +105,11 @@ describe('saveLabResult -- SAFE-04', () => {
     expect(result.success).toBe(true);
     // Verify lab_results insert was called
     expect(mockFrom).toHaveBeenCalledWith('lab_results');
-    // Verify alert insert was called via admin client
-    expect(mockAdminFrom).toHaveBeenCalledWith('alerts');
+    expect(mockAdminRpc).toHaveBeenCalledWith('coalesce_patient_alert',
+      expect.objectContaining({
+        p_patient_id: PATIENT_ID,
+        p_flags: ['hyperkalemia'],
+      }));
   });
 
   it('inserts low_egfr alert when eGFR = 10 (< 15)', async () => {
@@ -141,26 +121,11 @@ describe('saveLabResult -- SAFE-04', () => {
     const result = await saveLabResult(null, fd);
 
     expect(result.success).toBe(true);
-    expect(mockAdminFrom).toHaveBeenCalledWith('alerts');
+    expect(mockAdminRpc).toHaveBeenCalledWith('coalesce_patient_alert',
+      expect.objectContaining({ p_flags: ['low_egfr'] }));
   });
 
   it('does not insert alert for normal values (K+ = 5.0, eGFR = 40)', async () => {
-    // Track alert inserts
-    const alertInsertMock = vi.fn().mockResolvedValue({ error: null });
-    mockAdminFrom.mockImplementation((table: string) => {
-      if (table === 'alerts') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              in: vi.fn().mockResolvedValue({ data: [], error: null }),
-            }),
-          }),
-          insert: alertInsertMock,
-        };
-      }
-      return {};
-    });
-
     const fd = makeFormData({
       patientId: PATIENT_ID,
       potassium: '5.0',
@@ -170,36 +135,13 @@ describe('saveLabResult -- SAFE-04', () => {
     const result = await saveLabResult(null, fd);
 
     expect(result.success).toBe(true);
-    // Alert insert should NOT have been called for normal values
-    expect(alertInsertMock).not.toHaveBeenCalled();
+    expect(mockAdminRpc).not.toHaveBeenCalled();
   });
 
-  it('suppresses duplicate alert when shouldDeduplicate returns true', async () => {
-    // Mock dedup to return true (existing alert found)
-    vi.mocked(shouldDeduplicate).mockReturnValue(true);
-
-    const alertInsertMock = vi.fn().mockResolvedValue({ error: null });
-    mockAdminFrom.mockImplementation((table: string) => {
-      if (table === 'alerts') {
-        return {
-          select: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              in: vi.fn().mockResolvedValue({
-                data: [
-                  {
-                    flags: ['hyperkalemia'],
-                    status: 'open',
-                    created_at: new Date().toISOString(),
-                  },
-                ],
-                error: null,
-              }),
-            }),
-          }),
-          insert: alertInsertMock,
-        };
-      }
-      return {};
+  it('routes repeated signals through persistent coalescence', async () => {
+    mockAdminRpc.mockResolvedValue({
+      data: [{ alert_id: 'existing-alert', created: false }],
+      error: null,
     });
 
     const fd = makeFormData({
@@ -210,8 +152,9 @@ describe('saveLabResult -- SAFE-04', () => {
     const result = await saveLabResult(null, fd);
 
     expect(result.success).toBe(true);
-    // Dedup should suppress: no alert insert
-    expect(alertInsertMock).not.toHaveBeenCalled();
+    expect(mockAdminRpc).toHaveBeenCalledTimes(1);
+    expect(mockAdminRpc).toHaveBeenCalledWith('coalesce_patient_alert',
+      expect.objectContaining({ p_flags: ['hyperkalemia'] }));
   });
 
   it('returns error when unauthenticated', async () => {

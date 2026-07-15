@@ -10,6 +10,7 @@
  */
 
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
   LayoutDashboard,
@@ -82,9 +83,11 @@ interface ProviderShellProps {
 
 export function ProviderShell({ children, urgentCount }: ProviderShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <div className="flex min-h-screen">
+      <a href="#main-content" className="sr-only z-50 rounded bg-white px-4 py-3 font-semibold text-slate-950 focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Skip to main content</a>
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -101,9 +104,9 @@ export function ProviderShell({ children, urgentCount }: ProviderShellProps) {
       >
         {/* Logo / Title */}
         <div className="flex h-16 items-center justify-between px-6">
-          <h1 className="text-lg font-bold tracking-wide">HEARTLAND</h1>
+          <span className="text-lg font-bold tracking-wide">HEARTLAND</span>
           <button
-            className="rounded p-1 hover:bg-slate-700 lg:hidden"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded hover:bg-slate-700 lg:hidden"
             onClick={() => setSidebarOpen(false)}
             aria-label="Close sidebar"
           >
@@ -121,12 +124,14 @@ export function ProviderShell({ children, urgentCount }: ProviderShellProps) {
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const showCount = item.showBadge && urgentCount > 0;
+                const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-white"
+                    className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${active ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
                     onClick={() => setSidebarOpen(false)}
+                    aria-current={active ? 'page' : undefined}
                   >
                     <Icon className="size-5 shrink-0" />
                     <span className="flex-1">{item.label}</span>
@@ -153,21 +158,21 @@ export function ProviderShell({ children, urgentCount }: ProviderShellProps) {
         {/* Mobile top bar */}
         <header className="flex h-16 items-center border-b border-gray-200 bg-white px-4 print:hidden lg:hidden">
           <button
-            className="rounded p-2 hover:bg-gray-100"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded hover:bg-gray-100"
             onClick={() => setSidebarOpen(true)}
             aria-label="Open sidebar"
           >
             <Menu className="size-5 text-gray-700" />
           </button>
-          <h1 className="ml-3 text-lg font-bold tracking-wide text-slate-900">
+          <span className="ml-3 text-lg font-bold tracking-wide text-slate-900">
             HEARTLAND
-          </h1>
+          </span>
         </header>
 
         <ConnectivityBanner workspace="provider" />
 
         {/* Page content */}
-        <main className="flex-1 p-6">{children}</main>
+        <main id="main-content" className="flex-1 p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );

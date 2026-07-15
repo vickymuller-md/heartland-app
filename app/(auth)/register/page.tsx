@@ -4,7 +4,7 @@ import { RegisterForm } from "@/components/auth/register-form";
 export default async function RegisterPage({
   searchParams,
 }: {
-  searchParams: Promise<{ invite_provider?: string }>;
+  searchParams: Promise<{ invite_provider?: string; mode?: string }>;
 }) {
   const params = await searchParams;
   const inviteProviderId = params.invite_provider;
@@ -27,6 +27,7 @@ export default async function RegisterPage({
     <RegisterForm
       inviteProviderId={inviteProviderId}
       inviterName={inviterName}
+      initialRole={params.mode === "patient" ? "patient" : "tester"}
     />
   );
 }

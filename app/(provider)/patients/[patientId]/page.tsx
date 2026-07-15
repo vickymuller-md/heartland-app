@@ -148,6 +148,12 @@ export default async function PatientDetailPage({
           <FileText className="h-4 w-4" />
           Generate Handoff
         </Link>
+        <a
+          href={`/api/patients/${patientId}/fhir`}
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 print:hidden"
+        >
+          Export FHIR R4
+        </a>
       </div>
 
       {/* Alert banner */}

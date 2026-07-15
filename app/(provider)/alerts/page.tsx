@@ -19,7 +19,7 @@ import Link from 'next/link';
 import { ProductEventTracker } from '@/components/analytics/product-event-tracker';
 
 interface AlertsPageProps {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; page?: string }>;
 }
 
 const VALID_STATUSES = ['all', 'open', 'acknowledged', 'resolved'] as const;
@@ -34,6 +34,9 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
 
   const params = await searchParams;
   const statusParam = params.status ?? 'open';
+  const requestedPage = Number.parseInt(params.page ?? '1', 10);
+  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const pageSize = 25;
   const statusFilter = VALID_STATUSES.includes(
     statusParam as (typeof VALID_STATUSES)[number]
   )
@@ -41,10 +44,10 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
     : 'open';
 
   const [alertResult, operational, deliveries] = await Promise.all([
-    getAlerts(supabase, user.id, statusFilter)
-      .then((alerts) => ({ alerts, error: null as string | null }))
-      .catch(() => ({ alerts: [], error: 'Alert query failed.' })),
-    getDailyLoop(supabase, user.id),
+    getAlerts(supabase, user.id, statusFilter, { limit: pageSize, offset: (page - 1) * pageSize })
+      .then((result) => ({ ...result, error: null as string | null }))
+      .catch(() => ({ alerts: [], total: 0, error: 'Alert query failed.' })),
+    getDailyLoop(supabase, user.id, {}, { limit: 8, offset: 0 }),
     getRecentMessageDeliveries(supabase, user.id),
   ]);
   const workItems = Object.values(operational.sections).flat().slice(0, 8);
@@ -58,7 +61,7 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
         </p>
       </div>
 
-      <ProductEventTracker eventName="workspace_view" area="inbox" />
+      <ProductEventTracker eventName="workspace_view" area="inbox" trackDuration />
 
       <section className="space-y-3" aria-labelledby="inbox-work-title">
         <div className="flex items-center justify-between gap-3">
@@ -124,7 +127,16 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
           Alert inbox could not be loaded. Do not interpret this as an empty queue; use your facility escalation workflow and try again.
         </div>
       ) : (
-        <AlertInbox alerts={alertResult.alerts} statusFilter={statusFilter} />
+        <>
+          <AlertInbox alerts={alertResult.alerts} statusFilter={statusFilter} />
+          {alertResult.total > pageSize && (
+            <nav className="mt-4 flex items-center justify-between rounded-lg border bg-white p-3" aria-label="Alert pages">
+              {page > 1 ? <Link href={`/alerts?status=${statusFilter}&page=${page - 1}`} className="inline-flex min-h-11 items-center rounded-md border px-4 text-sm font-semibold">Previous</Link> : <span />}
+              <span className="text-sm font-semibold">Page {page} of {Math.ceil(alertResult.total / pageSize)}</span>
+              {page * pageSize < alertResult.total ? <Link href={`/alerts?status=${statusFilter}&page=${page + 1}`} className="inline-flex min-h-11 items-center rounded-md bg-slate-900 px-4 text-sm font-semibold text-white">Next</Link> : <span />}
+            </nav>
+          )}
+        </>
       )}
     </div>
   );

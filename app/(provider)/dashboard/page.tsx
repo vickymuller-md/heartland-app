@@ -3,19 +3,15 @@ import Link from 'next/link';
 import { Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { getLinkedPatients } from '@/lib/dashboard/queries';
-import type { SortKey } from '@/lib/dashboard/types';
-import { PatientList } from './_components/patient-list';
-import { SortControls } from './_components/sort-controls';
 import { MetricCards, MetricCardsSkeleton } from './_components/metric-cards';
 import { RpmTracker } from './_components/rpm-tracker';
-import { UrgentNowSection } from './_components/urgent-now-section';
 import { ProviderPageDisclaimer } from '@/components/disclaimers/provider-page-disclaimer';
 import { getDailyLoop, getSavedQueueViews } from '@/lib/daily-loop/queries';
 import { DailyLoop } from './_components/daily-loop';
 import { ProductEventTracker } from '@/components/analytics/product-event-tracker';
 import { getTeamDirectory } from '@/lib/team/queries';
 import { QueueViewControls } from './_components/queue-view-controls';
+import type { DailyLoopFilter, WorkPriority, WorkSeverity } from '@/lib/daily-loop/types';
 
 /**
  * Provider Dashboard -- Server Component
@@ -28,19 +24,29 @@ import { QueueViewControls } from './_components/queue-view-controls';
  */
 
 interface DashboardPageProps {
-  searchParams: Promise<{ sort?: string; view?: string }>;
+  searchParams: Promise<{
+    view?: string;
+    severity?: string;
+    priority?: string;
+    sourceType?: string;
+    page?: string;
+  }>;
 }
 
-const VALID_SORTS: SortKey[] = ['status', 'vitals_date', 'risk_tier'];
+const VALID_SEVERITIES: WorkSeverity[] = ['critical', 'warning', 'informational'];
+const VALID_PRIORITIES: WorkPriority[] = ['now', 'today', 'week', 'watching'];
+const VALID_SOURCE_TYPES = [
+  'alert', 'scheduled_followup', 'discharge_followup', 'manual',
+  'titration', 'data_quality',
+] as const;
+const PAGE_SIZE = 20;
 
 export default async function ProviderDashboard({
   searchParams,
 }: DashboardPageProps) {
   const params = await searchParams;
-  const sortParam = params?.sort as SortKey | undefined;
-  const sortBy: SortKey = sortParam && VALID_SORTS.includes(sortParam)
-    ? sortParam
-    : 'status';
+  const requestedPage = Number.parseInt(params.page ?? '1', 10);
+  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
   const supabase = await createClient();
   const {
@@ -54,20 +60,36 @@ export default async function ProviderDashboard({
     getTeamDirectory(supabase),
   ]);
   const selectedView = savedViews.views.find((view) => view.id === params.view);
-  const [dailyLoop, patientResult] = await Promise.all([
-    getDailyLoop(supabase, user.id, selectedView ? {
+  const directFilter: DailyLoopFilter = {
+    severity: VALID_SEVERITIES.includes(params.severity as WorkSeverity)
+      ? params.severity as WorkSeverity
+      : undefined,
+    priority: VALID_PRIORITIES.includes(params.priority as WorkPriority)
+      ? params.priority as WorkPriority
+      : undefined,
+    sourceType: VALID_SOURCE_TYPES.includes(params.sourceType as typeof VALID_SOURCE_TYPES[number])
+      ? params.sourceType
+      : undefined,
+  };
+  const hasDirectFilter = Boolean(directFilter.severity || directFilter.priority || directFilter.sourceType);
+  const activeFilter: DailyLoopFilter = hasDirectFilter
+    ? directFilter
+    : selectedView ? {
       severity: selectedView.severity ?? undefined,
       priority: selectedView.priority ?? undefined,
       sourceType: selectedView.source_type ?? undefined,
-    } : {}),
-    getLinkedPatients(supabase, user.id, sortBy)
-      .then((patients) => ({ patients, error: null as string | null }))
-      .catch(() => ({
-        patients: [],
-        error: 'The patient panel could not be loaded. Do not interpret this as an empty panel.',
-      })),
-  ]);
-  const patients = patientResult.patients;
+    } : {};
+  const dailyLoop = await getDailyLoop(
+    supabase,
+    user.id,
+    activeFilter,
+    { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE },
+  );
+  const queueParams = new URLSearchParams();
+  if (selectedView && !hasDirectFilter) queueParams.set('view', selectedView.id);
+  if (activeFilter.severity) queueParams.set('severity', activeFilter.severity);
+  if (activeFilter.priority) queueParams.set('priority', activeFilter.priority);
+  if (activeFilter.sourceType) queueParams.set('sourceType', activeFilter.sourceType);
 
   return (
     <div className="space-y-6">
@@ -79,12 +101,16 @@ export default async function ProviderDashboard({
         </div>
       </div>
 
-      <ProductEventTracker eventName="daily_loop_view" area="provider_home" />
+      <ProductEventTracker eventName="daily_loop_view" area="provider_home" trackDuration />
 
       {savedViews.error ? (
         <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{savedViews.error}</div>
       ) : (
-        <QueueViewControls views={savedViews.views} selectedViewId={selectedView?.id} />
+        <QueueViewControls
+          views={savedViews.views}
+          selectedViewId={selectedView?.id}
+          currentFilter={activeFilter}
+        />
       )}
 
       {teamDirectory.error && (
@@ -99,53 +125,31 @@ export default async function ProviderDashboard({
         <DailyLoop
           sections={dailyLoop.sections}
           metrics={dailyLoop.metrics}
+          pagination={dailyLoop.pagination}
+          page={page}
+          queryString={queueParams.toString()}
+          timeZone={dailyLoop.timeZone}
           teamMembers={teamDirectory.members}
           manageableOrganizationIds={teamDirectory.manageableOrganizationIds}
         />
       )}
 
-      <div className="border-t pt-6">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-slate-950">Patient panel</h2>
-            <p className="text-sm text-slate-600">Panel context and program metrics. Daily work remains above.</p>
+      <details className="rounded-2xl border bg-white p-5">
+        <summary className="flex min-h-11 cursor-pointer items-center gap-2 font-bold text-slate-950">
+          <Users className="size-5 text-blue-700" aria-hidden="true" /> Program context and patient metrics
+        </summary>
+        <div className="mt-5 space-y-5 border-t pt-5">
+          <div className="flex justify-end">
+            <Link href="/patients" className="inline-flex min-h-11 items-center rounded-lg border px-4 text-sm font-semibold text-blue-700">Open patient directory</Link>
           </div>
-          <SortControls currentSort={sortBy} />
+          <Suspense fallback={<MetricCardsSkeleton />}>
+            <MetricCards providerId={user.id} />
+          </Suspense>
+          <Suspense fallback={<div className="h-32 animate-pulse rounded-lg bg-muted" />}>
+            <RpmTracker providerId={user.id} />
+          </Suspense>
         </div>
-      </div>
-
-      {/* Metric cards + RPM tracker (METR-01..05) */}
-      <Suspense fallback={<MetricCardsSkeleton />}>
-        <MetricCards providerId={user.id} />
-      </Suspense>
-      <Suspense fallback={<div className="h-32 animate-pulse bg-muted rounded-lg mb-6" />}>
-        <RpmTracker providerId={user.id} />
-      </Suspense>
-
-      {/* Urgent Now triage section (EFFI-01) */}
-      <UrgentNowSection patients={patients} />
-
-      {patientResult.error ? (
-        <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-medium text-red-900">
-          {patientResult.error}
-        </div>
-      ) : patients.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Users className="h-12 w-12 text-gray-300 mb-4" />
-          <p className="text-lg text-gray-600 mb-2">No patients linked yet</p>
-          <p className="text-sm text-gray-500 mb-6">
-            Invite patients to connect with you using a unique invite code.
-          </p>
-          <Link
-            href="/patients/manage"
-            className="min-h-[48px] px-6 py-3 text-base font-semibold bg-blue-600 text-white rounded-lg inline-flex items-center hover:bg-blue-700 transition-colors"
-          >
-            Invite a Patient
-          </Link>
-        </div>
-      ) : (
-        <PatientList patients={patients} />
-      )}
+      </details>
 
       {/* Risk Framework disclaimer -- risk_tier chips reference the HEARTLAND Framework */}
       <ProviderPageDisclaimer variant="framework" />

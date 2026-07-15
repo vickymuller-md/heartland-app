@@ -16,7 +16,6 @@ import { getRecentVitals } from './queries';
 import type { VitalsRow, RedFlag, VitalsActionState, BatchRowResult, BatchVitalsActionState } from './types';
 import { parseBatchFormData, isBlankRow } from './batch-schema';
 import { z } from 'zod';
-import { shouldDeduplicate } from '@/lib/dashboard/alert-engine';
 
 const RED_FLAG_TO_ALERT_FLAG: Record<string, string> = {
   weight_gain_3lb_2d: 'weight_gain_3lb_2d',
@@ -43,28 +42,15 @@ async function persistImmediateAlert(
   // privileged client while the server-only alert write remains explicit.
   const { supabaseAdmin } = await import('@/lib/supabase/admin');
 
-  const { data: existing, error: existingError } = await supabaseAdmin
-    .from('alerts')
-    .select('flags, status, created_at')
-    .eq('patient_id', patientId)
-    .in('status', ['open', 'acknowledged']);
-  if (existingError) return false;
-
-  const actionableFlags = mappedFlags.filter(
-    (flag) => !shouldDeduplicate(flag, existing ?? [], 24),
-  );
-  if (actionableFlags.length === 0) return true;
-
   const severity = redFlags.some(
-    (flag) => flag.severity === 'critical' && actionableFlags.includes(RED_FLAG_TO_ALERT_FLAG[flag.id]),
+    (flag) => flag.severity === 'critical' && mappedFlags.includes(RED_FLAG_TO_ALERT_FLAG[flag.id]),
   ) ? 'critical' : 'warning';
 
-  const { error } = await supabaseAdmin.from('alerts').insert({
-    patient_id: patientId,
-    vitals_id: vitalsId,
-    flags: actionableFlags,
-    severity,
-    status: 'open',
+  const { error } = await supabaseAdmin.rpc('coalesce_patient_alert', {
+    p_patient_id: patientId,
+    p_vitals_id: vitalsId,
+    p_flags: mappedFlags,
+    p_severity: severity,
   });
   return !error;
 }

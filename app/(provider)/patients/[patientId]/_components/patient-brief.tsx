@@ -8,6 +8,7 @@ function Delta({ value, unit }: { value: number | null; unit: string }) {
 }
 
 export function PatientBrief({ brief }: { brief: OperationalBrief }) {
+  const sourceIsStale = brief.sourceDataStale;
   return (
     <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5" aria-labelledby="patient-brief-heading">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -18,6 +19,13 @@ export function PatientBrief({ brief }: { brief: OperationalBrief }) {
         <p className="text-xs text-slate-500">
           Generated {formatDistanceToNow(new Date(brief.generatedAt), { addSuffix: true })}
         </p>
+      </div>
+
+      <div className={`mt-4 rounded-lg border p-3 text-sm ${sourceIsStale ? 'border-amber-300 bg-amber-50 text-amber-950' : 'border-emerald-200 bg-emerald-50 text-emerald-950'}`}>
+        <strong>Source data:</strong>{' '}
+        {brief.sourceDataAsOf
+          ? `${formatDistanceToNow(new Date(brief.sourceDataAsOf), { addSuffix: true })}${sourceIsStale ? ' · stale—verify source records before acting' : ''}`
+          : 'No dated clinical source is available.'}
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

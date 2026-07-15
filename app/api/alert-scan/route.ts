@@ -23,10 +23,8 @@ import {
   evaluateCriticalLabs,
   evaluateFollowupDue,
   evaluateFollowupOverdue,
-  shouldDeduplicate,
   classifyProactiveSeverity,
 } from '@/lib/dashboard/alert-engine';
-import { PROACTIVE_DEDUP_HOURS } from '@/lib/dashboard/constants';
 import { getAdherenceData } from '@/lib/medications/queries';
 import type { ExistingAlertForDedup } from '@/lib/dashboard/types';
 import { timingSafeEqual } from 'node:crypto';
@@ -59,6 +57,7 @@ export async function GET(request: Request) {
   const now = new Date();
   let totalPatients = 0;
   let alertsCreated = 0;
+  let alertsCoalesced = 0;
 
   try {
     // 1. Fetch all active provider-patient links
@@ -206,7 +205,10 @@ export async function GET(request: Request) {
       alertsByPatient.set(a.patient_id, arr);
     }
 
-    // 4. Process each provider-patient pair
+    // 4. Process each provider-patient pair. A shared guard ensures a
+    // patient+flag signal is coalesced once per scan even when several
+    // providers are linked to the same patient.
+    const processedPatientFlags = new Set<string>();
     for (const [providerId, patientIds] of byProvider) {
       for (const patientId of patientIds) {
         // 4a. Fetch muted alert types
@@ -225,23 +227,22 @@ export async function GET(request: Request) {
         // Helper to check and insert an alert
         const tryInsertAlert = async (flag: string) => {
           if (mutedTypes.has(flag)) return;
-
-          const dedupHours = PROACTIVE_DEDUP_HOURS[flag] ?? 24;
-          if (shouldDeduplicate(flag, patientExisting, dedupHours, now)) return;
+          const signalKey = `${patientId}:${flag}`;
+          if (processedPatientFlags.has(signalKey)) return;
+          processedPatientFlags.add(signalKey);
 
           const severity = classifyProactiveSeverity(flag);
-          const { error: insertError } = await supabaseAdmin
-            .from('alerts')
-            .insert({
-              patient_id: patientId,
-              flags: [flag],
-              severity,
-              status: 'open',
-              vitals_id: null,
+          const { data: result, error: insertError } = await supabaseAdmin
+            .rpc('coalesce_patient_alert', {
+              p_patient_id: patientId,
+              p_vitals_id: null,
+              p_flags: [flag],
+              p_severity: severity,
             });
 
           if (!insertError) {
-            alertsCreated++;
+            if (result?.[0]?.created) alertsCreated++;
+            else alertsCoalesced++;
           }
         };
 
@@ -323,21 +324,19 @@ export async function GET(request: Request) {
               // instead of the default from PROACTIVE_FLAG_SEVERITY
               if (mutedTypes.has('followup_overdue')) break;
 
-              const dedupHours = PROACTIVE_DEDUP_HOURS['followup_overdue'] ?? 24;
-              if (!shouldDeduplicate('followup_overdue', patientExisting, dedupHours, now)) {
-                const { error: insertError } = await supabaseAdmin
-                  .from('alerts')
-                  .insert({
-                    patient_id: patientId,
-                    flags: ['followup_overdue'],
-                    severity: result.severity,
-                    status: 'open',
-                    vitals_id: null,
+              const signalKey = `${patientId}:followup_overdue`;
+              if (!processedPatientFlags.has(signalKey)) {
+                processedPatientFlags.add(signalKey);
+                const { data: coalesced, error: insertError } = await supabaseAdmin
+                  .rpc('coalesce_patient_alert', {
+                    p_patient_id: patientId,
+                    p_vitals_id: null,
+                    p_flags: ['followup_overdue'],
+                    p_severity: result.severity,
                   });
 
-                if (!insertError) {
-                  alertsCreated++;
-                }
+                if (!insertError && coalesced?.[0]?.created) alertsCreated++;
+                else if (!insertError) alertsCoalesced++;
               }
               break; // One followup_overdue alert per patient per scan
             }
@@ -349,6 +348,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       scanned: totalPatients,
       alerts_created: alertsCreated,
+      alerts_coalesced: alertsCoalesced,
       timestamp: now.toISOString(),
     });
   } catch {

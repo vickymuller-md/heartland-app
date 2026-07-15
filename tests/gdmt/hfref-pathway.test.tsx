@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { HfrefPanel } from '@/app/(provider)/gdmt-pathway/hfref-panel';
+import { HfrefPanel } from '@/app/(public)/gdmt-pathway/hfref-panel';
 
 // ==========================================================================
 // GDMT-02: HFrEF Quadruple Therapy Display

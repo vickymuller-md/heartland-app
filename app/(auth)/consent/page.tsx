@@ -15,7 +15,7 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
     ? "/update-password"
     : auth.role === "provider"
       ? "/dashboard"
-      : "/today";
+      : auth.role === "tester" ? "/sandbox" : "/today";
 
   return <ConsentAcceptance nextPath={nextPath} />;
 }

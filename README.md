@@ -28,14 +28,14 @@ This app translates the eight HEARTLAND Protocol modules into interactive decisi
 
 | # | Module | Route |
 |-|-|-|
-| 1 | Risk Stratification Calculator | `/(provider)/risk-calculator` |
-| 2 | GDMT Optimization Pathway | `/(provider)/gdmt-pathway` |
-| 3 | Telephone Titration Checklist | `/(provider)/titration-checklist` |
+| 1 | Risk Stratification Calculator | `/risk-calculator` |
+| 2 | GDMT Optimization Pathway | `/gdmt-pathway` |
+| 3 | Telephone Titration Checklist | `/titration-checklist` |
 | 4 | Discharge Transitions (SBAR) | `/(provider)/discharge` |
-| 5 | Remote Monitoring Track Assignment | `/(provider)/remote-monitoring` |
+| 5 | Remote Monitoring Track Assignment | `/remote-monitoring` |
 | 6 | Comorbidity Management | `/(provider)/comorbidity-manager` |
 | 7 | Primary Care Linkage | *Phase 2* |
-| 8 | Implementation Tier Selector | `/(provider)/tier-selector` |
+| 8 | Implementation Tier Selector | `/tier-selector` |
 
 Cross-cutting:
 
@@ -46,9 +46,11 @@ Cross-cutting:
 - Mobile-first, print-friendly
 - Privacy-minimizing exports, row-level access control, immutable work events, and explicit access revocation
 
-## Requesting Access
+## Access
 
-Access is controlled. Licensed healthcare professionals may request access at **`app.heartlandprotocol.org/request-access`**. Registration requires a valid invitation code issued by the protocol author. Patient-facing features are reachable only via a professional's invitation.
+Anyone may create a 30-day tester account at **`app.heartlandprotocol.org/register?mode=tester`** using their own email. Tester accounts use synthetic data only, require no manual approval or authenticator, and cannot access clinical tables.
+
+Clinical access remains controlled. Licensed healthcare professionals may request access at **`app.heartlandprotocol.org/request-access`**; provider workspaces require approval and MFA/AAL2. Patient-facing features are reachable through a professional invitation or reviewed linkage.
 
 For research collaborations, pilot deployments at Critical Access Hospitals, or institutional inquiries: contact **vickymuller@heartlandprotocol.org**.
 
@@ -57,6 +59,7 @@ For research collaborations, pilot deployments at Critical Access Hospitals, or 
 | Stream | State |
 |-|-|
 | Product workspace | Daily Loop, patient 60-second brief, action center, patient Today/Plan/Privacy, and privacy-safe product telemetry implemented |
+| Public sandbox | Self-service tester role and synthetic workflow implemented; custom SMTP remains required for confirmation delivery to arbitrary external emails |
 | Clinical release posture | Controlled evaluation only; real-PHI and pilot go-live gates remain closed pending independent validation and organizational controls |
 | Product plan | Published in [`reference/HEARTLAND_PRODUCT_ADOPTION_PLAN.md`](./reference/HEARTLAND_PRODUCT_ADOPTION_PLAN.md) |
 | NIW petition integration | Tracked in [`NIW_INTEGRATION.md`](./NIW_INTEGRATION.md) |

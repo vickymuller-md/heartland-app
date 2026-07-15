@@ -12,10 +12,32 @@ function getDeviceClass(): 'mobile' | 'tablet' | 'desktop' {
 export function ProductEventTracker({
   eventName,
   area,
-}: Pick<ProductEventInput, 'eventName' | 'area'>) {
+  trackDuration = false,
+}: Pick<ProductEventInput, 'eventName' | 'area'> & { trackDuration?: boolean }) {
   useEffect(() => {
-    void trackProductEvent({ eventName, area, deviceClass: getDeviceClass() });
-  }, [area, eventName]);
+    const eventId = crypto.randomUUID();
+    void trackProductEvent({ eventId, eventName, area, deviceClass: getDeviceClass() });
+    if (!trackDuration) return;
+
+    const startedAt = Date.now();
+    let recorded = false;
+    const recordDuration = () => {
+      if (recorded) return;
+      recorded = true;
+      void trackProductEvent({
+        eventName,
+        area,
+        eventId,
+        deviceClass: getDeviceClass(),
+        durationMs: Math.min(Date.now() - startedAt, 3_600_000),
+      });
+    };
+    window.addEventListener('pagehide', recordDuration, { once: true });
+    return () => {
+      window.removeEventListener('pagehide', recordDuration);
+      recordDuration();
+    };
+  }, [area, eventName, trackDuration]);
 
   return null;
 }

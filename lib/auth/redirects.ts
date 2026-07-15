@@ -1,6 +1,7 @@
 const ALLOWED_CONFIRM_REDIRECTS = new Set([
   "/today",
   "/dashboard",
+  "/sandbox",
   "/update-password",
   "/consent?invited=1",
 ]);

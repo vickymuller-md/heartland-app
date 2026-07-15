@@ -6,7 +6,6 @@
  * All four data sources fetched in parallel via Promise.all.
  */
 
-import { format } from 'date-fns';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getRecentVitals } from '@/lib/vitals/queries';
 import {
@@ -15,6 +14,7 @@ import {
   computeAdherenceDay,
 } from '@/lib/medications/queries';
 import { getEducationProgress } from '@/lib/education/queries';
+import { DEFAULT_TIME_ZONE, getDateKeyInTimeZone, getZonedDayBounds } from '@/lib/timezone';
 
 export interface TodayTaskStatus {
   vitalsLogged: boolean;
@@ -25,10 +25,12 @@ export interface TodayTaskStatus {
 
 export async function getTodayTaskStatus(
   supabase: SupabaseClient,
-  patientId: string
+  patientId: string,
+  timeZone = DEFAULT_TIME_ZONE,
 ): Promise<TodayTaskStatus> {
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
-  const todayUTCMidnight = todayStr + 'T00:00:00.000Z';
+  const now = new Date();
+  const todayStr = getDateKeyInTimeZone(now, timeZone);
+  const dayBounds = getZonedDayBounds(now, timeZone);
 
   const [recentVitals, medications, todayLogs, educationProgress] =
     await Promise.all([
@@ -39,14 +41,15 @@ export async function getTodayTaskStatus(
     ]);
 
   const vitalsLogged = recentVitals.some(
-    (v) => v.recorded_at >= todayUTCMidnight
+    (v) => v.recorded_at >= dayBounds.start.toISOString()
+      && v.recorded_at < dayBounds.endExclusive.toISOString(),
   );
 
   const adherence = computeAdherenceDay(
     todayStr,
     medications,
     todayLogs,
-    new Date()
+    now,
   );
 
   const educationRemaining = educationProgress.filter(

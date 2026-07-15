@@ -1,7 +1,7 @@
 import { describe, it } from 'vitest';
 
-// import { ImplementationChecklist } from '@/app/(provider)/tier-selector/checklist';
-// import { QualityMetricsTable } from '@/app/(provider)/tier-selector/quality-metrics';
+// import { ImplementationChecklist } from '@/app/(public)/tier-selector/checklist';
+// import { QualityMetricsTable } from '@/app/(public)/tier-selector/quality-metrics';
 
 // ==========================================================================
 // TIER-03, TIER-04: Implementation Checklist Component

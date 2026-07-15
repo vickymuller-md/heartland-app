@@ -26,12 +26,12 @@ export default async function Home() {
   }
 
   return (
-    <div className="bg-terminal font-editorial text-cool antialiased selection:bg-alert/40 selection:text-cool">
+    <main id="main-content" className="bg-terminal font-editorial text-cool antialiased selection:bg-alert/40 selection:text-cool">
       <Masthead
         currentSite="app"
         navItems={[
           { label: "The Protocol", href: "/about" },
-          { label: "Access options", href: "/request-access" },
+          { label: "Try sandbox", href: "/register?mode=tester" },
           {
             label: "Research",
             href: "https://doi.org/10.5281/zenodo.18566403",
@@ -39,7 +39,7 @@ export default async function Home() {
           },
           { label: "Sign in", href: "/login" },
         ]}
-        cta={{ label: "Request access", href: "/request-access" }}
+        cta={{ label: "Try sandbox", href: "/register?mode=tester" }}
       />
       <aside className="border-b border-amber-900/40 bg-amber-950 px-6 py-3 text-center font-editorial text-sm leading-relaxed text-amber-100">
         Public routes: educational sandbox. Authenticated workspace: controlled evaluation only. Real PHI and unsupervised clinical use are not authorized until organizational security, privacy, validation, staffing, and governance gates are approved.
@@ -65,13 +65,14 @@ export default async function Home() {
           {
             title: "Platform",
             links: [
-              { label: "Request access", href: "/request-access" },
+              { label: "Try sandbox", href: "/register?mode=tester" },
+              { label: "Request clinical access", href: "/request-access" },
               { label: "Sign in", href: "/login" },
               { label: "About the protocol", href: "/about" },
             ],
           },
         ]}
       />
-    </div>
+    </main>
   );
 }

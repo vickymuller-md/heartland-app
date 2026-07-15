@@ -11,10 +11,8 @@
 
 import { authorize, authorizeProviderForPatient } from '@/lib/auth/authorization';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { shouldDeduplicate } from '@/lib/dashboard/alert-engine';
 import {
   FLAG_LABELS,
-  PROACTIVE_DEDUP_HOURS,
   PROTECTED_ALERT_TYPES,
 } from '@/lib/dashboard/constants';
 import { revalidatePath } from 'next/cache';
@@ -107,27 +105,15 @@ export async function saveLabResult(
     immediateFlags.push('low_egfr');
   }
 
-  // 5. For each flag: dedup check then insert alert via admin client
+  // 5. Coalesce each persistent signal into one active alert.
   if (immediateFlags.length > 0) {
-    const { data: existingAlerts } = await supabaseAdmin
-      .from('alerts')
-      .select('flags, status, created_at')
-      .eq('patient_id', patientId)
-      .in('status', ['open', 'acknowledged']);
-
-    const now = new Date();
-
     for (const flag of immediateFlags) {
-      const dedupHours = PROACTIVE_DEDUP_HOURS[flag] ?? 24;
-      if (!shouldDeduplicate(flag, existingAlerts ?? [], dedupHours, now)) {
-        await supabaseAdmin.from('alerts').insert({
-          patient_id: patientId,
-          flags: [flag],
-          severity: 'critical',
-          status: 'open',
-          vitals_id: null,
-        });
-      }
+      await supabaseAdmin.rpc('coalesce_patient_alert', {
+        p_patient_id: patientId,
+        p_vitals_id: null,
+        p_flags: [flag],
+        p_severity: 'critical',
+      });
     }
   }
 
@@ -173,11 +159,10 @@ export async function acknowledgeAlert(
  * DASH-05: Alert status transitions
  */
 export async function resolveAlert(
-  alertId: string
+  input: { alertId: string; resolutionNote: string },
 ): Promise<{ success: boolean; error?: string }> {
-  if (!z.string().uuid().safeParse(alertId).success) {
-    return { success: false, error: 'Invalid alert ID' };
-  }
+  const parsed = z.object({ alertId: z.uuid(), resolutionNote: z.string().trim().min(3).max(1000) }).safeParse(input);
+  if (!parsed.success) return { success: false, error: 'Document how the alert was resolved' };
   const auth = await authorize('provider');
   if (!auth.authorized) return { success: false, error: auth.error };
 
@@ -185,8 +170,9 @@ export async function resolveAlert(
     .from('alerts')
     .update({
       status: 'resolved',
+      resolution_note: parsed.data.resolutionNote,
     })
-    .eq('id', alertId)
+    .eq('id', parsed.data.alertId)
     .in('status', ['open', 'acknowledged'])
     .select('id');
 

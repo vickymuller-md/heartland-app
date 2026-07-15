@@ -106,4 +106,11 @@ export interface NiwTractionData {
    * Access requests awaiting manual review (status='pending' in access_requests).
    */
   pendingAccessRequests: number;
+  activeSandboxAccounts: number;
+  uniqueSandboxTesters30d: number;
+  sandboxViews30d: number;
+  sandboxFirstActions30d: number;
+  sandboxTaskCompletions30d: number;
+  sandboxActivationRate30d: number | null;
+  medianSandboxDurationSeconds: number | null;
 }
