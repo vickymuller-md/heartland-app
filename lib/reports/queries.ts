@@ -271,11 +271,19 @@ export async function getNiwTractionStats(): Promise<NiwTractionData> {
 
   const providerCount = totalProviders ?? 0;
   const adoption = adoptionSummary && typeof adoptionSummary === 'object'
-    ? adoptionSummary as Record<string, number>
+    ? adoptionSummary as Record<string, unknown>
     : {};
-  const sandboxViews30d = adoption.sandbox_views ?? 0;
-  const sandboxFirstActions30d = adoption.sandbox_first_actions ?? 0;
-  const uniqueSandboxTesters30d = adoption.unique_sandbox_testers ?? 0;
+  const metric = (key: string) => typeof adoption[key] === 'number' ? adoption[key] as number : 0;
+  const sandboxViews30d = metric('sandbox_views');
+  const sandboxFirstActions30d = metric('sandbox_first_actions');
+  const uniqueSandboxTesters30d = metric('unique_sandbox_testers');
+  const campaignSources = adoption.campaign_sources;
+  const campaignSources30d = campaignSources && typeof campaignSources === 'object'
+    ? Object.entries(campaignSources as Record<string, unknown>)
+      .filter((entry): entry is [string, number] => typeof entry[1] === 'number')
+      .map(([source, sessions]) => ({ source, sessions }))
+      .sort((a, b) => b.sessions - a.sessions || a.source.localeCompare(b.source))
+    : [];
 
   return {
     totalProviders: providerCount,
@@ -286,16 +294,17 @@ export async function getNiwTractionStats(): Promise<NiwTractionData> {
     monthlyGrowth,
     approvedProviders: providerCount,
     pendingAccessRequests: pendingAccessRequests ?? 0,
-    activeSandboxAccounts: adoption.active_sandbox_accounts ?? 0,
+    activeSandboxAccounts: metric('active_sandbox_accounts'),
     uniqueSandboxTesters30d,
     sandboxViews30d,
     sandboxFirstActions30d,
-    sandboxTaskCompletions30d: adoption.sandbox_task_completions ?? 0,
+    sandboxTaskCompletions30d: metric('sandbox_task_completions'),
     sandboxActivationRate30d: uniqueSandboxTesters30d > 0
       ? Math.round((sandboxFirstActions30d / uniqueSandboxTesters30d) * 100)
       : null,
-    medianSandboxDurationSeconds: adoption.median_session_duration_ms
-      ? Math.round(adoption.median_session_duration_ms / 1000)
+    medianSandboxDurationSeconds: metric('median_session_duration_ms')
+      ? Math.round(metric('median_session_duration_ms') / 1000)
       : null,
+    campaignSources30d,
   };
 }

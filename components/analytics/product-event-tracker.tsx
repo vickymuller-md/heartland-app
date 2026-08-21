@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { trackProductEvent, type ProductEventInput } from '@/lib/product-analytics/actions';
+import { getPublicDisseminationContext } from '@/lib/product-analytics/public-context';
 
 function getDeviceClass(): 'mobile' | 'tablet' | 'desktop' {
   if (window.innerWidth < 640) return 'mobile';
@@ -16,7 +17,8 @@ export function ProductEventTracker({
 }: Pick<ProductEventInput, 'eventName' | 'area'> & { trackDuration?: boolean }) {
   useEffect(() => {
     const eventId = crypto.randomUUID();
-    void trackProductEvent({ eventId, eventName, area, deviceClass: getDeviceClass() });
+    const publicContext = area === 'sandbox' ? getPublicDisseminationContext() : {};
+    void trackProductEvent({ eventId, eventName, area, deviceClass: getDeviceClass(), ...publicContext });
     if (!trackDuration) return;
 
     const startedAt = Date.now();
@@ -30,6 +32,7 @@ export function ProductEventTracker({
         eventId,
         deviceClass: getDeviceClass(),
         durationMs: Math.min(Date.now() - startedAt, 3_600_000),
+        ...publicContext,
       });
     };
     window.addEventListener('pagehide', recordDuration, { once: true });

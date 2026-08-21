@@ -41,6 +41,10 @@ const eventSchema = z.object({
   ]),
   deviceClass: z.enum(['mobile', 'tablet', 'desktop']).optional(),
   durationMs: z.number().int().min(0).max(3_600_000).optional(),
+  anonymousSessionId: z.uuid().optional(),
+  campaignSource: z.string().regex(/^[A-Za-z0-9._~-]{1,80}$/).optional(),
+  campaignMedium: z.string().regex(/^[A-Za-z0-9._~-]{1,80}$/).optional(),
+  campaignName: z.string().regex(/^[A-Za-z0-9._~-]{1,80}$/).optional(),
 });
 
 export type ProductEventInput = z.infer<typeof eventSchema>;
@@ -65,6 +69,11 @@ async function trackPublicSandboxEvent(data: ProductEventInput): Promise<void> {
   const requesterHash = createHmac('sha256', rateSecret)
     .update(`heartland-public-sandbox:${dailyBucket}:${clientAddress}`)
     .digest('hex');
+  const anonymousSessionHash = data.anonymousSessionId
+    ? createHmac('sha256', rateSecret)
+      .update(`heartland-public-session:v1:${data.anonymousSessionId}`)
+      .digest('hex')
+    : null;
 
   const { supabaseAdmin } = await import('@/lib/supabase/admin');
   const { error } = await supabaseAdmin.rpc('record_public_sandbox_event', {
@@ -73,6 +82,10 @@ async function trackPublicSandboxEvent(data: ProductEventInput): Promise<void> {
     p_event_name: data.eventName,
     p_device_class: data.deviceClass ?? null,
     p_duration_ms: data.durationMs ?? null,
+    p_session_hash: anonymousSessionHash,
+    p_campaign_source: data.campaignSource ?? null,
+    p_campaign_medium: data.campaignMedium ?? null,
+    p_campaign_name: data.campaignName ?? null,
   });
   if (error) console.error('[public-sandbox-telemetry] controlled RPC failed');
 }

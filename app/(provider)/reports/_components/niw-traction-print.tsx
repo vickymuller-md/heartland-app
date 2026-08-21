@@ -96,7 +96,7 @@ export const NiwTractionPrint = React.forwardRef<
         </div>
         <div className="border rounded-lg p-4 text-center">
           <div className="text-3xl font-bold text-violet-700">{data.uniqueSandboxTesters30d}</div>
-          <div className="text-xs text-gray-600 mt-1">Unique Sandbox Testers · 30d</div>
+          <div className="text-xs text-gray-600 mt-1">Unique Sandbox Sessions · 30d</div>
         </div>
         <div className="border rounded-lg p-4 text-center">
           <div className="text-3xl font-bold text-violet-700">{data.sandboxActivationRate30d === null ? '—' : `${data.sandboxActivationRate30d}%`}</div>
@@ -106,6 +106,18 @@ export const NiwTractionPrint = React.forwardRef<
           <div className="text-3xl font-bold text-violet-700">{data.medianSandboxDurationSeconds === null ? '—' : `${data.medianSandboxDurationSeconds}s`}</div>
           <div className="text-xs text-gray-600 mt-1">Median Sandbox Session · 30d</div>
         </div>
+      </div>
+
+      <div className="mb-6 border rounded-lg p-3">
+        <h2 className="text-sm font-semibold mb-1">Dissemination Sources · 30d</h2>
+        <p className="text-xs text-gray-600">
+          {data.campaignSources30d.length === 0
+            ? 'No campaign-tagged sandbox sessions recorded.'
+            : data.campaignSources30d
+              .slice(0, 5)
+              .map(({ source, sessions }) => `${source}: ${sessions}`)
+              .join(' · ')}
+        </p>
       </div>
 
       {/* Geographic Distribution */}

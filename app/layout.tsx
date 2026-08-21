@@ -3,6 +3,7 @@ import { Inter, Geist, Sora, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { DisclaimerFooter } from "@/components/disclaimers/disclaimer-footer";
+import { PublicWebAnalytics } from "@/components/analytics/public-web-analytics";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -59,6 +60,7 @@ export default function RootLayout({
       <body className="min-h-screen flex flex-col bg-white antialiased">
         <div className="flex-1">{children}</div>
         <DisclaimerFooter />
+        <PublicWebAnalytics />
       </body>
     </html>
   );

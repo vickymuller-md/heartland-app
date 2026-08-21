@@ -113,4 +113,5 @@ export interface NiwTractionData {
   sandboxTaskCompletions30d: number;
   sandboxActivationRate30d: number | null;
   medianSandboxDurationSeconds: number | null;
+  campaignSources30d: Array<{ source: string; sessions: number }>;
 }

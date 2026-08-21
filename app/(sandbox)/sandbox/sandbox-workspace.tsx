@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Activity, BarChart3, BookOpenCheck, ClipboardList, HeartPulse, RotateCcw, Stethoscope, Users } from 'lucide-react';
 import { trackProductEvent } from '@/lib/product-analytics/actions';
+import { getPublicDisseminationContext } from '@/lib/product-analytics/public-context';
 import { SANDBOX_PATHWAYS, SANDBOX_PATIENTS, SANDBOX_SECTIONS, SANDBOX_TASKS } from '@/lib/sandbox/fixtures';
 import type { SandboxDemoState, SandboxSectionId, SandboxTask, SandboxTaskState, SandboxTaskStatus } from '@/lib/sandbox/types';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,18 @@ const TASK_STATUSES: SandboxTaskStatus[] = ['open', 'reviewed', 'actioned', 'awa
 const PATIENT_CHECK_IN_IDS = new Set(SANDBOX_PATIENTS.flatMap((patient) =>
   ['weight', 'meds', 'symptoms', 'education', 'message', 'call'].map((suffix) => `${patient.id}-${suffix}`),
 ));
+
+function trackSandboxEvent(
+  eventName: 'sandbox_returned' | 'sandbox_first_action' | 'sandbox_task_completed',
+  durationMs?: number,
+) {
+  void trackProductEvent({
+    eventName,
+    area: 'sandbox',
+    durationMs,
+    ...getPublicDisseminationContext(),
+  });
+}
 
 function initialTaskStates(): Record<string, SandboxTaskState> {
   return Object.fromEntries(SANDBOX_TASKS.map((task) => [task.id, {
@@ -125,7 +138,7 @@ export function SandboxWorkspace() {
         if (restored) {
           setDemo(restored);
           firstActionTracked.current = hasMeaningfulAction(restored);
-          void trackProductEvent({ eventName: 'sandbox_returned', area: 'sandbox' });
+          trackSandboxEvent('sandbox_returned');
         }
       }
     } catch {
@@ -147,11 +160,10 @@ export function SandboxWorkspace() {
   function trackFirstAction() {
     if (firstActionTracked.current) return;
     firstActionTracked.current = true;
-    void trackProductEvent({
-      eventName: 'sandbox_first_action',
-      area: 'sandbox',
-      durationMs: Math.min(Date.now() - startedAt.current, 3_600_000),
-    });
+    trackSandboxEvent(
+      'sandbox_first_action',
+      Math.min(Date.now() - startedAt.current, 3_600_000),
+    );
   }
 
   function navigate(section: SandboxSectionId) {
@@ -178,7 +190,7 @@ export function SandboxWorkspace() {
         },
       },
     }));
-    if (status === 'closed') void trackProductEvent({ eventName: 'sandbox_task_completed', area: 'sandbox' });
+    if (status === 'closed') trackSandboxEvent('sandbox_task_completed');
   }
 
   function bulkReview(tasks: SandboxTask[]) {

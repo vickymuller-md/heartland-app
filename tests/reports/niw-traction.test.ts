@@ -26,12 +26,14 @@ describe('REPT-06 NiwTractionData type shape', () => {
       sandboxTaskCompletions30d: 19,
       sandboxActivationRate30d: 53,
       medianSandboxDurationSeconds: 142,
+      campaignSources30d: [{ source: 'rural_health_outreach', sessions: 6 }],
     };
     expect(data.totalProviders).toBe(5);
     expect(data.approvedProviders).toBe(5);
     expect(data.pendingAccessRequests).toBe(3);
     expect(data.uniqueSandboxTesters30d).toBe(10);
     expect(data.sandboxActivationRate30d).toBe(53);
+    expect(data.campaignSources30d[0]).toEqual({ source: 'rural_health_outreach', sessions: 6 });
     expect(data.activeStates).toContain('California');
     expect(data.monthlyGrowth[0].month).toMatch(/^\d{4}-\d{2}$/);
   });
