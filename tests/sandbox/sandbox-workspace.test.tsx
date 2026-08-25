@@ -10,7 +10,7 @@ vi.mock('@/lib/product-analytics/actions', () => ({
 describe('complete synthetic sandbox dataset', () => {
   it('covers the product journey with deep patient and workflow fixtures', () => {
     expect(SANDBOX_SECTIONS.map((section) => section.id)).toEqual([
-      'command', 'daily-loop', 'patient-360', 'pathways', 'coordination', 'patient-view', 'impact',
+      'command', 'daily-loop', 'outreach', 'patient-360', 'pathways', 'coordination', 'patient-view', 'impact',
     ]);
     expect(SANDBOX_TASKS).toHaveLength(8);
     expect(new Set(SANDBOX_TASKS.map((task) => task.priority))).toEqual(new Set(['now', 'today', 'week', 'watching']));
@@ -46,6 +46,10 @@ describe('SandboxWorkspace', () => {
 
     fireEvent.click(screen.getByTestId('sandbox-nav-daily-loop'));
     expect(screen.getByTestId('sandbox-daily-loop')).toBeInTheDocument();
+    expect(screen.getByTestId('daily-loop-outreach')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('sandbox-nav-outreach'));
+    expect(screen.getByTestId('sandbox-outreach')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('sandbox-nav-patient-360'));
     expect(screen.getByTestId('sandbox-patient-360')).toBeInTheDocument();

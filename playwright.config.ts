@@ -31,6 +31,10 @@ export default defineConfig({
       SUPABASE_SERVICE_ROLE_KEY: '<e2e-service-placeholder>',
       CRON_SECRET: 'e2e-cron-placeholder',
       ACCESS_REQUEST_RATE_LIMIT_SECRET: 'e2e-rate-limit-placeholder',
+      // Deterministic in every environment: e2e always exercises the fallback
+      // path; no LLM vendor call ever leaves the suite.
+      SANDBOX_AI_ENABLED: 'false',
+      ANTHROPIC_API_KEY: '',
     },
   },
 });

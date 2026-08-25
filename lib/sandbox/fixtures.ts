@@ -14,6 +14,7 @@ export const SANDBOX_SECTIONS: Array<{
 }> = [
   { id: 'command', shortLabel: 'Start', title: 'Command Center', description: 'Product map, synthetic scenario, and guided tour.' },
   { id: 'daily-loop', shortLabel: 'Daily Loop', title: 'Daily Loop', description: 'Prioritized work, signal coalescence, owners, deadlines, and outcomes.' },
+  { id: 'outreach', shortLabel: 'Outreach', title: 'Automated Outreach', description: 'AI-assisted call simulations with rule-based escalation and a human review queue.' },
   { id: 'patient-360', shortLabel: 'Patient 360', title: 'Patient 360', description: '60-second brief, monitoring, medications, timeline, and care plan.' },
   { id: 'pathways', shortLabel: 'Pathways', title: 'Protocol Pathways', description: 'HEARTLAND tools connected to the current workflow.' },
   { id: 'coordination', shortLabel: 'Coordination', title: 'Care Coordination', description: 'Team workload, discharge follow-up, handoff, and access controls.' },

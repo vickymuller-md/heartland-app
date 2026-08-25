@@ -31,7 +31,7 @@ export default function PublicLayout({
       </main>
       <Colophon
         currentSite="app"
-        version="v1.1.0"
+        version="v1.2.0"
         legal={
           <>
             Built by Vicky Muller Ferreira, MD. Public tools and the sandbox use synthetic data; tester registration may collect account contact information. Authenticated workspaces remain controlled evaluation only. Real PHI and unsupervised clinical use are not authorized until organizational release gates are approved.

@@ -72,6 +72,21 @@ export const CLINICAL_RULE_REGISTRY: readonly ClinicalRuleSet[] = [
     releaseBoundary: 'Facility staffing, contact ownership, and degraded workflow must be accepted.',
   },
   {
+    id: 'ai-outreach-structuring',
+    name: 'AI-assisted check-in conversation structuring',
+    version: 'app-2026-08',
+    source: 'HEARTLAND Protocol v3.3, Module 5.2; LLM structures conversation only',
+    implementation: [
+      'lib/sandbox-ai/engine.ts',
+      'lib/sandbox-ai/script.ts',
+      'lib/sandbox-ai/prompt.ts',
+    ],
+    ownerRole: 'Clinical Safety Lead (appointment required)',
+    reviewStatus: 'pending_independent_review',
+    releaseBoundary:
+      'Synthetic demonstration only; AI structures conversation and never determines escalation; deterministic red-flag rules govern.',
+  },
+  {
     id: 'ckm-classification',
     name: 'Cardiovascular-kidney-metabolic stage classification',
     version: 'aha-advisory-app-2026-07',

@@ -1,15 +1,16 @@
-import { Activity, ArrowRight, BookOpenCheck, ClipboardCheck, HeartPulse, Network, ShieldCheck, Users } from 'lucide-react';
+import { Activity, ArrowRight, BookOpenCheck, ClipboardCheck, HeartPulse, Network, PhoneCall, ShieldCheck, Users } from 'lucide-react';
 import { SANDBOX_PATIENTS, SANDBOX_SECTIONS, SANDBOX_TASKS } from '@/lib/sandbox/fixtures';
 import type { SandboxSectionId, SandboxTaskState } from '@/lib/sandbox/types';
 import { Button } from '@/components/ui/button';
 import { MetricCard, SectionHeading, SyntheticBanner } from './sandbox-ui';
 
-const ICONS = [Activity, ClipboardCheck, HeartPulse, BookOpenCheck, Network, Users, ShieldCheck];
+const ICONS = [Activity, PhoneCall, ClipboardCheck, HeartPulse, BookOpenCheck, Network, Users, ShieldCheck];
 
-export function SandboxCommandCenter({ taskStates, visitedSections, onNavigate }: {
+export function SandboxCommandCenter({ taskStates, visitedSections, onNavigate, automatedCallsCount }: {
   taskStates: Record<string, SandboxTaskState>;
   visitedSections: SandboxSectionId[];
   onNavigate: (section: SandboxSectionId) => void;
+  automatedCallsCount: number;
 }) {
   const closed = Object.values(taskStates).filter((state) => state.status === 'closed').length;
   const actioned = Object.values(taskStates).filter((state) => ['actioned', 'awaiting', 'closed'].includes(state.status)).length;
@@ -54,15 +55,16 @@ export function SandboxCommandCenter({ taskStates, visitedSections, onNavigate }
         Names, events, values, messages, access relationships, and outcomes are fictional. Interaction state stays in this browser and never writes to clinical tables.
       </SyntheticBanner>
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Sandbox product metrics">
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="Sandbox product metrics">
         <MetricCard label="Synthetic patients" value={SANDBOX_PATIENTS.length} detail="Different rural settings and monitoring tracks." tone="blue" />
         <MetricCard label="Operational items" value={SANDBOX_TASKS.length} detail="Now, Today, Week, and Watching." tone="amber" />
+        <MetricCard label="Automated calls" value={automatedCallsCount} detail="AI-assisted outreach simulations with rule-based escalation." tone="blue" />
         <MetricCard label="Actions progressed" value={actioned} detail="Reviewed, actioned, awaiting, or closed." tone="violet" />
         <MetricCard label="Loops closed" value={closed} detail="Every closure requires a synthetic outcome." tone="emerald" />
       </section>
 
       <section className="space-y-5">
-        <SectionHeading eyebrow="Product map" title="Seven connected experiences" description="The sandbox mirrors the app’s operational logic instead of presenting isolated screenshots." />
+        <SectionHeading eyebrow="Product map" title="Eight connected experiences" description="The sandbox mirrors the app’s operational logic instead of presenting isolated screenshots." />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {SANDBOX_SECTIONS.filter((section) => section.id !== 'command').map((section, index) => {
             const Icon = ICONS[index % ICONS.length];

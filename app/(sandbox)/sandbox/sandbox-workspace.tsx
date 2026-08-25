@@ -1,14 +1,17 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Activity, BarChart3, BookOpenCheck, ClipboardList, HeartPulse, RotateCcw, Stethoscope, Users } from 'lucide-react';
+import { Activity, BarChart3, BookOpenCheck, ClipboardList, HeartPulse, PhoneCall, RotateCcw, Stethoscope, Users } from 'lucide-react';
 import { trackProductEvent } from '@/lib/product-analytics/actions';
 import { getPublicDisseminationContext } from '@/lib/product-analytics/public-context';
+import { OUTREACH_TRANSCRIPTS, outreachWorkItems, type SimulatedCallTranscript } from '@/lib/sandbox-ai/fixtures';
 import { SANDBOX_PATHWAYS, SANDBOX_PATIENTS, SANDBOX_SECTIONS, SANDBOX_TASKS } from '@/lib/sandbox/fixtures';
-import type { SandboxDemoState, SandboxSectionId, SandboxTask, SandboxTaskState, SandboxTaskStatus } from '@/lib/sandbox/types';
+import type { AiOutreachRun, SandboxDemoState, SandboxSectionId, SandboxTask, SandboxTaskState, SandboxTaskStatus } from '@/lib/sandbox/types';
+import { RED_FLAG_CRITERIA } from '@/lib/vitals/constants';
 import { Button } from '@/components/ui/button';
 import { SandboxCommandCenter } from './_components/sandbox-command-center';
 import { SandboxDailyLoop } from './_components/sandbox-daily-loop';
+import { SandboxOutreach } from './_components/sandbox-outreach';
 import { SandboxPatientWorkspace } from './_components/sandbox-patient-workspace';
 import { SandboxPathways } from './_components/sandbox-pathways';
 import { SandboxCoordination } from './_components/sandbox-coordination';
@@ -17,7 +20,7 @@ import { SandboxImpact } from './_components/sandbox-impact';
 
 const SANDBOX_STORAGE_KEY = 'heartland_synthetic_sandbox_v2';
 const MAX_LOCAL_AGE_MS = 7 * 86_400_000;
-const SECTION_ICONS = [Stethoscope, ClipboardList, Activity, BookOpenCheck, Users, HeartPulse, BarChart3];
+const SECTION_ICONS = [Stethoscope, ClipboardList, PhoneCall, Activity, BookOpenCheck, Users, HeartPulse, BarChart3];
 const TASK_STATUSES: SandboxTaskStatus[] = ['open', 'reviewed', 'actioned', 'awaiting', 'closed'];
 const PATIENT_CHECK_IN_IDS = new Set(SANDBOX_PATIENTS.flatMap((patient) =>
   ['weight', 'meds', 'symptoms', 'education', 'message', 'call'].map((suffix) => `${patient.id}-${suffix}`),
@@ -52,8 +55,31 @@ function initialDemoState(): SandboxDemoState {
     exploredPathways: [],
     patientCheckIns: [],
     documentedActions: [],
+    aiOutreachRuns: [],
     savedAt: Date.now(),
   };
+}
+
+const OUTREACH_DISPOSITIONS = new Set<AiOutreachRun['disposition']>(['emergency', 'escalated', 'routine', 'no_answer']);
+const RED_FLAG_IDS = new Set<string>(Object.keys(RED_FLAG_CRITERIA));
+
+function restoreOutreachRuns(value: unknown): AiOutreachRun[] {
+  if (!Array.isArray(value)) return [];
+  const runs: AiOutreachRun[] = [];
+  for (const item of value.slice(0, 20)) {
+    if (!isRecord(item)) continue;
+    if (typeof item.id !== 'string' || !/^ai-run-[a-z0-9]{1,12}$/.test(item.id)) continue;
+    if (runs.some((run) => run.id === item.id)) continue;
+    if (typeof item.disposition !== 'string' || !OUTREACH_DISPOSITIONS.has(item.disposition as AiOutreachRun['disposition'])) continue;
+    runs.push({
+      id: item.id,
+      disposition: item.disposition as AiOutreachRun['disposition'],
+      patientName: safeString(item.patientName, 'Synthetic persona', 60),
+      atLabel: safeString(item.atLabel, 'Earlier', 40),
+      redFlagIds: safeStringList(item.redFlagIds, RED_FLAG_IDS, 5),
+    });
+  }
+  return runs;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -110,6 +136,7 @@ function restoreDemoState(value: unknown): SandboxDemoState | null {
     exploredPathways: safeStringList(value.exploredPathways, pathwayIds),
     patientCheckIns: safeStringList(value.patientCheckIns, PATIENT_CHECK_IN_IDS),
     documentedActions: safeStringList(value.documentedActions, undefined, 20),
+    aiOutreachRuns: restoreOutreachRuns(value.aiOutreachRuns),
     savedAt: value.savedAt,
   };
 }
@@ -118,11 +145,15 @@ function hasMeaningfulAction(state: SandboxDemoState): boolean {
   return Object.values(state.taskStates).some((task) => task.status !== 'open')
     || state.exploredPathways.length > 0
     || state.patientCheckIns.length > 0
-    || state.documentedActions.length > 0;
+    || state.documentedActions.length > 0
+    || state.aiOutreachRuns.length > 0;
 }
 
 export function SandboxWorkspace() {
   const [demo, setDemo] = useState<SandboxDemoState>(initialDemoState);
+  // Live transcripts are session-local by design (never persisted); only the
+  // run metadata in demo.aiOutreachRuns survives a reload.
+  const [liveCalls, setLiveCalls] = useState<SimulatedCallTranscript[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const startedAt = useRef(Date.now());
   const firstActionTracked = useRef(false);
@@ -228,6 +259,21 @@ export function SandboxWorkspace() {
     setDemo((current) => ({ ...current, patientCheckIns: current.patientCheckIns.includes(checkInId) ? current.patientCheckIns : [...current.patientCheckIns, checkInId] }));
   }
 
+  function recordOutreachRun(transcript: SimulatedCallTranscript) {
+    trackFirstAction();
+    setLiveCalls((current) => [transcript, ...current].slice(0, 10));
+    setDemo((current) => ({
+      ...current,
+      aiOutreachRuns: [{
+        id: transcript.id,
+        patientName: transcript.patientName,
+        disposition: transcript.disposition,
+        redFlagIds: transcript.redFlags.map((flag) => flag.id),
+        atLabel: 'This visit',
+      }, ...current.aiOutreachRuns].slice(0, 20),
+    }));
+  }
+
   function reassign(taskId: string, owner: string) {
     trackFirstAction();
     setDemo((current) => ({ ...current, taskStates: { ...current.taskStates, [taskId]: { ...current.taskStates[taskId], owner, updatedLabel: 'Reassigned this visit' } } }));
@@ -243,13 +289,14 @@ export function SandboxWorkspace() {
 
   const sectionContent = (() => {
     switch (demo.selectedSection) {
-      case 'daily-loop': return <SandboxDailyLoop taskStates={demo.taskStates} onTaskState={updateTask} onOpenPatient={openPatient} onBulkReview={bulkReview} />;
+      case 'daily-loop': return <SandboxDailyLoop taskStates={demo.taskStates} onTaskState={updateTask} onOpenPatient={openPatient} onBulkReview={bulkReview} outreachItems={outreachWorkItems(demo.aiOutreachRuns)} onOpenOutreach={() => navigate('outreach')} />;
+      case 'outreach': return <SandboxOutreach liveCalls={liveCalls} runs={demo.aiOutreachRuns} onLiveCall={recordOutreachRun} />;
       case 'patient-360': return <SandboxPatientWorkspace patient={selectedPatient} documentedActions={demo.documentedActions} onPatientChange={(patientId) => setDemo((current) => ({ ...current, selectedPatientId: patientId }))} onDocumentAction={documentAction} />;
       case 'pathways': return <SandboxPathways exploredPathways={demo.exploredPathways} onExplore={explorePathway} />;
       case 'coordination': return <SandboxCoordination taskStates={demo.taskStates} onReassign={reassign} onDocumentAction={documentAction} />;
       case 'patient-view': return <SandboxPatientView patient={selectedPatient} patientCheckIns={demo.patientCheckIns} onCheckIn={checkIn} />;
       case 'impact': return <SandboxImpact visitedSections={demo.visitedSections} exploredPathways={demo.exploredPathways} taskStates={demo.taskStates} documentedActions={demo.documentedActions} patientCheckIns={demo.patientCheckIns} onReset={reset} />;
-      default: return <SandboxCommandCenter taskStates={demo.taskStates} visitedSections={demo.visitedSections} onNavigate={navigate} />;
+      default: return <SandboxCommandCenter taskStates={demo.taskStates} visitedSections={demo.visitedSections} onNavigate={navigate} automatedCallsCount={OUTREACH_TRANSCRIPTS.length + demo.aiOutreachRuns.length} />;
     }
   })();
 

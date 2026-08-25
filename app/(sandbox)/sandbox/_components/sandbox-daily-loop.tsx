@@ -1,11 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, Eye, PauseCircle, PlayCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, Eye, PauseCircle, PhoneCall, PlayCircle } from 'lucide-react';
+import type { OutreachWorkItem } from '@/lib/sandbox-ai/fixtures';
 import { SANDBOX_TASKS } from '@/lib/sandbox/fixtures';
 import type { SandboxPriority, SandboxTask, SandboxTaskState, SandboxTaskStatus } from '@/lib/sandbox/types';
 import { Button } from '@/components/ui/button';
-import { MetricCard, SectionHeading, SeverityPill, StatusPill, SyntheticBanner } from './sandbox-ui';
+import { MetricCard, OutreachDispositionPill, SectionHeading, SeverityPill, StatusPill, SyntheticBanner } from './sandbox-ui';
 
 const PRIORITIES: Array<{ id: 'all' | SandboxPriority; label: string }> = [
   { id: 'all', label: 'All work' }, { id: 'now', label: 'Now' }, { id: 'today', label: 'Today' },
@@ -18,11 +19,13 @@ const CLOSE_OUTCOMES = [
   'Routed to clinical owner for independent review',
 ];
 
-export function SandboxDailyLoop({ taskStates, onTaskState, onOpenPatient, onBulkReview }: {
+export function SandboxDailyLoop({ taskStates, onTaskState, onOpenPatient, onBulkReview, outreachItems, onOpenOutreach }: {
   taskStates: Record<string, SandboxTaskState>;
   onTaskState: (task: SandboxTask, status: SandboxTaskStatus, outcome?: string) => void;
   onOpenPatient: (patientId: string) => void;
   onBulkReview: (tasks: SandboxTask[]) => void;
+  outreachItems: OutreachWorkItem[];
+  onOpenOutreach: () => void;
 }) {
   const [priority, setPriority] = useState<'all' | SandboxPriority>('all');
   const [closingTaskId, setClosingTaskId] = useState<string | null>(null);
@@ -110,6 +113,30 @@ export function SandboxDailyLoop({ taskStates, onTaskState, onOpenPatient, onBul
             </article>
           );
         })}
+      </section>
+
+      <section className="rounded-2xl border bg-white p-5" aria-label="Work items from automated outreach" data-testid="daily-loop-outreach">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-bold text-slate-950">From automated outreach (demonstration)</h3>
+            <p className="mt-1 text-xs text-slate-500">Priority set by registered clinical rules · conversation structured by AI.</p>
+          </div>
+          <Button variant="outline" className="min-h-11" onClick={onOpenOutreach}><PhoneCall className="mr-2 size-4" /> Open outreach</Button>
+        </div>
+        <ul className="mt-4 space-y-2">
+          {outreachItems.map((item) => (
+            <li key={item.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 p-3 text-sm">
+              <span className="mr-auto min-w-40 font-semibold text-slate-900">{item.patientName}</span>
+              <OutreachDispositionPill disposition={item.disposition} />
+              <span className="text-xs text-slate-500">{item.atLabel}</span>
+              {(item.redFlagMessages.length > 0 || item.note) && (
+                <span className="w-full text-xs leading-5 text-slate-600">
+                  {item.redFlagMessages.length > 0 ? item.redFlagMessages.join(' · ') : item.note}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
       </section>
 
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">

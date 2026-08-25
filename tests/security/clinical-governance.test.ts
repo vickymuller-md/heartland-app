@@ -12,6 +12,7 @@ describe('clinical rule release governance', () => {
       'gdmt-pathways',
       'titration-safety-gates',
       'discharge-followup',
+      'ai-outreach-structuring',
       'ckm-classification',
     ];
     expect(CLINICAL_RULE_REGISTRY.map((ruleSet) => ruleSet.id)).toEqual(expected);

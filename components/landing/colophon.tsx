@@ -76,7 +76,7 @@ export function Colophon() {
 
         <div className="mt-14 flex flex-col gap-3 border-t border-grid pt-6 font-editorial text-[12.5px] text-stone md:flex-row md:items-center md:justify-between">
           <p>© 2026 Vicky Muller Ferreira, MD · Released under MIT</p>
-          <p>HEARTLAND App v1.1.0 · open source</p>
+          <p>HEARTLAND App v1.2.0 · open source</p>
         </div>
       </div>
     </footer>

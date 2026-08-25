@@ -51,7 +51,7 @@ export default async function Home() {
       <AccessCta />
       <Colophon
         currentSite="app"
-        version="v1.1.0"
+        version="v1.2.0"
         legal={
           <>
             Built by Vicky Muller Ferreira, MD. For licensed clinicians only.

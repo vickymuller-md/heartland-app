@@ -23,6 +23,11 @@ const eventSchema = z.object({
     'sandbox_first_action',
     'sandbox_task_completed',
     'sandbox_returned',
+    'ai_checkin_started',
+    'ai_checkin_completed',
+    'ai_checkin_fallback',
+    'ai_call_sim_run',
+    'ai_escalation_demonstrated',
     'queue_page_view',
     'fhir_export_created',
     'offline_draft_saved',
@@ -54,6 +59,11 @@ const PUBLIC_SANDBOX_EVENTS = new Set<ProductEventInput['eventName']>([
   'sandbox_first_action',
   'sandbox_task_completed',
   'sandbox_returned',
+  'ai_checkin_started',
+  'ai_checkin_completed',
+  'ai_checkin_fallback',
+  'ai_call_sim_run',
+  'ai_escalation_demonstrated',
 ]);
 
 async function trackPublicSandboxEvent(data: ProductEventInput): Promise<void> {

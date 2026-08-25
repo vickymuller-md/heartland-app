@@ -1,6 +1,7 @@
 export type SandboxSectionId =
   | 'command'
   | 'daily-loop'
+  | 'outreach'
   | 'patient-360'
   | 'pathways'
   | 'coordination'
@@ -111,6 +112,15 @@ export interface SandboxTaskState {
   updatedLabel: string;
 }
 
+/** Persisted record of one live simulated outreach call (metadata only; transcripts are session-local). */
+export interface AiOutreachRun {
+  id: string;
+  patientName: string;
+  disposition: 'emergency' | 'escalated' | 'routine' | 'no_answer';
+  redFlagIds: string[];
+  atLabel: string;
+}
+
 export interface SandboxDemoState {
   taskStates: Record<string, SandboxTaskState>;
   selectedPatientId: string;
@@ -119,5 +129,6 @@ export interface SandboxDemoState {
   exploredPathways: string[];
   patientCheckIns: string[];
   documentedActions: string[];
+  aiOutreachRuns: AiOutreachRun[];
   savedAt: number;
 }

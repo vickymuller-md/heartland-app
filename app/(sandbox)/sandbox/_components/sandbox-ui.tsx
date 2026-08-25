@@ -72,6 +72,22 @@ export function StatusPill({ status }: { status: SandboxTaskStatus }) {
   return <span className={cn('rounded-full px-2 py-1 text-xs font-semibold capitalize', styles[status])}>{status}</span>;
 }
 
+export function OutreachDispositionPill({ disposition }: { disposition: 'emergency' | 'escalated' | 'routine' | 'no_answer' }) {
+  const styles = {
+    emergency: 'border-red-300 bg-red-50 text-red-800',
+    escalated: 'border-amber-300 bg-amber-50 text-amber-900',
+    routine: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+    no_answer: 'border-slate-300 bg-slate-100 text-slate-700',
+  };
+  const labels = {
+    emergency: 'Emergency',
+    escalated: 'Escalated to human review',
+    routine: 'Routine',
+    no_answer: 'No answer · human follow-up',
+  };
+  return <span className={cn('rounded-full border px-2 py-1 text-xs font-semibold', styles[disposition])}>{labels[disposition]}</span>;
+}
+
 export function WeightTrend({ data }: { data: SandboxVitalPoint[] }) {
   if (data.length < 2) return <p className="text-sm text-amber-800">Insufficient trend data.</p>;
   const weights = data.map((point) => point.weight);
