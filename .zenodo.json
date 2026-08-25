@@ -1,6 +1,6 @@
 {
   "title": "HEARTLAND Protocol App — Clinical Implementation Companion for Rural Heart Failure",
-  "description": "Progressive Web Application operationalizing the HEARTLAND Protocol (Heart failure Evidence-based Access in Rural Treatment, Linking Advanced Network Delivery) for primary care-led heart failure workflows in rural and resource-limited United States settings. Version 1.1.0 adds a no-login public sandbox with synthetic patient journeys, an operational Daily Loop and patient brief, governed multi-organization workspaces, protected provider access with MFA, privacy-minimized adoption telemetry, and expanded reliability and interoperability safeguards. Built with Next.js 16, React 19, TypeScript, and Supabase. The public sandbox contains synthetic data only. This software supports implementation and evaluation; it does not establish clinical efficacy, replace clinical judgment, or authorize unsupervised patient care.",
+  "description": "Progressive Web Application operationalizing the HEARTLAND Protocol (Heart failure Evidence-based Access in Rural Treatment, Linking Advanced Network Delivery) for primary care-led heart failure workflows in rural and resource-limited United States settings. Version 1.2.0 adds an AI-assisted outreach demonstration to the public synthetic sandbox: a conversational daily check-in in which a large language model structures free-text answers while registered deterministic red-flag rules decide every disposition, a deterministic form fallback, simulated automated outreach calls with structured-extraction review and SBAR handoff drafts, layered usage budgets, and anonymous content-free telemetry. Built with Next.js 16, React 19, TypeScript, and Supabase. The public sandbox contains synthetic data only. This software supports implementation and evaluation; it does not establish clinical efficacy, replace clinical judgment, or authorize unsupervised patient care.",
   "creators": [
     {
       "name": "Muller Ferreira, Vicky",
@@ -25,8 +25,8 @@
     "open source health software"
   ],
   "license": "MIT",
-  "version": "1.1.0",
-  "publication_date": "2026-07-15",
+  "version": "1.2.0",
+  "publication_date": "2026-08-25",
   "upload_type": "software",
   "access_right": "open",
   "language": "eng",
