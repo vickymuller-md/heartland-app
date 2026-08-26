@@ -92,6 +92,12 @@ Protocol content and research materials are available through the existing depos
 - **OSF**: [`10.17605/OSF.IO/YUSGH`](https://doi.org/10.17605/OSF.IO/YUSGH)
 - **medRxiv**: three complementary systematic reviews registered in PROSPERO
 
+## Software preservation
+
+Software Heritage snapshot (archived 2026-08-25): [`swh:1:snp:3e39be4952047172a2c1a131c2965bd580a6dc69`](https://archive.softwareheritage.org/swh:1:snp:3e39be4952047172a2c1a131c2965bd580a6dc69/)
+
+This persistent SWHID identifies the repository snapshot captured on that date; archival does not imply endorsement or validation.
+
 ## License
 
 [MIT](./LICENSE). The app is free to use, modify, and redistribute for research, education, and professional implementation support — subject to the release and intended-use boundaries above.

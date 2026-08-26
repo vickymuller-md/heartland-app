@@ -72,6 +72,11 @@ export default async function Home() {
               { label: "Request clinical access", href: "/request-access" },
               { label: "Sign in", href: "/login" },
               { label: "About the protocol", href: "/about" },
+              {
+                label: "Software Heritage",
+                href: "https://archive.softwareheritage.org/swh:1:snp:3e39be4952047172a2c1a131c2965bd580a6dc69/",
+                external: true,
+              },
             ],
           },
         ]}

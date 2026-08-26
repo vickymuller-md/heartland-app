@@ -15,6 +15,9 @@ identifiers:
   - type: doi
     value: "10.5281/zenodo.19600593"
     description: "Concept DOI for all HEARTLAND Protocol App versions"
+  - type: swh
+    value: "swh:1:snp:3e39be4952047172a2c1a131c2965bd580a6dc69"
+    description: "Software Heritage snapshot archived 2026-08-25"
 abstract: >-
   Progressive Web Application operationalizing the HEARTLAND Protocol for
   primary care-led heart failure workflows in rural and resource-limited
