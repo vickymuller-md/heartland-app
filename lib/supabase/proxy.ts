@@ -75,8 +75,8 @@ function isStaticRoute(path: string): boolean {
       (prefix) => path === prefix || path.startsWith(`${prefix}/`),
     )
   ) return true;
-  // Static file extensions
-  if (/\.(svg|png|jpg|jpeg|gif|ico|css|js|woff2?)$/.test(path)) return true;
+  // Static file extensions (mp3: pre-generated outreach/call audio in public/)
+  if (/\.(svg|png|jpg|jpeg|gif|ico|css|js|woff2?|mp3)$/.test(path)) return true;
   return false;
 }
 
