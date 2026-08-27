@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { BookOpen, Check, HeartPulse, LockKeyhole, MessageSquareText, PhoneCall, Pill, Scale, ShieldAlert } from 'lucide-react';
+import { BookOpen, Check, HeartPulse, LockKeyhole, MessageSquareText, PhoneCall, PhoneIncoming, Pill, Scale, ShieldAlert } from 'lucide-react';
 import type { SandboxPatient } from '@/lib/sandbox/types';
 import { Button } from '@/components/ui/button';
 import { SandboxAiCheckIn } from './sandbox-ai-checkin';
+import { SandboxLiveCall } from './sandbox-live-call';
 import { SectionHeading, SyntheticBanner } from './sandbox-ui';
 
 export function SandboxPatientView({ patient, patientCheckIns, onCheckIn }: {
@@ -13,6 +14,7 @@ export function SandboxPatientView({ patient, patientCheckIns, onCheckIn }: {
   onCheckIn: (checkInId: string) => void;
 }) {
   const [showCheckIn, setShowCheckIn] = useState(false);
+  const [showLiveCall, setShowLiveCall] = useState(false);
   const symptomsTaskId = `${patient.id}-symptoms`;
   const tasks = [
     { id: `${patient.id}-weight`, icon: Scale, title: 'Record today’s weight', detail: patient.vitals.at(-1) ? `Last synthetic value: ${patient.vitals.at(-1)?.weight} lb` : 'No recent value' },
@@ -45,6 +47,27 @@ export function SandboxPatientView({ patient, patientCheckIns, onCheckIn }: {
                 patient={patient}
                 onComplete={() => onCheckIn(symptomsTaskId)}
                 onClose={() => setShowCheckIn(false)}
+              />
+            )}
+
+            {!showLiveCall && (
+              <button
+                type="button"
+                data-testid="open-live-call"
+                onClick={() => { setShowCheckIn(false); setShowLiveCall(true); }}
+                className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-left transition hover:border-emerald-400"
+              >
+                <span className="flex size-10 shrink-0 animate-pulse items-center justify-center rounded-full bg-emerald-700 text-white"><PhoneIncoming className="size-5" /></span>
+                <span><strong className="block text-sm text-slate-950">Incoming check-in call (simulated)</strong><span className="mt-0.5 block text-xs leading-5 text-slate-600">Answer the automated daily call and play the synthetic patient</span></span>
+              </button>
+            )}
+
+            {showLiveCall && (
+              <SandboxLiveCall
+                key={`call-${patient.id}`}
+                patient={patient}
+                onComplete={() => onCheckIn(`${patient.id}-call`)}
+                onClose={() => setShowLiveCall(false)}
               />
             )}
 

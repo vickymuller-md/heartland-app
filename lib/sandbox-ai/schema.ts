@@ -27,8 +27,9 @@ export const llmTurnSchema = z
   .object({
     say: z
       .object({
-        kind: z.enum(['question', 'ack_question', 'deflect_question']),
+        kind: z.enum(['question', 'ack_question', 'deflect_question', 'small_talk']),
         paraphrase: z.string().min(1).max(280),
+        smallTalk: z.string().max(200).nullable(),
       })
       .strict(),
     extracted: z.object({ ...extractionShape, unclear: z.boolean() }).strict(),
@@ -48,6 +49,19 @@ export function sanitizeParaphrase(paraphrase: string, canonical: string): strin
   const cleaned = paraphrase.replace(/\s+/g, ' ').trim();
   if (cleaned.length === 0 || cleaned.length > 280) return canonical;
   if (PARAPHRASE_BLOCKLIST.test(cleaned)) return canonical;
+  return cleaned;
+}
+
+/**
+ * Small-talk replies additionally may not ask anything back (a counter-question
+ * would derail the scripted check-in). Rejection falls back to a fixed warm ack.
+ */
+export const SMALL_TALK_FALLBACK_ACK = 'That sounds lovely — thank you for sharing.';
+
+export function sanitizeSmallTalk(reply: string | null): string {
+  const cleaned = (reply ?? '').replace(/\s+/g, ' ').trim();
+  if (cleaned.length === 0 || cleaned.length > 200) return SMALL_TALK_FALLBACK_ACK;
+  if (PARAPHRASE_BLOCKLIST.test(cleaned) || cleaned.includes('?')) return SMALL_TALK_FALLBACK_ACK;
   return cleaned;
 }
 
@@ -79,6 +93,8 @@ export const checkInRequestSchema = z
     state: checkInStateSchema,
     message: z.string().min(1).max(500),
     anonymousSessionId: z.uuid().optional(),
+    /** Simulated live call: also return per-message audio (clip refs / synthesized MP3). */
+    wantSpeech: z.boolean().optional(),
   })
   .strict();
 
@@ -126,10 +142,11 @@ export const CHECK_IN_TURN_TOOL_SCHEMA = {
     say: {
       type: 'object' as const,
       additionalProperties: false,
-      required: ['kind', 'paraphrase'],
+      required: ['kind', 'paraphrase', 'smallTalk'],
       properties: {
-        kind: { enum: ['question', 'ack_question', 'deflect_question'] },
+        kind: { enum: ['question', 'ack_question', 'deflect_question', 'small_talk'] },
         paraphrase: { type: 'string', maxLength: 280 },
+        smallTalk: { type: ['string', 'null'], maxLength: 200 },
       },
     },
     extracted: {

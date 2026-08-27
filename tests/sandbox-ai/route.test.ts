@@ -10,6 +10,7 @@ vi.mock('@/lib/supabase/admin', () => ({ supabaseAdmin: { rpc: rpcMock } }));
 
 import { POST } from '@/app/api/sandbox-ai/checkin/route';
 import { createInitialState, emptyExtraction } from '@/lib/sandbox-ai/engine';
+import { SCRIPT_QUESTIONS } from '@/lib/sandbox-ai/script';
 
 function checkInRequest(body: unknown): Request {
   return new Request('http://localhost/api/sandbox-ai/checkin', {
@@ -29,6 +30,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
 
@@ -73,7 +75,7 @@ describe('POST /api/sandbox-ai/checkin', () => {
   it('runs a turn and returns the engine response on the happy path', async () => {
     rpcMock.mockResolvedValueOnce({ data: true, error: null });
     runLlmTurnMock.mockResolvedValueOnce({
-      say: { kind: 'question', paraphrase: 'And what did the scale show today?' },
+      say: { kind: 'question', paraphrase: 'And what did the scale show today?', smallTalk: null },
       extracted: { ...emptyExtraction(), unclear: false, chestPainOrSyncope: false },
     });
 
@@ -86,10 +88,62 @@ describe('POST /api/sandbox-ai/checkin', () => {
     expect(body.fallback).toBe(false);
     expect(body.state.phase).toBe('q2_weight');
     expect(body.done).toBe(false);
+    expect(body.speech).toBeUndefined();
 
     const [, rpcArgs] = rpcMock.mock.calls[0];
     expect(rpcMock.mock.calls[0][0]).toBe('consume_sandbox_ai_turn');
     expect(rpcArgs.p_requester_hash).toMatch(/^[0-9a-f]{64}$/);
     expect(rpcArgs.p_session_hash).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('attaches clip refs for canonical lines and synthesized audio for dynamic ones', async () => {
+    vi.stubEnv('SANDBOX_TTS_ENABLED', 'true');
+    vi.stubEnv('ELEVENLABS_API_KEY', 'el-key');
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: async () => new TextEncoder().encode('mp3').buffer,
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    rpcMock.mockResolvedValueOnce({ data: true, error: null });
+    runLlmTurnMock.mockResolvedValueOnce({
+      say: {
+        kind: 'small_talk',
+        paraphrase: SCRIPT_QUESTIONS.q2_weight.canonical,
+        smallTalk: 'What a treat to have your grandson visit.',
+      },
+      extracted: { ...emptyExtraction(), unclear: false, chestPainOrSyncope: false },
+    });
+
+    const response = await POST(checkInRequest({ ...validBody, wantSpeech: true }));
+    const body = await response.json();
+    expect(body.assistantMessages).toEqual([
+      'What a treat to have your grandson visit.',
+      SCRIPT_QUESTIONS.q2_weight.canonical,
+    ]);
+    expect(body.speech).toEqual([
+      { kind: 'audio', mp3Base64: Buffer.from('mp3').toString('base64') },
+      { kind: 'clip', clipId: 'q2_weight' },
+    ]);
+    // Only the dynamic line is synthesized; canonical lines stay static clips.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves dynamic lines text-only when the TTS kill switch is off', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    rpcMock.mockResolvedValueOnce({ data: true, error: null });
+    runLlmTurnMock.mockResolvedValueOnce({
+      say: {
+        kind: 'small_talk',
+        paraphrase: SCRIPT_QUESTIONS.q2_weight.canonical,
+        smallTalk: 'What a treat to have your grandson visit.',
+      },
+      extracted: { ...emptyExtraction(), unclear: false, chestPainOrSyncope: false },
+    });
+
+    const response = await POST(checkInRequest({ ...validBody, wantSpeech: true }));
+    const body = await response.json();
+    expect(body.speech).toEqual([null, { kind: 'clip', clipId: 'q2_weight' }]);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

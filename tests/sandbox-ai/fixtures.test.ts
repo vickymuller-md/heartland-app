@@ -17,6 +17,7 @@ describe('simulated outreach transcripts', () => {
     for (const transcript of OUTREACH_TRANSCRIPTS) {
       expect(transcript.turns.length).toBeGreaterThanOrEqual(2);
       expect(transcript.channel).toBe('automated-voice-simulation');
+      expect(transcript.audioSrc).toBe(`/outreach-audio/${transcript.id}.mp3`);
     }
   });
 

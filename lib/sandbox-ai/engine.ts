@@ -20,7 +20,7 @@ import {
   nextQuestionId,
   routineClosingMessage,
 } from './script';
-import { sanitizeParaphrase } from './schema';
+import { sanitizeParaphrase, sanitizeSmallTalk } from './schema';
 import type {
   CheckInExtraction,
   CheckInState,
@@ -126,6 +126,50 @@ export function finalizeCheckIn(state: CheckInState): CheckInTurnResponse {
   };
 }
 
+/**
+ * Apply one deterministic quick answer (simulated-call chips / offline path):
+ * merge the fields, advance the fixed question order, and finalize after the
+ * last question. Chest pain short-circuits exactly like the LLM path. No
+ * model involved anywhere.
+ */
+export function applyDeterministicAnswer(
+  state: CheckInState,
+  values: Partial<CheckInExtraction>,
+): CheckInTurnResponse {
+  if (state.phase === 'complete') {
+    return { assistantMessages: [], state, done: true, disposition: null, redFlags: [], fallback: false };
+  }
+
+  const extraction = { ...state.extraction };
+  for (const key of EXTRACTION_KEYS) {
+    const value = values[key];
+    if (value !== undefined && value !== null) (extraction as Record<string, unknown>)[key] = value;
+  }
+  const base: CheckInState = { ...state, extraction, turnCount: state.turnCount + 1 };
+
+  if (extraction.chestPainOrSyncope === true) {
+    return {
+      assistantMessages: [EMERGENCY_911_MESSAGE],
+      state: { ...base, phase: 'complete' },
+      done: true,
+      disposition: 'emergency',
+      redFlags: [],
+      fallback: false,
+    };
+  }
+
+  const nextId = nextQuestionId(state.phase);
+  if (!nextId) return finalizeCheckIn(base);
+  return {
+    assistantMessages: [SCRIPT_QUESTIONS[nextId].canonical],
+    state: { ...base, phase: nextId },
+    done: false,
+    disposition: null,
+    redFlags: [],
+    fallback: false,
+  };
+}
+
 export async function runCheckInTurn(
   state: CheckInState,
   userMessage: string,
@@ -176,6 +220,36 @@ export async function runCheckInTurn(
 
   const answered = current.skippable
     || current.extractionKeys.some((key) => extraction[key] !== null);
+
+  // Benign small talk: acknowledge warmly, then continue the script. Unlike a
+  // deflection this is not a policy violation, so it never consumes the
+  // re-ask budget; unlike a plain answer it always prepends the ack line.
+  if (llm.say.kind === 'small_talk') {
+    const ack = sanitizeSmallTalk(llm.say.smallTalk);
+    if (!answered) {
+      return {
+        assistantMessages: [ack, current.canonical],
+        state: base,
+        done: false,
+        disposition: null,
+        redFlags: [],
+        fallback: false,
+      };
+    }
+    if (!nextId) {
+      const final = finalizeCheckIn(base);
+      return { ...final, assistantMessages: [ack, ...final.assistantMessages] };
+    }
+    const upcoming = SCRIPT_QUESTIONS[nextId];
+    return {
+      assistantMessages: [ack, sanitizeParaphrase(llm.say.paraphrase, upcoming.canonical)],
+      state: { ...base, phase: nextId },
+      done: false,
+      disposition: null,
+      redFlags: [],
+      fallback: false,
+    };
+  }
   if (!answered || llm.extracted.unclear) {
     const used = state.reasksUsed[current.id] ?? 0;
     if (used < 1) {

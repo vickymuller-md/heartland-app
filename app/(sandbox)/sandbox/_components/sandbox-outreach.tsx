@@ -103,6 +103,21 @@ function CallCard({ transcript }: { transcript: SimulatedCallTranscript }) {
       )}
       {transcript.note && <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs leading-5 text-slate-700">{transcript.note}</p>}
 
+      {transcript.audioSrc && (
+        <div className="mt-3 rounded-lg bg-slate-50 p-3" data-testid={`outreach-audio-${transcript.id}`}>
+          <audio
+            controls
+            preload="none"
+            src={transcript.audioSrc}
+            className="h-9 w-full"
+            aria-label={`Synthetic audio simulation of the call with ${transcript.patientName}`}
+          />
+          <p className="mt-1 text-[11px] leading-4 text-slate-600">
+            Synthetic audio simulation (AI-generated voices) — no real call is placed. The transcript below is the source of record.
+          </p>
+        </div>
+      )}
+
       <div className="mt-3 flex flex-wrap gap-2">
         <Button variant="outline" className="min-h-11" onClick={() => setExpanded((current) => !current)}>
           {expanded ? <ChevronUp className="mr-1 size-4" /> : <ChevronDown className="mr-1 size-4" />}

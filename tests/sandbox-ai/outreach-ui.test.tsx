@@ -44,12 +44,22 @@ describe('SandboxOutreach', () => {
     expect(within(robert).getByText('No answer · human follow-up')).toBeInTheDocument();
   });
 
+  it('offers pre-generated synthetic audio on scripted calls, labeled as simulation', () => {
+    render(<SandboxOutreach liveCalls={[LIVE_TRANSCRIPT]} runs={[]} onLiveCall={onLiveCall} />);
+
+    const audioBlock = screen.getByTestId('outreach-audio-call-maria-redflag');
+    expect(within(audioBlock).getByLabelText(/Synthetic audio simulation of the call with Maria Santos/)).toBeInTheDocument();
+    expect(audioBlock.textContent).toContain('no real call is placed');
+    // Live simulations are text-only: no audio block is rendered for them.
+    expect(screen.queryByTestId(`outreach-audio-${LIVE_TRANSCRIPT.id}`)).toBeNull();
+  });
+
   it('expands a transcript to show the turns and the structured extraction', () => {
     render(<SandboxOutreach liveCalls={[]} runs={[]} onLiveCall={onLiveCall} />);
     const maria = screen.getByTestId('outreach-call-call-maria-redflag');
 
     fireEvent.click(within(maria).getByRole('button', { name: /View transcript/ }));
-    expect(within(maria).getByText(/It said 179 and a half/)).toBeInTheDocument();
+    expect(within(maria).getByText(/creeping up this week/)).toBeInTheDocument();
     expect(within(maria).getByText('Structured data captured by the AI layer')).toBeInTheDocument();
   });
 

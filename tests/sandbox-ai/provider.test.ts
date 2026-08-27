@@ -21,7 +21,7 @@ const turnInput = {
 };
 
 const validToolInput = {
-  say: { kind: 'question', paraphrase: 'What did the scale show today?' },
+  say: { kind: 'question', paraphrase: 'What did the scale show today?', smallTalk: null },
   extracted: {
     weightLbs: null, sbp: null, spo2: null, dyspnea: null, edema: null,
     orthopnea: null, fatigue: null, adherence: null, chestPainOrSyncope: false,

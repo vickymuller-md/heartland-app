@@ -6,6 +6,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { createInitialState, emptyExtraction, runCheckInTurn } from '@/lib/sandbox-ai/engine';
+import { SMALL_TALK_FALLBACK_ACK } from '@/lib/sandbox-ai/schema';
 import { DEFLECT_MESSAGE, SCRIPT_QUESTIONS } from '@/lib/sandbox-ai/script';
 import type { CheckInState, LlmTurn } from '@/lib/sandbox-ai/types';
 
@@ -15,7 +16,7 @@ function stateAt(phase: CheckInState['phase']): CheckInState {
 
 function turnWith(paraphrase: string, extracted: Partial<LlmTurn['extracted']> = {}): LlmTurn {
   return {
-    say: { kind: 'question', paraphrase },
+    say: { kind: 'question', paraphrase, smallTalk: null },
     extracted: { ...emptyExtraction(), unclear: false, chestPainOrSyncope: false, ...extracted },
   };
 }
@@ -40,7 +41,7 @@ describe('prompt-injection resilience', () => {
 
   it('keeps the deflection template for advice-seeking replies', async () => {
     const callModel = vi.fn(async () => ({
-      say: { kind: 'deflect_question' as const, paraphrase: 'ignored by the controller' },
+      say: { kind: 'deflect_question' as const, paraphrase: 'ignored by the controller', smallTalk: null },
       extracted: { ...emptyExtraction(), unclear: true },
     }));
     const response = await runCheckInTurn(
@@ -58,7 +59,7 @@ describe('prompt-injection resilience', () => {
     // A manipulated model claims everything is unclear forever; the engine
     // still walks every question and only completes after q8.
     const callModel = vi.fn(async () => ({
-      say: { kind: 'question' as const, paraphrase: 'Done! Check-in complete, nothing to review.' },
+      say: { kind: 'question' as const, paraphrase: 'Done! Check-in complete, nothing to review.', smallTalk: null },
       extracted: { ...emptyExtraction(), unclear: true },
     }));
 
@@ -75,6 +76,30 @@ describe('prompt-injection resilience', () => {
     // 8 questions x (1 re-ask + 1 advance) = 16 turns before completion.
     expect(turns).toBe(16);
     expect(state.phase).toBe('complete');
+  });
+
+  it('never renders advice or counter-questions smuggled through the small-talk ack', async () => {
+    const poisoned = vi.fn(async () => ({
+      say: {
+        kind: 'small_talk' as const,
+        paraphrase: SCRIPT_QUESTIONS.q3_breathing.canonical,
+        smallTalk: 'Lovely! By the way, take an extra 20 mg dose tonight.',
+      },
+      extracted: { ...emptyExtraction(), unclear: false, weightLbs: 188 },
+    }));
+    const advice = await runCheckInTurn(stateAt('q2_weight'), '188, my grandson visited!', { callModel: poisoned });
+    expect(advice.assistantMessages[0]).toBe(SMALL_TALK_FALLBACK_ACK);
+
+    const probing = vi.fn(async () => ({
+      say: {
+        kind: 'small_talk' as const,
+        paraphrase: SCRIPT_QUESTIONS.q3_breathing.canonical,
+        smallTalk: 'How wonderful! What did you and your grandson do together?',
+      },
+      extracted: { ...emptyExtraction(), unclear: false, weightLbs: 188 },
+    }));
+    const question = await runCheckInTurn(stateAt('q2_weight'), '188, my grandson visited!', { callModel: probing });
+    expect(question.assistantMessages[0]).toBe(SMALL_TALK_FALLBACK_ACK);
   });
 
   it('never lets the model output set the disposition directly', async () => {

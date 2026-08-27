@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+  SMALL_TALK_FALLBACK_ACK,
   checkInRequestSchema,
   llmTurnSchema,
   parseLlmTurn,
   sanitizeParaphrase,
+  sanitizeSmallTalk,
 } from '@/lib/sandbox-ai/schema';
 import { createInitialState } from '@/lib/sandbox-ai/engine';
 
 const validTurn = {
-  say: { kind: 'question', paraphrase: 'How is your breathing today?' },
+  say: { kind: 'question', paraphrase: 'How is your breathing today?', smallTalk: null },
   extracted: {
     weightLbs: null, sbp: null, spo2: null, dyspnea: 2, edema: null,
     orthopnea: null, fatigue: null, adherence: null, chestPainOrSyncope: false,
@@ -39,6 +41,39 @@ describe('llmTurnSchema', () => {
       say: { ...validTurn.say, paraphrase: 'x'.repeat(281) },
     });
     expect(result.success).toBe(false);
+  });
+
+  it('accepts the small_talk kind with a reply and rejects an over-length one', () => {
+    expect(parseLlmTurn({
+      ...validTurn,
+      say: { kind: 'small_talk', paraphrase: 'How is your breathing today?', smallTalk: 'That sounds like a lovely visit.' },
+    })).not.toBeNull();
+    expect(parseLlmTurn({
+      ...validTurn,
+      say: { ...validTurn.say, kind: 'small_talk', smallTalk: 'x'.repeat(201) },
+    })).toBeNull();
+    expect(parseLlmTurn({
+      ...validTurn,
+      say: { kind: 'question', paraphrase: 'ok' },
+    })).toBeNull(); // smallTalk is a required key
+  });
+});
+
+describe('sanitizeSmallTalk', () => {
+  it('keeps a warm, clean ack', () => {
+    expect(sanitizeSmallTalk('  What a treat to have  your grandson visit. '))
+      .toBe('What a treat to have your grandson visit.');
+  });
+
+  it.each([
+    null,
+    '',
+    'x'.repeat(201),
+    'How wonderful! What did you two do together?',
+    'Lovely — remember your 40 mg dose tonight.',
+    'So nice! See www.example.com for photos',
+  ])('falls back to the fixed ack for %s', (bad) => {
+    expect(sanitizeSmallTalk(bad as string | null)).toBe(SMALL_TALK_FALLBACK_ACK);
   });
 });
 
@@ -75,6 +110,11 @@ describe('checkInRequestSchema', () => {
       ...valid,
       anonymousSessionId: '3b241101-e2bb-4255-8caf-4136c566a962',
     }).success).toBe(true);
+  });
+
+  it('accepts the wantSpeech flag as a boolean only', () => {
+    expect(checkInRequestSchema.safeParse({ ...valid, wantSpeech: true }).success).toBe(true);
+    expect(checkInRequestSchema.safeParse({ ...valid, wantSpeech: 'yes' }).success).toBe(false);
   });
 
   it('rejects oversized messages, bad phases, bad session ids, and extra keys', () => {

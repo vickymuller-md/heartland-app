@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   MAX_TURNS,
+  applyDeterministicAnswer,
   createInitialState,
   emptyExtraction,
   finalizeCheckIn,
@@ -17,7 +18,7 @@ import type { CheckInExtraction, CheckInState, LlmTurn } from '@/lib/sandbox-ai/
 
 function llmTurn(extracted: Partial<CheckInExtraction & { unclear: boolean }>, say?: Partial<LlmTurn['say']>): LlmTurn {
   return {
-    say: { kind: 'question', paraphrase: 'Here is the next question, ok?', ...say },
+    say: { kind: 'question', paraphrase: 'Here is the next question, ok?', smallTalk: null, ...say },
     extracted: { ...emptyExtraction(), unclear: false, ...extracted },
   };
 }
@@ -95,6 +96,67 @@ describe('runCheckInTurn — deterministic control', () => {
     expect(second.state.extraction.weightLbs).toBeNull();
   });
 
+  it('acknowledges small talk that also answered, then advances with the paraphrase', async () => {
+    const callModel = vi.fn(async () => llmTurn(
+      { weightLbs: 188 },
+      { kind: 'small_talk', smallTalk: 'What a treat to have your grandson visit.', paraphrase: 'Now, how is your breathing today?' },
+    ));
+    const response = await runCheckInTurn(stateAt('q2_weight'), '188 — my grandson came by yesterday!', { callModel });
+
+    expect(response.assistantMessages).toEqual([
+      'What a treat to have your grandson visit.',
+      'Now, how is your breathing today?',
+    ]);
+    expect(response.state.phase).toBe('q3_breathing');
+    expect(response.state.extraction.weightLbs).toBe(188);
+    expect(response.done).toBe(false);
+  });
+
+  it('acknowledges pure small talk and repeats the question without spending the re-ask budget', async () => {
+    const callModel = vi.fn(async () => llmTurn(
+      {},
+      { kind: 'small_talk', smallTalk: 'That garden sounds beautiful this time of year.' },
+    ));
+    const response = await runCheckInTurn(stateAt('q2_weight'), 'my tomatoes are finally coming in', { callModel });
+
+    expect(response.assistantMessages).toEqual([
+      'That garden sounds beautiful this time of year.',
+      SCRIPT_QUESTIONS.q2_weight.canonical,
+    ]);
+    expect(response.state.phase).toBe('q2_weight');
+    expect(response.state.reasksUsed.q2_weight).toBeUndefined();
+    expect(response.done).toBe(false);
+  });
+
+  it('still short-circuits to emergency when chest pain arrives wrapped in small talk', async () => {
+    const callModel = vi.fn(async () => llmTurn(
+      { chestPainOrSyncope: true },
+      { kind: 'small_talk', smallTalk: 'Glad the church picnic was fun.' },
+    ));
+    const response = await runCheckInTurn(stateAt('q6_fatigue'), 'picnic was great, though my chest hurt a little', { callModel });
+
+    expect(response.done).toBe(true);
+    expect(response.disposition).toBe('emergency');
+    expect(response.assistantMessages).toEqual([EMERGENCY_911_MESSAGE]);
+  });
+
+  it('prepends the small-talk ack to the deterministic closing on the last question', async () => {
+    const answered = stateAt('q8_devices', {
+      chestPainOrSyncope: false, weightLbs: 188, dyspnea: 0, edema: 0,
+      orthopnea: false, fatigue: 0, adherence: 'yes',
+    });
+    const callModel = vi.fn(async () => llmTurn(
+      {},
+      { kind: 'small_talk', smallTalk: 'Thank you for the kind words.' },
+    ));
+    const response = await runCheckInTurn(answered, "no cuff here — you have a nice day now", { callModel });
+
+    expect(response.done).toBe(true);
+    expect(response.disposition).toBe('routine');
+    expect(response.assistantMessages[0]).toBe('Thank you for the kind words.');
+    expect(response.assistantMessages[1]).toContain('Nothing you reported needs urgent attention');
+  });
+
   it('degrades to the fallback and preserves state when the model is unavailable', async () => {
     const input = stateAt('q2_weight');
     const response = await runCheckInTurn(input, '182', { callModel: vi.fn(async () => null) });
@@ -111,6 +173,39 @@ describe('runCheckInTurn — deterministic control', () => {
 
     expect(response.fallback).toBe(true);
     expect(callModel).not.toHaveBeenCalled();
+  });
+});
+
+describe('applyDeterministicAnswer — chip path shares the exact same rules', () => {
+  it('advances the fixed order and asks the next canonical question', () => {
+    const first = applyDeterministicAnswer(createInitialState('demo-maria'), { chestPainOrSyncope: false });
+    expect(first.state.phase).toBe('q2_weight');
+    expect(first.assistantMessages).toEqual([SCRIPT_QUESTIONS.q2_weight.canonical]);
+    expect(first.done).toBe(false);
+  });
+
+  it('short-circuits chest pain to the emergency template with no model involved', () => {
+    const response = applyDeterministicAnswer(createInitialState('demo-maria'), { chestPainOrSyncope: true });
+    expect(response.done).toBe(true);
+    expect(response.disposition).toBe('emergency');
+    expect(response.assistantMessages).toEqual([EMERGENCY_911_MESSAGE]);
+  });
+
+  it('walks a full chip-only check-in into the deterministic escalation', () => {
+    let turn = applyDeterministicAnswer(createInitialState('demo-maria'), { chestPainOrSyncope: false });
+    turn = applyDeterministicAnswer(turn.state, { weightLbs: 179.5 });
+    turn = applyDeterministicAnswer(turn.state, { dyspnea: 2 });
+    turn = applyDeterministicAnswer(turn.state, { edema: 2 });
+    turn = applyDeterministicAnswer(turn.state, { orthopnea: true });
+    turn = applyDeterministicAnswer(turn.state, { fatigue: 2 });
+    turn = applyDeterministicAnswer(turn.state, { adherence: 'yes' });
+    turn = applyDeterministicAnswer(turn.state, {}); // q8 skipped
+
+    expect(turn.done).toBe(true);
+    expect(turn.disposition).toBe('escalated');
+    expect(turn.redFlags.map((flag) => flag.id)).toEqual(
+      expect.arrayContaining([RED_FLAG_CRITERIA.weight_gain_3lb_2d.id, RED_FLAG_CRITERIA.weight_gain_5lb_7d.id]),
+    );
   });
 });
 

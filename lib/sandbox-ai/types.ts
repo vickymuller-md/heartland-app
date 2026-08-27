@@ -43,8 +43,19 @@ export interface CheckInState {
 
 export type CheckInDisposition = 'emergency' | 'escalated' | 'routine';
 
+/**
+ * How one assistant message is voiced in the simulated live call: a
+ * pre-generated static clip, or MP3 audio synthesized server-side for
+ * dynamic lines. `null` slot = no audio available (text-only line).
+ */
+export type SpeechItem =
+  | { kind: 'clip'; clipId: string }
+  | { kind: 'audio'; mp3Base64: string };
+
 export interface CheckInTurnResponse {
   assistantMessages: string[];
+  /** Aligned by index with assistantMessages; present only when the client asked for speech. */
+  speech?: Array<SpeechItem | null>;
   state: CheckInState;
   done: boolean;
   disposition: CheckInDisposition | null;
@@ -55,8 +66,10 @@ export interface CheckInTurnResponse {
 /** Validated output of one LLM structuring turn (see lib/sandbox-ai/schema.ts). */
 export interface LlmTurn {
   say: {
-    kind: 'question' | 'ack_question' | 'deflect_question';
+    kind: 'question' | 'ack_question' | 'deflect_question' | 'small_talk';
     paraphrase: string;
+    /** Warm 1-2 sentence reply to benign small talk; null for every other kind. */
+    smallTalk: string | null;
   };
   extracted: CheckInExtraction & { unclear: boolean };
 }

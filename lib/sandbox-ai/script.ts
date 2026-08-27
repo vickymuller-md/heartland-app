@@ -133,3 +133,20 @@ export function routineClosingMessage(extraction: CheckInExtraction): string {
     DEMO_NOTE
   );
 }
+
+// ── Spoken lines for the simulated live call (fixed; pre-generated audio) ──
+
+export const SPOKEN_CALL_INTRO =
+  "Hi, this is the automated daily check-in call from your heart care team. A member of your care team reviews everything I collect — I never make medical decisions. This takes about two minutes.";
+
+export const SPOKEN_ESCALATION =
+  "Thank you. Based on your care plan's preset rules, what you reported today needs a closer look. I'm flagging it for your care team right now, and a nurse will call you back today — please keep your phone nearby. If anything suddenly gets worse before then, call 911. Take care, and we'll talk soon. Bye-bye.";
+
+export const SPOKEN_ROUTINE =
+  "Thank you — that's everything I need today. Nothing you reported needs urgent attention according to your care plan's preset rules, and your care team will see the full summary. Same time tomorrow? Take care. Bye-bye.";
+
+export const SPOKEN_EMERGENCY =
+  "Thank you for telling me. Chest pain or fainting needs immediate attention, so this ends the automated check-in and alerts your care team right now. In a real deployment: call 911 or your local emergency number immediately.";
+
+export const SPOKEN_DEFLECT =
+  "I can't give medical advice — I only collect your daily check-in so your care team can review it. If you're worried, contact your care team, and for an emergency call 911. Now, back to the check-in.";
