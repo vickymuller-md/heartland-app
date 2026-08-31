@@ -4,6 +4,8 @@ import { runAssist } from '@/lib/sandbox-ai/provider';
 import { consumeSandboxAiTurn, sandboxAiEnabled } from '@/lib/sandbox-ai/rate-limit';
 
 export const dynamic = 'force-dynamic';
+// TTS synthesis on top of the model call can pass the platform default.
+export const maxDuration = 30;
 
 // Never 500 with detail: every assist surface hides itself or keeps its
 // deterministic content on any server-side failure (engine, RPC, or vendor).

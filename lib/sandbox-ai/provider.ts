@@ -24,6 +24,7 @@ import {
   COPILOT_TOOLS,
   buildCopilotUserMessage,
   executeCopilotTool,
+  serializeCopilotToolResult,
   type CopilotResult,
   type CopilotTraceEntry,
   type CopilotWorkItem,
@@ -105,13 +106,16 @@ export async function runAssist(request: AssistRequest): Promise<AssistResponse 
       (block) => block.type === 'tool_use' && block.name === tool.name,
     );
     if (!toolUse || toolUse.type !== 'tool_use') return null;
-    return parseAssistOutput(request.kind, toolUse.input);
+    return parseAssistOutput(request.kind, toolUse.input, request);
   } catch {
     return null;
   }
 }
 
-const COPILOT_MAX_ROUNDS = 5;
+const COPILOT_MAX_ROUNDS = 6;
+// The engine-tool set invites longer chains; a wall-clock guard keeps the
+// whole loop inside the route budget even when individual rounds are slow.
+const COPILOT_WALL_CLOCK_MS = 26_000;
 
 /**
  * "Ask your queue" agent: a bounded tool-use loop over read-only deterministic
@@ -122,16 +126,20 @@ const COPILOT_MAX_ROUNDS = 5;
 export async function runCopilot(input: {
   question: string;
   snapshot: { workItems: CopilotWorkItem[] };
+  dayIndex?: number;
 }): Promise<CopilotResult | null> {
   try {
     // Multiple tool rounds share one request budget; keep headroom per call.
     const client = anthropicClient(25_000);
+    const startedAt = Date.now();
     const toolTrace: CopilotTraceEntry[] = [];
+    const toolContext = { workItems: input.snapshot.workItems, dayIndex: input.dayIndex ?? 0 };
     const messages: Anthropic.MessageParam[] = [
       { role: 'user', content: buildCopilotUserMessage(input.question) },
     ];
 
     for (let round = 0; round < COPILOT_MAX_ROUNDS; round += 1) {
+      if (round > 0 && Date.now() - startedAt > COPILOT_WALL_CLOCK_MS) return null;
       const response = await client.messages.create({
         model: process.env.SANDBOX_AI_MODEL ?? DEFAULT_MODEL,
         max_tokens: 700,
@@ -156,12 +164,12 @@ export async function runCopilot(input: {
       messages.push({
         role: 'user',
         content: toolUses.map((toolUse) => {
-          const { result, trace } = executeCopilotTool(toolUse.name, toolUse.input, input.snapshot);
+          const { result, trace } = executeCopilotTool(toolUse.name, toolUse.input, toolContext);
           toolTrace.push(trace);
           return {
             type: 'tool_result' as const,
             tool_use_id: toolUse.id,
-            content: JSON.stringify(result),
+            content: serializeCopilotToolResult(result),
           };
         }),
       });

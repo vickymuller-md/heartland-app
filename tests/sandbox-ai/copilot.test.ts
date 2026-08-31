@@ -109,7 +109,7 @@ describe('runCopilot — bounded tool loop', () => {
       content: [{ type: 'tool_use', id: 'tu', name: 'get_queue', input: {} }],
     });
     expect(await runCopilot({ question: 'loop?', snapshot: { workItems: ITEMS } })).toBeNull();
-    expect(createMock).toHaveBeenCalledTimes(5);
+    expect(createMock).toHaveBeenCalledTimes(6);
 
     createMock.mockReset();
     createMock.mockRejectedValueOnce(new Error('down'));

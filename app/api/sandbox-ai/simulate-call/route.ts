@@ -11,6 +11,8 @@ import { consumeSandboxAiTurn, sandboxAiEnabled } from '@/lib/sandbox-ai/rate-li
 import { simulateCallRequestSchema } from '@/lib/sandbox-ai/schema';
 
 export const dynamic = 'force-dynamic';
+// First uncached one-shot generation regularly passes 15s; keep headroom.
+export const maxDuration = 45;
 
 const FALLBACK_BODY = { fallback: true } as const;
 

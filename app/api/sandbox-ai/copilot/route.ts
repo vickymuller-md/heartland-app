@@ -4,6 +4,8 @@ import { runCopilot } from '@/lib/sandbox-ai/provider';
 import { consumeSandboxAiTurn, sandboxAiEnabled } from '@/lib/sandbox-ai/rate-limit';
 
 export const dynamic = 'force-dynamic';
+// Tool-use loop can span several model rounds; the platform default would cut it off.
+export const maxDuration = 60;
 
 // Never 500 with detail: the copilot chat hides itself on any server-side
 // failure (engine, RPC, or vendor) — the deterministic queue is unaffected.
@@ -31,6 +33,7 @@ export async function POST(request: Request) {
     const result = await runCopilot({
       question: parsed.data.question,
       snapshot: parsed.data.snapshot,
+      dayIndex: parsed.data.dayIndex,
     });
     if (!result) return NextResponse.json(FALLBACK_BODY);
     return NextResponse.json(result);
