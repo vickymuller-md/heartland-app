@@ -30,6 +30,15 @@ playwright-report/
 CLAUDE.md
 NIW_INTEGRATION.md
 
+# Local-only planning, clinical review gates, and agent-workflow state (private)
+HANDOFF.md
+AGENTS.md
+.codex/
+graphify-out/
+reference/HEARTLAND_AI_PLAN.md
+reference/HEARTLAND_SECURITY_PLAN.md
+reference/CLINICAL_REVIEW_*.md
+
 # local dev seed data (101 fake patients for v4.0 testing — not for repo)
 scripts/seed-v4.ts
 supabase/seed_v4.sql
