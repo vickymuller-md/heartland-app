@@ -12,14 +12,15 @@ import {
   executeCopilotTool,
   serializeCopilotToolResult,
 } from '@/lib/sandbox-ai/copilot';
+import { simulatePopulationDay } from '@/lib/sandbox/population';
 import { RED_FLAG_CRITERIA } from '@/lib/vitals/constants';
 
 const DAY0 = { workItems: [] };
 const day = (dayIndex: number) => ({ workItems: [], dayIndex });
 
 describe('tool definitions', () => {
-  it('stays within the 12-tool cap with short descriptions', () => {
-    expect(COPILOT_TOOLS.length).toBeLessThanOrEqual(12);
+  it('stays within the 13-tool cap with short descriptions', () => {
+    expect(COPILOT_TOOLS.length).toBeLessThanOrEqual(13);
     for (const tool of COPILOT_TOOLS) {
       expect(tool.description.length).toBeLessThanOrEqual(220);
     }
@@ -121,6 +122,24 @@ describe('remaining engine tools', () => {
   });
 });
 
+describe('get_population_snapshot', () => {
+  it('recomputes the population round server-side, never trusting the client', () => {
+    const { result } = executeCopilotTool('get_population_snapshot', {}, { workItems: [], dayIndex: 1, populationSize: 500 });
+    const expected = simulatePopulationDay(500, 1);
+    const typed = result as { simulationDay: string; counts: unknown; topReviewQueue: unknown[]; note: string };
+    expect(typed.simulationDay).toBe('Day 2 of 5');
+    expect(typed.counts).toEqual(expected.counts);
+    expect(typed.topReviewQueue.length).toBeLessThanOrEqual(6);
+    expect(typed.note).toContain('registered deterministic rules');
+    expect(serializeCopilotToolResult(result).length).toBeLessThanOrEqual(1800);
+  });
+
+  it('defaults to the standard population size when the request omits it', () => {
+    const { result } = executeCopilotTool('get_population_snapshot', {}, DAY0);
+    expect((result as { counts: { total: number } }).counts.total).toBe(2500);
+  });
+});
+
 describe('serializeCopilotToolResult', () => {
   it('passes small results through untouched', () => {
     expect(serializeCopilotToolResult({ ok: true })).toBe('{"ok":true}');
@@ -144,5 +163,12 @@ describe('request schema day plumbing', () => {
     expect(copilotRequestSchema.safeParse({ ...base, dayIndex: 5 }).success).toBe(false);
     expect(copilotRequestSchema.safeParse({ ...base, dayIndex: -1 }).success).toBe(false);
     expect(copilotRequestSchema.safeParse({ ...base, dayIndex: 1.5 }).success).toBe(false);
+  });
+
+  it('accepts only the three whitelisted population sizes', () => {
+    const base = { question: 'Who first?', snapshot: { workItems: [] } };
+    expect(copilotRequestSchema.safeParse({ ...base, populationSize: 2500 }).success).toBe(true);
+    expect(copilotRequestSchema.safeParse({ ...base, populationSize: 5000 }).success).toBe(true);
+    expect(copilotRequestSchema.safeParse({ ...base, populationSize: 1000 }).success).toBe(false);
   });
 });

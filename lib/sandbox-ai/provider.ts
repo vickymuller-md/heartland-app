@@ -127,13 +127,18 @@ export async function runCopilot(input: {
   question: string;
   snapshot: { workItems: CopilotWorkItem[] };
   dayIndex?: number;
+  populationSize?: 500 | 2500 | 5000;
 }): Promise<CopilotResult | null> {
   try {
     // Multiple tool rounds share one request budget; keep headroom per call.
     const client = anthropicClient(25_000);
     const startedAt = Date.now();
     const toolTrace: CopilotTraceEntry[] = [];
-    const toolContext = { workItems: input.snapshot.workItems, dayIndex: input.dayIndex ?? 0 };
+    const toolContext = {
+      workItems: input.snapshot.workItems,
+      dayIndex: input.dayIndex ?? 0,
+      populationSize: input.populationSize,
+    };
     const messages: Anthropic.MessageParam[] = [
       { role: 'user', content: buildCopilotUserMessage(input.question) },
     ];

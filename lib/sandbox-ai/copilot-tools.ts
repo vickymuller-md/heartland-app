@@ -25,6 +25,12 @@ import {
   redFlagInputsForDay,
   titrationVitalsForDay,
 } from '@/lib/sandbox/day-selectors';
+import {
+  DEFAULT_POPULATION_SIZE,
+  simulatePopulationDay,
+  TRACK_SHORT_LABELS,
+  type PopulationSize,
+} from '@/lib/sandbox/population';
 import { SANDBOX_PATIENTS } from '@/lib/sandbox/fixtures';
 import type { SandboxPatient } from '@/lib/sandbox/types';
 import { assessTier } from '@/lib/tier-selector/engine';
@@ -59,6 +65,8 @@ export interface CopilotTraceEntry {
 export interface CopilotToolContext {
   workItems: CopilotWorkItem[];
   dayIndex?: number;
+  /** Population scene size; the population tool RECOMPUTES server-side from it. */
+  populationSize?: PopulationSize;
 }
 
 interface ToolOutcome {
@@ -490,6 +498,35 @@ const REGISTRY: Record<string, RegisteredCopilotTool> = {
       return {
         result: { dischargedDaysAgo: patient.engineInputs.dischargedDaysAgo, facilityTier: tier, schedule },
         trace: { tool: 'followup_schedule', summary: `follow-up — ${patient.name}` },
+      };
+    },
+  },
+
+  get_population_snapshot: {
+    definition: {
+      name: 'get_population_snapshot',
+      description: "The deterministic overnight round over the synthetic monitored population for the current simulation day: funnel counts and the top of the clinician review queue, all computed by the registered rules.",
+      input_schema: NO_ARGS_INPUT_SCHEMA,
+    },
+    argsSchema: null,
+    run: (_args, ctx) => {
+      // Recomputed here from the same pure module the page uses — identical
+      // numbers, nothing taken on trust from the client.
+      const day = simulatePopulationDay(ctx.populationSize ?? DEFAULT_POPULATION_SIZE, contextDay(ctx));
+      return {
+        result: {
+          simulationDay: `Day ${day.dayIndex + 1} of 5`,
+          counts: day.counts,
+          topReviewQueue: day.exceptions.slice(0, 6).map((exception) => ({
+            name: exception.name,
+            riskTier: exception.riskTier,
+            track: TRACK_SHORT_LABELS[exception.track],
+            category: exception.category,
+            reason: exception.reason,
+          })),
+          note: 'Illustrative synthetic demonstration; every count and queue entry comes from the registered deterministic rules.',
+        },
+        trace: { tool: 'get_population_snapshot', summary: `population (${day.counts.total} synthetic patients)` },
       };
     },
   },

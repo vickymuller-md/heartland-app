@@ -11,6 +11,7 @@ import {
   type SimulatedCallTranscript,
 } from '@/lib/sandbox-ai/fixtures';
 import { SANDBOX_DAY_COUNT } from '@/lib/sandbox/day-selectors';
+import type { PopulationSize } from '@/lib/sandbox/population';
 import type { SandboxDayLogEntry, SandboxSectionId } from '@/lib/sandbox/types';
 import { Button } from '@/components/ui/button';
 import { ExplainRuleButton } from './explain-rule';
@@ -44,10 +45,11 @@ function initialProgress(): ScenarioProgress[] {
   }));
 }
 
-export function SandboxCopilot({ outreachItems, dayIndex, dayLog, onAdvanceDay, onRecordRun, onNavigate }: {
+export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize, onAdvanceDay, onRecordRun, onNavigate }: {
   outreachItems: OutreachWorkItem[];
   dayIndex: number;
   dayLog: SandboxDayLogEntry[];
+  populationSize: PopulationSize;
   onAdvanceDay: (escalations: number) => void;
   onRecordRun: (transcript: SimulatedCallTranscript) => void;
   onNavigate: (section: SandboxSectionId) => void;
@@ -155,6 +157,7 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, onAdvanceDay, 
             })),
           },
           dayIndex,
+          populationSize,
           anonymousSessionId: anonymousSessionId(),
         }),
       });

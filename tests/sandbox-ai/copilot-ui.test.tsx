@@ -47,7 +47,7 @@ describe('SandboxCopilot', () => {
     vi.clearAllMocks();
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
     stubEndpoints();
-    render(<SandboxCopilot outreachItems={ITEMS} dayIndex={0} dayLog={[]} onAdvanceDay={onAdvanceDay} onRecordRun={onRecordRun} onNavigate={onNavigate} />);
+    render(<SandboxCopilot outreachItems={ITEMS} dayIndex={0} dayLog={[]} populationSize={2500} onAdvanceDay={onAdvanceDay} onRecordRun={onRecordRun} onNavigate={onNavigate} />);
   });
 
   afterEach(() => {
@@ -87,6 +87,7 @@ describe('SandboxCopilot', () => {
     const requestBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
     expect(requestBody.snapshot.workItems).toHaveLength(1);
     expect(requestBody.dayIndex).toBe(0);
+    expect(requestBody.populationSize).toBe(2500);
   });
 
   it('shows the simulation day and advances it without requiring a completed round', () => {

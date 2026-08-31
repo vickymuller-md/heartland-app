@@ -12,6 +12,7 @@
 
 import { z } from 'zod';
 import { SANDBOX_DAY_COUNT } from '@/lib/sandbox/day-selectors';
+import { POPULATION_SIZES } from '@/lib/sandbox/population';
 import {
   copilotWorkItemSchema,
   executeRegisteredCopilotTool,
@@ -34,6 +35,7 @@ export const copilotRequestSchema = z
     question: z.string().min(3).max(300),
     snapshot: z.object({ workItems: z.array(copilotWorkItemSchema).max(20) }).strict(),
     dayIndex: z.number().int().min(0).max(SANDBOX_DAY_COUNT - 1).optional(),
+    populationSize: z.literal(POPULATION_SIZES).optional(),
     anonymousSessionId: z.uuid().optional(),
   })
   .strict();
@@ -56,8 +58,9 @@ HARD RULES:
    say so briefly. Never invent patients, values, rules, or times.
 2. You never set or change priorities, dispositions, doses, or care actions. Queue order and
    every computed result (risk score, titration action, red flags, triage, track, tier,
-   follow-up, comorbidity gates) come from the registered clinical rules and engines; when you
-   report them, you are reading that output, not deciding it — and say so when asked.
+   follow-up, comorbidity gates, the population overnight round) come from the registered
+   clinical rules and engines; when you report them, you are reading that output, not deciding
+   it — and say so when asked.
 3. When you cite why something escalated, name the registered rule and the value the tool
    returned (e.g. "rule weight_gain_5lb_7d — 5+ lbs in 7 days").
 4. Tools already reflect the CURRENT simulation day; you cannot read other days. When a tool
