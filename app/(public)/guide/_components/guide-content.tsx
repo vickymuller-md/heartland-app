@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, BookOpen, Users, Activity, Phone, ClipboardCheck, Bell, FileText, Radio, Pill, BarChart2, ClipboardList, Stethoscope, CreditCard, FileBarChart2 } from 'lucide-react';
+import { ProtocolAssistant } from './protocol-assistant';
 
 /* ------------------------------------------------------------------ */
 /*  Table of Contents                                                  */
@@ -106,6 +107,9 @@ export function GuideContent() {
         </p>
         <p className="text-xs text-gray-400 mt-2">Version 4.0 &middot; Last updated March 2026</p>
       </div>
+
+      {/* Reference assistant over the published implementation content */}
+      <ProtocolAssistant />
 
       {/* Table of Contents */}
       <nav className="mb-12 rounded-lg border border-gray-200 bg-gray-50 p-6 print:hidden">
