@@ -1,7 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, Eye, PauseCircle, PhoneCall, PlayCircle } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, Eye, NotebookPen, PauseCircle, PhoneCall, PlayCircle } from 'lucide-react';
+import { getPublicDisseminationContext } from '@/lib/product-analytics/public-context';
+import { requestAssist } from '@/lib/sandbox-ai/assist-client';
 import type { OutreachWorkItem } from '@/lib/sandbox-ai/fixtures';
 import { SANDBOX_TASKS } from '@/lib/sandbox/fixtures';
 import type { SandboxPriority, SandboxTask, SandboxTaskState, SandboxTaskStatus } from '@/lib/sandbox/types';
@@ -29,6 +31,42 @@ export function SandboxDailyLoop({ taskStates, onTaskState, onOpenPatient, onBul
 }) {
   const [priority, setPriority] = useState<'all' | SandboxPriority>('all');
   const [closingTaskId, setClosingTaskId] = useState<string | null>(null);
+  const [brief, setBrief] = useState<string | null>(null);
+  const [briefStatus, setBriefStatus] = useState<'idle' | 'busy' | 'unavailable'>('idle');
+  const autoBriefed = useRef(false);
+
+  async function draftMorningBrief(auto = false) {
+    if (briefStatus === 'busy') return;
+    setBriefStatus('busy');
+    const result = await requestAssist({
+      kind: 'morning_brief',
+      input: {
+        items: outreachItems.slice(0, 12).map((item) => ({
+          patientName: item.patientName,
+          disposition: item.disposition,
+          redFlagMessages: item.redFlagMessages.slice(0, 6),
+          atLabel: item.atLabel,
+        })),
+      },
+      anonymousSessionId: getPublicDisseminationContext().anonymousSessionId,
+    });
+    if (result?.kind === 'morning_brief') {
+      setBrief(result.brief);
+      setBriefStatus('idle');
+      return;
+    }
+    // An automatic draft fails silently; only a manual request explains itself.
+    setBriefStatus(auto ? 'idle' : 'unavailable');
+  }
+
+  // The brief drafts itself when the queue opens — the repetitive read-through
+  // is the part worth automating. The button stays as a manual refresh.
+  useEffect(() => {
+    if (autoBriefed.current || outreachItems.length === 0) return;
+    autoBriefed.current = true;
+    void draftMorningBrief(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outreachItems.length]);
   const visibleTasks = useMemo(() => SANDBOX_TASKS.filter((task) => priority === 'all' || task.priority === priority), [priority]);
   const activeTasks = SANDBOX_TASKS.filter((task) => taskStates[task.id]?.status !== 'closed');
   const visibleOpen = visibleTasks.filter((task) => taskStates[task.id]?.status === 'open');
@@ -121,8 +159,32 @@ export function SandboxDailyLoop({ taskStates, onTaskState, onOpenPatient, onBul
             <h3 className="text-lg font-bold text-slate-950">From automated outreach (demonstration)</h3>
             <p className="mt-1 text-xs text-slate-500">Priority set by registered clinical rules · conversation structured by AI.</p>
           </div>
-          <Button variant="outline" className="min-h-11" onClick={onOpenOutreach}><PhoneCall className="mr-2 size-4" /> Open outreach</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              className="min-h-11"
+              disabled={briefStatus === 'busy' || outreachItems.length === 0}
+              onClick={() => void draftMorningBrief()}
+              data-testid="draft-morning-brief"
+            >
+              <NotebookPen className="mr-2 size-4" /> {briefStatus === 'busy' ? 'Drafting…' : brief ? 'Refresh morning brief' : 'Draft morning brief'}
+            </Button>
+            <Button variant="outline" className="min-h-11" onClick={onOpenOutreach}><PhoneCall className="mr-2 size-4" /> Open outreach</Button>
+          </div>
         </div>
+        {brief && (
+          <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-sm leading-6 text-slate-800" data-testid="morning-brief">
+            {brief}
+            <p className="mt-2 text-[11px] font-semibold text-slate-600">
+              AI-drafted summary — priorities were set by the registered clinical rules, never by the AI. Verify against the items below.
+            </p>
+          </div>
+        )}
+        {briefStatus === 'unavailable' && (
+          <p className="mt-4 rounded-xl border border-slate-300 bg-slate-100 p-3 text-xs text-slate-600" data-testid="morning-brief-unavailable">
+            The drafted brief is unavailable right now (assistant disabled or usage cap reached). The prioritized items below are unaffected.
+          </p>
+        )}
         <ul className="mt-4 space-y-2">
           {outreachItems.map((item) => (
             <li key={item.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 p-3 text-sm">

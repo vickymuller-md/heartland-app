@@ -1,15 +1,18 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Send, X } from 'lucide-react';
+import { Send, Volume2, VolumeX, X } from 'lucide-react';
 import { trackProductEvent, type ProductEventInput } from '@/lib/product-analytics/actions';
 import { getPublicDisseminationContext } from '@/lib/product-analytics/public-context';
+import { callPromptsFor } from '@/lib/sandbox-ai/call-prompts';
 import { createInitialState, emptyExtraction, finalizeCheckIn } from '@/lib/sandbox-ai/engine';
-import { EMERGENCY_911_MESSAGE, FALLBACK_NOTICE, INTRO_MESSAGES } from '@/lib/sandbox-ai/script';
-import type { CheckInDisposition, CheckInExtraction, CheckInState, CheckInTurnResponse } from '@/lib/sandbox-ai/types';
+import { emergencyMessageFor, fallbackNoticeFor, introMessagesFor } from '@/lib/sandbox-ai/script';
+import type { CallLocale, CheckInDisposition, CheckInExtraction, CheckInState, CheckInTurnResponse } from '@/lib/sandbox-ai/types';
 import type { SandboxPatient } from '@/lib/sandbox/types';
 import type { RedFlag, SymptomSeverity } from '@/lib/vitals/types';
 import { Button } from '@/components/ui/button';
+import { ExplainRuleButton } from './explain-rule';
+import { useAssistantAudioQueue } from './use-assistant-audio-queue';
 
 interface ChatMessage { role: 'assistant' | 'visitor'; text: string }
 interface CheckInResult { disposition: CheckInDisposition; redFlags: RedFlag[] }
@@ -39,14 +42,18 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
   onComplete: () => void;
   onClose: () => void;
 }) {
+  const [locale, setLocale] = useState<CallLocale>('en');
   const [messages, setMessages] = useState<ChatMessage[]>(
-    INTRO_MESSAGES.map((text) => ({ role: 'assistant', text })),
+    introMessagesFor('en').map((text) => ({ role: 'assistant', text })),
   );
   const [checkInState, setCheckInState] = useState<CheckInState>(() => createInitialState(patient.id));
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<'chat' | 'form'>('chat');
   const [result, setResult] = useState<CheckInResult | null>(null);
+  // Voice is opt-in in the chat (the simulated call is the voice-first surface).
+  const [voiceOn, setVoiceOn] = useState(false);
+  const { audioRef, needsTap, enqueue, resumeAfterTap } = useAssistantAudioQueue();
   const startedTracked = useRef(false);
   const startedAt = useRef(Date.now());
   const logRef = useRef<HTMLDivElement | null>(null);
@@ -64,6 +71,14 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
     trackAiEvent('ai_checkin_started');
   }
 
+  function chooseLocale(next: CallLocale) {
+    // Language can only change before the first answer of the conversation.
+    if (startedTracked.current || next === locale) return;
+    setLocale(next);
+    setCheckInState(createInitialState(patient.id, 'daily_checkin', next));
+    setMessages(introMessagesFor(next).map((text) => ({ role: 'assistant', text })));
+  }
+
   function completeWith(disposition: CheckInDisposition, redFlags: RedFlag[]) {
     setResult({ disposition, redFlags });
     trackAiEvent('ai_checkin_completed', Math.min(Date.now() - startedAt.current, 3_600_000));
@@ -73,7 +88,7 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
 
   function switchToForm() {
     setMode('form');
-    setMessages((current) => [...current, { role: 'assistant', text: FALLBACK_NOTICE }]);
+    setMessages((current) => [...current, { role: 'assistant', text: fallbackNoticeFor(locale) }]);
     trackAiEvent('ai_checkin_fallback');
   }
 
@@ -92,6 +107,7 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
           state: checkInState,
           message,
           anonymousSessionId: getPublicDisseminationContext().anonymousSessionId,
+          wantSpeech: voiceOn,
         }),
       });
       if (!response.ok && response.status !== 429) throw new Error('request failed');
@@ -104,6 +120,17 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
         ...current,
         ...(turn.assistantMessages ?? []).map((text) => ({ role: 'assistant' as const, text })),
       ]);
+      if (voiceOn) {
+        const prompts = callPromptsFor('daily_checkin', locale);
+        for (const item of turn.speech ?? []) {
+          if (item?.kind === 'clip') {
+            const clip = prompts[item.clipId];
+            if (clip) enqueue(clip.audioSrc);
+          } else if (item?.kind === 'audio') {
+            enqueue(`data:audio/mpeg;base64,${item.mp3Base64}`);
+          }
+        }
+      }
       setCheckInState(turn.state);
       if (turn.done && turn.disposition) completeWith(turn.disposition, turn.redFlags ?? []);
     } catch {
@@ -138,12 +165,13 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
     };
     if (chestPain) {
       // Same deterministic short-circuit the server engine applies.
-      setMessages((current) => [...current, { role: 'assistant', text: EMERGENCY_911_MESSAGE }]);
+      setMessages((current) => [...current, { role: 'assistant', text: emergencyMessageFor(locale) }]);
       completeWith('emergency', []);
       return;
     }
     const finished = finalizeCheckIn({
-      patientId: patient.id, phase: 'q8_devices', extraction, reasksUsed: {}, turnCount: 0,
+      patientId: patient.id, scriptId: 'daily_checkin', locale,
+      phase: 'q8_devices', extraction, reasksUsed: {}, turnCount: 0,
     });
     setMessages((current) => [
       ...current,
@@ -154,10 +182,51 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
 
   return (
     <section className="rounded-xl border border-blue-200 bg-white" data-testid="sandbox-ai-checkin" aria-label="Automated check-in demonstration">
+      {/* Hidden element that plays the assistant's clips and synthesized lines. */}
+      <audio ref={audioRef} data-testid="checkin-audio" />
+
       <div className="flex items-center justify-between gap-2 rounded-t-xl bg-blue-50 px-3 py-2">
         <p className="text-xs font-bold text-blue-950">Automated Check-In (AI-assisted) · Demonstration</p>
-        <button type="button" onClick={onClose} aria-label="Close check-in" className="flex size-8 items-center justify-center rounded-full text-blue-900 hover:bg-blue-100"><X className="size-4" /></button>
+        <div className="flex items-center gap-1">
+          {mode === 'chat' && !result && (
+            <div className="mr-1 flex gap-1" role="group" aria-label="Conversation language">
+              {(['en', 'es'] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  aria-pressed={locale === option}
+                  data-testid={`checkin-locale-${option}`}
+                  onClick={() => chooseLocale(option)}
+                  className={`min-h-8 rounded-full px-2.5 text-[11px] font-semibold ${locale === option ? 'bg-blue-700 text-white' : 'bg-white text-blue-900 hover:bg-blue-100'}`}
+                >
+                  {option === 'en' ? 'EN' : 'ES'}
+                </button>
+              ))}
+            </div>
+          )}
+          {mode === 'chat' && !result && (
+            <button
+              type="button"
+              onClick={() => setVoiceOn((current) => !current)}
+              aria-pressed={voiceOn}
+              aria-label={voiceOn ? 'Turn assistant voice off' : 'Turn assistant voice on'}
+              data-testid="checkin-voice-toggle"
+              className={`flex size-8 items-center justify-center rounded-full ${voiceOn ? 'bg-blue-100 text-blue-900' : 'text-blue-900 hover:bg-blue-100'}`}
+            >
+              {voiceOn ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
+            </button>
+          )}
+          <button type="button" onClick={onClose} aria-label="Close check-in" className="flex size-8 items-center justify-center rounded-full text-blue-900 hover:bg-blue-100"><X className="size-4" /></button>
+        </div>
       </div>
+
+      {needsTap && voiceOn && !result && (
+        <div className="px-3 pt-2">
+          <Button size="sm" variant="outline" onClick={resumeAfterTap}>
+            <Volume2 className="mr-1 size-4" /> Play assistant audio
+          </Button>
+        </div>
+      )}
 
       <div ref={logRef} className="max-h-72 space-y-2 overflow-y-auto p-3" role="log" aria-live="polite" aria-label="Check-in conversation">
         {messages.map((message, index) => (
@@ -175,7 +244,12 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
           <p className="font-bold">{RESULT_STYLES[result.disposition].title}</p>
           {result.redFlags.length > 0 && (
             <ul className="mt-1 list-disc pl-4">
-              {result.redFlags.map((flag) => <li key={flag.id}>{flag.message} — {flag.action}</li>)}
+              {result.redFlags.map((flag) => (
+                <li key={flag.id}>
+                  {flag.message} — {flag.action}
+                  <ExplainRuleButton ruleId={flag.id} extraction={checkInState.extraction} />
+                </li>
+              ))}
             </ul>
           )}
           <p className="mt-1">Disposition set by the registered clinical rules, never by the AI. A provider work item appears on the care-team side.</p>

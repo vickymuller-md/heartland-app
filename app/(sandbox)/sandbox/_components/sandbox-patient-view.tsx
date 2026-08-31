@@ -15,6 +15,7 @@ export function SandboxPatientView({ patient, patientCheckIns, onCheckIn }: {
 }) {
   const [showCheckIn, setShowCheckIn] = useState(false);
   const [showLiveCall, setShowLiveCall] = useState(false);
+  const [showTitrationCall, setShowTitrationCall] = useState(false);
   const symptomsTaskId = `${patient.id}-symptoms`;
   const tasks = [
     { id: `${patient.id}-weight`, icon: Scale, title: 'Record today’s weight', detail: patient.vitals.at(-1) ? `Last synthetic value: ${patient.vitals.at(-1)?.weight} lb` : 'No recent value' },
@@ -68,6 +69,28 @@ export function SandboxPatientView({ patient, patientCheckIns, onCheckIn }: {
                 patient={patient}
                 onComplete={() => onCheckIn(`${patient.id}-call`)}
                 onClose={() => setShowLiveCall(false)}
+              />
+            )}
+
+            {!showTitrationCall && (
+              <button
+                type="button"
+                data-testid="open-titration-call"
+                onClick={() => { setShowCheckIn(false); setShowTitrationCall(true); }}
+                className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-left transition hover:border-blue-400"
+              >
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-700 text-white"><PhoneIncoming className="size-5" /></span>
+                <span><strong className="block text-sm text-slate-950">Titration follow-up call (simulated)</strong><span className="mt-0.5 block text-xs leading-5 text-slate-600">Answer the follow-up about the recent dose adjustment; registered safety gates decide the outcome</span></span>
+              </button>
+            )}
+
+            {showTitrationCall && (
+              <SandboxLiveCall
+                key={`titration-${patient.id}`}
+                patient={patient}
+                scriptId="titration_followup"
+                onComplete={() => onCheckIn(`${patient.id}-titration-call`)}
+                onClose={() => setShowTitrationCall(false)}
               />
             )}
 

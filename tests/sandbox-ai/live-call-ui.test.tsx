@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { SANDBOX_PATIENTS } from '@/lib/sandbox/fixtures';
+import { FILLER_LINES } from '@/lib/sandbox-ai/script';
 import { SandboxLiveCall } from '@/app/(sandbox)/sandbox/_components/sandbox-live-call';
 import { trackProductEvent } from '@/lib/product-analytics/actions';
 
@@ -121,6 +122,20 @@ describe('SandboxLiveCall — hands-free voice mode', () => {
     expect(FakeSpeechRecognition.instances.length).toBeGreaterThan(1);
   });
 
+  it('keeps hands-free listening alive when a clip source is missing (no needsTap trap)', async () => {
+    // Missing/undecodable sources reject play() with NotSupportedError — the
+    // queue must advance text-only instead of waiting for a pointless tap.
+    vi.mocked(HTMLMediaElement.prototype.play).mockRejectedValue(
+      Object.assign(new Error('no supported source'), { name: 'NotSupportedError' }),
+    );
+    fireEvent.click(screen.getByTestId('answer-call'));
+    await act(async () => { /* flush play() rejections */ });
+
+    expect(screen.queryByText('Play assistant audio')).toBeNull();
+    drainAudioQueue();
+    expect(screen.getByTestId('live-call-voice-status')).toHaveTextContent('Listening — just talk');
+  });
+
   it('mute stops listening and the status explains typed and tapped answers still work', () => {
     fireEvent.click(screen.getByTestId('answer-call'));
     drainAudioQueue();
@@ -147,6 +162,65 @@ describe('SandboxLiveCall — hands-free voice mode', () => {
     fireEvent.click(screen.getByTestId('live-call-mic-toggle')); // off
     fireEvent.click(screen.getByTestId('live-call-mic-toggle')); // on again, failures reset
     expect(screen.getByTestId('live-call-voice-status')).toHaveTextContent('Listening — just talk');
+  });
+});
+
+describe('SandboxLiveCall — locales and scripts (deterministic paths)', () => {
+  const onComplete = vi.fn();
+  const onClose = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('speaks Spanish end to end when Español is chosen before answering', () => {
+    render(<SandboxLiveCall patient={maria} onComplete={onComplete} onClose={onClose} />);
+    fireEvent.click(screen.getByTestId('call-locale-es'));
+    fireEvent.click(screen.getByTestId('answer-call'));
+
+    expect(screen.getByRole('log').textContent).toContain('dolor de pecho');
+    chip('No, nada de eso');
+    expect(screen.getByRole('log').textContent).toContain('báscula');
+  });
+
+  it('walks the titration follow-up to the gate-passed result', () => {
+    render(<SandboxLiveCall patient={maria} scriptId="titration_followup" onComplete={onComplete} onClose={onClose} />);
+    fireEvent.click(screen.getByTestId('answer-call'));
+    expect(screen.getByRole('log').textContent).toContain('since we increased your medicine');
+
+    chip('No, nothing like that');
+    chip('No dizziness');
+    fireEvent.submit(screen.getByTestId('live-call-numbers')); // t3 skipped
+    fireEvent.submit(screen.getByTestId('live-call-numbers')); // t4 skipped
+    chip('No, feeling the same');
+    chip('Yes, every day');
+
+    const result = screen.getByTestId('live-call-result');
+    expect(result).toHaveTextContent('Proceed confirmed — safety gates passed');
+    expect(result).toHaveTextContent('registered titration safety gates, never by the AI');
+    expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('voices a filler acknowledgment as soon as a typed answer is sent', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ fallback: true }),
+    }));
+    render(<SandboxLiveCall patient={maria} onComplete={onComplete} onClose={onClose} />);
+    fireEvent.click(screen.getByTestId('answer-call'));
+
+    fireEvent.change(screen.getByLabelText('Say something in your own words'), { target: { value: 'no chest pain' } });
+    fireEvent.submit(screen.getByLabelText('Say something in your own words').closest('form')!);
+    await screen.findByText(/use the quick answers below/);
+
+    expect(FILLER_LINES.en.some((line) => screen.getByRole('log').textContent?.includes(line))).toBe(true);
   });
 });
 

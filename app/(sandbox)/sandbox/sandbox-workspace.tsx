@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Activity, BarChart3, BookOpenCheck, ClipboardList, HeartPulse, PhoneCall, RotateCcw, Stethoscope, Users } from 'lucide-react';
+import { Activity, BarChart3, BookOpenCheck, ClipboardList, HeartPulse, PhoneCall, RotateCcw, Sparkles, Stethoscope, Users } from 'lucide-react';
 import { trackProductEvent } from '@/lib/product-analytics/actions';
 import { getPublicDisseminationContext } from '@/lib/product-analytics/public-context';
 import { OUTREACH_TRANSCRIPTS, outreachWorkItems, type SimulatedCallTranscript } from '@/lib/sandbox-ai/fixtures';
@@ -17,10 +17,11 @@ import { SandboxPathways } from './_components/sandbox-pathways';
 import { SandboxCoordination } from './_components/sandbox-coordination';
 import { SandboxPatientView } from './_components/sandbox-patient-view';
 import { SandboxImpact } from './_components/sandbox-impact';
+import { SandboxCopilot } from './_components/sandbox-copilot';
 
 const SANDBOX_STORAGE_KEY = 'heartland_synthetic_sandbox_v2';
 const MAX_LOCAL_AGE_MS = 7 * 86_400_000;
-const SECTION_ICONS = [Stethoscope, ClipboardList, PhoneCall, Activity, BookOpenCheck, Users, HeartPulse, BarChart3];
+const SECTION_ICONS = [Stethoscope, Sparkles, ClipboardList, PhoneCall, Activity, BookOpenCheck, Users, HeartPulse, BarChart3];
 const TASK_STATUSES: SandboxTaskStatus[] = ['open', 'reviewed', 'actioned', 'awaiting', 'closed'];
 const PATIENT_CHECK_IN_IDS = new Set(SANDBOX_PATIENTS.flatMap((patient) =>
   ['weight', 'meds', 'symptoms', 'education', 'message', 'call'].map((suffix) => `${patient.id}-${suffix}`),
@@ -289,6 +290,7 @@ export function SandboxWorkspace() {
 
   const sectionContent = (() => {
     switch (demo.selectedSection) {
+      case 'copilot': return <SandboxCopilot outreachItems={outreachWorkItems(demo.aiOutreachRuns)} onRecordRun={recordOutreachRun} onNavigate={navigate} />;
       case 'daily-loop': return <SandboxDailyLoop taskStates={demo.taskStates} onTaskState={updateTask} onOpenPatient={openPatient} onBulkReview={bulkReview} outreachItems={outreachWorkItems(demo.aiOutreachRuns)} onOpenOutreach={() => navigate('outreach')} />;
       case 'outreach': return <SandboxOutreach liveCalls={liveCalls} runs={demo.aiOutreachRuns} onLiveCall={recordOutreachRun} />;
       case 'patient-360': return <SandboxPatientWorkspace patient={selectedPatient} documentedActions={demo.documentedActions} onPatientChange={(patientId) => setDemo((current) => ({ ...current, selectedPatientId: patientId }))} onDocumentAction={documentAction} />;

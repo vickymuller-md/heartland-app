@@ -82,11 +82,143 @@ test('the simulated live call completes on the deterministic chip path', async (
 test('pre-generated call audio is served to anonymous visitors, not redirected to login', async ({ request }) => {
   // Regression guard: the session proxy must treat .mp3 under public/ as a
   // static asset — a redirect here silently mutes every call and player.
-  for (const asset of ['/outreach-audio/prompts/intro.mp3', '/outreach-audio/call-maria-redflag.mp3']) {
+  for (const asset of ['/outreach-audio/prompts/daily_checkin/en/intro.mp3', '/outreach-audio/call-maria-redflag.mp3']) {
     const response = await request.get(asset, { maxRedirects: 0 });
     expect(response.status(), asset).toBe(200);
     expect(response.headers()['content-type'], asset).toContain('audio');
   }
+});
+
+test('the titration follow-up call completes on chips and the registered gates decide', async ({ page }) => {
+  await page.goto('/sandbox');
+  await page.getByTestId('sandbox-nav-patient-view').click();
+  await page.getByTestId('open-titration-call').click();
+  await page.getByTestId('answer-call').click();
+  await expect(page.getByRole('log')).toContainText('since we increased your medicine');
+
+  await page.getByTestId('live-call-chips').getByRole('button', { name: 'No, nothing like that' }).click();
+  await page.getByTestId('live-call-chips').getByRole('button', { name: 'No dizziness' }).click();
+  await page.getByTestId('live-call-numbers').getByLabel(/Systolic BP/).fill('121');
+  await page.getByTestId('live-call-numbers').getByRole('button', { name: 'Send / skip' }).click();
+  await page.getByTestId('live-call-numbers').getByLabel(/Pulse/).fill('71');
+  await page.getByTestId('live-call-numbers').getByRole('button', { name: 'Send / skip' }).click();
+  await page.getByTestId('live-call-chips').getByRole('button', { name: 'No, feeling the same' }).click();
+  await page.getByTestId('live-call-chips').getByRole('button', { name: 'Yes, every day' }).click();
+
+  const result = page.getByTestId('live-call-result');
+  await expect(result).toContainText('Proceed confirmed');
+  await expect(result).toContainText('registered titration safety gates, never by the AI');
+});
+
+test('the live call speaks Spanish end to end on the deterministic chip path', async ({ page }) => {
+  await page.goto('/sandbox');
+  await page.getByTestId('sandbox-nav-patient-view').click();
+  await page.getByTestId('open-live-call').click();
+  await page.getByTestId('call-locale-es').click();
+  await page.getByTestId('answer-call').click();
+
+  await expect(page.getByRole('log')).toContainText('dolor de pecho');
+  await page.getByTestId('live-call-chips').getByRole('button', { name: 'No, nada de eso' }).click();
+  await expect(page.getByRole('log')).toContainText('báscula');
+});
+
+test('assist surfaces render drafted content from the assist endpoint', async ({ page }) => {
+  await page.route('**/api/sandbox-ai/assist', async (route) => {
+    const body = route.request().postDataJSON() as { kind: string };
+    const responses: Record<string, unknown> = {
+      morning_brief: { kind: 'morning_brief', brief: 'Maria Santos needs a callback first this morning; the remaining check-ins stayed routine.' },
+      sbar_polish: { kind: 'sbar_polish', situation: 'Polished situation.', background: 'Polished background.', assessment: 'Polished assessment.', recommendation: 'Polished recommendation.' },
+      explain_rule: { kind: 'explain_rule', explanation: 'Her weight rose faster than the five-pound weekly limit this registered rule watches for.' },
+      protocol_qa: { kind: 'protocol_qa', answer: 'The titration safety gates hold or reduce doses on low blood pressure, low heart rate, or rising potassium.', citations: ['Module 3 §3.3'] },
+    };
+    await route.fulfill({ json: responses[body.kind] ?? { fallback: true } });
+  });
+
+  await page.goto('/sandbox');
+  await page.getByTestId('sandbox-nav-daily-loop').click();
+  await page.getByTestId('draft-morning-brief').click();
+  await expect(page.getByTestId('morning-brief')).toContainText('Maria Santos needs a callback');
+  await expect(page.getByTestId('morning-brief')).toContainText('never by the AI');
+
+  await page.getByTestId('sandbox-nav-outreach').click();
+  const maria = page.getByTestId('outreach-call-call-maria-redflag');
+  await maria.getByRole('button', { name: /Draft SBAR handoff/ }).click();
+  await page.getByTestId('sbar-polish').click();
+  await expect(page.getByTestId('sbar-polish-note')).toContainText('review before use');
+  await expect(page.getByTestId('sandbox-sbar-draft').getByLabel('Situation')).toHaveValue('Polished situation.');
+});
+
+test('the copilot runs the morning round, narrates the brief, and answers queue questions with a tool trace', async ({ page }) => {
+  let simulateCalls = 0;
+  await page.route('**/api/sandbox-ai/simulate-call', async (route) => {
+    simulateCalls += 1;
+    const escalated = simulateCalls === 2;
+    await route.fulfill({
+      json: {
+        transcript: {
+          id: `e2e-run-${simulateCalls}`,
+          patientId: null,
+          patientName: `Persona ${simulateCalls} (synthetic)`,
+          channel: 'automated-voice-simulation',
+          placedLabel: 'This visit · just now',
+          turns: [],
+          extraction: {},
+          redFlags: escalated
+            ? [{ id: 'weight_gain_5lb_7d', severity: 'critical', message: 'Weight gain of 5+ lbs in 1 week detected', action: 'Seek urgent evaluation within 24 hours' }]
+            : [],
+          disposition: escalated ? 'escalated' : 'routine',
+        },
+      },
+    });
+  });
+  await page.route('**/api/sandbox-ai/assist', async (route) => {
+    await route.fulfill({ json: { kind: 'morning_brief', brief: 'Persona 2 needs the first callback; the others stayed routine.' } });
+  });
+  await page.route('**/api/sandbox-ai/copilot', async (route) => {
+    await route.fulfill({
+      json: {
+        answer: 'Call Persona 2 first — registered rule weight_gain_5lb_7d fired.',
+        toolTrace: [{ tool: 'get_queue', summary: 'queue (4 items)' }, { tool: 'explain_rule', summary: 'rule weight_gain_5lb_7d' }],
+      },
+    });
+  });
+
+  await page.goto('/sandbox');
+  await page.getByTestId('sandbox-nav-copilot').click();
+  await expect(page.getByTestId('sandbox-copilot')).toBeVisible();
+
+  await page.getByTestId('run-morning-round').click();
+  await expect(page.getByTestId('round-metric')).toContainText('3 automated check-ins processed');
+  await expect(page.getByTestId('round-metric')).toContainText('never by the AI');
+  await expect(page.getByTestId('copilot-brief')).toContainText('Persona 2 needs the first callback');
+  await expect(page.getByTestId('copilot-prepared')).toContainText('Weight gain of 5+ lbs in 1 week detected');
+
+  await page.getByRole('button', { name: 'Who should I call first, and why?' }).click();
+  await expect(page.getByTestId('copilot-answer')).toContainText('Call Persona 2 first');
+  await expect(page.getByTestId('copilot-trace')).toContainText('queue (4 items) → rule weight_gain_5lb_7d');
+
+  // The round populated the shared queue in the Daily Loop.
+  await page.getByTestId('sandbox-nav-daily-loop').click();
+  await expect(page.getByTestId('daily-loop-outreach')).toContainText('Persona 2 (synthetic)');
+});
+
+test('the guide answers protocol questions with citations from the reference assistant', async ({ page }) => {
+  await page.route('**/api/sandbox-ai/assist', async (route) => {
+    await route.fulfill({
+      json: {
+        kind: 'protocol_qa',
+        answer: 'The Generic Bridge keeps quadruple therapy near fifteen dollars a month using generic equivalents.',
+        citations: ['Module 2 §2.4'],
+      },
+    });
+  });
+  await page.goto('/guide');
+  await expect(page.getByTestId('protocol-assistant')).toBeVisible();
+  await page.getByRole('button', { name: 'How does the Generic Bridge keep therapy affordable?' }).click();
+  const answer = page.getByTestId('protocol-assistant-answer');
+  await expect(answer).toContainText('fifteen dollars');
+  await expect(answer).toContainText('Module 2 §2.4');
+  await expect(page.getByTestId('protocol-assistant')).toContainText(/not medical advice/i);
 });
 
 test('the live call supports hands-free voice answers with server-provided speech', async ({ page }) => {
@@ -207,6 +339,16 @@ test('AI surfaces never use the restricted regulatory terminology', async ({ pag
   await expect(page.locator('body')).not.toContainText(/AI (triage|diagnos)/i);
 
   await page.getByTestId('sandbox-nav-outreach').click();
+  await expect(page.locator('body')).not.toContainText(/clinical decision support/i);
+  await expect(page.locator('body')).not.toContainText(/AI (triage|diagnos)/i);
+
+  await page.getByTestId('sandbox-nav-copilot').click();
+  await expect(page.getByTestId('sandbox-copilot')).toBeVisible();
+  await expect(page.locator('body')).not.toContainText(/clinical decision support/i);
+  await expect(page.locator('body')).not.toContainText(/AI (triage|diagnos)/i);
+
+  await page.goto('/guide');
+  await expect(page.getByTestId('protocol-assistant')).toBeVisible();
   await expect(page.locator('body')).not.toContainText(/clinical decision support/i);
   await expect(page.locator('body')).not.toContainText(/AI (triage|diagnos)/i);
 });

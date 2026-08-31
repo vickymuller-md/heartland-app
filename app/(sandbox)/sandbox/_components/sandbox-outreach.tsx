@@ -1,9 +1,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, FileText, PhoneCall } from 'lucide-react';
+import { ChevronDown, ChevronUp, FileText, PhoneCall, Wand2 } from 'lucide-react';
 import { trackProductEvent, type ProductEventInput } from '@/lib/product-analytics/actions';
 import { getPublicDisseminationContext } from '@/lib/product-analytics/public-context';
+import { requestAssist } from '@/lib/sandbox-ai/assist-client';
 import { OUTREACH_TRANSCRIPTS, type SimulatedCallTranscript } from '@/lib/sandbox-ai/fixtures';
 import { draftSbarFromCheckIn } from '@/lib/sandbox-ai/sbar';
 import type { CheckInExtraction } from '@/lib/sandbox-ai/types';
@@ -50,23 +51,63 @@ function ExtractionPanel({ extraction }: { extraction: CheckInExtraction }) {
 
 function SbarDraft({ patient, extraction }: { patient: SandboxPatient; extraction: CheckInExtraction }) {
   const draft = useMemo(() => draftSbarFromCheckIn(patient, extraction), [patient, extraction]);
+  const [fields, setFields] = useState(draft);
+  const [polishStatus, setPolishStatus] = useState<'idle' | 'busy' | 'polished' | 'unavailable'>('idle');
   const sections = [
-    ['Situation', draft.situation], ['Background', draft.background],
-    ['Assessment', draft.assessment], ['Recommendation', draft.recommendation],
+    ['Situation', 'situation'], ['Background', 'background'],
+    ['Assessment', 'assessment'], ['Recommendation', 'recommendation'],
   ] as const;
+
+  async function polish() {
+    if (polishStatus === 'busy') return;
+    setPolishStatus('busy');
+    const result = await requestAssist({
+      kind: 'sbar_polish',
+      input: { patientName: patient.name, sbar: fields },
+      anonymousSessionId: getPublicDisseminationContext().anonymousSessionId,
+    });
+    if (result?.kind === 'sbar_polish') {
+      setFields({
+        situation: result.situation,
+        background: result.background,
+        assessment: result.assessment,
+        recommendation: result.recommendation,
+      });
+      setPolishStatus('polished');
+      return;
+    }
+    setPolishStatus('unavailable');
+  }
+
   return (
     <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4" data-testid="sandbox-sbar-draft">
-      <p className="text-sm font-bold text-slate-950">SBAR handoff draft</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-bold text-slate-950">SBAR handoff draft</p>
+        <Button size="sm" variant="outline" disabled={polishStatus === 'busy'} onClick={() => void polish()} data-testid="sbar-polish">
+          <Wand2 className="mr-1 size-4" /> {polishStatus === 'busy' ? 'Polishing…' : 'Polish wording with AI'}
+        </Button>
+      </div>
       <p className="mt-1 text-xs leading-5 text-slate-600">
         Situation and Background are drafted from the structured check-in data shown above — verify
         against the source values. Assessment and Recommendation always stay with the provider.
       </p>
+      {polishStatus === 'polished' && (
+        <p className="mt-2 rounded-lg border border-blue-300 bg-white p-2 text-[11px] leading-4 text-slate-700" data-testid="sbar-polish-note">
+          AI-polished wording — review before use. Values and findings must match the source data;
+          the disposition and red flags were not touched.
+        </p>
+      )}
+      {polishStatus === 'unavailable' && (
+        <p className="mt-2 text-[11px] text-slate-500">Polishing is unavailable right now — the deterministic draft below is unchanged.</p>
+      )}
       <div className="mt-3 grid gap-3 lg:grid-cols-2">
-        {sections.map(([label, text]) => (
-          <label key={label} className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
+        {sections.map(([label, key]) => (
+          <label key={key} className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
             {label}
             <textarea
-              defaultValue={text}
+              value={fields[key]}
+              maxLength={1200}
+              onChange={(event) => setFields((current) => ({ ...current, [key]: event.target.value }))}
               rows={4}
               className="rounded-lg border border-slate-300 bg-white p-2 font-normal text-slate-900"
             />
