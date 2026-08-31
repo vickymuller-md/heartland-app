@@ -20,10 +20,13 @@ const SMALL_TALK_MESSAGE =
 async function main() {
   const state = {
     patientId: 'demo-maria',
+    scriptId: 'daily_checkin',
+    locale: 'en',
     phase: 'q1_safety',
     extraction: {
       weightLbs: null, sbp: null, spo2: null, dyspnea: null, edema: null,
       orthopnea: null, fatigue: null, adherence: null, chestPainOrSyncope: null,
+      hr: null, dizziness: null, worseSymptoms: null,
     },
     reasksUsed: {},
     turnCount: 0,
