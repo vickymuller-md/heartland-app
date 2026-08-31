@@ -13,6 +13,7 @@ export const SANDBOX_SECTIONS: Array<{
   description: string;
 }> = [
   { id: 'command', shortLabel: 'Start', title: 'Command Center', description: 'Product map, synthetic scenario, and guided tour.' },
+  { id: 'copilot', shortLabel: 'Copilot', title: 'Copilot', description: 'The automated morning round, the spoken brief, and an agent that answers questions about the queue with read-only tools.' },
   { id: 'daily-loop', shortLabel: 'Daily Loop', title: 'Daily Loop', description: 'Prioritized work, signal coalescence, owners, deadlines, and outcomes.' },
   { id: 'outreach', shortLabel: 'Outreach', title: 'Automated Outreach', description: 'AI-assisted call simulations with rule-based escalation and a human review queue.' },
   { id: 'patient-360', shortLabel: 'Patient 360', title: 'Patient 360', description: '60-second brief, monitoring, medications, timeline, and care plan.' },

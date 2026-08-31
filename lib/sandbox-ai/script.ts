@@ -8,19 +8,22 @@
  */
 
 import type { RedFlag } from '@/lib/vitals/types';
-import type { CheckInExtraction, ScriptQuestion, ScriptQuestionId } from './types';
+import type { CallLocale, CheckInExtraction, ScriptQuestion, ScriptQuestionId } from './types';
 
-export const SCRIPT_QUESTIONS: Record<ScriptQuestionId, ScriptQuestion> = {
+export const SCRIPT_QUESTIONS: Record<string, ScriptQuestion> = {
   q1_safety: {
     id: 'q1_safety',
     canonical:
       'First, the important one: any chest pain, or have you fainted or almost fainted since yesterday?',
+    canonicalEs:
+      'Primero, lo importante: ¿algún dolor de pecho, o se ha desmayado o casi desmayado desde ayer?',
     extractionKeys: ['chestPainOrSyncope'],
     skippable: false,
   },
   q2_weight: {
     id: 'q2_weight',
     canonical: 'What did the scale show this morning, in pounds?',
+    canonicalEs: '¿Qué mostró la báscula esta mañana, en libras?',
     extractionKeys: ['weightLbs'],
     skippable: false,
   },
@@ -28,12 +31,15 @@ export const SCRIPT_QUESTIONS: Record<ScriptQuestionId, ScriptQuestion> = {
     id: 'q3_breathing',
     canonical:
       'How is your breathing today — fine, short of breath with activity, or short of breath even at rest?',
+    canonicalEs:
+      '¿Cómo está su respiración hoy — bien, con falta de aire al hacer actividad, o con falta de aire incluso en reposo?',
     extractionKeys: ['dyspnea'],
     skippable: false,
   },
   q4_swelling: {
     id: 'q4_swelling',
     canonical: 'Any new or worse swelling in your feet, ankles, or legs?',
+    canonicalEs: '¿Alguna hinchazón nueva o peor en los pies, los tobillos o las piernas?',
     extractionKeys: ['edema'],
     skippable: false,
   },
@@ -41,18 +47,22 @@ export const SCRIPT_QUESTIONS: Record<ScriptQuestionId, ScriptQuestion> = {
     id: 'q5_orthopnea',
     canonical:
       'Last night, did you need extra pillows — or to sit up — to breathe while sleeping?',
+    canonicalEs:
+      'Anoche, ¿necesitó almohadas adicionales — o sentarse — para poder respirar mientras dormía?',
     extractionKeys: ['orthopnea'],
     skippable: false,
   },
   q6_fatigue: {
     id: 'q6_fatigue',
     canonical: 'How is your energy today compared to normal?',
+    canonicalEs: '¿Cómo está su energía hoy comparada con lo normal?',
     extractionKeys: ['fatigue'],
     skippable: false,
   },
   q7_adherence: {
     id: 'q7_adherence',
     canonical: 'Were you able to take all of your medicines yesterday and today?',
+    canonicalEs: '¿Pudo tomar todas sus medicinas ayer y hoy?',
     extractionKeys: ['adherence'],
     skippable: false,
   },
@@ -60,6 +70,8 @@ export const SCRIPT_QUESTIONS: Record<ScriptQuestionId, ScriptQuestion> = {
     id: 'q8_devices',
     canonical:
       "If you have a blood pressure cuff or oxygen meter at home, what were the numbers? It's fine to skip this.",
+    canonicalEs:
+      'Si tiene en casa un tensiómetro o un medidor de oxígeno, ¿cuáles fueron los números? Está bien saltarse esta.',
     extractionKeys: ['sbp', 'spo2'],
     skippable: true,
   },
@@ -82,24 +94,68 @@ export function nextQuestionId(current: ScriptQuestionId): ScriptQuestionId | nu
 }
 
 const DEMO_NOTE = '[Demonstration environment — synthetic data, no real call or alert is placed.]';
+const DEMO_NOTE_ES = '[Entorno de demostración — datos sintéticos; no se realiza ninguna llamada ni alerta real.]';
+
+export function demoNoteFor(locale: CallLocale): string {
+  return locale === 'es' ? DEMO_NOTE_ES : DEMO_NOTE;
+}
 
 export const INTRO_MESSAGES: readonly string[] = [
   "Hi! This is the automated daily check-in from your heart care team. I collect a few quick answers and a member of your care team reviews everything — I never make medical decisions. This takes about 2 minutes.",
   SCRIPT_QUESTIONS.q1_safety.canonical,
 ];
 
+export const INTRO_MESSAGES_ES: readonly string[] = [
+  '¡Hola! Este es el chequeo diario automático de su equipo de atención del corazón. Recojo unas respuestas rápidas y un miembro de su equipo revisa todo — yo nunca tomo decisiones médicas. Esto toma unos 2 minutos.',
+  SCRIPT_QUESTIONS.q1_safety.canonicalEs,
+];
+
+export function introMessagesFor(locale: CallLocale): readonly string[] {
+  return locale === 'es' ? INTRO_MESSAGES_ES : INTRO_MESSAGES;
+}
+
 export const EMERGENCY_911_MESSAGE =
   'Thank you for telling me. Chest pain or fainting needs immediate attention. This ends the automated check-in and alerts your care team right now. In a real deployment: call 911 or your local emergency number immediately. ' +
   DEMO_NOTE;
 
+export const EMERGENCY_911_MESSAGE_ES =
+  'Gracias por decírmelo. El dolor de pecho o los desmayos necesitan atención inmediata. Esto termina el chequeo automático y avisa a su equipo de atención ahora mismo. En un despliegue real: llame al 911 o a su número local de emergencias de inmediato. ' +
+  DEMO_NOTE_ES;
+
+export function emergencyMessageFor(locale: CallLocale): string {
+  return locale === 'es' ? EMERGENCY_911_MESSAGE_ES : EMERGENCY_911_MESSAGE;
+}
+
 export const DEFLECT_MESSAGE =
   "I can't give medical advice — I only collect your daily check-in so your care team can review it. If you're worried, contact your care team; for an emergency, call 911. Now, back to the check-in:";
+
+export const DEFLECT_MESSAGE_ES =
+  'No puedo dar consejos médicos — solo recojo su chequeo para que su equipo de atención lo revise. Si está preocupado o preocupada, comuníquese con su equipo de atención; en una emergencia, llame al 911. Ahora, volvamos al chequeo:';
+
+export function deflectMessageFor(locale: CallLocale): string {
+  return locale === 'es' ? DEFLECT_MESSAGE_ES : DEFLECT_MESSAGE;
+}
 
 export const FALLBACK_NOTICE =
   'The conversational assistant is unavailable right now — please use this quick form instead. Red-flag checks work exactly the same way.';
 
-export function escalationMessage(flags: RedFlag[]): string {
+export const FALLBACK_NOTICE_ES =
+  'El asistente conversacional no está disponible en este momento — por favor use este formulario rápido. Las verificaciones de señales de alerta funcionan exactamente igual.';
+
+export function fallbackNoticeFor(locale: CallLocale): string {
+  return locale === 'es' ? FALLBACK_NOTICE_ES : FALLBACK_NOTICE;
+}
+
+export function escalationMessage(flags: RedFlag[], locale: CallLocale = 'en'): string {
+  // Registered rule texts (message/action) are quoted verbatim in every locale.
   const detail = flags.map((flag) => `${flag.message} — ${flag.action}.`).join(' ');
+  if (locale === 'es') {
+    return (
+      `Gracias. Según las reglas preestablecidas de su plan de atención, lo que usted reportó necesita revisión: ${detail} ` +
+      'Un miembro de su equipo de atención está siendo notificado y le llamará hoy. ' +
+      DEMO_NOTE_ES
+    );
+  }
   return (
     `Thank you. Based on your care plan's preset rules, what you reported needs review: ${detail} ` +
     'A member of your care team is being notified and will call you today. ' +
@@ -110,8 +166,24 @@ export function escalationMessage(flags: RedFlag[]): string {
 const DYSPNEA_LABELS = ['fine', 'short of breath with heavy activity', 'short of breath with activity', 'short of breath at rest'] as const;
 const SEVERITY_LABELS = ['none', 'mild', 'moderate', 'severe'] as const;
 const ADHERENCE_LABELS = { yes: 'all taken', missed_some: 'missed some', no: 'not taken' } as const;
+const DYSPNEA_LABELS_ES = ['bien', 'falta de aire con actividad intensa', 'falta de aire con actividad', 'falta de aire en reposo'] as const;
+const SEVERITY_LABELS_ES = ['ninguna', 'leve', 'moderada', 'grave'] as const;
+const ADHERENCE_LABELS_ES = { yes: 'todas tomadas', missed_some: 'faltaron algunas', no: 'no tomadas' } as const;
 
-export function recordedSummary(extraction: CheckInExtraction): string {
+export function recordedSummary(extraction: CheckInExtraction, locale: CallLocale = 'en'): string {
+  if (locale === 'es') {
+    const parts = [
+      `peso ${extraction.weightLbs !== null ? `${extraction.weightLbs} libras` : 'no registrado'}`,
+      `respiración: ${extraction.dyspnea !== null ? DYSPNEA_LABELS_ES[extraction.dyspnea] : 'no registrada'}`,
+      `hinchazón: ${extraction.edema !== null ? SEVERITY_LABELS_ES[extraction.edema] : 'no registrada'}`,
+      `sueño: ${extraction.orthopnea === null ? 'no registrado' : extraction.orthopnea ? 'necesitó almohadas adicionales' : 'sin almohadas adicionales'}`,
+      `energía: ${extraction.fatigue !== null ? `fatiga ${SEVERITY_LABELS_ES[extraction.fatigue]}` : 'no registrada'}`,
+      `medicinas: ${extraction.adherence !== null ? ADHERENCE_LABELS_ES[extraction.adherence] : 'no registrado'}`,
+      `presión arterial: ${extraction.sbp !== null ? `${extraction.sbp} mmHg sistólica` : 'omitida'}`,
+      `oxígeno: ${extraction.spo2 !== null ? `${extraction.spo2}%` : 'omitido'}`,
+    ];
+    return `Esto es lo que registré para su equipo de atención: ${parts.join(' · ')}.`;
+  }
   const parts = [
     `weight ${extraction.weightLbs !== null ? `${extraction.weightLbs} lbs` : 'not recorded'}`,
     `breathing: ${extraction.dyspnea !== null ? DYSPNEA_LABELS[extraction.dyspnea] : 'not recorded'}`,
@@ -125,7 +197,15 @@ export function recordedSummary(extraction: CheckInExtraction): string {
   return `Here is what I recorded for your care team: ${parts.join(' · ')}.`;
 }
 
-export function routineClosingMessage(extraction: CheckInExtraction): string {
+export function routineClosingMessage(extraction: CheckInExtraction, locale: CallLocale = 'en'): string {
+  if (locale === 'es') {
+    return (
+      `${recordedSummary(extraction, 'es')} Su equipo de atención verá este resumen. ` +
+      'Nada de lo que reportó necesita atención urgente según las reglas preestablecidas de su plan de atención. ' +
+      'Si algo cambia o le preocupa, contacte a su equipo de atención — y en una emergencia, llame al 911. ' +
+      DEMO_NOTE_ES
+    );
+  }
   return (
     `${recordedSummary(extraction)} Your care team will see this summary. ` +
     "Nothing you reported needs urgent attention according to your care plan's preset rules. " +
@@ -150,3 +230,26 @@ export const SPOKEN_EMERGENCY =
 
 export const SPOKEN_DEFLECT =
   "I can't give medical advice — I only collect your daily check-in so your care team can review it. If you're worried, contact your care team, and for an emergency call 911. Now, back to the check-in.";
+
+// Spanish spoken lines (clinical translation; reviewed before audio generation).
+
+export const SPOKEN_CALL_INTRO_ES =
+  'Hola, esta es la llamada automática de chequeo diario de su equipo de atención del corazón. Un miembro de su equipo revisa todo lo que recojo — yo nunca tomo decisiones médicas. Esto toma unos dos minutos.';
+
+export const SPOKEN_ESCALATION_ES =
+  'Gracias. Según las reglas preestablecidas de su plan de atención, lo que reportó hoy necesita una revisión más de cerca. Lo estoy marcando para su equipo ahora mismo, y una enfermera le devolverá la llamada hoy — por favor mantenga su teléfono cerca. Si algo empeora de repente antes de eso, llame al 911. Cuídese, hablamos pronto. Adiós.';
+
+export const SPOKEN_ROUTINE_ES =
+  'Gracias — eso es todo lo que necesito hoy. Nada de lo que reportó necesita atención urgente según las reglas preestablecidas de su plan de atención, y su equipo verá el resumen completo. ¿A la misma hora mañana? Cuídese. Adiós.';
+
+export const SPOKEN_EMERGENCY_ES =
+  'Gracias por decírmelo. El dolor de pecho o los desmayos necesitan atención inmediata, así que esto termina el chequeo automático y alerta a su equipo de atención ahora mismo. En un despliegue real: llame al 911 o a su número local de emergencias de inmediato.';
+
+export const SPOKEN_DEFLECT_ES =
+  'No puedo dar consejos médicos — solo recojo su chequeo para que su equipo de atención lo revise. Si está preocupado, contacte a su equipo, y en una emergencia llame al 911. Ahora, volvamos al chequeo.';
+
+/** Short spoken acknowledgments played while the server processes a voice turn. */
+export const FILLER_LINES: Record<CallLocale, readonly string[]> = {
+  en: ['Mm-hm, let me note that down.', 'Okay, one moment.', 'Got it, thank you.'],
+  es: ['Ajá, déjeme anotar eso.', 'Bien, un momento.', 'Entendido, gracias.'],
+};

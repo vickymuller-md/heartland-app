@@ -209,6 +209,85 @@ describe('applyDeterministicAnswer — chip path shares the exact same rules', (
   });
 });
 
+describe('titration follow-up script — registered safety gates own the outcome', () => {
+  function titrationState(extraction: Partial<CheckInExtraction> = {}): CheckInState {
+    return {
+      ...createInitialState('demo-james', 'titration_followup'),
+      extraction: { ...emptyExtraction(), ...extraction },
+    };
+  }
+
+  it('walks the whole follow-up on chips and stays routine when every gate passes', () => {
+    let turn = applyDeterministicAnswer(titrationState(), { chestPainOrSyncope: false });
+    expect(turn.state.phase).toBe('t2_dizziness');
+    turn = applyDeterministicAnswer(turn.state, { dizziness: 0 });
+    turn = applyDeterministicAnswer(turn.state, { sbp: 121 });
+    turn = applyDeterministicAnswer(turn.state, { hr: 71 });
+    turn = applyDeterministicAnswer(turn.state, { worseSymptoms: false });
+    turn = applyDeterministicAnswer(turn.state, { adherence: 'yes' });
+
+    expect(turn.done).toBe(true);
+    expect(turn.disposition).toBe('routine');
+    expect(turn.redFlags).toEqual([]);
+    expect(turn.assistantMessages[0]).toContain('preset safety checks');
+    expect(turn.assistantMessages[0]).toContain('no change happens without that confirmation');
+  });
+
+  it('escalates a borderline home blood pressure through the registered gate', () => {
+    let turn = applyDeterministicAnswer(titrationState(), { chestPainOrSyncope: false });
+    turn = applyDeterministicAnswer(turn.state, { dizziness: 0 });
+    turn = applyDeterministicAnswer(turn.state, { sbp: 94 });
+    turn = applyDeterministicAnswer(turn.state, { hr: 71 });
+    turn = applyDeterministicAnswer(turn.state, { worseSymptoms: false });
+    turn = applyDeterministicAnswer(turn.state, { adherence: 'yes' });
+
+    expect(turn.disposition).toBe('escalated');
+    expect(turn.redFlags.map((flag) => flag.id)).toContain('titration_gate_hold');
+    expect(turn.assistantMessages[0]).toContain('SBP 90-99');
+  });
+
+  it('treats moderate dizziness with low-normal pressure as symptomatic hypotension', () => {
+    let turn = applyDeterministicAnswer(titrationState(), { chestPainOrSyncope: false });
+    turn = applyDeterministicAnswer(turn.state, { dizziness: 2 });
+    turn = applyDeterministicAnswer(turn.state, { sbp: 95 });
+    turn = applyDeterministicAnswer(turn.state, { hr: 71 });
+    turn = applyDeterministicAnswer(turn.state, { worseSymptoms: false });
+    turn = applyDeterministicAnswer(turn.state, { adherence: 'yes' });
+
+    expect(turn.disposition).toBe('escalated');
+    expect(turn.redFlags.map((flag) => flag.id)).toContain('titration_symptomatic_hypotension');
+  });
+
+  it('escalates missed doses for nurse review of barriers', () => {
+    let turn = applyDeterministicAnswer(titrationState(), { chestPainOrSyncope: false });
+    turn = applyDeterministicAnswer(turn.state, { dizziness: 0 });
+    turn = applyDeterministicAnswer(turn.state, {}); // t3 skipped -> fixture SBP 121
+    turn = applyDeterministicAnswer(turn.state, {}); // t4 skipped -> fixture HR 71
+    turn = applyDeterministicAnswer(turn.state, { worseSymptoms: false });
+    turn = applyDeterministicAnswer(turn.state, { adherence: 'missed_some' });
+
+    expect(turn.disposition).toBe('escalated');
+    expect(turn.redFlags.map((flag) => flag.id)).toEqual(['titration_adherence']);
+  });
+
+  it('short-circuits chest pain straight to the emergency template', () => {
+    const response = applyDeterministicAnswer(titrationState(), { chestPainOrSyncope: true });
+    expect(response.done).toBe(true);
+    expect(response.disposition).toBe('emergency');
+  });
+
+  it('runs the LLM path with the titration script and localized Spanish templates', async () => {
+    const callModel = vi.fn(async () => llmTurn({ unclear: true }, { kind: 'deflect_question' }));
+    const esState: CheckInState = { ...titrationState(), locale: 'es', phase: 't2_dizziness' };
+    const response = await runCheckInTurn(esState, '¿qué dosis debo tomar?', { callModel });
+
+    expect(callModel).toHaveBeenCalledWith(expect.objectContaining({ scriptId: 'titration_followup', locale: 'es' }));
+    expect(response.assistantMessages[0]).toContain('No puedo dar consejos médicos');
+    expect(response.assistantMessages[1]).toContain('mareo');
+    expect(response.state.phase).toBe('t2_dizziness');
+  });
+});
+
 describe('finalizeCheckIn — deterministic red flags own the disposition', () => {
   it("escalates Maria's synthetic weight-gain trend with the registered criteria texts", () => {
     const finished = finalizeCheckIn({

@@ -91,7 +91,8 @@ describe('POST /api/sandbox-ai/checkin', () => {
     expect(body.speech).toBeUndefined();
 
     const [, rpcArgs] = rpcMock.mock.calls[0];
-    expect(rpcMock.mock.calls[0][0]).toBe('consume_sandbox_ai_turn');
+    expect(rpcMock.mock.calls[0][0]).toBe('consume_sandbox_ai_turn_v2');
+    expect(rpcArgs.p_kind).toBe('turn');
     expect(rpcArgs.p_requester_hash).toMatch(/^[0-9a-f]{64}$/);
     expect(rpcArgs.p_session_hash).toMatch(/^[0-9a-f]{64}$/);
   });

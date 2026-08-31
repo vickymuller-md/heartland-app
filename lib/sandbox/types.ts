@@ -1,5 +1,6 @@
 export type SandboxSectionId =
   | 'command'
+  | 'copilot'
   | 'daily-loop'
   | 'outreach'
   | 'patient-360'

@@ -54,7 +54,7 @@ describe('synthesizeSpeech', () => {
 
     vi.stubEnv('ELEVENLABS_API_KEY', 'test-key');
     expect(await synthesizeSpeech('')).toBeNull();
-    expect(await synthesizeSpeech('x'.repeat(301))).toBeNull();
+    expect(await synthesizeSpeech('x'.repeat(751))).toBeNull();
 
     expect(fetchMock).not.toHaveBeenCalled();
   });

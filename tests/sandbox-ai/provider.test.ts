@@ -14,6 +14,8 @@ import { runLlmTurn } from '@/lib/sandbox-ai/provider';
 import { SCRIPT_QUESTIONS } from '@/lib/sandbox-ai/script';
 
 const turnInput = {
+  scriptId: 'daily_checkin' as const,
+  locale: 'en' as const,
   currentQuestion: SCRIPT_QUESTIONS.q1_safety,
   nextQuestion: SCRIPT_QUESTIONS.q2_weight,
   reasksUsed: 0,

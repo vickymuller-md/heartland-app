@@ -1,44 +1,44 @@
 /**
- * Sandbox AI-Assisted Check-In -- Deterministic Controller
+ * Sandbox AI-Assisted Calls -- Deterministic Controller
  *
  * Owns question order, re-asks, the chest-pain emergency short-circuit, and
- * final disposition. The LLM (deps.callModel) only paraphrases the next
- * question and extracts structured data; every escalation decision runs
- * through evaluateRedFlags (lib/vitals/red-flags.ts). Pure module: the
+ * final disposition for every registered call script (call-scripts.ts). The
+ * LLM (deps.callModel) only paraphrases the next question, acknowledges
+ * benign small talk, and extracts structured data; every completion decision
+ * runs through the script's registered deterministic rules. Pure module: the
  * fallback form reuses finalizeCheckIn client-side with identical results.
  */
 
-import { subDays } from 'date-fns';
-import { evaluateRedFlags } from '@/lib/vitals/red-flags';
-import { SANDBOX_PATIENTS } from '@/lib/sandbox/fixtures';
-import type { SandboxPatient } from '@/lib/sandbox/types';
-import {
-  DEFLECT_MESSAGE,
-  EMERGENCY_911_MESSAGE,
-  SCRIPT_QUESTIONS,
-  escalationMessage,
-  nextQuestionId,
-  routineClosingMessage,
-} from './script';
+import { scriptFor } from './call-scripts';
 import { sanitizeParaphrase, sanitizeSmallTalk } from './schema';
+import { deflectMessageFor, emergencyMessageFor } from './script';
+import { canonicalFor } from './types';
 import type {
+  CallLocale,
   CheckInExtraction,
   CheckInState,
   CheckInTurnResponse,
   LlmTurn,
+  ScriptId,
   ScriptQuestion,
+  ScriptQuestionId,
 } from './types';
+
+// Compat re-exports: these lived here before the multi-script split.
+export { finalizeCheckIn, syntheticWeightHistory } from './daily-script';
 
 export const MAX_TURNS = 30;
 const MAX_MESSAGE_LENGTH = 500;
 
 const EXTRACTION_KEYS: ReadonlyArray<keyof CheckInExtraction> = [
   'weightLbs', 'sbp', 'spo2', 'dyspnea', 'edema', 'orthopnea',
-  'fatigue', 'adherence', 'chestPainOrSyncope',
+  'fatigue', 'adherence', 'chestPainOrSyncope', 'hr', 'dizziness', 'worseSymptoms',
 ];
 
 export interface EngineDeps {
   callModel: (input: {
+    scriptId: ScriptId;
+    locale: CallLocale;
     currentQuestion: ScriptQuestion;
     nextQuestion: ScriptQuestion | null;
     reasksUsed: number;
@@ -50,18 +50,36 @@ export function emptyExtraction(): CheckInExtraction {
   return {
     weightLbs: null, sbp: null, spo2: null, dyspnea: null, edema: null,
     orthopnea: null, fatigue: null, adherence: null, chestPainOrSyncope: null,
+    hr: null, dizziness: null, worseSymptoms: null,
   };
 }
 
-export function createInitialState(patientId: string): CheckInState {
-  return { patientId, phase: 'q1_safety', extraction: emptyExtraction(), reasksUsed: {}, turnCount: 0 };
+export function createInitialState(
+  patientId: string,
+  scriptId: ScriptId = 'daily_checkin',
+  locale: CallLocale = 'en',
+): CheckInState {
+  return {
+    patientId,
+    scriptId,
+    locale,
+    phase: scriptFor(scriptId).order[0],
+    extraction: emptyExtraction(),
+    reasksUsed: {},
+    turnCount: 0,
+  };
 }
 
-function mergeExtraction(base: CheckInExtraction, incoming: CheckInExtraction): CheckInExtraction {
+function nextQuestionIdIn(order: readonly ScriptQuestionId[], current: ScriptQuestionId): ScriptQuestionId | null {
+  const index = order.indexOf(current);
+  return index >= 0 && index < order.length - 1 ? order[index + 1] : null;
+}
+
+function mergeExtraction(base: CheckInExtraction, incoming: Partial<CheckInExtraction>): CheckInExtraction {
   const merged = { ...base };
   for (const key of EXTRACTION_KEYS) {
     const value = incoming[key];
-    if (value !== null) (merged as Record<string, unknown>)[key] = value;
+    if (value !== null && value !== undefined) (merged as Record<string, unknown>)[key] = value;
   }
   return merged;
 }
@@ -70,67 +88,22 @@ function fallbackResponse(state: CheckInState): CheckInTurnResponse {
   return { assistantMessages: [], state, done: false, disposition: null, redFlags: [], fallback: true };
 }
 
-/** Fixture labels ("5d ago" / "Yesterday" / "Today") -> days before now. */
-function labelToDaysAgo(label: string): number | null {
-  if (label === 'Today') return 0;
-  if (label === 'Yesterday') return 1;
-  const match = /^(\d+)d ago$/.exec(label);
-  return match ? Number(match[1]) : null;
-}
-
-/**
- * Synthetic weight history for trend red flags, most recent first. The
- * fixture's "Today" entry is excluded: the check-in itself is today's reading.
- */
-export function syntheticWeightHistory(patient: SandboxPatient): Array<{ weight_lbs: number; recorded_at: string }> {
-  const now = new Date();
-  return patient.vitals
-    .map((point) => ({ point, daysAgo: labelToDaysAgo(point.label) }))
-    .filter((entry): entry is { point: typeof entry.point; daysAgo: number } =>
-      entry.daysAgo !== null && entry.daysAgo > 0)
-    .sort((a, b) => a.daysAgo - b.daysAgo)
-    .map(({ point, daysAgo }) => ({
-      weight_lbs: point.weight,
-      recorded_at: subDays(now, daysAgo).toISOString(),
-    }));
-}
-
-/**
- * Deterministic completion: red flags + disposition + closing messages.
- * Shared by the chat path (server) and the fallback form (client).
- */
-export function finalizeCheckIn(state: CheckInState): CheckInTurnResponse {
-  const patient = SANDBOX_PATIENTS.find((entry) => entry.id === state.patientId) ?? SANDBOX_PATIENTS[0];
-  const lastSynthetic = patient.vitals.at(-1);
-  const flags = evaluateRedFlags(
-    {
-      weight_lbs: state.extraction.weightLbs ?? lastSynthetic?.weight ?? 0,
-      sbp: state.extraction.sbp ?? lastSynthetic?.sbp ?? 0,
-      spo2: state.extraction.spo2,
-    },
-    syntheticWeightHistory(patient),
-    {
-      dyspnea: state.extraction.dyspnea ?? 0,
-      edema: state.extraction.edema ?? 0,
-      orthopnea: state.extraction.orthopnea ?? false,
-      fatigue: state.extraction.fatigue ?? 0,
-    },
-  );
+function emergencyResponse(state: CheckInState): CheckInTurnResponse {
   return {
-    assistantMessages: [flags.length > 0 ? escalationMessage(flags) : routineClosingMessage(state.extraction)],
+    assistantMessages: [emergencyMessageFor(state.locale)],
     state: { ...state, phase: 'complete' },
     done: true,
-    disposition: flags.length > 0 ? 'escalated' : 'routine',
-    redFlags: flags,
+    disposition: 'emergency',
+    redFlags: [],
     fallback: false,
   };
 }
 
 /**
  * Apply one deterministic quick answer (simulated-call chips / offline path):
- * merge the fields, advance the fixed question order, and finalize after the
- * last question. Chest pain short-circuits exactly like the LLM path. No
- * model involved anywhere.
+ * merge the fields, advance the script's fixed question order, and finalize
+ * after the last question. Chest pain short-circuits exactly like the LLM
+ * path. No model involved anywhere.
  */
 export function applyDeterministicAnswer(
   state: CheckInState,
@@ -139,29 +112,18 @@ export function applyDeterministicAnswer(
   if (state.phase === 'complete') {
     return { assistantMessages: [], state, done: true, disposition: null, redFlags: [], fallback: false };
   }
+  const script = scriptFor(state.scriptId);
 
-  const extraction = { ...state.extraction };
-  for (const key of EXTRACTION_KEYS) {
-    const value = values[key];
-    if (value !== undefined && value !== null) (extraction as Record<string, unknown>)[key] = value;
-  }
+  const extraction = mergeExtraction(state.extraction, values);
   const base: CheckInState = { ...state, extraction, turnCount: state.turnCount + 1 };
 
-  if (extraction.chestPainOrSyncope === true) {
-    return {
-      assistantMessages: [EMERGENCY_911_MESSAGE],
-      state: { ...base, phase: 'complete' },
-      done: true,
-      disposition: 'emergency',
-      redFlags: [],
-      fallback: false,
-    };
-  }
+  if (extraction.chestPainOrSyncope === true) return emergencyResponse(base);
 
-  const nextId = nextQuestionId(state.phase);
-  if (!nextId) return finalizeCheckIn(base);
+  const nextId = nextQuestionIdIn(script.order, state.phase);
+  if (!nextId) return script.finalize(base);
+  const nextQuestion = script.questions[nextId];
   return {
-    assistantMessages: [SCRIPT_QUESTIONS[nextId].canonical],
+    assistantMessages: [nextQuestion ? canonicalFor(nextQuestion, state.locale) : ''],
     state: { ...base, phase: nextId },
     done: false,
     disposition: null,
@@ -178,15 +140,19 @@ export async function runCheckInTurn(
   if (state.phase === 'complete') {
     return { assistantMessages: [], state, done: true, disposition: null, redFlags: [], fallback: false };
   }
+  const script = scriptFor(state.scriptId);
+  const current = script.questions[state.phase];
+  if (!current) return fallbackResponse(state);
 
   const turnCount = state.turnCount + 1;
   if (turnCount > MAX_TURNS) return fallbackResponse(state);
 
-  const current = SCRIPT_QUESTIONS[state.phase];
-  const nextId = nextQuestionId(current.id);
+  const nextId = nextQuestionIdIn(script.order, current.id);
   const llm = await deps.callModel({
+    scriptId: state.scriptId,
+    locale: state.locale,
     currentQuestion: current,
-    nextQuestion: nextId ? SCRIPT_QUESTIONS[nextId] : null,
+    nextQuestion: nextId ? script.questions[nextId] ?? null : null,
     reasksUsed: state.reasksUsed[current.id] ?? 0,
     visitorReply: userMessage.slice(0, MAX_MESSAGE_LENGTH),
   });
@@ -194,22 +160,14 @@ export async function runCheckInTurn(
 
   const extraction = mergeExtraction(state.extraction, llm.extracted);
   const base: CheckInState = { ...state, extraction, turnCount };
+  const currentCanonical = canonicalFor(current, state.locale);
 
   // Emergency short-circuit is the engine's decision, never the model's.
-  if (extraction.chestPainOrSyncope === true) {
-    return {
-      assistantMessages: [EMERGENCY_911_MESSAGE],
-      state: { ...base, phase: 'complete' },
-      done: true,
-      disposition: 'emergency',
-      redFlags: [],
-      fallback: false,
-    };
-  }
+  if (extraction.chestPainOrSyncope === true) return emergencyResponse(base);
 
   if (llm.say.kind === 'deflect_question') {
     return {
-      assistantMessages: [DEFLECT_MESSAGE, current.canonical],
+      assistantMessages: [deflectMessageFor(state.locale), currentCanonical],
       state: base,
       done: false,
       disposition: null,
@@ -225,10 +183,10 @@ export async function runCheckInTurn(
   // deflection this is not a policy violation, so it never consumes the
   // re-ask budget; unlike a plain answer it always prepends the ack line.
   if (llm.say.kind === 'small_talk') {
-    const ack = sanitizeSmallTalk(llm.say.smallTalk);
+    const ack = sanitizeSmallTalk(llm.say.smallTalk, state.locale);
     if (!answered) {
       return {
-        assistantMessages: [ack, current.canonical],
+        assistantMessages: [ack, currentCanonical],
         state: base,
         done: false,
         disposition: null,
@@ -237,12 +195,13 @@ export async function runCheckInTurn(
       };
     }
     if (!nextId) {
-      const final = finalizeCheckIn(base);
+      const final = script.finalize(base);
       return { ...final, assistantMessages: [ack, ...final.assistantMessages] };
     }
-    const upcoming = SCRIPT_QUESTIONS[nextId];
+    const upcoming = script.questions[nextId];
+    const upcomingCanonical = upcoming ? canonicalFor(upcoming, state.locale) : '';
     return {
-      assistantMessages: [ack, sanitizeParaphrase(llm.say.paraphrase, upcoming.canonical)],
+      assistantMessages: [ack, sanitizeParaphrase(llm.say.paraphrase, upcomingCanonical)],
       state: { ...base, phase: nextId },
       done: false,
       disposition: null,
@@ -250,11 +209,12 @@ export async function runCheckInTurn(
       fallback: false,
     };
   }
+
   if (!answered || llm.extracted.unclear) {
     const used = state.reasksUsed[current.id] ?? 0;
     if (used < 1) {
       return {
-        assistantMessages: [current.canonical],
+        assistantMessages: [currentCanonical],
         state: { ...base, reasksUsed: { ...state.reasksUsed, [current.id]: used + 1 } },
         done: false,
         disposition: null,
@@ -265,11 +225,12 @@ export async function runCheckInTurn(
     // Re-ask budget spent: leave the fields null and move on.
   }
 
-  if (!nextId) return finalizeCheckIn(base);
+  if (!nextId) return script.finalize(base);
 
-  const nextQuestion = SCRIPT_QUESTIONS[nextId];
+  const nextQuestion = script.questions[nextId];
+  const nextCanonical = nextQuestion ? canonicalFor(nextQuestion, state.locale) : '';
   return {
-    assistantMessages: [sanitizeParaphrase(llm.say.paraphrase, nextQuestion.canonical)],
+    assistantMessages: [sanitizeParaphrase(llm.say.paraphrase, nextCanonical)],
     state: { ...base, phase: nextId },
     done: false,
     disposition: null,

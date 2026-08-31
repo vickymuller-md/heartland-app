@@ -21,6 +21,9 @@ const extractionShape = {
   fatigue: severity.nullable(),
   adherence: z.enum(['yes', 'missed_some', 'no']).nullable(),
   chestPainOrSyncope: z.boolean().nullable(),
+  hr: z.number().int().min(30).max(220).nullable(),
+  dizziness: severity.nullable(),
+  worseSymptoms: z.boolean().nullable(),
 };
 
 export const llmTurnSchema = z
@@ -32,7 +35,8 @@ export const llmTurnSchema = z
         smallTalk: z.string().max(200).nullable(),
       })
       .strict(),
-    extracted: z.object({ ...extractionShape, unclear: z.boolean() }).strict(),
+    // Partial: the forced tool schema only exposes the active script's fields.
+    extracted: z.object(extractionShape).partial().extend({ unclear: z.boolean() }).strict(),
   })
   .strict();
 
@@ -57,11 +61,13 @@ export function sanitizeParaphrase(paraphrase: string, canonical: string): strin
  * would derail the scripted check-in). Rejection falls back to a fixed warm ack.
  */
 export const SMALL_TALK_FALLBACK_ACK = 'That sounds lovely — thank you for sharing.';
+export const SMALL_TALK_FALLBACK_ACK_ES = 'Qué lindo — gracias por compartirlo.';
 
-export function sanitizeSmallTalk(reply: string | null): string {
+export function sanitizeSmallTalk(reply: string | null, locale: 'en' | 'es' = 'en'): string {
+  const fallback = locale === 'es' ? SMALL_TALK_FALLBACK_ACK_ES : SMALL_TALK_FALLBACK_ACK;
   const cleaned = (reply ?? '').replace(/\s+/g, ' ').trim();
-  if (cleaned.length === 0 || cleaned.length > 200) return SMALL_TALK_FALLBACK_ACK;
-  if (PARAPHRASE_BLOCKLIST.test(cleaned) || cleaned.includes('?')) return SMALL_TALK_FALLBACK_ACK;
+  if (cleaned.length === 0 || cleaned.length > 200) return fallback;
+  if (PARAPHRASE_BLOCKLIST.test(cleaned) || cleaned.includes('?')) return fallback;
   return cleaned;
 }
 
@@ -76,11 +82,15 @@ export function parseLlmTurn(input: unknown): LlmTurn | null {
 const questionIdSchema = z.enum([
   'q1_safety', 'q2_weight', 'q3_breathing', 'q4_swelling',
   'q5_orthopnea', 'q6_fatigue', 'q7_adherence', 'q8_devices',
+  't1_safety', 't2_dizziness', 't3_sbp', 't4_hr', 't5_symptoms', 't6_adherence',
 ]);
 
 export const checkInStateSchema = z
   .object({
     patientId: z.string().min(1).max(40),
+    // Defaults keep pre-multi-script clients and fixtures valid.
+    scriptId: z.enum(['daily_checkin', 'titration_followup']).default('daily_checkin'),
+    locale: z.enum(['en', 'es']).default('en'),
     phase: z.enum([...questionIdSchema.options, 'complete']),
     extraction: z.object(extractionShape).strict(),
     reasksUsed: z.partialRecord(questionIdSchema, z.number().int().min(0).max(2)),
@@ -100,6 +110,20 @@ export const checkInRequestSchema = z
 
 // ── Simulated outreach call (one-shot generation) ────────────
 
+// The outreach demonstration always runs the daily check-in script, so the
+// model reports exactly the daily fields (mirrors SIMULATED_CALL_TOOL_SCHEMA).
+const dailyExtractionShape = {
+  weightLbs: extractionShape.weightLbs,
+  sbp: extractionShape.sbp,
+  spo2: extractionShape.spo2,
+  dyspnea: extractionShape.dyspnea,
+  edema: extractionShape.edema,
+  orthopnea: extractionShape.orthopnea,
+  fatigue: extractionShape.fatigue,
+  adherence: extractionShape.adherence,
+  chestPainOrSyncope: extractionShape.chestPainOrSyncope,
+};
+
 export const simulatedCallSchema = z
   .object({
     turns: z
@@ -109,7 +133,7 @@ export const simulatedCallSchema = z
       }).strict())
       .min(6)
       .max(24),
-    extracted: z.object(extractionShape).strict(),
+    extracted: z.object(dailyExtractionShape).strict(),
   })
   .strict();
 
@@ -130,47 +154,66 @@ export function parseSimulatedCall(input: unknown): SimulatedCallParsed | null {
 }
 
 export const simulateCallRequestSchema = z
-  .object({ anonymousSessionId: z.uuid().optional() })
+  .object({
+    anonymousSessionId: z.uuid().optional(),
+    /** Copilot morning round: run one specific persona instead of a random one. */
+    scenarioId: z.enum(['scenario-stable-elder', 'scenario-weight-gain', 'scenario-adherence-barrier']).optional(),
+  })
   .strict();
 
-/** JSON Schema mirror of llmTurnSchema for the forced Anthropic tool call. */
-export const CHECK_IN_TURN_TOOL_SCHEMA = {
-  type: 'object' as const,
-  additionalProperties: false,
-  required: ['say', 'extracted'],
-  properties: {
-    say: {
-      type: 'object' as const,
-      additionalProperties: false,
-      required: ['kind', 'paraphrase', 'smallTalk'],
-      properties: {
-        kind: { enum: ['question', 'ack_question', 'deflect_question', 'small_talk'] },
-        paraphrase: { type: 'string', maxLength: 280 },
-        smallTalk: { type: ['string', 'null'], maxLength: 200 },
-      },
-    },
-    extracted: {
-      type: 'object' as const,
-      additionalProperties: false,
-      required: [
-        'weightLbs', 'sbp', 'spo2', 'dyspnea', 'edema', 'orthopnea',
-        'fatigue', 'adherence', 'chestPainOrSyncope', 'unclear',
-      ],
-      properties: {
-        weightLbs: { type: ['number', 'null'], minimum: 50, maximum: 500 },
-        sbp: { type: ['integer', 'null'], minimum: 50, maximum: 260 },
-        spo2: { type: ['integer', 'null'], minimum: 50, maximum: 100 },
-        dyspnea: { type: ['integer', 'null'], minimum: 0, maximum: 3 },
-        edema: { type: ['integer', 'null'], minimum: 0, maximum: 3 },
-        orthopnea: { type: ['boolean', 'null'] },
-        fatigue: { type: ['integer', 'null'], minimum: 0, maximum: 3 },
-        adherence: { enum: ['yes', 'missed_some', 'no', null] },
-        chestPainOrSyncope: { type: ['boolean', 'null'] },
-        unclear: { type: 'boolean' },
-      },
-    },
-  },
+/** JSON Schema fragments for every extractable field (superset of all scripts). */
+const EXTRACTION_PROPERTY_SCHEMAS: Record<string, object> = {
+  weightLbs: { type: ['number', 'null'], minimum: 50, maximum: 500 },
+  sbp: { type: ['integer', 'null'], minimum: 50, maximum: 260 },
+  spo2: { type: ['integer', 'null'], minimum: 50, maximum: 100 },
+  dyspnea: { type: ['integer', 'null'], minimum: 0, maximum: 3 },
+  edema: { type: ['integer', 'null'], minimum: 0, maximum: 3 },
+  orthopnea: { type: ['boolean', 'null'] },
+  fatigue: { type: ['integer', 'null'], minimum: 0, maximum: 3 },
+  adherence: { enum: ['yes', 'missed_some', 'no', null] },
+  chestPainOrSyncope: { type: ['boolean', 'null'] },
+  hr: { type: ['integer', 'null'], minimum: 30, maximum: 220 },
+  dizziness: { type: ['integer', 'null'], minimum: 0, maximum: 3 },
+  worseSymptoms: { type: ['boolean', 'null'] },
 };
+
+/** Forced tool schema exposing only the active script's extraction fields. */
+export function checkInToolSchemaFor(keys: ReadonlyArray<string>) {
+  return {
+    type: 'object' as const,
+    additionalProperties: false,
+    required: ['say', 'extracted'],
+    properties: {
+      say: {
+        type: 'object' as const,
+        additionalProperties: false,
+        required: ['kind', 'paraphrase', 'smallTalk'],
+        properties: {
+          kind: { enum: ['question', 'ack_question', 'deflect_question', 'small_talk'] },
+          paraphrase: { type: 'string', maxLength: 280 },
+          smallTalk: { type: ['string', 'null'], maxLength: 200 },
+        },
+      },
+      extracted: {
+        type: 'object' as const,
+        additionalProperties: false,
+        required: [...keys, 'unclear'],
+        properties: {
+          ...Object.fromEntries(keys.map((key) => [key, EXTRACTION_PROPERTY_SCHEMAS[key]])),
+          unclear: { type: 'boolean' },
+        },
+      },
+    },
+  };
+}
+
+const DAILY_CHECKIN_KEYS = [
+  'weightLbs', 'sbp', 'spo2', 'dyspnea', 'edema', 'orthopnea',
+  'fatigue', 'adherence', 'chestPainOrSyncope',
+] as const;
+
+/** JSON Schema mirror of llmTurnSchema for the daily check-in (legacy name). */
+export const CHECK_IN_TURN_TOOL_SCHEMA = checkInToolSchemaFor(DAILY_CHECKIN_KEYS);
 
 const EXTRACTED_FIELDS_SCHEMA = {
   ...CHECK_IN_TURN_TOOL_SCHEMA.properties.extracted,

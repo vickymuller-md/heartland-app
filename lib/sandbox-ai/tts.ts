@@ -18,7 +18,8 @@ import 'server-only';
 // model so the reply lands within conversational delay.
 const VOICE_ID = 'cgSgspJ2msm6clMCkdW9';
 const MODEL_ID = 'eleven_flash_v2_5';
-const MAX_TTS_CHARS = 300;
+// Covers dynamic call lines (short) and the spoken morning brief (<= 700).
+const MAX_TTS_CHARS = 750;
 const TIMEOUT_MS = 8_000;
 
 export function ttsEnabled(): boolean {
