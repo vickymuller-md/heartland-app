@@ -202,6 +202,29 @@ test('the copilot runs the morning round, narrates the brief, and answers queue 
   await expect(page.getByTestId('daily-loop-outreach')).toContainText('Persona 2 (synthetic)');
 });
 
+test('the population scene runs deterministically and funnels thousands into a small review queue', async ({ page }) => {
+  await page.goto('/sandbox');
+  const funnel = page.getByTestId('population-funnel');
+  await expect(funnel).toContainText('—');
+  await expect(page.getByTestId('population-disclaimer')).toContainText('Illustrative workflow demonstration on synthetic data');
+
+  await page.getByTestId('population-run').click();
+  const claim = page.getByTestId('population-claim');
+  await expect(claim).toContainText('resolved by the registered rules', { timeout: 10_000 });
+  await expect(claim).toContainText('of 2,500 synthetic check-ins reached the clinician review queue');
+  await expect(claim).not.toContainText('1 clinician');
+
+  const queue = page.getByTestId('population-exceptions');
+  await expect(queue).toContainText("Today's review queue");
+  await expect(queue).toContainText('rule weight_gain');
+
+  // Switching the population size resets the scene to idle.
+  await page.getByTestId('population-size-500').click();
+  await expect(page.getByTestId('population-funnel')).toContainText('—');
+  await page.getByTestId('population-run').click();
+  await expect(page.getByTestId('population-claim')).toContainText('of 500 synthetic check-ins', { timeout: 10_000 });
+});
+
 test('the day simulation advances the badge, logs the completed day, and survives a reload', async ({ page }) => {
   await page.goto('/sandbox');
   await page.getByTestId('sandbox-nav-copilot').click();
@@ -357,6 +380,14 @@ test('daily loop shows the automated-outreach work items with the required label
 });
 
 test('AI surfaces never use the restricted regulatory terminology', async ({ page }) => {
+  // The population scene must never phrase capacity as a staffing claim.
+  await page.goto('/sandbox');
+  await page.getByTestId('population-run').click();
+  await expect(page.getByTestId('population-claim')).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('body')).not.toContainText(/replaces? (a )?(nurse|clinician|staff)/i);
+  await expect(page.locator('body')).not.toContainText(/reduc\w* staffing/i);
+  await expect(page.locator('body')).not.toContainText(/clinical decision support/i);
+
   await openCheckIn(page);
   await expect(page.locator('body')).not.toContainText(/clinical decision support/i);
   await expect(page.locator('body')).not.toContainText(/AI (triage|diagnos)/i);

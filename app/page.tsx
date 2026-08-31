@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Masthead, Colophon } from "@heartland/ui";
 import { Hero } from "@/components/landing/hero";
 import { Abstract } from "@/components/landing/abstract";
+import { ScaleDemo } from "@/components/landing/scale-demo";
 import { Modules } from "@/components/landing/modules";
 import { EvidenceFoundation } from "@/components/landing/evidence";
 import { AccessCta } from "@/components/landing/access-cta";
@@ -47,6 +48,7 @@ export default async function Home() {
       </aside>
       <Hero />
       <Abstract />
+      <ScaleDemo />
       <Modules />
       <EvidenceFoundation />
       <AccessCta />

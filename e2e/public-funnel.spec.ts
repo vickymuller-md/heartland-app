@@ -18,8 +18,8 @@ test('complete synthetic sandbox opens without an account', async ({ page }) => 
   await expect(page.getByRole('link', { name: 'Create account' })).toHaveAttribute('href', '/register?mode=tester');
   const patient360Cta = page.getByTestId('sandbox-open-patient-360');
   await expect(patient360Cta).toBeVisible();
-  await expect(patient360Cta).toHaveClass(/bg-white/);
-  await expect(patient360Cta).toHaveClass(/text-slate-950/);
+  await expect(patient360Cta).toHaveClass(/text-white/);
+  await expect(patient360Cta).toHaveClass(/border-white\/25/);
 
   await page.getByTestId('sandbox-nav-daily-loop').click();
   await expect(page.getByTestId('sandbox-daily-loop')).toBeVisible();
