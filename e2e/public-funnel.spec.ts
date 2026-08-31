@@ -6,7 +6,7 @@ test('landing exposes immediate sandbox and separate clinical access', async ({ 
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Heart failure care');
   await expect(page.getByRole('link', { name: /try the sandbox now/i })).toHaveAttribute('href', '/sandbox');
   await expect(page.getByRole('link', { name: /request a clinical workspace/i })).toHaveAttribute('href', '/request-access');
-  await expect(page.locator('footer').filter({ hasText: 'Heartland · App' })).toContainText('v1.2.0');
+  await expect(page.locator('footer').filter({ hasText: 'Heartland · App' })).toContainText(/v\d+\.\d+\.\d+/);
   await expect(page.locator('body')).not.toContainText(/not a medical device|clinical decision support|no PHI is ever collected/i);
 });
 
@@ -14,7 +14,7 @@ test('complete synthetic sandbox opens without an account', async ({ page }) => 
   await page.goto('/sandbox');
   await expect(page).not.toHaveURL(/\/(login|register)/);
   await expect(page.getByTestId('sandbox-command-center')).toBeVisible();
-  await expect(page.getByText('1/8 areas explored')).toBeVisible();
+  await expect(page.getByText('1/9 areas explored')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Create account' })).toHaveAttribute('href', '/register?mode=tester');
   const patient360Cta = page.getByTestId('sandbox-open-patient-360');
   await expect(patient360Cta).toBeVisible();
@@ -26,11 +26,11 @@ test('complete synthetic sandbox opens without an account', async ({ page }) => 
   await page.getByRole('button', { name: 'Review', exact: true }).first().click();
   await expect(page.getByText('reviewed').first()).toBeVisible();
 
-  for (const section of ['outreach', 'patient-360', 'pathways', 'coordination', 'patient-view', 'impact']) {
+  for (const section of ['copilot', 'outreach', 'patient-360', 'pathways', 'coordination', 'patient-view', 'impact']) {
     await page.getByTestId(`sandbox-nav-${section}`).click();
     await expect(page.getByTestId(`sandbox-${section}`)).toBeVisible();
   }
-  await expect(page.getByText('8/8 areas explored')).toBeVisible();
+  await expect(page.getByText('9/9 areas explored')).toBeVisible();
 });
 
 test('public guide states bounded privacy and regulatory claims', async ({ page }) => {

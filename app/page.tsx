@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { APP_VERSION } from "@/lib/app-version";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Masthead, Colophon } from "@heartland/ui";
@@ -51,7 +52,7 @@ export default async function Home() {
       <AccessCta />
       <Colophon
         currentSite="app"
-        version="v1.2.0"
+        version={APP_VERSION}
         legal={
           <>
             Built by Vicky Muller Ferreira, MD. For licensed clinicians only.

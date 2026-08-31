@@ -20,13 +20,19 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { CALL_PROMPTS } from '../lib/sandbox-ai/call-prompts';
+import { callPromptsFor, fillerPromptsFor, type CallPrompt } from '../lib/sandbox-ai/call-prompts';
 import { OUTREACH_TRANSCRIPTS } from '../lib/sandbox-ai/fixtures';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const OUT_DIR = path.join(ROOT, 'public', 'outreach-audio');
 const MODEL_ID = 'eleven_v3';
 const FORCE = process.argv.includes('--force');
+// --locales en (or en,es) limits prompt generation, e.g. while the Spanish
+// wording is still in clinical review. Default: both.
+const localesArg = process.argv.indexOf('--locales');
+const LOCALES = new Set(
+  (localesArg >= 0 ? process.argv[localesArg + 1] : 'en,es').split(',').map((entry) => entry.trim()),
+);
 
 // Assistant: premade conversational voice. Patients: elderly voices designed
 // with the ElevenLabs Voice Design API (saved in the account's My Voices as
@@ -90,26 +96,36 @@ async function main() {
     console.log(`wrote ${path.relative(ROOT, outFile)} (${transcript.turns.length} turns, one dialogue request)`);
   }
 
-  // Fixed spoken prompts for the simulated live call (assistant voice, single TTS each).
-  const promptsDir = path.join(OUT_DIR, 'prompts');
-  mkdirSync(promptsDir, { recursive: true });
-  for (const clip of Object.values(CALL_PROMPTS)) {
-    const outFile = path.join(promptsDir, `${clip.id}.mp3`);
-    if (existsSync(outFile) && !FORCE) {
-      console.log(`skip prompt ${clip.id} (exists)`);
-      continue;
+  // Fixed spoken prompts for the simulated live calls (assistant voice,
+  // single TTS each), one set per script and locale, plus the fillers. The
+  // same premade voice speaks both languages (eleven_v3 is multilingual).
+  const locales = (['en', 'es'] as const).filter((locale) => LOCALES.has(locale));
+  const promptSets: CallPrompt[][] = [
+    ...(['daily_checkin', 'titration_followup'] as const).flatMap((script) =>
+      locales.map((locale) => Object.values(callPromptsFor(script, locale)))),
+    ...locales.map((locale) => fillerPromptsFor(locale)),
+  ];
+  for (const clips of promptSets) {
+    for (const clip of clips) {
+      // audioSrc is the public URL; mirror it under public/outreach-audio/.
+      const outFile = path.join(OUT_DIR, clip.audioSrc.replace('/outreach-audio/', ''));
+      if (existsSync(outFile) && !FORCE) {
+        console.log(`skip ${path.relative(OUT_DIR, outFile)} (exists)`);
+        continue;
+      }
+      mkdirSync(path.dirname(outFile), { recursive: true });
+      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ASSISTANT_VOICE}`, {
+        method: 'POST',
+        headers: { 'xi-api-key': key, 'content-type': 'application/json' },
+        body: JSON.stringify({ text: clip.text, model_id: MODEL_ID }),
+      });
+      if (!response.ok) {
+        throw new Error(`Prompt synthesis failed (${response.status}) for ${clip.id}: ${(await response.text()).slice(0, 200)}`);
+      }
+      writeFileSync(outFile, Buffer.from(await response.arrayBuffer()));
+      totalChars += clip.text.length;
+      console.log(`wrote ${path.relative(ROOT, outFile)}`);
     }
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ASSISTANT_VOICE}`, {
-      method: 'POST',
-      headers: { 'xi-api-key': key, 'content-type': 'application/json' },
-      body: JSON.stringify({ text: clip.text, model_id: MODEL_ID }),
-    });
-    if (!response.ok) {
-      throw new Error(`Prompt synthesis failed (${response.status}) for ${clip.id}: ${(await response.text()).slice(0, 200)}`);
-    }
-    writeFileSync(outFile, Buffer.from(await response.arrayBuffer()));
-    totalChars += clip.text.length;
-    console.log(`wrote ${path.relative(ROOT, outFile)}`);
   }
 
   console.log(`done · ${totalChars} characters billed this run`);

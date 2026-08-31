@@ -1,4 +1,5 @@
 import { Masthead, Colophon } from "@heartland/ui";
+import { APP_VERSION } from "@/lib/app-version";
 
 /**
  * Public route-group layout — shared masthead + colophon for pages
@@ -31,7 +32,7 @@ export default function PublicLayout({
       </main>
       <Colophon
         currentSite="app"
-        version="v1.2.0"
+        version={APP_VERSION}
         legal={
           <>
             Built by Vicky Muller Ferreira, MD. Public tools and the sandbox use synthetic data; tester registration may collect account contact information. Authenticated workspaces remain controlled evaluation only. Real PHI and unsupervised clinical use are not authorized until organizational release gates are approved.
