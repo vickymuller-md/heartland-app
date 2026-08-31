@@ -1,17 +1,19 @@
 import Link from 'next/link';
 import { ArrowRight, BarChart3, CheckCircle2, Circle, Download, ShieldCheck, Target, TimerReset } from 'lucide-react';
 import { SANDBOX_PATHWAYS, SANDBOX_SECTIONS, SANDBOX_TASKS } from '@/lib/sandbox/fixtures';
-import type { SandboxSectionId, SandboxTaskState } from '@/lib/sandbox/types';
+import type { SandboxDayLogEntry, SandboxSectionId, SandboxTaskState } from '@/lib/sandbox/types';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { MetricCard, SectionHeading, SyntheticBanner } from './sandbox-ui';
 
-export function SandboxImpact({ visitedSections, exploredPathways, taskStates, documentedActions, patientCheckIns, onReset }: {
+export function SandboxImpact({ visitedSections, exploredPathways, taskStates, documentedActions, patientCheckIns, dayIndex, dayLog, onReset }: {
   visitedSections: SandboxSectionId[];
   exploredPathways: string[];
   taskStates: Record<string, SandboxTaskState>;
   documentedActions: string[];
   patientCheckIns: string[];
+  dayIndex: number;
+  dayLog: SandboxDayLogEntry[];
   onReset: () => void;
 }) {
   const closed = Object.values(taskStates).filter((state) => state.status === 'closed').length;
@@ -46,6 +48,7 @@ export function SandboxImpact({ visitedSections, exploredPathways, taskStates, d
         <MetricCard label="Loops closed" value={closed} detail="Outcome captured." tone="emerald" />
         <MetricCard label="Pathways opened" value={exploredPathways.length} detail="Real public tools." tone="amber" />
         <MetricCard label="Patient actions" value={patientCheckIns.length} detail="Synthetic Today engagement." />
+        <MetricCard label="Days simulated" value={`${dayIndex + 1}/5`} detail={`${dayLog.reduce((sum, entry) => sum + entry.escalations, 0)} escalations caught across completed days.`} tone="violet" />
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(320px,0.75fr)_minmax(0,1.25fr)]">

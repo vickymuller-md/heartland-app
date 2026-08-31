@@ -10,7 +10,8 @@ import {
   type OutreachWorkItem,
   type SimulatedCallTranscript,
 } from '@/lib/sandbox-ai/fixtures';
-import type { SandboxSectionId } from '@/lib/sandbox/types';
+import { SANDBOX_DAY_COUNT } from '@/lib/sandbox/day-selectors';
+import type { SandboxDayLogEntry, SandboxSectionId } from '@/lib/sandbox/types';
 import { Button } from '@/components/ui/button';
 import { ExplainRuleButton } from './explain-rule';
 import { OutreachDispositionPill, SectionHeading, SyntheticBanner } from './sandbox-ui';
@@ -43,8 +44,11 @@ function initialProgress(): ScenarioProgress[] {
   }));
 }
 
-export function SandboxCopilot({ outreachItems, onRecordRun, onNavigate }: {
+export function SandboxCopilot({ outreachItems, dayIndex, dayLog, onAdvanceDay, onRecordRun, onNavigate }: {
   outreachItems: OutreachWorkItem[];
+  dayIndex: number;
+  dayLog: SandboxDayLogEntry[];
+  onAdvanceDay: (escalations: number) => void;
   onRecordRun: (transcript: SimulatedCallTranscript) => void;
   onNavigate: (section: SandboxSectionId) => void;
 }) {
@@ -98,6 +102,8 @@ export function SandboxCopilot({ outreachItems, onRecordRun, onNavigate }: {
       }
     }
 
+    // Triage over the fresh round is deterministic — the same registered rules
+    // that set each disposition order the queue; no AI unit is spent here.
     setElapsedSeconds(Math.round((Date.now() - startedAt) / 1000));
     setRoundState('done');
 
@@ -148,6 +154,7 @@ export function SandboxCopilot({ outreachItems, onRecordRun, onNavigate }: {
               atLabel: item.atLabel,
             })),
           },
+          dayIndex,
           anonymousSessionId: anonymousSessionId(),
         }),
       });
@@ -167,6 +174,15 @@ export function SandboxCopilot({ outreachItems, onRecordRun, onNavigate }: {
   const escalations = progress.filter(
     (entry) => entry.transcript && entry.transcript.disposition !== 'routine',
   );
+  const isFinalDay = dayIndex >= SANDBOX_DAY_COUNT - 1;
+
+  function advance() {
+    onAdvanceDay(escalations.length);
+    setRoundState('idle');
+    setProgress(initialProgress());
+    setBrief(null);
+    setElapsedSeconds(null);
+  }
 
   return (
     <div className="space-y-7" data-testid="sandbox-copilot">
@@ -184,12 +200,15 @@ export function SandboxCopilot({ outreachItems, onRecordRun, onNavigate }: {
         record is created. Priority set by registered clinical rules · conversation structured by AI.
       </SyntheticBanner>
 
-      {/* ── Morning round ── */}
-      <section className="rounded-2xl border bg-white p-5" aria-label="Automated morning round">
+      {/* ── Full day run ── */}
+      <section className="rounded-2xl border bg-white p-5" aria-label="Automated day run">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-lg font-bold text-slate-950">Morning outreach round</h3>
-            <p className="mt-1 text-xs text-slate-500">Three synthetic personas get their daily check-in call, one after the other.</p>
+            <h3 className="text-lg font-bold text-slate-950">
+              Run the full day
+              <span className="ml-2 inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-bold text-violet-800" data-testid="copilot-day-badge">Day {dayIndex + 1} of {SANDBOX_DAY_COUNT}</span>
+            </h3>
+            <p className="mt-1 text-xs text-slate-500">Outreach calls to three synthetic personas, rule-based triage of the results, and the spoken brief — the repetitive part of one clinic day, end to end.</p>
           </div>
           <Button
             className="min-h-12 bg-slate-950 px-5 hover:bg-slate-800"
@@ -197,7 +216,7 @@ export function SandboxCopilot({ outreachItems, onRecordRun, onNavigate }: {
             onClick={() => void runMorningRound()}
             data-testid="run-morning-round"
           >
-            <Play className="mr-2 size-4" /> {roundState === 'running' ? 'Running the round…' : 'Run the morning round'}
+            <Play className="mr-2 size-4" /> {roundState === 'running' ? 'Running the day…' : 'Run the full day'}
           </Button>
         </div>
 
@@ -223,7 +242,8 @@ export function SandboxCopilot({ outreachItems, onRecordRun, onNavigate }: {
 
         {roundState === 'done' && elapsedSeconds !== null && (
           <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-950" data-testid="round-metric">
-            {progress.length} automated check-ins processed in {elapsedSeconds}s — every disposition
+            {progress.length} automated check-ins processed and triaged in {elapsedSeconds}s —
+            {' '}{escalations.length} escalation{escalations.length === 1 ? '' : 's'}, every disposition
             set by the registered clinical rules, never by the AI.
           </p>
         )}
@@ -248,6 +268,28 @@ export function SandboxCopilot({ outreachItems, onRecordRun, onNavigate }: {
             </p>
           </div>
         )}
+
+        <div className="mt-4 flex flex-wrap items-center gap-2" data-testid="copilot-day-controls">
+          {dayLog.map((entry) => (
+            <span key={entry.dayIndex} className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-900">
+              Day {entry.dayIndex + 1} ✓ · {entry.escalations} escalation{entry.escalations === 1 ? '' : 's'}
+            </span>
+          ))}
+          {isFinalDay ? (
+            <span className="text-xs font-semibold text-slate-500">Final simulated day — Reset the sandbox to start the week again.</span>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-h-11"
+              disabled={roundState === 'running'}
+              onClick={advance}
+              data-testid="advance-day"
+            >
+              Advance to next day →
+            </Button>
+          )}
+        </div>
 
         {escalations.length > 0 && (
           <div className="mt-4 space-y-2" data-testid="copilot-prepared" aria-label="Prepared for review">

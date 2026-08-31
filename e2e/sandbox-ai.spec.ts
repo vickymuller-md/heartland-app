@@ -202,6 +202,29 @@ test('the copilot runs the morning round, narrates the brief, and answers queue 
   await expect(page.getByTestId('daily-loop-outreach')).toContainText('Persona 2 (synthetic)');
 });
 
+test('the day simulation advances the badge, logs the completed day, and survives a reload', async ({ page }) => {
+  await page.goto('/sandbox');
+  await page.getByTestId('sandbox-nav-copilot').click();
+  await expect(page.getByTestId('copilot-day-badge')).toContainText('Day 1 of 5');
+  await expect(page.getByTestId('sandbox-day-badge')).toContainText('Day 1 of 5');
+
+  await page.getByTestId('advance-day').click();
+  await expect(page.getByTestId('copilot-day-badge')).toContainText('Day 2 of 5');
+  await expect(page.getByTestId('copilot-day-controls')).toContainText('Day 1 ✓');
+
+  // The simulation day persists in the browser-local demo state. The save
+  // effect runs after paint, so wait for the write before reloading.
+  await page.waitForFunction(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem('heartland_synthetic_sandbox_v2') ?? '{}').dayIndex === 1;
+    } catch {
+      return false;
+    }
+  });
+  await page.reload();
+  await expect(page.getByTestId('sandbox-day-badge')).toContainText('Day 2 of 5');
+});
+
 test('the guide answers protocol questions with citations from the reference assistant', async ({ page }) => {
   await page.route('**/api/sandbox-ai/assist', async (route) => {
     await route.fulfill({

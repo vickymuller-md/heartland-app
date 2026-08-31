@@ -109,4 +109,25 @@ describe('SandboxWorkspace', () => {
     expect(screen.getAllByText('Maria Santos').length).toBeGreaterThan(0);
     expect(screen.queryByText('<script>not-a-patient</script>')).not.toBeInTheDocument();
   });
+
+  it('restores a legacy payload without dayIndex to simulation day 1 and clamps tampered days', async () => {
+    window.localStorage.setItem('heartland_synthetic_sandbox_v2', JSON.stringify({
+      savedAt: Date.now(),
+      selectedSection: 'command',
+      aiOutreachRuns: [{ id: 'ai-run-abc123', patientName: 'Persona', disposition: 'routine', redFlagIds: [], atLabel: 'Earlier' }],
+    }));
+
+    render(<SandboxWorkspace />);
+    await waitFor(() => expect(screen.getByTestId('sandbox-day-badge')).toHaveTextContent('Day 1 of 5'));
+
+    window.localStorage.setItem('heartland_synthetic_sandbox_v2', JSON.stringify({
+      savedAt: Date.now(),
+      selectedSection: 'command',
+      dayIndex: 99,
+      dayLog: [{ dayIndex: 42, escalations: -5, completedAtLabel: 'x' }],
+    }));
+    render(<SandboxWorkspace />);
+    const badges = await screen.findAllByTestId('sandbox-day-badge');
+    expect(badges.at(-1)).toHaveTextContent('Day 5 of 5');
+  });
 });

@@ -5,8 +5,9 @@ import { Activity, BarChart3, BookOpenCheck, ClipboardList, HeartPulse, PhoneCal
 import { trackProductEvent } from '@/lib/product-analytics/actions';
 import { getPublicDisseminationContext } from '@/lib/product-analytics/public-context';
 import { OUTREACH_TRANSCRIPTS, outreachWorkItems, type SimulatedCallTranscript } from '@/lib/sandbox-ai/fixtures';
+import { clampDayIndex, SANDBOX_DAY_COUNT } from '@/lib/sandbox/day-selectors';
 import { SANDBOX_PATHWAYS, SANDBOX_PATIENTS, SANDBOX_SECTIONS, SANDBOX_TASKS } from '@/lib/sandbox/fixtures';
-import type { AiOutreachRun, SandboxDemoState, SandboxSectionId, SandboxTask, SandboxTaskState, SandboxTaskStatus } from '@/lib/sandbox/types';
+import type { AiOutreachRun, SandboxDayLogEntry, SandboxDemoState, SandboxSectionId, SandboxTask, SandboxTaskState, SandboxTaskStatus } from '@/lib/sandbox/types';
 import { RED_FLAG_CRITERIA } from '@/lib/vitals/constants';
 import { Button } from '@/components/ui/button';
 import { SandboxCommandCenter } from './_components/sandbox-command-center';
@@ -57,6 +58,8 @@ function initialDemoState(): SandboxDemoState {
     patientCheckIns: [],
     documentedActions: [],
     aiOutreachRuns: [],
+    dayIndex: 0,
+    dayLog: [],
     savedAt: Date.now(),
   };
 }
@@ -78,9 +81,26 @@ function restoreOutreachRuns(value: unknown): AiOutreachRun[] {
       patientName: safeString(item.patientName, 'Synthetic persona', 60),
       atLabel: safeString(item.atLabel, 'Earlier', 40),
       redFlagIds: safeStringList(item.redFlagIds, RED_FLAG_IDS, 5),
+      dayIndex: typeof item.dayIndex === 'number' ? clampDayIndex(item.dayIndex) : 0,
     });
   }
   return runs;
+}
+
+function restoreDayLog(value: unknown): SandboxDayLogEntry[] {
+  if (!Array.isArray(value)) return [];
+  const entries: SandboxDayLogEntry[] = [];
+  for (const item of value.slice(0, SANDBOX_DAY_COUNT)) {
+    if (!isRecord(item) || typeof item.dayIndex !== 'number' || typeof item.escalations !== 'number') continue;
+    const dayIndex = clampDayIndex(item.dayIndex);
+    if (entries.some((entry) => entry.dayIndex === dayIndex)) continue;
+    entries.push({
+      dayIndex,
+      escalations: Math.min(Math.max(Math.trunc(item.escalations), 0), 99),
+      completedAtLabel: safeString(item.completedAtLabel, 'Earlier', 40),
+    });
+  }
+  return entries;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -138,6 +158,8 @@ function restoreDemoState(value: unknown): SandboxDemoState | null {
     patientCheckIns: safeStringList(value.patientCheckIns, PATIENT_CHECK_IN_IDS),
     documentedActions: safeStringList(value.documentedActions, undefined, 20),
     aiOutreachRuns: restoreOutreachRuns(value.aiOutreachRuns),
+    dayIndex: typeof value.dayIndex === 'number' ? clampDayIndex(value.dayIndex) : 0,
+    dayLog: restoreDayLog(value.dayLog),
     savedAt: value.savedAt,
   };
 }
@@ -161,6 +183,8 @@ export function SandboxWorkspace() {
   const selectedPatient = SANDBOX_PATIENTS.find((patient) => patient.id === demo.selectedPatientId) ?? SANDBOX_PATIENTS[0];
   const currentSectionIndex = SANDBOX_SECTIONS.findIndex((section) => section.id === demo.selectedSection);
   const progress = Math.round((demo.visitedSections.length / SANDBOX_SECTIONS.length) * 100);
+  // The day queues only show the current simulation day; older runs stay in history.
+  const dayRuns = demo.aiOutreachRuns.filter((run) => run.dayIndex === demo.dayIndex);
 
   useEffect(() => {
     try {
@@ -271,8 +295,24 @@ export function SandboxWorkspace() {
         disposition: transcript.disposition,
         redFlagIds: transcript.redFlags.map((flag) => flag.id),
         atLabel: 'This visit',
+        dayIndex: current.dayIndex,
       }, ...current.aiOutreachRuns].slice(0, 20),
     }));
+  }
+
+  function advanceDay(escalations: number) {
+    trackFirstAction();
+    setDemo((current) => {
+      if (current.dayIndex >= SANDBOX_DAY_COUNT - 1) return current;
+      return {
+        ...current,
+        dayIndex: current.dayIndex + 1,
+        dayLog: [
+          ...current.dayLog.filter((entry) => entry.dayIndex !== current.dayIndex),
+          { dayIndex: current.dayIndex, escalations, completedAtLabel: 'This visit' },
+        ].slice(-SANDBOX_DAY_COUNT),
+      };
+    });
   }
 
   function reassign(taskId: string, owner: string) {
@@ -290,14 +330,14 @@ export function SandboxWorkspace() {
 
   const sectionContent = (() => {
     switch (demo.selectedSection) {
-      case 'copilot': return <SandboxCopilot outreachItems={outreachWorkItems(demo.aiOutreachRuns)} onRecordRun={recordOutreachRun} onNavigate={navigate} />;
-      case 'daily-loop': return <SandboxDailyLoop taskStates={demo.taskStates} onTaskState={updateTask} onOpenPatient={openPatient} onBulkReview={bulkReview} outreachItems={outreachWorkItems(demo.aiOutreachRuns)} onOpenOutreach={() => navigate('outreach')} />;
+      case 'copilot': return <SandboxCopilot outreachItems={outreachWorkItems(dayRuns)} dayIndex={demo.dayIndex} dayLog={demo.dayLog} onAdvanceDay={advanceDay} onRecordRun={recordOutreachRun} onNavigate={navigate} />;
+      case 'daily-loop': return <SandboxDailyLoop taskStates={demo.taskStates} onTaskState={updateTask} onOpenPatient={openPatient} onBulkReview={bulkReview} outreachItems={outreachWorkItems(dayRuns)} dayIndex={demo.dayIndex} onOpenOutreach={() => navigate('outreach')} />;
       case 'outreach': return <SandboxOutreach liveCalls={liveCalls} runs={demo.aiOutreachRuns} onLiveCall={recordOutreachRun} />;
       case 'patient-360': return <SandboxPatientWorkspace patient={selectedPatient} documentedActions={demo.documentedActions} onPatientChange={(patientId) => setDemo((current) => ({ ...current, selectedPatientId: patientId }))} onDocumentAction={documentAction} />;
       case 'pathways': return <SandboxPathways exploredPathways={demo.exploredPathways} onExplore={explorePathway} />;
       case 'coordination': return <SandboxCoordination taskStates={demo.taskStates} onReassign={reassign} onDocumentAction={documentAction} />;
       case 'patient-view': return <SandboxPatientView patient={selectedPatient} patientCheckIns={demo.patientCheckIns} onCheckIn={checkIn} />;
-      case 'impact': return <SandboxImpact visitedSections={demo.visitedSections} exploredPathways={demo.exploredPathways} taskStates={demo.taskStates} documentedActions={demo.documentedActions} patientCheckIns={demo.patientCheckIns} onReset={reset} />;
+      case 'impact': return <SandboxImpact visitedSections={demo.visitedSections} exploredPathways={demo.exploredPathways} taskStates={demo.taskStates} documentedActions={demo.documentedActions} patientCheckIns={demo.patientCheckIns} dayIndex={demo.dayIndex} dayLog={demo.dayLog} onReset={reset} />;
       default: return <SandboxCommandCenter taskStates={demo.taskStates} visitedSections={demo.visitedSections} onNavigate={navigate} automatedCallsCount={OUTREACH_TRANSCRIPTS.length + demo.aiOutreachRuns.length} />;
     }
   })();
@@ -310,7 +350,10 @@ export function SandboxWorkspace() {
       <section className="sticky top-0 z-20 -mx-4 border-y bg-slate-50/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6" aria-label="Sandbox product navigation">
         <div className="mx-auto max-w-7xl">
           <div className="flex items-center justify-between gap-4">
-            <div><p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Sandbox coverage</p><p className="text-sm font-bold text-slate-950">{demo.visitedSections.length}/{SANDBOX_SECTIONS.length} areas explored</p></div>
+            <div className="flex items-center gap-3">
+              <div><p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Sandbox coverage</p><p className="text-sm font-bold text-slate-950">{demo.visitedSections.length}/{SANDBOX_SECTIONS.length} areas explored</p></div>
+              <span data-testid="sandbox-day-badge" className="inline-flex shrink-0 items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-800">Day {demo.dayIndex + 1} of {SANDBOX_DAY_COUNT}</span>
+            </div>
             <div className="flex items-center gap-3"><div className="hidden h-2 w-40 overflow-hidden rounded-full bg-slate-200 sm:block"><div className="h-full rounded-full bg-violet-600 transition-all" style={{ width: `${progress}%` }} /></div><Button size="sm" variant="ghost" className="min-h-11" onClick={reset}><RotateCcw className="mr-1 size-4" /> Reset</Button></div>
           </div>
           <div className="mt-3 flex gap-2 overflow-x-auto pb-1">

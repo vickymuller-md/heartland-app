@@ -21,12 +21,13 @@ const CLOSE_OUTCOMES = [
   'Routed to clinical owner for independent review',
 ];
 
-export function SandboxDailyLoop({ taskStates, onTaskState, onOpenPatient, onBulkReview, outreachItems, onOpenOutreach }: {
+export function SandboxDailyLoop({ taskStates, onTaskState, onOpenPatient, onBulkReview, outreachItems, dayIndex, onOpenOutreach }: {
   taskStates: Record<string, SandboxTaskState>;
   onTaskState: (task: SandboxTask, status: SandboxTaskStatus, outcome?: string) => void;
   onOpenPatient: (patientId: string) => void;
   onBulkReview: (tasks: SandboxTask[]) => void;
   outreachItems: OutreachWorkItem[];
+  dayIndex: number;
   onOpenOutreach: () => void;
 }) {
   const [priority, setPriority] = useState<'all' | SandboxPriority>('all');
@@ -77,7 +78,7 @@ export function SandboxDailyLoop({ taskStates, onTaskState, onOpenPatient, onBul
       <SectionHeading
         eyebrow="Provider workspace"
         title="Daily Loop"
-        description="A single operational queue connects signal, reason, owner, source freshness, action, deadline, and outcome. Repeated observations stay coalesced into one evolving item."
+        description={`Simulation day ${dayIndex + 1}: a single operational queue connects signal, reason, owner, source freshness, action, deadline, and outcome. Outreach results below belong to the current simulated day.`}
         action={<Button variant="outline" className="min-h-11" disabled={visibleOpen.length === 0} onClick={() => onBulkReview(visibleOpen)}><Eye className="mr-2 size-4" /> Review visible ({visibleOpen.length})</Button>}
       />
 

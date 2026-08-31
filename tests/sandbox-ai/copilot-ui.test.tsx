@@ -41,12 +41,13 @@ function stubEndpoints() {
 describe('SandboxCopilot', () => {
   const onRecordRun = vi.fn();
   const onNavigate = vi.fn();
+  const onAdvanceDay = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
     stubEndpoints();
-    render(<SandboxCopilot outreachItems={ITEMS} onRecordRun={onRecordRun} onNavigate={onNavigate} />);
+    render(<SandboxCopilot outreachItems={ITEMS} dayIndex={0} dayLog={[]} onAdvanceDay={onAdvanceDay} onRecordRun={onRecordRun} onNavigate={onNavigate} />);
   });
 
   afterEach(() => {
@@ -85,6 +86,13 @@ describe('SandboxCopilot', () => {
     expect(screen.getByTestId('copilot-trace')).toHaveTextContent('Consulted: queue (1 items)');
     const requestBody = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
     expect(requestBody.snapshot.workItems).toHaveLength(1);
+    expect(requestBody.dayIndex).toBe(0);
+  });
+
+  it('shows the simulation day and advances it without requiring a completed round', () => {
+    expect(screen.getByTestId('copilot-day-badge')).toHaveTextContent('Day 1 of 5');
+    fireEvent.click(screen.getByTestId('advance-day'));
+    expect(onAdvanceDay).toHaveBeenCalledWith(0);
   });
 
   it('hides the chat behind the unavailable notice on fallback', async () => {
