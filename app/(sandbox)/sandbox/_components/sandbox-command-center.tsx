@@ -1,33 +1,35 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { Activity, ArrowRight, BookOpenCheck, ClipboardCheck, HeartPulse, Network, PhoneCall, Play, ShieldCheck, Users } from 'lucide-react';
+import { useState } from 'react';
+import { Activity, ArrowRight, BookOpenCheck, ClipboardCheck, HeartPulse, Network, PhoneCall, ShieldCheck, Users } from 'lucide-react';
 import { SANDBOX_PATIENTS, SANDBOX_SECTIONS, SANDBOX_TASKS } from '@/lib/sandbox/fixtures';
 import {
+  getPopulationDayEvents,
   POPULATION_SIZES,
-  simulatePopulationDay,
   TRACK_SHORT_LABELS,
   type PopulationDayResult,
+  type PopulationEvent,
   type PopulationSize,
 } from '@/lib/sandbox/population';
-import type { SandboxSectionId, SandboxTaskState } from '@/lib/sandbox/types';
+import type { AiOutreachRun, SandboxSectionId, SandboxTaskState } from '@/lib/sandbox/types';
+import { RED_FLAG_CRITERIA } from '@/lib/vitals/constants';
 import { Button } from '@/components/ui/button';
+import { SandboxPopulationReplay } from './sandbox-population-replay';
 import { MetricCard, SectionHeading, SyntheticBanner } from './sandbox-ui';
 
 const ICONS = [Activity, PhoneCall, ClipboardCheck, HeartPulse, BookOpenCheck, Network, Users, ShieldCheck];
-const COUNT_UP_MS = 1400;
 const numberFormat = new Intl.NumberFormat('en-US');
 
-function easeOut(t: number): number {
-  return 1 - (1 - t) ** 3;
-}
-
-export function SandboxCommandCenter({ taskStates, visitedSections, dayIndex, populationSize, onPopulationSize, onNavigate, automatedCallsCount }: {
+export function SandboxCommandCenter({ taskStates, visitedSections, dayIndex, populationSize, populationReviewedIds, sentWorkItemIds, onPopulationSize, onMarkPopulationReviewed, onSendToDailyLoop, onNavigate, automatedCallsCount }: {
   taskStates: Record<string, SandboxTaskState>;
   visitedSections: SandboxSectionId[];
   dayIndex: number;
   populationSize: PopulationSize;
+  populationReviewedIds: string[];
+  sentWorkItemIds: string[];
   onPopulationSize: (size: PopulationSize) => void;
+  onMarkPopulationReviewed: (reviewedId: string) => void;
+  onSendToDailyLoop: (run: AiOutreachRun) => void;
   onNavigate: (section: SandboxSectionId) => void;
   automatedCallsCount: number;
 }) {
@@ -35,54 +37,7 @@ export function SandboxCommandCenter({ taskStates, visitedSections, dayIndex, po
   const actioned = Object.values(taskStates).filter((state) => ['actioned', 'awaiting', 'closed'].includes(state.status)).length;
   const nextSection = SANDBOX_SECTIONS.find((section) => !visitedSections.includes(section.id) && section.id !== 'command')?.id ?? 'daily-loop';
 
-  const [scene, setScene] = useState<'idle' | 'running' | 'done'>('idle');
   const [result, setResult] = useState<PopulationDayResult | null>(null);
-  const [progress, setProgress] = useState(0);
-  const rafRef = useRef<number | null>(null);
-
-  // A different day or population invalidates the round on screen.
-  useEffect(() => {
-    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-    setScene('idle');
-    setResult(null);
-    setProgress(0);
-  }, [dayIndex, populationSize]);
-
-  useEffect(() => () => {
-    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-  }, []);
-
-  function runRound() {
-    if (scene === 'running') return;
-    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-    setScene('running');
-    setProgress(0);
-    // Compute on the next frame so the "Running…" state paints first; the
-    // simulation itself is deterministic and effectively instant.
-    rafRef.current = requestAnimationFrame(() => {
-      const computed = simulatePopulationDay(populationSize, dayIndex);
-      setResult(computed);
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        setProgress(1);
-        setScene('done');
-        return;
-      }
-      const startedAt = performance.now();
-      const tick = (timestamp: number) => {
-        const linear = Math.min((timestamp - startedAt) / COUNT_UP_MS, 1);
-        setProgress(easeOut(linear));
-        if (linear < 1) {
-          rafRef.current = requestAnimationFrame(tick);
-        } else {
-          setScene('done');
-        }
-      };
-      rafRef.current = requestAnimationFrame(tick);
-    });
-  }
-
-  const animated = (value: number) => numberFormat.format(Math.round(value * progress));
-  const counts = result?.counts ?? null;
 
   return (
     <div className="space-y-8" data-testid="sandbox-command-center">
@@ -112,9 +67,6 @@ export function SandboxCommandCenter({ taskStates, visitedSections, dayIndex, po
                   </button>
                 ))}
               </div>
-              <Button className="min-h-12 bg-blue-600 px-5 font-bold text-white hover:bg-blue-500" onClick={runRound} disabled={scene === 'running'} data-testid="population-run">
-                <Play className="mr-2 size-4" /> {scene === 'running' ? 'Running the overnight round…' : 'Run the overnight round'}
-              </Button>
             </div>
             <div className="mt-5 flex flex-wrap gap-3">
               <Button variant="ghost" className="min-h-11 border border-white/25 text-white hover:bg-white/10 hover:text-white" onClick={() => onNavigate(nextSection)}>
@@ -126,44 +78,7 @@ export function SandboxCommandCenter({ taskStates, visitedSections, dayIndex, po
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/15 bg-white/5 p-5" data-testid="population-funnel">
-            <p className="text-sm font-semibold text-blue-200">Overnight round · Day {dayIndex + 1} of 5</p>
-            <div aria-hidden={scene === 'running'}>
-              <p className="mt-3 text-4xl font-bold tabular-nums sm:text-5xl">{counts ? animated(counts.total) : '—'}</p>
-              <p className="text-sm text-slate-300">synthetic check-ins processed by the registered rules</p>
-              <dl className="mt-4 space-y-2 text-sm">
-                <div className="flex items-baseline justify-between gap-3"><dt className="text-slate-300">Routine — auto-documented</dt><dd className="font-bold tabular-nums">{counts ? animated(counts.routine) : '—'}</dd></div>
-                <div className="flex items-baseline justify-between gap-3"><dt className="text-slate-300">Answered on automated retry</dt><dd className="font-bold tabular-nums">{counts ? animated(counts.retriedResolved) : '—'}</dd></div>
-                <div className="flex items-baseline justify-between gap-3"><dt className="text-slate-300">Adherence gaps → pharmacist workflow</dt><dd className="font-bold tabular-nums">{counts ? animated(counts.adherenceLapse) : '—'}</dd></div>
-                <div className="flex items-baseline justify-between gap-3"><dt className="text-slate-300">Unreachable — retry cadence continues</dt><dd className="font-bold tabular-nums">{counts ? animated(counts.unresolvedNoAnswer) : '—'}</dd></div>
-                <div className="flex items-baseline justify-between gap-3 rounded-lg bg-amber-400/15 px-2 py-1.5"><dt className="font-semibold text-amber-200">Review queue — for the clinician</dt><dd className="text-lg font-bold tabular-nums text-amber-100">{counts ? animated(counts.reviewQueue) : '—'}</dd></div>
-              </dl>
-              {counts && scene === 'done' && (
-                <>
-                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/15">
-                    <div className="h-full rounded-full bg-emerald-400" style={{ width: `${counts.automatedPct}%` }} />
-                  </div>
-                  <p className="mt-2 text-sm font-semibold text-emerald-300" data-testid="population-claim">
-                    {numberFormat.format(counts.reviewQueue)} of {numberFormat.format(counts.total)} synthetic
-                    check-ins reached the clinician review queue — {counts.automatedPct}% resolved by the
-                    registered rules.
-                  </p>
-                </>
-              )}
-              {scene === 'idle' && (
-                <p className="mt-4 text-xs text-slate-400">Deterministic simulation — same numbers on every device, all decisions by the registered clinical rules, no AI in the loop.</p>
-              )}
-            </div>
-            <p role="status" aria-live="polite" className="sr-only">
-              {scene === 'done' && counts
-                ? `Overnight round complete: ${counts.total} synthetic check-ins processed, ${counts.reviewQueue} reached the clinician review queue, ${counts.automatedPct} percent resolved by the registered rules.`
-                : ''}
-            </p>
-            <p className="mt-3 text-[11px] leading-4 text-slate-400" data-testid="population-disclaimer">
-              Illustrative workflow demonstration on synthetic data — not a clinical outcome or
-              staffing claim.
-            </p>
-          </div>
+          <SandboxPopulationReplay size={populationSize} dayIndex={dayIndex} onDone={setResult} />
         </div>
       </section>
 
@@ -171,32 +86,17 @@ export function SandboxCommandCenter({ taskStates, visitedSections, dayIndex, po
         Names, events, values, messages, access relationships, and outcomes are fictional. Interaction state stays in this browser and never writes to clinical tables.
       </SyntheticBanner>
 
-      {scene === 'done' && result && result.exceptions.length > 0 && (
-        <section className="rounded-2xl border bg-white p-5" aria-label="Today's review queue" data-testid="population-exceptions">
-          <SectionHeading
-            eyebrow="What reaches the human"
-            title={`Today's review queue (${numberFormat.format(result.counts.reviewQueue)} of ${numberFormat.format(result.counts.total)})`}
-            description="Every entry below was put here by a registered clinical rule or a documented monitoring-gap policy — never by AI. Names and values are synthetic."
-          />
-          <ul className="mt-4 grid gap-2 md:grid-cols-2">
-            {result.exceptions.slice(0, 12).map((exception) => (
-              <li key={`${exception.name}-${exception.reason}`} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-bold text-slate-950">{exception.name} · {exception.age}</p>
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${exception.category === 'critical' ? 'bg-red-100 text-red-800' : exception.category === 'warning' ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-700'}`}>
-                    {exception.category === 'no_answer' ? 'unreachable' : exception.category}
-                  </span>
-                </div>
-                <p className="mt-1 text-xs text-slate-500">{exception.state} · {TRACK_SHORT_LABELS[exception.track]} · {exception.riskTier} risk</p>
-                <p className="mt-1.5 leading-5 text-slate-700">{exception.reason}</p>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button variant="outline" className="min-h-11" onClick={() => onNavigate('outreach')}>See how one call is handled →</Button>
-            <Button variant="outline" className="min-h-11" onClick={() => onNavigate('copilot')}>Ask the copilot about the day →</Button>
-          </div>
-        </section>
+      {result && (
+        <ReviewQueueSection
+          result={result}
+          populationSize={populationSize}
+          dayIndex={dayIndex}
+          populationReviewedIds={populationReviewedIds}
+          sentWorkItemIds={sentWorkItemIds}
+          onMarkPopulationReviewed={onMarkPopulationReviewed}
+          onSendToDailyLoop={onSendToDailyLoop}
+          onNavigate={onNavigate}
+        />
       )}
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="Sandbox product metrics">
@@ -241,5 +141,147 @@ export function SandboxCommandCenter({ taskStates, visitedSections, dayIndex, po
         </div>
       </section>
     </div>
+  );
+}
+
+const QUEUE_CATEGORY_RANK: Record<string, number> = { critical: 0, warning: 1, no_answer: 2 };
+const UNREACHABLE_POLICY =
+  'Documented monitoring-gap policy: high-risk patient with no successful contact after the automated retry — the downtime contact plan (alternate numbers, caregiver, CHW visit) is due today.';
+
+function isReviewQueueEvent(event: PopulationEvent): boolean {
+  return event.category === 'critical' || event.category === 'warning'
+    || (event.category === 'no_answer' && event.riskTier === 'High');
+}
+
+/** The clinician's working list: every entry expandable into the values and the registered rule behind it. */
+function ReviewQueueSection({ result, populationSize, dayIndex, populationReviewedIds, sentWorkItemIds, onMarkPopulationReviewed, onSendToDailyLoop, onNavigate }: {
+  result: PopulationDayResult;
+  populationSize: PopulationSize;
+  dayIndex: number;
+  populationReviewedIds: string[];
+  sentWorkItemIds: string[];
+  onMarkPopulationReviewed: (reviewedId: string) => void;
+  onSendToDailyLoop: (run: AiOutreachRun) => void;
+  onNavigate: (section: SandboxSectionId) => void;
+}) {
+  const [expandedOrdinal, setExpandedOrdinal] = useState<number | null>(null);
+  const queue = getPopulationDayEvents(populationSize, dayIndex)
+    .filter(isReviewQueueEvent)
+    .sort((a, b) => QUEUE_CATEGORY_RANK[a.category] - QUEUE_CATEGORY_RANK[b.category])
+    .slice(0, 12);
+  if (queue.length === 0) return null;
+
+  return (
+    <section className="rounded-2xl border bg-white p-5" aria-label="Today's review queue" data-testid="population-exceptions">
+      <SectionHeading
+        eyebrow="What reaches the human"
+        title={`Today's review queue (${numberFormat.format(result.counts.reviewQueue)} of ${numberFormat.format(result.counts.total)})`}
+        description="Every entry below was put here by a registered clinical rule or a documented monitoring-gap policy — never by AI. Names and values are synthetic. Open one to work it."
+      />
+      <ul className="mt-4 grid gap-2 md:grid-cols-2">
+        {queue.map((event) => {
+          const reviewedId = `pop-${event.ordinal}-d${dayIndex}`;
+          const runId = `ai-run-pop${event.ordinal}d${dayIndex}`;
+          const reviewed = populationReviewedIds.includes(reviewedId);
+          const sent = sentWorkItemIds.includes(runId);
+          const expanded = expandedOrdinal === event.ordinal;
+          const rule = event.ruleIds?.[0]
+            ? (RED_FLAG_CRITERIA as Record<string, { message: string; action: string }>)[event.ruleIds[0]]
+            : undefined;
+          return (
+            <li key={event.ordinal} className="rounded-xl border border-slate-200 bg-slate-50 text-sm">
+              <button
+                type="button"
+                className="w-full p-3 text-left"
+                aria-expanded={expanded}
+                data-testid={`queue-entry-${event.ordinal}`}
+                onClick={() => setExpandedOrdinal(expanded ? null : event.ordinal)}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-bold text-slate-950">{event.name} · {event.age}{reviewed && <span className="ml-2 text-xs font-semibold text-emerald-700">Reviewed ✓</span>}</p>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${event.category === 'critical' ? 'bg-red-100 text-red-800' : event.category === 'warning' ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-700'}`}>
+                    {event.category === 'no_answer' ? 'unreachable' : event.category}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">{event.state} · {TRACK_SHORT_LABELS[event.track]} · {event.riskTier} risk</p>
+                <p className="mt-1.5 leading-5 text-slate-700">{event.detail}</p>
+              </button>
+              {expanded && (
+                <div className="border-t border-slate-200 p-3" data-testid={`queue-detail-${event.ordinal}`}>
+                  {event.values && (
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-700 sm:grid-cols-4">
+                      <div><dt className="text-slate-500">Weight</dt><dd className="font-bold">{event.values.weightLbs} lb{typeof event.weightDelta === 'number' && event.weightDelta !== 0 && <span className={event.weightDelta > 0 ? 'text-red-700' : 'text-emerald-700'}> ({event.weightDelta > 0 ? '+' : ''}{event.weightDelta})</span>}</dd></div>
+                      <div><dt className="text-slate-500">SBP</dt><dd className="font-bold">{event.values.sbp} mmHg</dd></div>
+                      <div><dt className="text-slate-500">SpO2</dt><dd className="font-bold">{event.values.spo2}%</dd></div>
+                      <div><dt className="text-slate-500">Dyspnea</dt><dd className="font-bold">{event.values.dyspnea}/3</dd></div>
+                    </dl>
+                  )}
+                  {event.weightHistory && event.values && (
+                    <WeightSparkline history={event.weightHistory} today={event.values.weightLbs} />
+                  )}
+                  <p className="mt-2 rounded-lg bg-white p-2 text-xs leading-5 text-slate-600">
+                    {rule
+                      ? <>Registered rule <span className="font-mono font-semibold">{event.ruleIds![0]}</span>: {rule.message} — {rule.action}</>
+                      : UNREACHABLE_POLICY}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Button
+                      size="sm" variant="outline" className="min-h-11"
+                      disabled={reviewed}
+                      data-testid={`queue-review-${event.ordinal}`}
+                      onClick={() => onMarkPopulationReviewed(reviewedId)}
+                    >
+                      {reviewed ? 'Reviewed ✓' : 'Mark reviewed'}
+                    </Button>
+                    <Button
+                      size="sm" variant="outline" className="min-h-11"
+                      disabled={sent}
+                      data-testid={`queue-send-${event.ordinal}`}
+                      onClick={() => onSendToDailyLoop({
+                        id: runId,
+                        patientName: event.name,
+                        disposition: event.category === 'no_answer' ? 'no_answer' : 'escalated',
+                        redFlagIds: event.ruleIds ?? [],
+                        atLabel: 'Overnight round',
+                        dayIndex,
+                        note: event.category === 'no_answer' ? event.detail : undefined,
+                      })}
+                    >
+                      {sent ? 'In Daily Loop ✓' : 'Send to Daily Loop'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button variant="outline" className="min-h-11" onClick={() => onNavigate('daily-loop')}>Open the Daily Loop →</Button>
+        <Button variant="outline" className="min-h-11" onClick={() => onNavigate('outreach')}>See how one call is handled →</Button>
+        <Button variant="outline" className="min-h-11" onClick={() => onNavigate('copilot')}>Ask the copilot about the day →</Button>
+      </div>
+    </section>
+  );
+}
+
+/** Seven prior weights plus today, most recent last; today's point highlighted. */
+function WeightSparkline({ history, today }: { history: number[]; today: number }) {
+  const points = [...history].reverse().concat(today);
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const span = Math.max(max - min, 0.5);
+  const coords = points.map((value, index) => ({
+    x: 4 + (index * 112) / (points.length - 1),
+    y: 24 - ((value - min) / span) * 20,
+  }));
+  return (
+    <svg viewBox="0 0 120 28" className="mt-2 h-7 w-32" role="img" aria-label={`Weight trend: ${points[0]} to ${today} pounds over 8 days`}>
+      <polyline
+        points={coords.map((point) => `${point.x},${point.y}`).join(' ')}
+        fill="none" stroke="#64748b" strokeWidth="1.5"
+      />
+      <circle cx={coords.at(-1)!.x} cy={coords.at(-1)!.y} r="2.5" fill="#dc2626" />
+    </svg>
   );
 }

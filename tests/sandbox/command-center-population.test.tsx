@@ -19,10 +19,12 @@ const numberFormat = new Intl.NumberFormat('en-US');
 describe('SandboxCommandCenter population scene', () => {
   const onNavigate = vi.fn();
   const onPopulationSize = vi.fn();
+  const onMarkPopulationReviewed = vi.fn();
+  const onSendToDailyLoop = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reduced motion + synchronous rAF: the count-up resolves immediately.
+    // Reduced motion: the replay lands on the final state without any rAF loop.
     vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
       callback(performance.now());
@@ -35,7 +37,11 @@ describe('SandboxCommandCenter population scene', () => {
         visitedSections={['command']}
         dayIndex={0}
         populationSize={500}
+        populationReviewedIds={[]}
+        sentWorkItemIds={[]}
         onPopulationSize={onPopulationSize}
+        onMarkPopulationReviewed={onMarkPopulationReviewed}
+        onSendToDailyLoop={onSendToDailyLoop}
         onNavigate={onNavigate}
         automatedCallsCount={4}
       />,
@@ -75,6 +81,29 @@ describe('SandboxCommandCenter population scene', () => {
     expect(queue).toHaveTextContent(expected.exceptions[0].name);
     const flagged = expected.exceptions.find((exception) => exception.ruleIds.length > 0);
     if (flagged) expect(queue).toHaveTextContent(`rule ${flagged.ruleIds[0]}`);
+  });
+
+  it('expands a queue entry into values, the registered rule, and working actions', () => {
+    fireEvent.click(screen.getByTestId('population-run'));
+
+    const firstEntry = screen.getAllByTestId(/^queue-entry-/)[0];
+    const ordinal = firstEntry.getAttribute('data-testid')!.replace('queue-entry-', '');
+    fireEvent.click(firstEntry);
+
+    const detail = screen.getByTestId(`queue-detail-${ordinal}`);
+    expect(detail.textContent).toMatch(/Registered rule|monitoring-gap policy/);
+
+    fireEvent.click(screen.getByTestId(`queue-review-${ordinal}`));
+    expect(onMarkPopulationReviewed).toHaveBeenCalledWith(`pop-${ordinal}-d0`);
+
+    fireEvent.click(screen.getByTestId(`queue-send-${ordinal}`));
+    expect(onSendToDailyLoop).toHaveBeenCalledTimes(1);
+    const run = onSendToDailyLoop.mock.calls[0][0];
+    expect(run.id).toBe(`ai-run-pop${ordinal}d0`);
+    expect(['escalated', 'no_answer']).toContain(run.disposition);
+    expect(run.atLabel).toBe('Overnight round');
+    if (run.disposition === 'no_answer') expect(run.note).toBeTruthy();
+    else expect(run.redFlagIds.length).toBeGreaterThan(0);
   });
 
   it('lets the visitor change the population size', () => {
