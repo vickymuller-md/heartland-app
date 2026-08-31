@@ -56,6 +56,7 @@ const STREAM = {
   daySymptoms: 12,
   dayAdherence: 13,
   dayRetry: 14,
+  dayMinute: 15,
 } as const;
 
 // ── Cohort generation ────────────────────────────────────────
@@ -224,6 +225,110 @@ function pickFlagEvent(rng: () => number): FlagEvent {
   return { kind: 'dyspnea_rest' };
 }
 
+/** Per-patient evaluation outcome; drives both the aggregate and the replay events. */
+interface PatientDayOutcome {
+  category: 'routine' | 'retry' | 'no_answer' | 'critical' | 'warning' | 'adherence';
+  ruleIds: string[];
+  /** Pre-formatted exception reason; null outside critical/warning. */
+  reason: string | null;
+  /** Reported values for the day; null when no check-in reached the clinic. */
+  values: { weightLbs: number; sbp: number; spo2: number; dyspnea: number } | null;
+  weightDelta: number | null;
+  /** The 7 prior weights the red-flag windows evaluated (most recent first). */
+  weightHistory: number[] | null;
+}
+
+/** Timestamps the red-flag windows compare against; shared so both consumers agree. */
+function buildRecordedAt(now: number): string[] {
+  // The extra 6h keeps every entry safely inside the engine's own
+  // new Date()-based cutoffs regardless of when the caller sampled `now`.
+  return Array.from({ length: 7 }, (_, index) =>
+    new Date(now - (index + 1 + 0.25) * 86_400_000).toISOString());
+}
+
+/**
+ * One patient's day, PRNG-deterministic. The draw ORDER below is frozen by
+ * population-regression.test.ts: weightToday/sbp/spo2/fatigue are always
+ * drawn before the event overrides, pickFlagEvent draws before the history,
+ * and the event ifs stay sequential — reordering any of it changes every
+ * downstream number.
+ */
+function evaluatePatientDay(
+  patient: PopulationPatient,
+  dayIndex: number,
+  recordedAt: string[],
+): PatientDayOutcome {
+  const none = { ruleIds: [] as string[], reason: null, values: null, weightDelta: null, weightHistory: null };
+
+  const responseRng = mulberry32(seedFor(patient.ordinal, dayIndex, STREAM.dayResponse));
+  let noAnswerChance = NO_ANSWER_RATE[patient.track];
+  if (patient.adherenceProfile === 'poor') noAnswerChance += 0.06;
+
+  if (responseRng() < noAnswerChance) {
+    const retryRng = mulberry32(seedFor(patient.ordinal, dayIndex, STREAM.dayRetry));
+    if (retryRng() < RETRY_RESOLVES) return { category: 'retry', ...none };
+    return { category: 'no_answer', ...none };
+  }
+
+  const weightRng = mulberry32(seedFor(patient.ordinal, dayIndex, STREAM.dayWeight));
+  const symptomRng = mulberry32(seedFor(patient.ordinal, dayIndex, STREAM.daySymptoms));
+  const flagged = weightRng() < FLAG_RATE[patient.tier];
+  const event = flagged ? pickFlagEvent(weightRng) : null;
+
+  const base = patient.baselineWeightLbs;
+  const history = recordedAt.map((recorded, index) => ({
+    weight_lbs: Math.round((base + (weightRng() - 0.5) * 0.8 - index * 0.02) * 10) / 10,
+    recorded_at: recorded,
+  }));
+
+  let weightToday = base + (weightRng() - 0.5) * 0.8;
+  let sbp = 112 + Math.floor(symptomRng() * 30);
+  let spo2 = 94 + Math.floor(symptomRng() * 5);
+  let dyspnea = 0;
+  const fatigue = symptomRng() < 0.15 ? 1 : 0;
+
+  if (event) {
+    if (event.kind === 'weight_7d') weightToday = base + 5.2 + weightRng() * 1.3;
+    if (event.kind === 'weight_2d') weightToday = base + 3.2 + weightRng() * 1.2;
+    if (event.kind === 'hypotension') { sbp = 78 + Math.floor(symptomRng() * 10); dyspnea = 1 + Math.floor(symptomRng() * 2); }
+    if (event.kind === 'spo2') spo2 = 87 + Math.floor(symptomRng() * 4);
+    if (event.kind === 'dyspnea_rest') dyspnea = 3;
+  }
+
+  const weightLbs = Math.round(weightToday * 10) / 10;
+  const flags = evaluateRedFlags(
+    { weight_lbs: weightLbs, sbp, spo2 },
+    history,
+    { dyspnea, edema: 0, orthopnea: false, fatigue },
+  );
+
+  const values = { weightLbs, sbp, spo2, dyspnea };
+  const weightDelta = Math.round((weightToday - base) * 10) / 10;
+  const weightHistory = history.map((entry) => entry.weight_lbs);
+
+  if (flags.length > 0) {
+    const critical = flags.some((flag) => flag.severity === 'critical');
+    const reason = flags[0].id.startsWith('weight')
+      ? `Weight +${weightDelta} lb — rule ${flags[0].id}`
+      : `${flags[0].message} — rule ${flags[0].id}`;
+    return {
+      category: critical ? 'critical' : 'warning',
+      ruleIds: flags.map((flag) => flag.id),
+      reason, values, weightDelta, weightHistory,
+    };
+  }
+
+  const adherenceRng = mulberry32(seedFor(patient.ordinal, dayIndex, STREAM.dayAdherence));
+  if (adherenceRng() < ADHERENCE_LAPSE_RATE[patient.adherenceProfile]) {
+    return { category: 'adherence', ruleIds: [], reason: null, values, weightDelta, weightHistory };
+  }
+
+  return { category: 'routine', ruleIds: [], reason: null, values, weightDelta, weightHistory };
+}
+
+const UNREACHABLE_HIGH_RISK_REASON =
+  'High-risk patient unreachable after automated retry — downtime contact plan due';
+
 const dayCache = new Map<string, PopulationDayResult>();
 
 export function simulatePopulationDay(size: PopulationSize, dayIndex: number): PopulationDayResult {
@@ -232,13 +337,7 @@ export function simulatePopulationDay(size: PopulationSize, dayIndex: number): P
   if (cached) return cached;
 
   const cohort = generatePopulation(size);
-
-  // One shared timestamp set per run: the red-flag windows are relative day
-  // offsets, so only the weights differ between patients. The extra 6h keeps
-  // every entry safely inside the engine's own new Date()-based cutoffs.
-  const now = Date.now();
-  const recordedAt = Array.from({ length: 7 }, (_, index) =>
-    new Date(now - (index + 1 + 0.25) * 86_400_000).toISOString());
+  const recordedAt = buildRecordedAt(Date.now());
 
   const counts: PopulationDayCounts = {
     total: size, responded: 0, routine: 0, retriedResolved: 0, unresolvedNoAnswer: 0,
@@ -262,19 +361,16 @@ export function simulatePopulationDay(size: PopulationSize, dayIndex: number): P
     else if (patient.track === 'hybrid') tracks.hybrid += 1;
     else tracks.trackB += 1;
 
-    const responseRng = mulberry32(seedFor(patient.ordinal, dayIndex, STREAM.dayResponse));
-    let noAnswerChance = NO_ANSWER_RATE[patient.track];
-    if (patient.adherenceProfile === 'poor') noAnswerChance += 0.06;
+    const outcome = evaluatePatientDay(patient, dayIndex, recordedAt);
 
-    if (responseRng() < noAnswerChance) {
-      const retryRng = mulberry32(seedFor(patient.ordinal, dayIndex, STREAM.dayRetry));
-      if (retryRng() < RETRY_RESOLVES) {
-        // Answered on the automated retry: responded but counted apart from
-        // first-attempt routine so the funnel rows add up to the total.
-        counts.retriedResolved += 1;
-        counts.responded += 1;
-        continue;
-      }
+    if (outcome.category === 'retry') {
+      // Answered on the automated retry: responded but counted apart from
+      // first-attempt routine so the funnel rows add up to the total.
+      counts.retriedResolved += 1;
+      counts.responded += 1;
+      continue;
+    }
+    if (outcome.category === 'no_answer') {
       counts.unresolvedNoAnswer += 1;
       // Only unresolved high-risk gaps interrupt the human; the rest stay on
       // the automated retry cadence — mirrors the Track B downtime plan.
@@ -282,7 +378,7 @@ export function simulatePopulationDay(size: PopulationSize, dayIndex: number): P
         pushException({
           name: patient.name, age: patient.age, state: patient.state, track: patient.track,
           riskTier: patient.tier, category: 'no_answer',
-          reason: 'High-risk patient unreachable after automated retry — downtime contact plan due',
+          reason: UNREACHABLE_HIGH_RISK_REASON,
           ruleIds: [],
         });
       }
@@ -291,54 +387,16 @@ export function simulatePopulationDay(size: PopulationSize, dayIndex: number): P
 
     counts.responded += 1;
 
-    const weightRng = mulberry32(seedFor(patient.ordinal, dayIndex, STREAM.dayWeight));
-    const symptomRng = mulberry32(seedFor(patient.ordinal, dayIndex, STREAM.daySymptoms));
-    const flagged = weightRng() < FLAG_RATE[patient.tier];
-    const event = flagged ? pickFlagEvent(weightRng) : null;
-
-    const base = patient.baselineWeightLbs;
-    const history = recordedAt.map((recorded, index) => ({
-      weight_lbs: Math.round((base + (weightRng() - 0.5) * 0.8 - index * 0.02) * 10) / 10,
-      recorded_at: recorded,
-    }));
-
-    let weightToday = base + (weightRng() - 0.5) * 0.8;
-    let sbp = 112 + Math.floor(symptomRng() * 30);
-    let spo2: number | null = 94 + Math.floor(symptomRng() * 5);
-    let dyspnea = 0;
-    const fatigue = symptomRng() < 0.15 ? 1 : 0;
-
-    if (event) {
-      if (event.kind === 'weight_7d') weightToday = base + 5.2 + weightRng() * 1.3;
-      if (event.kind === 'weight_2d') weightToday = base + 3.2 + weightRng() * 1.2;
-      if (event.kind === 'hypotension') { sbp = 78 + Math.floor(symptomRng() * 10); dyspnea = 1 + Math.floor(symptomRng() * 2); }
-      if (event.kind === 'spo2') spo2 = 87 + Math.floor(symptomRng() * 4);
-      if (event.kind === 'dyspnea_rest') dyspnea = 3;
-    }
-
-    const flags = evaluateRedFlags(
-      { weight_lbs: Math.round(weightToday * 10) / 10, sbp, spo2 },
-      history,
-      { dyspnea, edema: 0, orthopnea: false, fatigue },
-    );
-
-    if (flags.length > 0) {
-      const critical = flags.some((flag) => flag.severity === 'critical');
-      if (critical) counts.critical += 1; else counts.warning += 1;
-      const weightDelta = Math.round((weightToday - base) * 10) / 10;
-      const reason = flags[0].id.startsWith('weight')
-        ? `Weight +${weightDelta} lb — rule ${flags[0].id}`
-        : `${flags[0].message} — rule ${flags[0].id}`;
+    if (outcome.category === 'critical' || outcome.category === 'warning') {
+      if (outcome.category === 'critical') counts.critical += 1; else counts.warning += 1;
       pushException({
         name: patient.name, age: patient.age, state: patient.state, track: patient.track,
-        riskTier: patient.tier, category: critical ? 'critical' : 'warning',
-        reason, ruleIds: flags.map((flag) => flag.id),
+        riskTier: patient.tier, category: outcome.category,
+        reason: outcome.reason ?? '', ruleIds: outcome.ruleIds,
       });
       continue;
     }
-
-    const adherenceRng = mulberry32(seedFor(patient.ordinal, dayIndex, STREAM.dayAdherence));
-    if (adherenceRng() < ADHERENCE_LAPSE_RATE[patient.adherenceProfile]) {
+    if (outcome.category === 'adherence') {
       counts.adherenceLapse += 1;
       continue;
     }
@@ -368,8 +426,89 @@ export const TRACK_SHORT_LABELS: Record<TrackType, string> = {
   'track-a': 'Track A', hybrid: 'Hybrid', 'track-b': 'Track B',
 };
 
+// ── Replay event stream ──────────────────────────────────────
+
+export type PopulationEventCategory = PatientDayOutcome['category'];
+
+/** One processed check-in in the simulated overnight window, replay-ordered. */
+export interface PopulationEvent {
+  ordinal: number;
+  /** Minutes since midnight inside the simulated 05:30–07:30 window. */
+  minute: number;
+  name: string;
+  age: number;
+  state: string;
+  track: TrackType;
+  riskTier: RiskTierLabel;
+  category: PopulationEventCategory;
+  detail: string;
+  ruleIds?: string[];
+  values?: { weightLbs: number; sbp: number; spo2: number; dyspnea: number };
+  weightDelta?: number;
+  weightHistory?: number[];
+}
+
+// Shared constants for the common categories: zero per-event allocation.
+const EVENT_DETAIL: Record<'routine' | 'retry' | 'adherence', string> = {
+  routine: 'check-in ✓ routine — auto-documented',
+  retry: 'no answer → answered on automated retry',
+  adherence: 'missed doses reported → routed to pharmacist workflow',
+};
+const NO_ANSWER_DETAIL = 'unreachable — automated retry cadence continues';
+const NO_ANSWER_HIGH_DETAIL = 'unreachable — HIGH risk → downtime contact plan, queued for clinician';
+
+// Only the theater consumes events; cache a single key so switching sizes/days
+// never accumulates tens of thousands of retained objects.
+let lastEventsKey: string | null = null;
+let lastEvents: PopulationEvent[] | null = null;
+
+export function getPopulationDayEvents(size: PopulationSize, dayIndex: number): PopulationEvent[] {
+  const cacheKey = `${size}:${dayIndex}`;
+  if (lastEventsKey === cacheKey && lastEvents) return lastEvents;
+
+  const cohort = generatePopulation(size);
+  const recordedAt = buildRecordedAt(Date.now());
+  const events: PopulationEvent[] = new Array(size);
+
+  for (let index = 0; index < cohort.length; index += 1) {
+    const patient = cohort[index];
+    const outcome = evaluatePatientDay(patient, dayIndex, recordedAt);
+    const minuteRng = mulberry32(seedFor(patient.ordinal, dayIndex, STREAM.dayMinute));
+    const minute = 330 + Math.floor(minuteRng() * 121);
+
+    const isFlagged = outcome.category === 'critical' || outcome.category === 'warning';
+    const highNoAnswer = outcome.category === 'no_answer' && patient.tier === 'High';
+    const detail = isFlagged
+      ? outcome.reason ?? ''
+      : outcome.category === 'no_answer'
+        ? (highNoAnswer ? NO_ANSWER_HIGH_DETAIL : NO_ANSWER_DETAIL)
+        : EVENT_DETAIL[outcome.category as 'routine' | 'retry' | 'adherence'];
+
+    const event: PopulationEvent = {
+      ordinal: patient.ordinal, minute, name: patient.name, age: patient.age, state: patient.state,
+      track: patient.track, riskTier: patient.tier, category: outcome.category, detail,
+    };
+    if (isFlagged || highNoAnswer) {
+      event.ruleIds = outcome.ruleIds;
+      if (outcome.values) {
+        event.values = outcome.values;
+        event.weightDelta = outcome.weightDelta ?? undefined;
+        event.weightHistory = outcome.weightHistory ?? undefined;
+      }
+    }
+    events[index] = event;
+  }
+
+  events.sort((a, b) => a.minute - b.minute || a.ordinal - b.ordinal);
+  lastEventsKey = cacheKey;
+  lastEvents = events;
+  return events;
+}
+
 /** Test hook: proves determinism by forcing full recomputation between calls. */
 export function clearPopulationCachesForTests(): void {
   cohortCache.clear();
   dayCache.clear();
+  lastEventsKey = null;
+  lastEvents = null;
 }

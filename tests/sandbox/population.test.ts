@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import {
   clearPopulationCachesForTests,
   generatePopulation,
+  getPopulationDayEvents,
   POPULATION_SIZES,
   simulatePopulationDay,
 } from '@/lib/sandbox/population';
@@ -99,6 +100,54 @@ describe('daily funnel', () => {
     const firstWarning = exceptions.findIndex((exception) => exception.category === 'warning');
     const lastCritical = exceptions.map((exception) => exception.category).lastIndexOf('critical');
     if (firstWarning >= 0 && lastCritical >= 0) expect(lastCritical).toBeLessThan(firstWarning);
+  });
+});
+
+describe('replay event stream', () => {
+  it('is deterministic, minute-ordered, and inside the overnight window', () => {
+    clearPopulationCachesForTests();
+    const first = getPopulationDayEvents(500, 1);
+    clearPopulationCachesForTests();
+    const second = getPopulationDayEvents(500, 1);
+    expect(second).toEqual(first);
+    for (let index = 1; index < first.length; index += 1) {
+      expect(first[index].minute).toBeGreaterThanOrEqual(first[index - 1].minute);
+    }
+    for (const event of first) {
+      expect(event.minute).toBeGreaterThanOrEqual(330);
+      expect(event.minute).toBeLessThanOrEqual(450);
+      expect(event.detail.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('sums per category to exactly the aggregate counts', () => {
+    const events = getPopulationDayEvents(2500, 0);
+    const { counts } = simulatePopulationDay(2500, 0);
+    const byCategory = new Map<string, number>();
+    for (const event of events) byCategory.set(event.category, (byCategory.get(event.category) ?? 0) + 1);
+    expect(events).toHaveLength(counts.total);
+    expect(byCategory.get('routine') ?? 0).toBe(counts.routine);
+    expect(byCategory.get('retry') ?? 0).toBe(counts.retriedResolved);
+    expect(byCategory.get('no_answer') ?? 0).toBe(counts.unresolvedNoAnswer);
+    expect(byCategory.get('critical') ?? 0).toBe(counts.critical);
+    expect(byCategory.get('warning') ?? 0).toBe(counts.warning);
+    expect(byCategory.get('adherence') ?? 0).toBe(counts.adherenceLapse);
+  });
+
+  it('attaches values and weight history only to flagged or high-risk-unreachable events', () => {
+    const events = getPopulationDayEvents(2500, 0);
+    const flagged = events.filter((event) => event.category === 'critical' || event.category === 'warning');
+    expect(flagged.length).toBeGreaterThan(0);
+    for (const event of flagged) {
+      expect(event.values).toBeDefined();
+      expect(event.weightHistory).toHaveLength(7);
+      expect(event.ruleIds!.length).toBeGreaterThan(0);
+      expect(event.detail).toContain('rule ');
+    }
+    for (const event of events.filter((entry) => entry.category === 'routine').slice(0, 50)) {
+      expect(event.values).toBeUndefined();
+      expect(event.weightHistory).toBeUndefined();
+    }
   });
 });
 
