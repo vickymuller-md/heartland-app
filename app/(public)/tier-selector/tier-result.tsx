@@ -6,6 +6,7 @@ import {
   CardTitle,
   CardContent,
 } from "@/components/ui/card";
+import { ExplainResultButton } from "@/components/ai/explain-result-button";
 import { TIER_COLORS } from "@/lib/tier-selector/constants";
 import type { TierResult } from "@/lib/tier-selector/types";
 
@@ -31,6 +32,19 @@ export function TierResultCard({ result }: TierResultCardProps) {
 
         {/* Rationale */}
         <p className="text-sm text-muted-foreground">{result.rationale}</p>
+
+        <div className="print:hidden">
+          <ExplainResultButton
+            input={{
+              module: 'tier',
+              result: {
+                tierLabel: result.tierLabel,
+                rationale: result.rationale.slice(0, 420),
+                limitingCategories: result.limitingCategories.map((category) => category.categoryLabel),
+              },
+            }}
+          />
+        </div>
 
         {/* Category breakdown */}
         <div>

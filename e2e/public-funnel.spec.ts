@@ -70,6 +70,17 @@ for (const route of publicTools) {
   });
 }
 
+test('explain-this-result degrades silently when the assistant is disabled', async ({ page }) => {
+  await page.goto('/risk-calculator');
+  const button = page.getByTestId('explain-result-button');
+  await expect(button).toBeVisible();
+  await button.click();
+  // CI runs without SANDBOX_AI_ENABLED: the assist call falls back and the
+  // button removes itself, leaving the deterministic result untouched.
+  await expect(page.getByTestId('explain-result')).toHaveCount(0);
+  await expect(page.getByTestId('result-card')).toBeVisible();
+});
+
 for (const route of ['/', '/register?mode=tester', '/sandbox']) {
   test(`critical accessibility and DOM budget: ${route}`, async ({ page }) => {
     await page.goto(route);

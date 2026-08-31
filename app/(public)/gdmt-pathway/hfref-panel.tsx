@@ -1,4 +1,5 @@
 import { HFREF_MEDICATIONS } from '@/lib/gdmt/constants';
+import { ExplainResultButton } from '@/components/ai/explain-result-button';
 import { MedicationCard } from '@/components/gdmt/medication-card';
 
 interface HfrefPanelProps {
@@ -38,6 +39,21 @@ export function HfrefPanel({ selectedPatient, existingMedNames = [], selectedDru
             </div>
           );
         })}
+      </div>
+      <div className="print:hidden">
+        <ExplainResultButton
+          input={{
+            module: 'gdmt',
+            result: {
+              phenotype: 'HFrEF',
+              classes: HFREF_MEDICATIONS.map((med) => ({
+                therapyClass: med.drugClass,
+                agent: med.agent,
+                evidence: med.evidenceLevel,
+              })),
+            },
+          }}
+        />
       </div>
     </div>
   );

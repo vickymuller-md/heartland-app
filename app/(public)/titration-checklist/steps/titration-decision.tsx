@@ -1,8 +1,9 @@
 'use client';
 
 import { useMemo } from 'react';
+import { ExplainResultButton } from '@/components/ai/explain-result-button';
 import { TitrationDecisionTable } from '@/components/titration/titration-decision-table';
-import { getTitrationAction } from '@/lib/titration/engine';
+import { evaluateSafetyGates, getTitrationAction } from '@/lib/titration/engine';
 import type { VitalSigns, DrugClassRecommendation, TitrationAction } from '@/lib/titration/types';
 import { ArrowUp, Pause, ArrowDown, AlertTriangle } from 'lucide-react';
 
@@ -51,6 +52,7 @@ export function TitrationDecision({
   showAceiWarning = false,
 }: TitrationDecisionProps) {
   const action = useMemo(() => getTitrationAction(vitals), [vitals]);
+  const gates = useMemo(() => evaluateSafetyGates(vitals), [vitals]);
   const config = ACTION_CONFIG[action.action];
   const Icon = config.icon;
 
@@ -111,6 +113,23 @@ export function TitrationDecision({
           </div>
         </div>
       )}
+
+      <div className="print:hidden">
+        <ExplainResultButton
+          input={{
+            module: 'titration',
+            result: {
+              gates: gates.slice(0, 5).map((gate) => ({
+                parameter: gate.parameter.slice(0, 40),
+                value: gate.value,
+                status: gate.status,
+              })),
+              action: action.action,
+              details: action.details.slice(0, 220),
+            },
+          }}
+        />
+      </div>
 
       {/* Global calculated signal */}
       <div>

@@ -98,3 +98,78 @@ describe('protocol content embedding', () => {
     expect(message).toContain('data only');
   });
 });
+
+describe('explain_result kind', () => {
+  const riskRequest = {
+    kind: 'explain_result' as const,
+    input: {
+      module: 'risk' as const,
+      result: {
+        totalScore: 10,
+        tier: 'High' as const,
+        presentFactors: [{ factor: 'eGFR <45 mL/min/1.73m²', points: 2 }],
+        followUp: 'Cardiology input before discharge; 48-hour phone follow-up',
+        monitoring: 'CHW or equivalent support',
+        support: 'Intensive bundle',
+      },
+    },
+  };
+
+  it('accepts each module payload and rejects free text or unknown modules', () => {
+    expect(assistRequestSchema.safeParse(riskRequest).success).toBe(true);
+    expect(assistRequestSchema.safeParse({
+      kind: 'explain_result',
+      input: { module: 'monitoring', result: { label: 'Track B (Analog)', rationale: 'Paper diary with telephone calls.' } },
+    }).success).toBe(true);
+    expect(assistRequestSchema.safeParse({
+      kind: 'explain_result',
+      input: { module: 'sandbox', result: { label: 'x', rationale: 'y' } },
+    }).success).toBe(false);
+    expect(assistRequestSchema.safeParse({
+      kind: 'explain_result',
+      input: { module: 'risk', result: { ...riskRequest.input.result, freeText: 'inject' } },
+    }).success).toBe(false);
+  });
+
+  it('keeps narrations that only restate input numbers', () => {
+    const parsed = parseAssistOutput('explain_result', {
+      explanation: 'The score of 10 out of 18 places this in the High tier, driven by 1 factor including reduced kidney function (eGFR below 45).',
+    }, riskRequest);
+    expect(parsed?.kind).toBe('explain_result');
+  });
+
+  it('discards narrations that invent clinically meaningful numbers', () => {
+    expect(parseAssistOutput('explain_result', {
+      explanation: 'A score of 10 usually means a systolic pressure near 92 and rising weight.',
+    }, riskRequest)).toBeNull();
+    expect(parseAssistOutput('explain_result', {
+      explanation: 'Potassium around 5.7 would also matter here.',
+    }, riskRequest)).toBeNull();
+  });
+
+  it('blocks dose language on dose-free modules but allows it for titration', () => {
+    expect(parseAssistOutput('explain_result', {
+      explanation: 'This tier suggests adjusting the dose of your tablets.',
+    }, riskRequest)).toBeNull();
+
+    const titrationRequest = {
+      kind: 'explain_result' as const,
+      input: {
+        module: 'titration' as const,
+        result: {
+          gates: [{ parameter: 'Systolic BP', value: 96, status: 'warning' as const }],
+          action: 'hold' as const,
+          details: 'SBP 90-99 mmHg AND asymptomatic: HOLD current dose; reassess in 1 week',
+        },
+      },
+    };
+    const parsed = parseAssistOutput('explain_result', {
+      explanation: 'With a systolic pressure of 96, the algorithm holds the current dose and reassesses in 1 week; the provider makes the final call.',
+    }, titrationRequest);
+    expect(parsed?.kind).toBe('explain_result');
+  });
+
+  it('never parses explain_result without the originating request', () => {
+    expect(parseAssistOutput('explain_result', { explanation: 'Anything.' })).toBeNull();
+  });
+});

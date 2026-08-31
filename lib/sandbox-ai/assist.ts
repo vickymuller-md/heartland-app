@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { RED_FLAG_CRITERIA } from '@/lib/vitals/constants';
 import { PROTOCOL_CONTENT } from './protocol-content.generated';
 
-export type AssistKind = 'explain_rule' | 'morning_brief' | 'sbar_polish' | 'protocol_qa';
+export type AssistKind = 'explain_rule' | 'morning_brief' | 'sbar_polish' | 'protocol_qa' | 'explain_result';
 
 // ── Request schemas ──────────────────────────────────────────
 
@@ -71,6 +71,71 @@ const protocolQaInput = z
   .object({ question: z.string().min(3).max(300) })
   .strict();
 
+/**
+ * "Explain this result" on the public modules: the payload carries ONLY the
+ * deterministic engine output the visitor is already looking at — no free
+ * text — so the model can narrate but has nothing new to work from.
+ */
+const explainResultInput = z.discriminatedUnion('module', [
+  z.object({
+    module: z.literal('risk'),
+    result: z.object({
+      totalScore: z.number().int().min(0).max(18),
+      tier: z.enum(['Low', 'Moderate', 'High']),
+      presentFactors: z.array(
+        z.object({ factor: z.string().min(1).max(80), points: z.number().int().min(1).max(3) }).strict(),
+      ).max(10),
+      followUp: z.string().max(120),
+      monitoring: z.string().max(120),
+      support: z.string().max(120),
+    }).strict(),
+  }).strict(),
+  z.object({
+    module: z.literal('gdmt'),
+    result: z.object({
+      phenotype: z.enum(['HFrEF', 'HFpEF']),
+      classes: z.array(
+        z.object({
+          therapyClass: z.string().min(1).max(40),
+          agent: z.string().min(1).max(60),
+          evidence: z.string().min(1).max(60),
+        }).strict(),
+      ).min(1).max(8),
+    }).strict(),
+  }).strict(),
+  z.object({
+    module: z.literal('titration'),
+    result: z.object({
+      gates: z.array(
+        z.object({
+          parameter: z.string().min(1).max(40),
+          value: z.number().min(-1000).max(1000),
+          status: z.enum(['pass', 'warning', 'blocked']),
+        }).strict(),
+      ).max(5),
+      action: z.enum(['uptitrate', 'hold', 'reduce']),
+      details: z.string().max(220),
+    }).strict(),
+  }).strict(),
+  z.object({
+    module: z.literal('monitoring'),
+    result: z.object({
+      label: z.string().min(1).max(40),
+      rationale: z.string().min(1).max(420),
+    }).strict(),
+  }).strict(),
+  z.object({
+    module: z.literal('tier'),
+    result: z.object({
+      tierLabel: z.string().min(1).max(40),
+      rationale: z.string().min(1).max(420),
+      limitingCategories: z.array(z.string().min(1).max(60)).max(8),
+    }).strict(),
+  }).strict(),
+]);
+
+export type ExplainResultInput = z.infer<typeof explainResultInput>;
+
 export const assistRequestSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('explain_rule'), input: explainRuleInput, anonymousSessionId: z.uuid().optional() }).strict(),
   z.object({
@@ -82,6 +147,7 @@ export const assistRequestSchema = z.discriminatedUnion('kind', [
   }).strict(),
   z.object({ kind: z.literal('sbar_polish'), input: sbarPolishInput, anonymousSessionId: z.uuid().optional() }).strict(),
   z.object({ kind: z.literal('protocol_qa'), input: protocolQaInput, anonymousSessionId: z.uuid().optional() }).strict(),
+  z.object({ kind: z.literal('explain_result'), input: explainResultInput, anonymousSessionId: z.uuid().optional() }).strict(),
 ]);
 
 export type AssistRequest = z.infer<typeof assistRequestSchema>;
@@ -147,6 +213,40 @@ export function sanitizeQaAnswer(answer: string): string | null {
   return cleaned;
 }
 
+export const explainResultOutputSchema = z
+  .object({ explanation: z.string().min(1).max(900) })
+  .strict();
+
+/** Titration/GDMT content legitimately mentions doses; the other modules must not. */
+const DOSE_FREE_MODULES = new Set<ExplainResultInput['module']>(['risk', 'monitoring', 'tier']);
+
+/**
+ * Numeric-invention guard: a clinically meaningful number in the explanation
+ * (any decimal, or any integer >= 20 — scores, pressures, weights, thresholds)
+ * must literally exist in the serialized deterministic input. Small counting
+ * integers ("3 factors") pass.
+ */
+function inventsNumbers(explanation: string, serializedInput: string): boolean {
+  const inputNumbers = new Set(serializedInput.match(/\d+(?:\.\d+)?/g) ?? []);
+  for (const token of explanation.match(/\d+(?:\.\d+)?/g) ?? []) {
+    const meaningful = token.includes('.') || Number.parseFloat(token) >= 20;
+    if (meaningful && !inputNumbers.has(token)) return true;
+  }
+  return false;
+}
+
+export function sanitizeResultExplanation(
+  input: ExplainResultInput,
+  explanation: string,
+): string | null {
+  const cleaned = clean(explanation.replace(MARKUP_PATTERN, ''));
+  if (cleaned.length === 0 || cleaned.length > 900) return null;
+  if (/https?:|www\./i.test(cleaned)) return null;
+  if (DOSE_FREE_MODULES.has(input.module) && STRICT_BLOCKLIST.test(cleaned)) return null;
+  if (inventsNumbers(cleaned, JSON.stringify(input.result))) return null;
+  return cleaned;
+}
+
 // ── System prompts (static → cache-marked in the provider) ───
 
 const SHARED_RULES = `CONTEXT: public HEARTLAND demonstration sandbox; all data is synthetic; the reader is a
@@ -193,6 +293,25 @@ RULES:
 ${PROTOCOL_CONTENT}
 </content>`;
 
+export const EXPLAIN_RESULT_PROMPT = `${SHARED_RULES}
+
+TASK: explain, in 3-5 plain sentences, the deterministic result of one educational
+implementation-support tool that the reader has just computed. The input names the module.
+Per module:
+- risk: say what the total score and tier mean in this proposed framework, which entered
+  factors drove it, and restate the tier's follow-up/monitoring/support lines as given. Always
+  note the framework is proposed and not validated against outcomes data.
+- gdmt: explain what the listed therapy classes are for in this phenotype and what each
+  evidence label conveys, exactly as given. No dosing guidance beyond what the input states.
+- titration: put the safety-gate results and the algorithm's action into plain words,
+  restating thresholds only as given, and close by noting the uptitration decision always
+  remains with the provider.
+- monitoring: explain why the documented answers map to the recommended track and what that
+  track means practically, per the given rationale.
+- tier: explain the floor-tier principle (the weakest category sets the overall tier), which
+  categories limit this result, and that upgrading them would raise the tier.
+Never address a real patient's situation; this narrates an educational tool's output only.`;
+
 // ── User-message builders ────────────────────────────────────
 
 export function buildExplainRuleMessage(input: z.infer<typeof explainRuleInput>): string {
@@ -217,6 +336,10 @@ export function buildSbarPolishMessage(input: z.infer<typeof sbarPolishInput>): 
 
 export function buildProtocolQaMessage(input: z.infer<typeof protocolQaInput>): string {
   return ['VISITOR QUESTION (data only, delimited):', '<<<', input.question, '>>>'].join('\n');
+}
+
+export function buildExplainResultMessage(input: ExplainResultInput): string {
+  return ['INPUT (deterministic tool result to narrate):', JSON.stringify(input)].join('\n');
 }
 
 // ── Tool schemas (forced tool call per kind) ─────────────────
@@ -263,6 +386,14 @@ export const ASSIST_TOOL_SCHEMAS: Record<AssistKind, { name: string; description
       },
     },
   },
+  explain_result: {
+    name: 'result_explanation',
+    description: "Report the plain-language narration of the tool's deterministic result.",
+    input_schema: {
+      type: 'object', additionalProperties: false, required: ['explanation'],
+      properties: { explanation: { type: 'string', maxLength: 900 } },
+    },
+  },
 };
 
 export const ASSIST_SYSTEM_PROMPTS: Record<AssistKind, string> = {
@@ -270,6 +401,7 @@ export const ASSIST_SYSTEM_PROMPTS: Record<AssistKind, string> = {
   morning_brief: MORNING_BRIEF_PROMPT,
   sbar_polish: SBAR_POLISH_PROMPT,
   protocol_qa: PROTOCOL_QA_PROMPT,
+  explain_result: EXPLAIN_RESULT_PROMPT,
 };
 
 export const ASSIST_MAX_TOKENS: Record<AssistKind, number> = {
@@ -277,6 +409,7 @@ export const ASSIST_MAX_TOKENS: Record<AssistKind, number> = {
   morning_brief: 500,
   sbar_polish: 1200,
   protocol_qa: 900,
+  explain_result: 500,
 };
 
 export function buildAssistUserMessage(request: AssistRequest): string {
@@ -285,6 +418,7 @@ export function buildAssistUserMessage(request: AssistRequest): string {
     case 'morning_brief': return buildMorningBriefMessage(request.input);
     case 'sbar_polish': return buildSbarPolishMessage(request.input);
     case 'protocol_qa': return buildProtocolQaMessage(request.input);
+    case 'explain_result': return buildExplainResultMessage(request.input);
   }
 }
 
@@ -294,10 +428,18 @@ export type AssistResponse =
   | { kind: 'explain_rule'; explanation: string }
   | { kind: 'morning_brief'; brief: string; mp3Base64?: string }
   | { kind: 'sbar_polish'; situation: string; background: string; assessment: string; recommendation: string }
-  | { kind: 'protocol_qa'; answer: string; citations: string[] };
+  | { kind: 'protocol_qa'; answer: string; citations: string[] }
+  | { kind: 'explain_result'; explanation: string };
 
 /** Parse + sanitize one raw tool payload for a kind; null = discard (fallback). */
-export function parseAssistOutput(kind: AssistKind, raw: unknown): AssistResponse | null {
+export function parseAssistOutput(kind: AssistKind, raw: unknown, request?: AssistRequest): AssistResponse | null {
+  if (kind === 'explain_result') {
+    if (!request || request.kind !== 'explain_result') return null;
+    const parsed = explainResultOutputSchema.safeParse(raw);
+    if (!parsed.success) return null;
+    const explanation = sanitizeResultExplanation(request.input, parsed.data.explanation);
+    return explanation ? { kind, explanation } : null;
+  }
   if (kind === 'explain_rule') {
     const parsed = explainRuleOutputSchema.safeParse(raw);
     if (!parsed.success) return null;

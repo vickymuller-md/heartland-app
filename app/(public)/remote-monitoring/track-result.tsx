@@ -1,5 +1,6 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { ExplainResultButton } from '@/components/ai/explain-result-button';
 import type { TrackRecommendation, TrackType } from '@/lib/remote-monitoring/types';
 
 const trackTheme: Record<TrackType, { badge: string; accent: string; label: string }> = {
@@ -45,6 +46,17 @@ export function TrackResult({ recommendation, patientName }: TrackResultProps) {
           </p>
         )}
         <p className="text-sm leading-relaxed">{recommendation.rationale}</p>
+        <div className="print:hidden">
+          <ExplainResultButton
+            input={{
+              module: 'monitoring',
+              result: {
+                label: recommendation.label,
+                rationale: recommendation.rationale.slice(0, 420),
+              },
+            }}
+          />
+        </div>
       </CardContent>
     </Card>
   );

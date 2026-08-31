@@ -1,4 +1,5 @@
 import { HFPEF_MEDICATIONS } from '@/lib/gdmt/constants';
+import { ExplainResultButton } from '@/components/ai/explain-result-button';
 import { MedicationCard } from '@/components/gdmt/medication-card';
 
 interface HfpefPanelProps {
@@ -42,6 +43,21 @@ export function HfpefPanel({ selectedPatient, existingMedNames = [], selectedDru
             </div>
           );
         })}
+      </div>
+      <div className="print:hidden">
+        <ExplainResultButton
+          input={{
+            module: 'gdmt',
+            result: {
+              phenotype: 'HFpEF',
+              classes: sorted.slice(0, 8).map((med) => ({
+                therapyClass: med.drugClass,
+                agent: med.agent,
+                evidence: med.evidenceLevel,
+              })),
+            },
+          }}
+        />
       </div>
     </div>
   );

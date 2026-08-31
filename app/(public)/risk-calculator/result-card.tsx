@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ExplainResultButton } from '@/components/ai/explain-result-button';
 import { TIER_COLORS } from '@/lib/risk-score/constants';
 import type { RiskResult } from '@/lib/risk-score/types';
 
@@ -56,6 +57,23 @@ export function ResultCard({ result }: ResultCardProps) {
             <p className="text-xs text-muted-foreground">
               {result.carePathway.description}
             </p>
+          </div>
+          <div className="print:hidden">
+            <ExplainResultButton
+              input={{
+                module: 'risk',
+                result: {
+                  totalScore: result.totalScore,
+                  tier: result.tierLabel as 'Low' | 'Moderate' | 'High',
+                  presentFactors: result.breakdown
+                    .filter((entry) => entry.present)
+                    .map((entry) => ({ factor: entry.variable, points: entry.points })),
+                  followUp: result.carePathway.followUp,
+                  monitoring: result.carePathway.monitoring,
+                  support: result.carePathway.support,
+                },
+              }}
+            />
           </div>
         </CardContent>
       </Card>
