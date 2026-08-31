@@ -211,5 +211,7 @@ export interface SandboxDemoState {
   aiOutreachRuns: AiOutreachRun[];
   dayIndex: number;
   dayLog: SandboxDayLogEntry[];
+  /** Size of the synthetic population scene on the Command Center. */
+  populationSize: 500 | 2500 | 5000;
   savedAt: number;
 }

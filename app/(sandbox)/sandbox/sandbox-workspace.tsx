@@ -6,6 +6,7 @@ import { trackProductEvent } from '@/lib/product-analytics/actions';
 import { getPublicDisseminationContext } from '@/lib/product-analytics/public-context';
 import { OUTREACH_TRANSCRIPTS, outreachWorkItems, type SimulatedCallTranscript } from '@/lib/sandbox-ai/fixtures';
 import { clampDayIndex, SANDBOX_DAY_COUNT } from '@/lib/sandbox/day-selectors';
+import { DEFAULT_POPULATION_SIZE, POPULATION_SIZES, type PopulationSize } from '@/lib/sandbox/population';
 import { SANDBOX_PATHWAYS, SANDBOX_PATIENTS, SANDBOX_SECTIONS, SANDBOX_TASKS } from '@/lib/sandbox/fixtures';
 import type { AiOutreachRun, SandboxDayLogEntry, SandboxDemoState, SandboxSectionId, SandboxTask, SandboxTaskState, SandboxTaskStatus } from '@/lib/sandbox/types';
 import { RED_FLAG_CRITERIA } from '@/lib/vitals/constants';
@@ -60,6 +61,7 @@ function initialDemoState(): SandboxDemoState {
     aiOutreachRuns: [],
     dayIndex: 0,
     dayLog: [],
+    populationSize: DEFAULT_POPULATION_SIZE,
     savedAt: Date.now(),
   };
 }
@@ -160,6 +162,9 @@ function restoreDemoState(value: unknown): SandboxDemoState | null {
     aiOutreachRuns: restoreOutreachRuns(value.aiOutreachRuns),
     dayIndex: typeof value.dayIndex === 'number' ? clampDayIndex(value.dayIndex) : 0,
     dayLog: restoreDayLog(value.dayLog),
+    populationSize: POPULATION_SIZES.includes(value.populationSize as PopulationSize)
+      ? value.populationSize as PopulationSize
+      : DEFAULT_POPULATION_SIZE,
     savedAt: value.savedAt,
   };
 }
@@ -178,6 +183,8 @@ export function SandboxWorkspace() {
   // run metadata in demo.aiOutreachRuns survives a reload.
   const [liveCalls, setLiveCalls] = useState<SimulatedCallTranscript[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  const [dayToast, setDayToast] = useState<string | null>(null);
+  const dayToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startedAt = useRef(Date.now());
   const firstActionTracked = useRef(false);
   const selectedPatient = SANDBOX_PATIENTS.find((patient) => patient.id === demo.selectedPatientId) ?? SANDBOX_PATIENTS[0];
@@ -212,6 +219,10 @@ export function SandboxWorkspace() {
       // The sandbox remains fully usable when local persistence is blocked.
     }
   }, [demo, hydrated]);
+
+  useEffect(() => () => {
+    if (dayToastTimer.current) clearTimeout(dayToastTimer.current);
+  }, []);
 
   function trackFirstAction() {
     if (firstActionTracked.current) return;
@@ -304,15 +315,28 @@ export function SandboxWorkspace() {
     trackFirstAction();
     setDemo((current) => {
       if (current.dayIndex >= SANDBOX_DAY_COUNT - 1) return current;
+      const nextDay = current.dayIndex + 1;
+      const mariaNote = nextDay === 1 ? ' Maria Santos crossed the 5 lb/7-day rule.' : '';
+      showDayToast(`Day ${nextDay + 1} — population and queues re-simulated by the registered rules.${mariaNote}`);
       return {
         ...current,
-        dayIndex: current.dayIndex + 1,
+        dayIndex: nextDay,
         dayLog: [
           ...current.dayLog.filter((entry) => entry.dayIndex !== current.dayIndex),
           { dayIndex: current.dayIndex, escalations, completedAtLabel: 'This visit' },
         ].slice(-SANDBOX_DAY_COUNT),
       };
     });
+  }
+
+  function showDayToast(message: string) {
+    if (dayToastTimer.current) clearTimeout(dayToastTimer.current);
+    setDayToast(message);
+    dayToastTimer.current = setTimeout(() => setDayToast(null), 7000);
+  }
+
+  function setPopulationSize(populationSize: PopulationSize) {
+    setDemo((current) => ({ ...current, populationSize }));
   }
 
   function reassign(taskId: string, owner: string) {
@@ -330,7 +354,7 @@ export function SandboxWorkspace() {
 
   const sectionContent = (() => {
     switch (demo.selectedSection) {
-      case 'copilot': return <SandboxCopilot outreachItems={outreachWorkItems(dayRuns)} dayIndex={demo.dayIndex} dayLog={demo.dayLog} onAdvanceDay={advanceDay} onRecordRun={recordOutreachRun} onNavigate={navigate} />;
+      case 'copilot': return <SandboxCopilot outreachItems={outreachWorkItems(dayRuns)} dayIndex={demo.dayIndex} dayLog={demo.dayLog} populationSize={demo.populationSize} onAdvanceDay={advanceDay} onRecordRun={recordOutreachRun} onNavigate={navigate} />;
       case 'daily-loop': return <SandboxDailyLoop taskStates={demo.taskStates} onTaskState={updateTask} onOpenPatient={openPatient} onBulkReview={bulkReview} outreachItems={outreachWorkItems(dayRuns)} dayIndex={demo.dayIndex} onOpenOutreach={() => navigate('outreach')} />;
       case 'outreach': return <SandboxOutreach liveCalls={liveCalls} runs={demo.aiOutreachRuns} onLiveCall={recordOutreachRun} />;
       case 'patient-360': return <SandboxPatientWorkspace patient={selectedPatient} documentedActions={demo.documentedActions} onPatientChange={(patientId) => setDemo((current) => ({ ...current, selectedPatientId: patientId }))} onDocumentAction={documentAction} />;
@@ -338,7 +362,7 @@ export function SandboxWorkspace() {
       case 'coordination': return <SandboxCoordination taskStates={demo.taskStates} onReassign={reassign} onDocumentAction={documentAction} />;
       case 'patient-view': return <SandboxPatientView patient={selectedPatient} patientCheckIns={demo.patientCheckIns} onCheckIn={checkIn} />;
       case 'impact': return <SandboxImpact visitedSections={demo.visitedSections} exploredPathways={demo.exploredPathways} taskStates={demo.taskStates} documentedActions={demo.documentedActions} patientCheckIns={demo.patientCheckIns} dayIndex={demo.dayIndex} dayLog={demo.dayLog} onReset={reset} />;
-      default: return <SandboxCommandCenter taskStates={demo.taskStates} visitedSections={demo.visitedSections} onNavigate={navigate} automatedCallsCount={OUTREACH_TRANSCRIPTS.length + demo.aiOutreachRuns.length} />;
+      default: return <SandboxCommandCenter taskStates={demo.taskStates} visitedSections={demo.visitedSections} dayIndex={demo.dayIndex} populationSize={demo.populationSize} onPopulationSize={setPopulationSize} onNavigate={navigate} automatedCallsCount={OUTREACH_TRANSCRIPTS.length + demo.aiOutreachRuns.length} />;
     }
   })();
 
@@ -360,13 +384,19 @@ export function SandboxWorkspace() {
             {SANDBOX_SECTIONS.map((section, index) => {
               const Icon = SECTION_ICONS[index];
               const active = demo.selectedSection === section.id;
-              return <button key={section.id} type="button" data-testid={`sandbox-nav-${section.id}`} aria-current={active ? 'page' : undefined} onClick={() => navigate(section.id)} className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition ${active ? 'bg-slate-950 text-white' : 'border bg-white text-slate-700 hover:border-violet-300'}`}><Icon className="size-4" />{section.shortLabel}</button>;
+              return <button key={section.id} type="button" data-testid={`sandbox-nav-${section.id}`} aria-current={active ? 'page' : undefined} onClick={() => navigate(section.id)} className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition ${active ? 'bg-slate-950 text-white' : 'border bg-white text-slate-700 hover:border-violet-300'}`}><Icon className="size-4" />{section.shortLabel}{section.id === 'copilot' && !demo.visitedSections.includes('copilot') && <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-bold text-violet-800">NEW</span>}</button>;
             })}
           </div>
         </div>
       </section>
 
       <div aria-live="polite">{sectionContent}</div>
+
+      {dayToast && (
+        <div role="status" data-testid="day-toast" className="fixed bottom-4 left-1/2 z-50 w-[min(92vw,32rem)] -translate-x-1/2 rounded-xl border border-violet-300 bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-xl">
+          {dayToast}
+        </div>
+      )}
 
       <nav className="flex flex-col gap-3 rounded-2xl border bg-white p-4 sm:flex-row sm:items-center sm:justify-between" aria-label="Guided sandbox tour">
         <div>{previousSection && <Button variant="outline" className="min-h-11" onClick={() => navigate(previousSection.id)}>← {previousSection.title}</Button>}</div>
