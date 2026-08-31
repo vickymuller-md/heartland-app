@@ -128,6 +128,7 @@ export async function runCopilot(input: {
   snapshot: { workItems: CopilotWorkItem[] };
   dayIndex?: number;
   populationSize?: 500 | 2500 | 5000;
+  reviewedCount?: number;
 }): Promise<CopilotResult | null> {
   try {
     // Multiple tool rounds share one request budget; keep headroom per call.
@@ -138,6 +139,7 @@ export async function runCopilot(input: {
       workItems: input.snapshot.workItems,
       dayIndex: input.dayIndex ?? 0,
       populationSize: input.populationSize,
+      reviewedCount: input.reviewedCount,
     };
     const messages: Anthropic.MessageParam[] = [
       { role: 'user', content: buildCopilotUserMessage(input.question) },

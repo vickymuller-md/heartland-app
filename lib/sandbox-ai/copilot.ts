@@ -36,6 +36,8 @@ export const copilotRequestSchema = z
     snapshot: z.object({ workItems: z.array(copilotWorkItemSchema).max(20) }).strict(),
     dayIndex: z.number().int().min(0).max(SANDBOX_DAY_COUNT - 1).optional(),
     populationSize: z.literal(POPULATION_SIZES).optional(),
+    /** How many review-queue entries the visitor already worked this visit. */
+    reviewedCount: z.number().int().min(0).max(40).optional(),
     anonymousSessionId: z.uuid().optional(),
   })
   .strict();

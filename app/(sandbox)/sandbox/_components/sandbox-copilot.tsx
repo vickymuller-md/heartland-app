@@ -45,11 +45,12 @@ function initialProgress(): ScenarioProgress[] {
   }));
 }
 
-export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize, onAdvanceDay, onRecordRun, onNavigate }: {
+export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize, reviewedCount, onAdvanceDay, onRecordRun, onNavigate }: {
   outreachItems: OutreachWorkItem[];
   dayIndex: number;
   dayLog: SandboxDayLogEntry[];
   populationSize: PopulationSize;
+  reviewedCount: number;
   onAdvanceDay: (escalations: number) => void;
   onRecordRun: (transcript: SimulatedCallTranscript) => void;
   onNavigate: (section: SandboxSectionId) => void;
@@ -158,6 +159,7 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
           },
           dayIndex,
           populationSize,
+          reviewedCount: Math.min(reviewedCount, 40),
           anonymousSessionId: anonymousSessionId(),
         }),
       });

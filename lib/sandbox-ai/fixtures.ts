@@ -249,6 +249,7 @@ export function outreachWorkItems(runs: AiOutreachRun[]): OutreachWorkItem[] {
       disposition: run.disposition,
       redFlagMessages: run.redFlagIds.map((id) => criteria[id]?.message ?? id),
       atLabel: run.atLabel,
+      note: run.note,
     })),
     ...OUTREACH_TRANSCRIPTS.map((transcript) => ({
       id: transcript.id,

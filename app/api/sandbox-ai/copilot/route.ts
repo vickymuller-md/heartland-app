@@ -35,6 +35,7 @@ export async function POST(request: Request) {
       snapshot: parsed.data.snapshot,
       dayIndex: parsed.data.dayIndex,
       populationSize: parsed.data.populationSize,
+      reviewedCount: parsed.data.reviewedCount,
     });
     if (!result) return NextResponse.json(FALLBACK_BODY);
     return NextResponse.json(result);

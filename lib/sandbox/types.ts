@@ -191,6 +191,8 @@ export interface AiOutreachRun {
   atLabel: string;
   /** Simulation day the run belongs to; day queues filter on it (legacy runs restore as 0). */
   dayIndex: number;
+  /** Free-standing context for items with no red flags (e.g. unreachable high-risk). */
+  note?: string;
 }
 
 /** Summary of one completed simulation day, kept for the multi-day impact metrics. */
@@ -213,5 +215,7 @@ export interface SandboxDemoState {
   dayLog: SandboxDayLogEntry[];
   /** Size of the synthetic population scene on the Command Center. */
   populationSize: 500 | 2500 | 5000;
+  /** Review-queue entries the visitor marked reviewed (`pop-<ordinal>-d<day>`). */
+  populationReviewedIds: string[];
   savedAt: number;
 }

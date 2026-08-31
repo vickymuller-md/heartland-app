@@ -67,6 +67,8 @@ export interface CopilotToolContext {
   dayIndex?: number;
   /** Population scene size; the population tool RECOMPUTES server-side from it. */
   populationSize?: PopulationSize;
+  /** Review-queue entries the visitor already marked reviewed this visit. */
+  reviewedCount?: number;
 }
 
 interface ToolOutcome {
@@ -524,6 +526,7 @@ const REGISTRY: Record<string, RegisteredCopilotTool> = {
             category: exception.category,
             reason: exception.reason,
           })),
+          reviewedThisVisit: ctx.reviewedCount ?? 0,
           note: 'Illustrative synthetic demonstration; every count and queue entry comes from the registered deterministic rules.',
         },
         trace: { tool: 'get_population_snapshot', summary: `population (${day.counts.total} synthetic patients)` },

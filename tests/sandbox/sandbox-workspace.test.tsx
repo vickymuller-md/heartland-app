@@ -125,6 +125,8 @@ describe('SandboxWorkspace', () => {
       selectedSection: 'command',
       dayIndex: 99,
       dayLog: [{ dayIndex: 42, escalations: -5, completedAtLabel: 'x' }],
+      populationSize: 1234,
+      populationReviewedIds: ['pop-3-d0', '<script>', 'pop-99999-d1', 42],
     }));
     render(<SandboxWorkspace />);
     const badges = await screen.findAllByTestId('sandbox-day-badge');
