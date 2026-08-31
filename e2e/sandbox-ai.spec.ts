@@ -203,6 +203,8 @@ test('the copilot runs the morning round, narrates the brief, and answers queue 
 });
 
 test('the population scene runs deterministically and funnels thousands into a small review queue', async ({ page }) => {
+  // Reduced motion lands on the final state without the 30s theater replay.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/sandbox');
   const funnel = page.getByTestId('population-funnel');
   await expect(funnel).toContainText('—');
@@ -223,6 +225,44 @@ test('the population scene runs deterministically and funnels thousands into a s
   await expect(page.getByTestId('population-funnel')).toContainText('—');
   await page.getByTestId('population-run').click();
   await expect(page.getByTestId('population-claim')).toContainText('of 500 synthetic check-ins', { timeout: 10_000 });
+});
+
+test('the theater replay shows live processing and Skip lands on the exact final numbers', async ({ page }) => {
+  await page.goto('/sandbox');
+  await page.getByTestId('population-run').click();
+
+  // The replay is visibly RUNNING: clock, dot wall, and live feed present.
+  await expect(page.getByTestId('population-clock')).toBeVisible();
+  await expect(page.getByTestId('population-wall')).toBeVisible();
+  await expect(page.getByTestId('population-feed')).toBeVisible();
+  await expect(page.getByTestId('population-speed')).toBeVisible();
+
+  await page.getByTestId('population-skip').click();
+  await expect(page.getByTestId('population-claim')).toContainText('of 2,500 synthetic check-ins reached the clinician review queue');
+  await expect(page.getByTestId('population-exceptions')).toContainText("Today's review queue");
+});
+
+test('a review-queue entry can be worked and sent into the Daily Loop', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/sandbox');
+  await page.getByTestId('population-run').click();
+  await expect(page.getByTestId('population-exceptions')).toBeVisible();
+
+  const firstEntry = page.locator('[data-testid^="queue-entry-"]').first();
+  const entryTestId = await firstEntry.getAttribute('data-testid');
+  const ordinal = entryTestId!.replace('queue-entry-', '');
+  await firstEntry.click();
+
+  await expect(page.getByTestId(`queue-detail-${ordinal}`)).toContainText(/Registered rule|monitoring-gap policy/);
+  await page.getByTestId(`queue-review-${ordinal}`).click();
+  await expect(page.getByTestId(`queue-review-${ordinal}`)).toContainText('Reviewed ✓');
+
+  await page.getByTestId(`queue-send-${ordinal}`).click();
+  await expect(page.getByTestId(`queue-send-${ordinal}`)).toContainText('In Daily Loop ✓');
+
+  // The population patient now exists in the Daily Loop's outreach queue.
+  await page.getByTestId('sandbox-nav-daily-loop').click();
+  await expect(page.getByTestId('daily-loop-outreach')).toContainText('Overnight round');
 });
 
 test('the day simulation advances the badge, logs the completed day, and survives a reload', async ({ page }) => {
@@ -381,6 +421,7 @@ test('daily loop shows the automated-outreach work items with the required label
 
 test('AI surfaces never use the restricted regulatory terminology', async ({ page }) => {
   // The population scene must never phrase capacity as a staffing claim.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/sandbox');
   await page.getByTestId('population-run').click();
   await expect(page.getByTestId('population-claim')).toBeVisible({ timeout: 10_000 });
