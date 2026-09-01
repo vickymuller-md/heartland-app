@@ -6,7 +6,7 @@ import { trackProductEvent, type ProductEventInput } from '@/lib/product-analyti
 import { getPublicDisseminationContext } from '@/lib/product-analytics/public-context';
 import { callPromptsFor, fillerPromptsFor, quickAnswerLabel, QUICK_ANSWERS } from '@/lib/sandbox-ai/call-prompts';
 import { applyDeterministicAnswer, createInitialState } from '@/lib/sandbox-ai/engine';
-import type { CallLocale, CheckInDisposition, CheckInExtraction, CheckInState, CheckInTurnResponse, ScriptId, ScriptQuestionId } from '@/lib/sandbox-ai/types';
+import type { CallLocale, CheckInDisposition, CheckInExtraction, CheckInState, CheckInTurnResponse, ScriptId, ScriptQuestionId, SpeechItem } from '@/lib/sandbox-ai/types';
 import type { SandboxPatient } from '@/lib/sandbox/types';
 import type { RedFlag } from '@/lib/vitals/types';
 import { Button } from '@/components/ui/button';
@@ -175,38 +175,93 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
     enqueueClip(callState.phase);
   }
 
-  function completeCall(turn: CheckInTurnResponse) {
+  function completeCall(turn: CheckInTurnResponse): number {
     const disposition = turn.disposition ?? 'routine';
-    enqueueClip(disposition === 'emergency' ? 'emergency' : disposition, turn.assistantMessages[0]);
-    setResult({ disposition, redFlags: turn.redFlags, detail: turn.assistantMessages[0] ?? '' });
+    // The closing is always the LAST message; any earlier lines (a small-talk
+    // ack on the final turn) play first with their own speech. The disposition
+    // clip only queues once every earlier line is resolved — otherwise it is
+    // deferred to finishPlayback so the ack is never spoken after the closing.
+    const closing = turn.assistantMessages.at(-1) ?? '';
+    const head = turn.assistantMessages.slice(0, -1);
+    const stop = playSequence(head, (turn.speech ?? []).slice(0, head.length), 0, true);
+    if (stop >= head.length) {
+      enqueueClip(disposition === 'emergency' ? 'emergency' : disposition, closing);
+    }
+    setResult({ disposition, redFlags: turn.redFlags, detail: closing });
     setPhase('done');
     trackAiEvent('ai_checkin_completed', Math.min(Date.now() - startedAt.current, 3_600_000));
     if (disposition !== 'routine') trackAiEvent('ai_escalation_demonstrated');
     onComplete({ disposition, redFlagIds: turn.redFlags.map((flag) => flag.id) });
+    return stop;
   }
 
-  function handleTurn(turn: CheckInTurnResponse, previousPhase: CheckInState['phase']) {
+  /**
+   * Plays messages[from..] in order until a 'pending' speech slot (audio not
+   * synthesized yet) and returns the index it stopped at. Text for pending
+   * lines is shown immediately when `showPendingText` — that is the latency
+   * win: the reply reads instantly while the audio phase catches up.
+   */
+  function playSequence(
+    messages: string[],
+    speech: Array<SpeechItem | null>,
+    from: number,
+    showPendingText: boolean,
+  ): number {
+    for (let index = from; index < messages.length; index += 1) {
+      const item = speech[index] ?? null;
+      if (item?.kind === 'pending') {
+        if (showPendingText) {
+          for (let ahead = index; ahead < messages.length; ahead += 1) {
+            if ((speech[ahead] ?? null)?.kind === 'pending') addLine('assistant', messages[ahead]);
+          }
+        }
+        return index;
+      }
+      if (item?.kind === 'clip') {
+        enqueueClip(item.clipId);
+      } else if (item?.kind === 'audio') {
+        if (showPendingText) addLine('assistant', messages[index]);
+        enqueueAudio(`data:audio/mpeg;base64,${item.mp3Base64}`);
+      } else if (showPendingText) {
+        addLine('assistant', messages[index]);
+      }
+    }
+    return messages.length;
+  }
+
+  /** Phase 2: replay from where phase 1 stopped, audio now resolved (no re-adding text for pendings). */
+  function resumePlayback(messages: string[], finalSpeech: Array<SpeechItem | null>, from: number) {
+    for (let index = from; index < messages.length; index += 1) {
+      const item = finalSpeech[index] ?? null;
+      if (item?.kind === 'clip') enqueueClip(item.clipId);
+      else if (item?.kind === 'audio') enqueueAudio(`data:audio/mpeg;base64,${item.mp3Base64}`);
+      // null / unresolved pending: the text already showed in phase 1.
+    }
+  }
+
+  /** Phase 2 entry: finish the interrupted playback, deferred closing clip included. */
+  function finishPlayback(turn: CheckInTurnResponse, finalSpeech: Array<SpeechItem | null>, stop: number) {
+    if (!turn.done) {
+      resumePlayback(turn.assistantMessages, finalSpeech, stop);
+      return;
+    }
+    const head = turn.assistantMessages.slice(0, -1);
+    if (stop >= head.length) return; // closing clip already queued in phase 1
+    resumePlayback(head, finalSpeech.slice(0, head.length), stop);
+    const disposition = turn.disposition ?? 'routine';
+    enqueueClip(disposition === 'emergency' ? 'emergency' : disposition, turn.assistantMessages.at(-1) ?? '');
+  }
+
+  function handleTurn(turn: CheckInTurnResponse, previousPhase: CheckInState['phase']): number {
     setCallState(turn.state);
     if (turn.done) {
-      completeCall(turn);
-      return;
+      return completeCall(turn);
     }
 
     // Server-voiced turn: play exactly what the engine said, in order. Clip
     // refs display the clip's own wording so audio and text stay 1:1.
     if (turn.speech) {
-      turn.assistantMessages.forEach((message, index) => {
-        const item = turn.speech?.[index] ?? null;
-        if (item?.kind === 'clip') {
-          enqueueClip(item.clipId);
-        } else if (item?.kind === 'audio') {
-          addLine('assistant', message);
-          enqueueAudio(`data:audio/mpeg;base64,${item.mp3Base64}`);
-        } else {
-          addLine('assistant', message);
-        }
-      });
-      return;
+      return playSequence(turn.assistantMessages, turn.speech, 0, true);
     }
 
     const nextPhase = turn.state.phase;
@@ -214,15 +269,64 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
       // Re-ask or deflection: repeat the current question aloud.
       enqueueClip('deflect');
       enqueueClip(nextPhase);
-      return;
+      return turn.assistantMessages.length;
     }
     enqueueClip(nextPhase);
+    return turn.assistantMessages.length;
   }
 
   function answerWithChip(values: Partial<CheckInExtraction>, label: string) {
     if (busy || result) return;
     addLine('you', label);
     handleTurn(applyDeterministicAnswer(callState, values), callState.phase);
+  }
+
+  /**
+   * Reads the two-phase NDJSON reply: resolves the first line (the turn, with
+   * text and any resolved clips) immediately and hands back a promise for the
+   * final speech array from the second line. Plain-JSON replies (older shape,
+   * test stubs, error paths) fall back to response.json().
+   */
+  async function readTurnPhases(response: Response): Promise<{
+    turn: Partial<CheckInTurnResponse> & { fallback?: boolean };
+    finalSpeech: Promise<Array<SpeechItem | null> | null>;
+  }> {
+    const contentType = response.headers?.get?.('content-type') ?? '';
+    if (!response.body || !contentType.includes('ndjson')) {
+      const turn = await response.json();
+      return { turn, finalSpeech: Promise.resolve(turn.speech ?? null) };
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffered = '';
+    const lines: string[] = [];
+    async function readLine(): Promise<string | null> {
+      while (lines.length === 0) {
+        const { done, value } = await reader.read();
+        if (done) {
+          const rest = buffered.trim();
+          buffered = '';
+          return rest.length > 0 ? rest : null;
+        }
+        buffered += decoder.decode(value, { stream: true });
+        const parts = buffered.split('\n');
+        buffered = parts.pop() ?? '';
+        lines.push(...parts.filter((part) => part.trim().length > 0));
+      }
+      return lines.shift() ?? null;
+    }
+    const first = await readLine();
+    if (first === null) throw new Error('empty stream');
+    const turn = JSON.parse(first);
+    const finalSpeech = (async () => {
+      try {
+        const second = await readLine();
+        return second ? (JSON.parse(second).speech ?? null) : null;
+      } catch {
+        return null;
+      }
+    })();
+    return { turn, finalSpeech };
   }
 
   async function sendMessage(message: string) {
@@ -246,14 +350,28 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
         }),
       });
       if (!response.ok && response.status !== 429) throw new Error('request failed');
-      const turn = (await response.json()) as Partial<CheckInTurnResponse> & { fallback?: boolean };
+      const { turn, finalSpeech } = await readTurnPhases(response);
       if (turn.fallback || !turn.state) {
         setOfflineMode(true);
         trackAiEvent('ai_checkin_fallback');
         addLine('assistant', 'Spoken and typed answers are unavailable right now — please use the quick answers below. The call works exactly the same way.');
         return;
       }
-      handleTurn(turn as CheckInTurnResponse, previousPhase);
+      const fullTurn = turn as CheckInTurnResponse;
+      const stop = handleTurn(fullTurn, previousPhase);
+      if ((fullTurn.speech ?? []).some((item) => item?.kind === 'pending')) {
+        // Audio phase resolves in the background — the visitor can already
+        // read the reply (and even answer); the queue keeps spoken order.
+        void (async () => {
+          const resolved = await Promise.race([
+            finalSpeech,
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 10_000)),
+          ]);
+          const speech = resolved
+            ?? (fullTurn.speech ?? []).map((item) => (item?.kind === 'pending' ? null : item));
+          finishPlayback(fullTurn, speech, stop);
+        })();
+      }
     } catch {
       setOfflineMode(true);
       trackAiEvent('ai_checkin_fallback');
