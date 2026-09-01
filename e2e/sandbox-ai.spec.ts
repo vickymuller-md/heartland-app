@@ -242,20 +242,29 @@ test('the theater replay shows live processing and Skip lands on the exact final
   await expect(page.getByTestId('population-exceptions')).toContainText("Today's review queue");
 });
 
-test('a review-queue entry can be worked and sent into the Daily Loop', async ({ page }) => {
+test('a case is fully workable: chart, protocol outcome, progress, Daily Loop, and Impact', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/sandbox');
   await page.getByTestId('population-run').click();
   await expect(page.getByTestId('population-exceptions')).toBeVisible();
+  await expect(page.getByTestId('queue-progress')).toContainText('0 of');
 
   const firstEntry = page.locator('[data-testid^="queue-entry-"]').first();
   const entryTestId = await firstEntry.getAttribute('data-testid');
   const ordinal = entryTestId!.replace('queue-entry-', '');
   await firstEntry.click();
 
-  await expect(page.getByTestId(`queue-detail-${ordinal}`)).toContainText(/Registered rule|monitoring-gap policy/);
-  await page.getByTestId(`queue-review-${ordinal}`).click();
-  await expect(page.getByTestId(`queue-review-${ordinal}`)).toContainText('Reviewed ✓');
+  // Stage 1: the generated chart is real and on screen.
+  const detail = page.getByTestId(`queue-detail-${ordinal}`);
+  await expect(detail).toContainText(/Registered rule|monitoring-gap policy/);
+  await expect(detail).toContainText(/Risk score \d+\/18/);
+  await expect(detail).toContainText('Medications');
+  await expect(detail).toContainText('Potassium');
+
+  // Stage 3: documenting a protocol outcome works the case.
+  await page.locator(`[data-testid^="queue-outcome-${ordinal}-"]`).first().click();
+  await expect(page.getByTestId(`queue-worked-${ordinal}`)).toContainText('Worked ✓');
+  await expect(page.getByTestId('queue-progress')).toContainText('1 of');
 
   await page.getByTestId(`queue-send-${ordinal}`).click();
   await expect(page.getByTestId(`queue-send-${ordinal}`)).toContainText('In Daily Loop ✓');
@@ -263,6 +272,27 @@ test('a review-queue entry can be worked and sent into the Daily Loop', async ({
   // The population patient now exists in the Daily Loop's outreach queue.
   await page.getByTestId('sandbox-nav-daily-loop').click();
   await expect(page.getByTestId('daily-loop-outreach')).toContainText('Overnight round');
+
+  // And the work shows up as adoption evidence.
+  await page.getByTestId('sandbox-nav-impact').click();
+  await expect(page.getByText('Cases worked')).toBeVisible();
+});
+
+test('calling a population patient opens the interactive check-in for that case', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/sandbox');
+  await page.getByTestId('population-run').click();
+  const firstEntry = page.locator('[data-testid^="queue-entry-"]').first();
+  const ordinal = (await firstEntry.getAttribute('data-testid'))!.replace('queue-entry-', '');
+  await firstEntry.click();
+
+  await page.getByTestId(`queue-call-${ordinal}`).click();
+  // The real interactive call rings for this synthetic patient; answering it
+  // starts the deterministic chip path (works with the assistant disabled).
+  await page.getByTestId('answer-call').click();
+  await expect(page.getByRole('log')).toContainText('any chest pain');
+  await page.getByTestId('live-call-chips').getByRole('button', { name: 'No, nothing like that' }).click();
+  await expect(page.getByRole('log')).toContainText('scale show this morning');
 });
 
 test('the day simulation advances the badge, logs the completed day, and survives a reload', async ({ page }) => {
