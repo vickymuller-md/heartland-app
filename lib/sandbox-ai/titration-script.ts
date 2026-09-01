@@ -11,8 +11,7 @@
  */
 
 import { getTitrationAction } from '@/lib/titration/engine';
-import { SANDBOX_PATIENTS } from '@/lib/sandbox/fixtures';
-import type { SandboxPatient } from '@/lib/sandbox/types';
+import { resolveCallPatient, type CallPatientChart } from './call-patient';
 import type { RedFlag } from '@/lib/vitals/types';
 import { demoNoteFor } from './script';
 import type { CallLocale, CallScript, CheckInState, CheckInTurnResponse, ScriptQuestion, ScriptQuestionId } from './types';
@@ -98,7 +97,7 @@ export const SPOKEN_TITRATION_ESCALATION_ES =
 
 // ── Deterministic completion (registered safety gates decide) ──
 
-function labNumber(patient: SandboxPatient, name: string): number | null {
+function labNumber(patient: Pick<CallPatientChart, 'labs'>, name: string): number | null {
   const lab = patient.labs.find((entry) => entry.name.toLowerCase() === name.toLowerCase());
   if (!lab) return null;
   const value = Number.parseFloat(lab.value);
@@ -124,7 +123,7 @@ function closingMessage(escalated: boolean, flags: RedFlag[], locale: CallLocale
  * come from the fixture's labs (they are never collected by phone).
  */
 export function finalizeTitration(state: CheckInState): CheckInTurnResponse {
-  const patient = SANDBOX_PATIENTS.find((entry) => entry.id === state.patientId) ?? SANDBOX_PATIENTS[0];
+  const patient = resolveCallPatient(state.patientId);
   const lastSynthetic = patient.vitals.at(-1);
   const extraction = state.extraction;
   const sbp = extraction.sbp ?? lastSynthetic?.sbp ?? 0;

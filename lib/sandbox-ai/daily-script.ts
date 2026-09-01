@@ -10,8 +10,7 @@
 
 import { subDays } from 'date-fns';
 import { evaluateRedFlags } from '@/lib/vitals/red-flags';
-import { SANDBOX_PATIENTS } from '@/lib/sandbox/fixtures';
-import type { SandboxPatient } from '@/lib/sandbox/types';
+import { resolveCallPatient, type CallPatientChart } from './call-patient';
 import { QUESTION_ORDER, SCRIPT_QUESTIONS, escalationMessage, routineClosingMessage } from './script';
 import type { CallScript, CheckInState, CheckInTurnResponse } from './types';
 
@@ -27,7 +26,7 @@ function labelToDaysAgo(label: string): number | null {
  * Synthetic weight history for trend red flags, most recent first. The
  * fixture's "Today" entry is excluded: the check-in itself is today's reading.
  */
-export function syntheticWeightHistory(patient: SandboxPatient): Array<{ weight_lbs: number; recorded_at: string }> {
+export function syntheticWeightHistory(patient: Pick<CallPatientChart, 'vitals'>): Array<{ weight_lbs: number; recorded_at: string }> {
   const now = new Date();
   return patient.vitals
     .map((point) => ({ point, daysAgo: labelToDaysAgo(point.label) }))
@@ -45,7 +44,7 @@ export function syntheticWeightHistory(patient: SandboxPatient): Array<{ weight_
  * Shared by the chat path (server) and the fallback form (client).
  */
 export function finalizeCheckIn(state: CheckInState): CheckInTurnResponse {
-  const patient = SANDBOX_PATIENTS.find((entry) => entry.id === state.patientId) ?? SANDBOX_PATIENTS[0];
+  const patient = resolveCallPatient(state.patientId);
   const lastSynthetic = patient.vitals.at(-1);
   const flags = evaluateRedFlags(
     {
