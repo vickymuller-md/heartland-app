@@ -50,7 +50,7 @@ describe('llmTurnSchema', () => {
     })).not.toBeNull();
     expect(parseLlmTurn({
       ...validTurn,
-      say: { ...validTurn.say, kind: 'small_talk', smallTalk: 'x'.repeat(201) },
+      say: { ...validTurn.say, kind: 'small_talk', smallTalk: 'x'.repeat(281) },
     })).toBeNull();
     expect(parseLlmTurn({
       ...validTurn,
@@ -65,13 +65,25 @@ describe('sanitizeSmallTalk', () => {
       .toBe('What a treat to have your grandson visit.');
   });
 
+  it('allows ONE light social question back (the elderly-chat behavior)', () => {
+    expect(sanitizeSmallTalk('How wonderful! What did you two do together?'))
+      .toBe('How wonderful! What did you two do together?');
+    expect(sanitizeSmallTalk('¡Qué alegría! ¿Y de qué era el pastel?', 'es'))
+      .toBe('¡Qué alegría! ¿Y de qué era el pastel?');
+  });
+
   it.each([
     null,
     '',
-    'x'.repeat(201),
-    'How wonderful! What did you two do together?',
+    'x'.repeat(281),
     'Lovely — remember your 40 mg dose tonight.',
     'So nice! See www.example.com for photos',
+    // A question is never allowed to steer toward health or care.
+    'That sounds fun! Are you feeling better today?',
+    'Wonderful! How is your breathing doing?',
+    'Great day! Did you take your medicine?',
+    // More than one question back derails the scripted call.
+    'Lovely! Who visited? What did you cook?',
   ])('falls back to the fixed ack for %s', (bad) => {
     expect(sanitizeSmallTalk(bad as string | null)).toBe(SMALL_TALK_FALLBACK_ACK);
   });

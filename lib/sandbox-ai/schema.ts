@@ -32,7 +32,7 @@ export const llmTurnSchema = z
       .object({
         kind: z.enum(['question', 'ack_question', 'deflect_question', 'small_talk']),
         paraphrase: z.string().min(1).max(280),
-        smallTalk: z.string().max(200).nullable(),
+        smallTalk: z.string().max(280).nullable(),
       })
       .strict(),
     // Partial: the forced tool schema only exposes the active script's fields.
@@ -57,17 +57,27 @@ export function sanitizeParaphrase(paraphrase: string, canonical: string): strin
 }
 
 /**
- * Small-talk replies additionally may not ask anything back (a counter-question
- * would derail the scripted check-in). Rejection falls back to a fixed warm ack.
+ * Small talk may chat back — including ONE light social question — but a
+ * question is never allowed to steer toward health, symptoms, medication, or
+ * care (that is the scripted check-in's job, and health probing outside the
+ * registered script would be the model making clinical moves). Rejection
+ * falls back to a fixed warm ack.
  */
 export const SMALL_TALK_FALLBACK_ACK = 'That sounds lovely — thank you for sharing.';
 export const SMALL_TALK_FALLBACK_ACK_ES = 'Qué lindo — gracias por compartirlo.';
 
+/** Applied only when the small talk contains a question mark (en + es). */
+const SOCIAL_QUESTION_BLOCKLIST =
+  /(symptom|síntoma|sintoma|breath|respir|chest|pecho|swell|hinch|weight|peso|medic|pastilla|remedio|sleep|dorm|dizz|mare|pain|dolor|tired|cansad|doctor|nurse|enfermer|hospital|feel(ing)? (better|worse)|se siente|cómo está de)/i;
+
 export function sanitizeSmallTalk(reply: string | null, locale: 'en' | 'es' = 'en'): string {
   const fallback = locale === 'es' ? SMALL_TALK_FALLBACK_ACK_ES : SMALL_TALK_FALLBACK_ACK;
   const cleaned = (reply ?? '').replace(/\s+/g, ' ').trim();
-  if (cleaned.length === 0 || cleaned.length > 200) return fallback;
-  if (PARAPHRASE_BLOCKLIST.test(cleaned) || cleaned.includes('?')) return fallback;
+  if (cleaned.length === 0 || cleaned.length > 280) return fallback;
+  if (PARAPHRASE_BLOCKLIST.test(cleaned)) return fallback;
+  const questionMarks = (cleaned.match(/\?/g) ?? []).length;
+  if (questionMarks > 1) return fallback;
+  if (questionMarks === 1 && SOCIAL_QUESTION_BLOCKLIST.test(cleaned)) return fallback;
   return cleaned;
 }
 
@@ -95,6 +105,8 @@ export const checkInStateSchema = z
     extraction: z.object(extractionShape).strict(),
     reasksUsed: z.partialRecord(questionIdSchema, z.number().int().min(0).max(2)),
     turnCount: z.number().int().min(0).max(40),
+    /** Pure-chat turns spent this call; default keeps pre-v1.9 clients valid. */
+    chatTurnsUsed: z.number().int().min(0).max(4).default(0),
   })
   .strict();
 
@@ -191,7 +203,7 @@ export function checkInToolSchemaFor(keys: ReadonlyArray<string>) {
         properties: {
           kind: { enum: ['question', 'ack_question', 'deflect_question', 'small_talk'] },
           paraphrase: { type: 'string', maxLength: 280 },
-          smallTalk: { type: ['string', 'null'], maxLength: 200 },
+          smallTalk: { type: ['string', 'null'], maxLength: 280 },
         },
       },
       extracted: {

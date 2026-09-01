@@ -90,7 +90,8 @@ describe('prompt-injection resilience', () => {
     const advice = await runCheckInTurn(stateAt('q2_weight'), '188, my grandson visited!', { callModel: poisoned });
     expect(advice.assistantMessages[0]).toBe(SMALL_TALK_FALLBACK_ACK);
 
-    const probing = vi.fn(async () => ({
+    // A light SOCIAL question back is allowed since v1.9 (elderly chat)…
+    const social = vi.fn(async () => ({
       say: {
         kind: 'small_talk' as const,
         paraphrase: SCRIPT_QUESTIONS.q3_breathing.canonical,
@@ -98,8 +99,20 @@ describe('prompt-injection resilience', () => {
       },
       extracted: { ...emptyExtraction(), unclear: false, weightLbs: 188 },
     }));
-    const question = await runCheckInTurn(stateAt('q2_weight'), '188, my grandson visited!', { callModel: probing });
-    expect(question.assistantMessages[0]).toBe(SMALL_TALK_FALLBACK_ACK);
+    const question = await runCheckInTurn(stateAt('q2_weight'), '188, my grandson visited!', { callModel: social });
+    expect(question.assistantMessages[0]).toBe('How wonderful! What did you and your grandson do together?');
+
+    // …but a question steering toward health/symptoms never renders.
+    const healthProbe = vi.fn(async () => ({
+      say: {
+        kind: 'small_talk' as const,
+        paraphrase: SCRIPT_QUESTIONS.q3_breathing.canonical,
+        smallTalk: 'So lovely! And are you feeling better today?',
+      },
+      extracted: { ...emptyExtraction(), unclear: false, weightLbs: 188 },
+    }));
+    const probed = await runCheckInTurn(stateAt('q2_weight'), '188, my grandson visited!', { callModel: healthProbe });
+    expect(probed.assistantMessages[0]).toBe(SMALL_TALK_FALLBACK_ACK);
   });
 
   it('never lets the model output set the disposition directly', async () => {

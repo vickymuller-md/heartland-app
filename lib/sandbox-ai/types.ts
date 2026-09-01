@@ -62,7 +62,10 @@ export interface CheckInState {
   extraction: CheckInExtraction;
   reasksUsed: Partial<Record<ScriptQuestionId, number>>;
   turnCount: number;
+  /** Pure-chat (small talk without answering) turns spent this call; max 4. */
+  chatTurnsUsed?: number;
 }
+
 
 /** One registered conversational call script and its deterministic completion. */
 export interface CallScript {
@@ -79,10 +82,13 @@ export type CheckInDisposition = 'emergency' | 'escalated' | 'routine';
  * How one assistant message is voiced in the simulated live call: a
  * pre-generated static clip, or MP3 audio synthesized server-side for
  * dynamic lines. `null` slot = no audio available (text-only line).
+ * 'pending' appears only in the first NDJSON phase while synthesis runs;
+ * the second phase resolves it to 'audio' or null.
  */
 export type SpeechItem =
   | { kind: 'clip'; clipId: string }
-  | { kind: 'audio'; mp3Base64: string };
+  | { kind: 'audio'; mp3Base64: string }
+  | { kind: 'pending' };
 
 export interface CheckInTurnResponse {
   assistantMessages: string[];
