@@ -6,8 +6,8 @@ authors:
   - family-names: "Muller Ferreira"
     given-names: "Vicky"
     orcid: "https://orcid.org/0009-0009-1099-5690"
-version: 1.1.0
-date-released: 2026-07-15
+version: 1.9.0
+date-released: 2026-09-01
 repository-code: "https://github.com/vickymuller-md/heartland-app"
 url: "https://app.heartlandprotocol.org"
 license: MIT
@@ -21,11 +21,14 @@ identifiers:
 abstract: >-
   Progressive Web Application operationalizing the HEARTLAND Protocol for
   primary care-led heart failure workflows in rural and resource-limited
-  settings. Version 1.1.0 includes a public synthetic-data sandbox, an
-  operational Daily Loop and patient brief, governed multi-organization
-  workspaces, protected provider access, privacy-safe adoption telemetry,
-  and reliability and interoperability safeguards. The software supports
-  implementation and evaluation and does not replace clinical judgment.
+  settings. Version 1.9.0 includes a public synthetic-data demonstrator with
+  bounded English- and Spanish-language check-ins, optional voice interaction,
+  simulated outreach, a read-only provider Copilot over deterministic tools,
+  population replay, human-controlled SBAR wording, Evidence Flow, Decision
+  Receipts, and explicit separation among language assistance, version-controlled
+  rules, and human authorization. The software demonstrates implementation and
+  technical inspectability; it does not establish clinical validation,
+  institutional deployment, regulatory status, efficacy, or patient outcomes.
 keywords:
   - heart failure
   - rural health
