@@ -96,10 +96,16 @@ function trackAiEvent(eventName: ProductEventInput['eventName'], durationMs?: nu
   void trackProductEvent({ eventName, area: 'sandbox', durationMs, ...getPublicDisseminationContext() });
 }
 
+export interface LiveCallOutcome {
+  disposition: 'routine' | 'escalated' | 'emergency';
+  redFlagIds: string[];
+}
+
 export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplete, onClose }: {
-  patient: SandboxPatient;
+  /** Only id (call state) and name are read — population descriptors welcome. */
+  patient: Pick<SandboxPatient, 'id' | 'name'>;
   scriptId?: ScriptId;
-  onComplete: () => void;
+  onComplete: (outcome?: LiveCallOutcome) => void;
   onClose: () => void;
 }) {
   const [phase, setPhase] = useState<'ringing' | 'active' | 'done'>('ringing');
@@ -176,7 +182,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
     setPhase('done');
     trackAiEvent('ai_checkin_completed', Math.min(Date.now() - startedAt.current, 3_600_000));
     if (disposition !== 'routine') trackAiEvent('ai_escalation_demonstrated');
-    onComplete();
+    onComplete({ disposition, redFlagIds: turn.redFlags.map((flag) => flag.id) });
   }
 
   function handleTurn(turn: CheckInTurnResponse, previousPhase: CheckInState['phase']) {

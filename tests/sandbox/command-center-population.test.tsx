@@ -19,7 +19,7 @@ const numberFormat = new Intl.NumberFormat('en-US');
 describe('SandboxCommandCenter population scene', () => {
   const onNavigate = vi.fn();
   const onPopulationSize = vi.fn();
-  const onMarkPopulationReviewed = vi.fn();
+  const onWorkCase = vi.fn();
   const onSendToDailyLoop = vi.fn();
 
   beforeEach(() => {
@@ -37,10 +37,10 @@ describe('SandboxCommandCenter population scene', () => {
         visitedSections={['command']}
         dayIndex={0}
         populationSize={500}
-        populationReviewedIds={[]}
+        workedCases={[]}
         sentWorkItemIds={[]}
         onPopulationSize={onPopulationSize}
-        onMarkPopulationReviewed={onMarkPopulationReviewed}
+        onWorkCase={onWorkCase}
         onSendToDailyLoop={onSendToDailyLoop}
         onNavigate={onNavigate}
         automatedCallsCount={4}
@@ -83,7 +83,7 @@ describe('SandboxCommandCenter population scene', () => {
     if (flagged) expect(queue).toHaveTextContent(`rule ${flagged.ruleIds[0]}`);
   });
 
-  it('expands a queue entry into values, the registered rule, and working actions', () => {
+  it('opens a case panel with chart, call stage, and protocol outcome actions', () => {
     fireEvent.click(screen.getByTestId('population-run'));
 
     const firstEntry = screen.getAllByTestId(/^queue-entry-/)[0];
@@ -92,9 +92,21 @@ describe('SandboxCommandCenter population scene', () => {
 
     const detail = screen.getByTestId(`queue-detail-${ordinal}`);
     expect(detail.textContent).toMatch(/Registered rule|monitoring-gap policy/);
+    // The generated chart is on screen: risk score, medications, labs, call stage.
+    expect(detail.textContent).toMatch(/Risk score \d+\/18/);
+    expect(detail.textContent).toContain('Medications');
+    expect(detail.textContent).toContain('Potassium');
+    expect(screen.getByTestId(`queue-call-${ordinal}`)).toBeInTheDocument();
 
+    // Fast path: reviewed without a call.
     fireEvent.click(screen.getByTestId(`queue-review-${ordinal}`));
-    expect(onMarkPopulationReviewed).toHaveBeenCalledWith(`pop-${ordinal}-d0`);
+    expect(onWorkCase).toHaveBeenCalledWith(`pop-${ordinal}-d0`, 'reviewed_no_call');
+
+    // Protocol outcome buttons carry whitelisted keys and a disposition.
+    const outcomeButton = screen.getAllByTestId(new RegExp(`^queue-outcome-${ordinal}-`))[0];
+    const outcomeKey = outcomeButton.getAttribute('data-testid')!.replace(`queue-outcome-${ordinal}-`, '');
+    fireEvent.click(outcomeButton);
+    expect(onWorkCase).toHaveBeenLastCalledWith(`pop-${ordinal}-d0`, outcomeKey, expect.stringMatching(/escalated|no_answer/));
 
     fireEvent.click(screen.getByTestId(`queue-send-${ordinal}`));
     expect(onSendToDailyLoop).toHaveBeenCalledTimes(1);
@@ -104,6 +116,16 @@ describe('SandboxCommandCenter population scene', () => {
     expect(run.atLabel).toBe('Overnight round');
     if (run.disposition === 'no_answer') expect(run.note).toBeTruthy();
     else expect(run.redFlagIds.length).toBeGreaterThan(0);
+  });
+
+  it('starts the interactive call inline with the population case id', () => {
+    fireEvent.click(screen.getByTestId('population-run'));
+    const firstEntry = screen.getAllByTestId(/^queue-entry-/)[0];
+    const ordinal = firstEntry.getAttribute('data-testid')!.replace('queue-entry-', '');
+    fireEvent.click(firstEntry);
+    fireEvent.click(screen.getByTestId(`queue-call-${ordinal}`));
+    // The live-call component mounts in its ringing phase for this patient.
+    expect(screen.getByText(/Decline/)).toBeInTheDocument();
   });
 
   it('lets the visitor change the population size', () => {
