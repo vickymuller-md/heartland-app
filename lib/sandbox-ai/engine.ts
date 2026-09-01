@@ -28,6 +28,8 @@ import type {
 export { finalizeCheckIn, syntheticWeightHistory } from './daily-script';
 
 export const MAX_TURNS = 30;
+/** Pure-chat turns (small talk without answering) allowed per call. */
+export const MAX_CHAT_TURNS = 4;
 const MAX_MESSAGE_LENGTH = 500;
 
 const EXTRACTION_KEYS: ReadonlyArray<keyof CheckInExtraction> = [
@@ -42,6 +44,7 @@ export interface EngineDeps {
     currentQuestion: ScriptQuestion;
     nextQuestion: ScriptQuestion | null;
     reasksUsed: number;
+    chatBudgetRemaining: number;
     visitorReply: string;
   }) => Promise<LlmTurn | null>;
 }
@@ -154,6 +157,7 @@ export async function runCheckInTurn(
     currentQuestion: current,
     nextQuestion: nextId ? script.questions[nextId] ?? null : null,
     reasksUsed: state.reasksUsed[current.id] ?? 0,
+    chatBudgetRemaining: Math.max(0, MAX_CHAT_TURNS - (state.chatTurnsUsed ?? 0)),
     visitorReply: userMessage.slice(0, MAX_MESSAGE_LENGTH),
   });
   if (!llm) return fallbackResponse(state);
@@ -185,6 +189,21 @@ export async function runCheckInTurn(
   if (llm.say.kind === 'small_talk') {
     const ack = sanitizeSmallTalk(llm.say.smallTalk, state.locale);
     if (!answered) {
+      // Pure chat: within the deterministic budget the assistant just talks —
+      // no canonical question appended, the script phase holds, and the next
+      // turn returns to the check-in. The budget (not the model) decides when
+      // chatting stops being an option.
+      const chatTurnsUsed = state.chatTurnsUsed ?? 0;
+      if (chatTurnsUsed < MAX_CHAT_TURNS) {
+        return {
+          assistantMessages: [ack],
+          state: { ...base, chatTurnsUsed: chatTurnsUsed + 1 },
+          done: false,
+          disposition: null,
+          redFlags: [],
+          fallback: false,
+        };
+      }
       return {
         assistantMessages: [ack, currentCanonical],
         state: base,

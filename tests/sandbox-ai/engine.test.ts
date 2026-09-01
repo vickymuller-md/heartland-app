@@ -112,20 +112,63 @@ describe('runCheckInTurn — deterministic control', () => {
     expect(response.done).toBe(false);
   });
 
-  it('acknowledges pure small talk and repeats the question without spending the re-ask budget', async () => {
+  it('chats back on pure small talk within the budget — no question appended, phase holds', async () => {
     const callModel = vi.fn(async () => llmTurn(
       {},
-      { kind: 'small_talk', smallTalk: 'That garden sounds beautiful this time of year.' },
+      { kind: 'small_talk', smallTalk: 'Fresh tomatoes — that garden of yours sounds wonderful. What are you planting next?' },
     ));
     const response = await runCheckInTurn(stateAt('q2_weight'), 'my tomatoes are finally coming in', { callModel });
 
     expect(response.assistantMessages).toEqual([
-      'That garden sounds beautiful this time of year.',
-      SCRIPT_QUESTIONS.q2_weight.canonical,
+      'Fresh tomatoes — that garden of yours sounds wonderful. What are you planting next?',
     ]);
     expect(response.state.phase).toBe('q2_weight');
+    expect(response.state.chatTurnsUsed).toBe(1);
     expect(response.state.reasksUsed.q2_weight).toBeUndefined();
     expect(response.done).toBe(false);
+    // The controller told the model how much chat budget remained.
+    expect(callModel.mock.calls[0][0].chatBudgetRemaining).toBe(4);
+  });
+
+  it('returns to the script once the deterministic chat budget is spent', async () => {
+    const callModel = vi.fn(async () => llmTurn(
+      {},
+      { kind: 'small_talk', smallTalk: 'That sounds like a lovely afternoon.' },
+    ));
+
+    let state = stateAt('q2_weight');
+    for (let turn = 0; turn < 4; turn += 1) {
+      const chat = await runCheckInTurn(state, 'just chatting away', { callModel });
+      expect(chat.assistantMessages).toHaveLength(1);
+      expect(chat.state.phase).toBe('q2_weight');
+      state = chat.state;
+    }
+    expect(state.chatTurnsUsed).toBe(4);
+
+    // Fifth pure-chat turn: budget spent — ack + canonical question, phase holds.
+    const after = await runCheckInTurn(state, 'and another story', { callModel });
+    expect(after.assistantMessages).toEqual([
+      'That sounds like a lovely afternoon.',
+      SCRIPT_QUESTIONS.q2_weight.canonical,
+    ]);
+    expect(after.state.chatTurnsUsed).toBe(4);
+    expect(callModel.mock.calls[4][0].chatBudgetRemaining).toBe(0);
+
+    // Answering afterwards resumes the script normally.
+    const answered = await runCheckInTurn(after.state, '188 pounds', {
+      callModel: vi.fn(async () => llmTurn({ weightLbs: 188 })),
+    });
+    expect(answered.state.phase).toBe('q3_breathing');
+  });
+
+  it('treats a legacy state without chatTurnsUsed as a full budget', async () => {
+    const legacy = stateAt('q2_weight');
+    delete (legacy as Partial<CheckInState>).chatTurnsUsed;
+    const response = await runCheckInTurn(legacy, 'lovely weather today', {
+      callModel: vi.fn(async () => llmTurn({}, { kind: 'small_talk', smallTalk: 'It really is a beautiful day.' })),
+    });
+    expect(response.assistantMessages).toEqual(['It really is a beautiful day.']);
+    expect(response.state.chatTurnsUsed).toBe(1);
   });
 
   it('still short-circuits to emergency when chest pain arrives wrapped in small talk', async () => {
