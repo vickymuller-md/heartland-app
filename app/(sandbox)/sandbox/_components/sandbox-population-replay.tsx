@@ -101,9 +101,14 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone }: {
   const partialRef = useRef<PartialCounts>({ ...EMPTY_PARTIAL });
   const feedRef = useRef<PopulationEvent[]>([]);
   const resultRef = useRef<PopulationDayResult | null>(null);
+  const scopeRef = useRef({ size, dayIndex });
 
   // A different day or population size invalidates whatever is on screen.
+  // The initial render is already idle; skipping that first reset also avoids
+  // erasing a round started before the first passive effect has flushed.
   useEffect(() => {
+    if (scopeRef.current.size === size && scopeRef.current.dayIndex === dayIndex) return;
+    scopeRef.current = { size, dayIndex };
     stopLoop();
     setScene('idle');
     setResult(null);

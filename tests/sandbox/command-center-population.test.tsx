@@ -133,4 +133,15 @@ describe('SandboxCommandCenter population scene', () => {
     expect(onPopulationSize).toHaveBeenCalledWith(2500);
     expect(screen.getByTestId('population-size-500')).toHaveAttribute('aria-pressed', 'true');
   });
+
+  it('puts the overnight run before the three guided entry paths', () => {
+    const run = screen.getByTestId('population-run');
+    const guided = screen.getByTestId('sandbox-guided-demo');
+    expect(run.compareDocumentPosition(guided) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /Provider workflow/ }));
+    expect(onNavigate).toHaveBeenCalledWith('daily-loop');
+    fireEvent.click(screen.getByRole('button', { name: /Patient experience/ }));
+    expect(onNavigate).toHaveBeenCalledWith('patient-view');
+  });
 });

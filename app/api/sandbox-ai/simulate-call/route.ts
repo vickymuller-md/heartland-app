@@ -8,6 +8,7 @@ import {
 } from '@/lib/sandbox-ai/fixtures';
 import { runSimulatedCall } from '@/lib/sandbox-ai/provider';
 import { consumeSandboxAiTurn, sandboxAiEnabled } from '@/lib/sandbox-ai/rate-limit';
+import { detectEmergencyMention, incompleteClinicalDataFlag } from '@/lib/sandbox-ai/safety';
 import { simulateCallRequestSchema } from '@/lib/sandbox-ai/schema';
 
 export const dynamic = 'force-dynamic';
@@ -48,24 +49,35 @@ export async function POST(request: Request) {
 
     // Disposition comes from the deterministic rules alone, never from the model.
     // Normalize to the full extraction shape (titration-only fields stay null).
-    const extraction = { hr: null, dizziness: null, worseSymptoms: null, ...generated.extracted };
+    const emergencyMention = generated.turns
+      .filter((turn) => turn.speaker === 'patient')
+      .some((turn) => detectEmergencyMention(turn.text));
+    const extraction = {
+      hr: null,
+      dizziness: null,
+      worseSymptoms: null,
+      ...generated.extracted,
+      chestPainOrSyncope: emergencyMention || generated.extracted.chestPainOrSyncope === true,
+    };
     const history = scenarioWeightHistory(scenario);
-    const redFlags = extraction.chestPainOrSyncope === true
-      ? []
-      : evaluateRedFlags(
-        {
-          weight_lbs: extraction.weightLbs ?? history[0]?.weight_lbs ?? 0,
-          sbp: extraction.sbp ?? scenario.baselineSbp,
-          spo2: extraction.spo2,
-        },
-        history,
-        {
-          dyspnea: extraction.dyspnea ?? 0,
-          edema: extraction.edema ?? 0,
-          orthopnea: extraction.orthopnea ?? false,
-          fatigue: extraction.fatigue ?? 0,
-        },
-      );
+    const redFlags = extraction.chestPainOrSyncope === true ? [] : evaluateRedFlags(
+      {
+        weight_lbs: extraction.weightLbs ?? history[0]?.weight_lbs ?? 0,
+        sbp: extraction.sbp ?? scenario.baselineSbp,
+        spo2: extraction.spo2,
+      },
+      history,
+      {
+        dyspnea: extraction.dyspnea ?? 0,
+        edema: extraction.edema ?? 0,
+        orthopnea: extraction.orthopnea ?? false,
+        fatigue: extraction.fatigue ?? 0,
+      },
+    );
+    if (extraction.chestPainOrSyncope !== true) {
+      const incomplete = incompleteClinicalDataFlag('daily_checkin', extraction);
+      if (incomplete) redFlags.push(incomplete);
+    }
     const disposition = extraction.chestPainOrSyncope === true
       ? 'emergency'
       : redFlags.length > 0 ? 'escalated' : 'routine';

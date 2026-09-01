@@ -82,6 +82,11 @@ describe('sanitizeSmallTalk', () => {
     'That sounds fun! Are you feeling better today?',
     'Wonderful! How is your breathing doing?',
     'Great day! Did you take your medicine?',
+    'Please rest today and drink extra water.',
+    'Your swelling is normal — there is nothing to worry about.',
+    'Debe descansar hoy y beber más agua.',
+    'Call your doctor if the swelling continues.',
+    'You can reach me at clinician@example.com.',
     // More than one question back derails the scripted call.
     'Lovely! Who visited? What did you cook?',
   ])('falls back to the fixed ack for %s', (bad) => {
@@ -95,6 +100,8 @@ describe('sanitizeParaphrase', () => {
   it('keeps clean plain-language questions', () => {
     expect(sanitizeParaphrase('  And what did your   scale say today? ', canonical))
       .toBe('And what did your scale say today?');
+    expect(sanitizeParaphrase('Were you able to take all your medicines yesterday?', canonical))
+      .toBe('Were you able to take all your medicines yesterday?');
   });
 
   it.each([
@@ -105,6 +112,12 @@ describe('sanitizeParaphrase', () => {
     '<b>Weight?</b>',
     'You should take 40 mg now, then tell me your weight',
     'Take one extra tablet and weigh yourself',
+    'Stop taking furosemide tonight, then tell me your weight',
+    'You should rest today and drink extra water',
+    'Your swelling is normal, so there is nothing to worry about',
+    'Debe descansar hoy y beber más agua',
+    'Call your doctor before continuing',
+    'Send the reading to clinician@example.com',
   ])('falls back to the canonical wording for %s', (malicious) => {
     expect(sanitizeParaphrase(malicious, canonical)).toBe(canonical);
   });

@@ -72,6 +72,19 @@ describe('POST /api/sandbox-ai/checkin', () => {
     expect(await response.json()).toEqual({ fallback: true });
   });
 
+  it.each([
+    'visitor@example.com',
+    '(555) 123-4567',
+    'SSN 123-45-6789',
+  ])('returns the safe fallback without sending obvious PII to the model: %s', async (message) => {
+    rpcMock.mockResolvedValueOnce({ data: true, error: null });
+    const response = await POST(checkInRequest({ ...validBody, message }));
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).fallback).toBe(true);
+    expect(runLlmTurnMock).not.toHaveBeenCalled();
+  });
+
   it('runs a turn and returns the engine response on the happy path', async () => {
     rpcMock.mockResolvedValueOnce({ data: true, error: null });
     runLlmTurnMock.mockResolvedValueOnce({

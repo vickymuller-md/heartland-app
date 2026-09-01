@@ -14,6 +14,7 @@ import {
   SCRIPT_QUESTIONS,
 } from '@/lib/sandbox-ai/script';
 import { RED_FLAG_CRITERIA } from '@/lib/vitals/constants';
+import { finalizeTitration } from '@/lib/sandbox-ai/titration-script';
 import type { CheckInExtraction, CheckInState, LlmTurn } from '@/lib/sandbox-ai/types';
 
 function llmTurn(extracted: Partial<CheckInExtraction & { unclear: boolean }>, say?: Partial<LlmTurn['say']>): LlmTurn {
@@ -74,6 +75,43 @@ describe('runCheckInTurn — deterministic control', () => {
     expect(response.state.phase).toBe('complete');
   });
 
+  it.each([
+    ['en' as const, 'I have crushing chest pain right now.'],
+    ['es' as const, 'Me duele el pecho desde esta mañana.'],
+    ['es' as const, 'Casi me desmayé al levantarme.'],
+  ])('detects raw %s emergency language before a model false negative', async (locale, message) => {
+    const callModel = vi.fn(async () => llmTurn({ chestPainOrSyncope: false }));
+    const input = { ...stateAt('q3_breathing'), locale };
+    const response = await runCheckInTurn(input, message, { callModel });
+
+    expect(response.disposition).toBe('emergency');
+    expect(response.state.extraction.chestPainOrSyncope).toBe(true);
+    expect(callModel).not.toHaveBeenCalled();
+  });
+
+  it('does not treat a clear emergency negation as an affirmative mention', async () => {
+    const callModel = vi.fn(async () => llmTurn({ chestPainOrSyncope: false }));
+    const response = await runCheckInTurn(stateAt('q1_safety'), 'No chest pain or fainting.', { callModel });
+
+    expect(response.disposition).toBeNull();
+    expect(response.state.phase).toBe('q2_weight');
+    expect(callModel).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    'Please email me at visitor@example.com.',
+    'My phone number is (555) 123-4567.',
+    'My SSN is 123-45-6789.',
+  ])('keeps an obvious identifier out of the model for %s', async (message) => {
+    const input = stateAt('q2_weight');
+    const callModel = vi.fn(async () => llmTurn({ weightLbs: 188 }));
+    const response = await runCheckInTurn(input, message, { callModel });
+
+    expect(response.fallback).toBe(true);
+    expect(response.state).toEqual(input);
+    expect(callModel).not.toHaveBeenCalled();
+  });
+
   it('deflects off-topic requests and repeats the current question without advancing', async () => {
     const callModel = vi.fn(async () => llmTurn({ unclear: true }, { kind: 'deflect_question' }));
     const response = await runCheckInTurn(stateAt('q4_swelling'), 'what dose should I take?', { callModel });
@@ -92,6 +130,16 @@ describe('runCheckInTurn — deterministic control', () => {
     expect(first.state.reasksUsed.q2_weight).toBe(1);
 
     const second = await runCheckInTurn(first.state, 'still hmm', { callModel });
+    expect(second.state.phase).toBe('q3_breathing');
+    expect(second.state.extraction.weightLbs).toBeNull();
+  });
+
+  it('never stores a clinical value that the model marked unclear', async () => {
+    const callModel = vi.fn(async () => llmTurn({ weightLbs: 188, unclear: true }));
+
+    const first = await runCheckInTurn(stateAt('q2_weight'), 'maybe around 188, I am not sure', { callModel });
+    const second = await runCheckInTurn(first.state, 'still not sure', { callModel });
+
     expect(second.state.phase).toBe('q3_breathing');
     expect(second.state.extraction.weightLbs).toBeNull();
   });
@@ -310,7 +358,18 @@ describe('titration follow-up script — registered safety gates own the outcome
     turn = applyDeterministicAnswer(turn.state, { adherence: 'missed_some' });
 
     expect(turn.disposition).toBe('escalated');
-    expect(turn.redFlags.map((flag) => flag.id)).toEqual(['titration_adherence']);
+    expect(turn.redFlags.map((flag) => flag.id)).toEqual(
+      expect.arrayContaining(['needs_human_review', 'titration_adherence']),
+    );
+  });
+
+  it('routes missing titration readings and answers to review, never reassurance', () => {
+    const finished = finalizeTitration(titrationState());
+
+    expect(finished.disposition).toBe('escalated');
+    expect(finished.redFlags.map((flag) => flag.id)).toContain('needs_human_review');
+    expect(finished.assistantMessages[0]).not.toContain('passed the titration plan');
+    expect(finished.assistantMessages[0]).toContain('Nurse review required');
   });
 
   it('short-circuits chest pain straight to the emergency template', () => {
@@ -332,6 +391,15 @@ describe('titration follow-up script — registered safety gates own the outcome
 });
 
 describe('finalizeCheckIn — deterministic red flags own the disposition', () => {
+  it('routes missing required answers to human review, never routine reassurance', () => {
+    const finished = finalizeCheckIn(stateAt('q8_devices'));
+
+    expect(finished.disposition).toBe('escalated');
+    expect(finished.redFlags.map((flag) => flag.id)).toContain('needs_human_review');
+    expect(finished.assistantMessages[0]).not.toContain('Nothing you reported needs urgent attention');
+    expect(finished.assistantMessages[0]).toContain('Human review required');
+  });
+
   it("escalates Maria's synthetic weight-gain trend with the registered criteria texts", () => {
     const finished = finalizeCheckIn({
       patientId: 'demo-maria',
@@ -378,7 +446,16 @@ describe('finalizeCheckIn — deterministic red flags own the disposition', () =
     const finished = finalizeCheckIn({
       patientId: 'demo-james',
       phase: 'q8_devices',
-      extraction: { ...emptyExtraction(), weightLbs: 188, dyspnea: 0, edema: 0, orthopnea: false, fatigue: 0, adherence: 'yes' },
+      extraction: {
+        ...emptyExtraction(),
+        chestPainOrSyncope: false,
+        weightLbs: 188,
+        dyspnea: 0,
+        edema: 0,
+        orthopnea: false,
+        fatigue: 0,
+        adherence: 'yes',
+      },
       reasksUsed: {},
       turnCount: 8,
     });

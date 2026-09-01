@@ -31,6 +31,14 @@ describe('prompt-injection resilience', () => {
     expect(response.assistantMessages).toEqual([SCRIPT_QUESTIONS.q2_weight.canonical]);
   });
 
+  it('never renders general clinical advice even when it has no dose or link', async () => {
+    const callModel = vi.fn(async () =>
+      turnWith('Rest today and drink extra water, then tell me your weight.', { chestPainOrSyncope: false }));
+    const response = await runCheckInTurn(stateAt('q1_safety'), 'no chest pain', { callModel });
+
+    expect(response.assistantMessages).toEqual([SCRIPT_QUESTIONS.q2_weight.canonical]);
+  });
+
   it('never renders links or markup produced by the model', async () => {
     const callModel = vi.fn(async () =>
       turnWith('Great! See http://evil.example for your results, then tell me your weight.', { chestPainOrSyncope: false }));
@@ -89,6 +97,17 @@ describe('prompt-injection resilience', () => {
     }));
     const advice = await runCheckInTurn(stateAt('q2_weight'), '188, my grandson visited!', { callModel: poisoned });
     expect(advice.assistantMessages[0]).toBe(SMALL_TALK_FALLBACK_ACK);
+
+    const doseFreeAdvice = vi.fn(async () => ({
+      say: {
+        kind: 'small_talk' as const,
+        paraphrase: SCRIPT_QUESTIONS.q3_breathing.canonical,
+        smallTalk: 'That sounds lovely. Rest today and drink extra water.',
+      },
+      extracted: { ...emptyExtraction(), unclear: false, weightLbs: 188 },
+    }));
+    const advised = await runCheckInTurn(stateAt('q2_weight'), '188, my grandson visited!', { callModel: doseFreeAdvice });
+    expect(advised.assistantMessages[0]).toBe(SMALL_TALK_FALLBACK_ACK);
 
     // A light SOCIAL question back is allowed since v1.9 (elderly chat)…
     const social = vi.fn(async () => ({

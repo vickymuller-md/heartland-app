@@ -11,6 +11,7 @@
 import { subDays } from 'date-fns';
 import { evaluateRedFlags } from '@/lib/vitals/red-flags';
 import { resolveCallPatient, type CallPatientChart } from './call-patient';
+import { incompleteClinicalDataFlag } from './safety';
 import { QUESTION_ORDER, SCRIPT_QUESTIONS, escalationMessage, routineClosingMessage } from './script';
 import type { CallScript, CheckInState, CheckInTurnResponse } from './types';
 
@@ -60,6 +61,8 @@ export function finalizeCheckIn(state: CheckInState): CheckInTurnResponse {
       fatigue: state.extraction.fatigue ?? 0,
     },
   );
+  const incomplete = incompleteClinicalDataFlag('daily_checkin', state.extraction);
+  if (incomplete) flags.push(incomplete);
   return {
     assistantMessages: [flags.length > 0
       ? escalationMessage(flags, state.locale)

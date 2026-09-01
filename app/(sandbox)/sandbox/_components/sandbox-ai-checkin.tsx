@@ -15,7 +15,12 @@ import { ExplainRuleButton } from './explain-rule';
 import { useAssistantAudioQueue } from './use-assistant-audio-queue';
 
 interface ChatMessage { role: 'assistant' | 'visitor'; text: string }
-interface CheckInResult { disposition: CheckInDisposition; redFlags: RedFlag[] }
+interface CheckInResult {
+  disposition: CheckInDisposition;
+  redFlags: RedFlag[];
+  basis: 'registered_rules' | 'missing_data';
+  detail?: string;
+}
 
 function trackAiEvent(eventName: ProductEventInput['eventName'], durationMs?: number) {
   void trackProductEvent({ eventName, area: 'sandbox', durationMs, ...getPublicDisseminationContext() });
@@ -79,8 +84,13 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
     setMessages(introMessagesFor(next).map((text) => ({ role: 'assistant', text })));
   }
 
-  function completeWith(disposition: CheckInDisposition, redFlags: RedFlag[]) {
-    setResult({ disposition, redFlags });
+  function completeWith(
+    disposition: CheckInDisposition,
+    redFlags: RedFlag[],
+    basis: CheckInResult['basis'] = 'registered_rules',
+    detail?: string,
+  ) {
+    setResult({ disposition, redFlags, basis, detail });
     trackAiEvent('ai_checkin_completed', Math.min(Date.now() - startedAt.current, 3_600_000));
     if (disposition !== 'routine') trackAiEvent('ai_escalation_demonstrated');
     onComplete();
@@ -143,30 +153,61 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
   function submitForm(formData: FormData) {
     if (result) return;
     trackStartOnce();
-    const chestPain = formData.get('chestPain') === 'yes';
+    const chestPainValue = String(formData.get('chestPain') ?? '');
+    const chestPain = chestPainValue === 'yes' ? true : chestPainValue === 'no' ? false : null;
     const numberOrNull = (name: string, min: number, max: number) => {
       const raw = String(formData.get(name) ?? '').trim();
       if (!raw) return null;
       const value = Number(raw);
       return Number.isFinite(value) && value >= min && value <= max ? value : null;
     };
-    const severity = (name: string) => Number(formData.get(name) ?? 0) as SymptomSeverity;
+    const severityOrNull = (name: string): SymptomSeverity | null => {
+      const raw = String(formData.get(name) ?? '');
+      if (!['0', '1', '2', '3'].includes(raw)) return null;
+      return Number(raw) as SymptomSeverity;
+    };
+    const yesNoOrNull = (name: string): boolean | null => {
+      const raw = String(formData.get(name) ?? '');
+      return raw === 'yes' ? true : raw === 'no' ? false : null;
+    };
+    const adherenceValue = String(formData.get('meds') ?? '');
+    const adherence = ['yes', 'missed_some', 'no'].includes(adherenceValue)
+      ? adherenceValue as CheckInExtraction['adherence']
+      : null;
     const extraction: CheckInExtraction = {
       ...emptyExtraction(),
       chestPainOrSyncope: chestPain,
       weightLbs: numberOrNull('weight', 50, 500),
-      dyspnea: severity('breathing'),
-      edema: severity('swelling'),
-      orthopnea: formData.get('pillows') === 'yes',
-      fatigue: severity('energy'),
-      adherence: (formData.get('meds') as CheckInExtraction['adherence']) ?? null,
+      dyspnea: severityOrNull('breathing'),
+      edema: severityOrNull('swelling'),
+      orthopnea: yesNoOrNull('pillows'),
+      fatigue: severityOrNull('energy'),
+      adherence,
       sbp: numberOrNull('sbp', 50, 260),
       spo2: numberOrNull('spo2', 50, 100),
     };
-    if (chestPain) {
+    if (chestPain === true) {
       // Same deterministic short-circuit the server engine applies.
       setMessages((current) => [...current, { role: 'assistant', text: emergencyMessageFor(locale) }]);
       completeWith('emergency', []);
+      return;
+    }
+    const requiredAnswers: Array<[string, unknown]> = [
+      ['chest pain/fainting', extraction.chestPainOrSyncope],
+      ['weight', extraction.weightLbs],
+      ['breathing', extraction.dyspnea],
+      ['swelling', extraction.edema],
+      ['sleeping position', extraction.orthopnea],
+      ['energy', extraction.fatigue],
+      ['medications', extraction.adherence],
+    ];
+    const missing = requiredAnswers.filter(([, value]) => value === null).map(([label]) => label);
+    if (missing.length > 0) {
+      const detail = locale === 'es'
+        ? `Chequeo incompleto — faltan respuestas sobre: ${missing.join(', ')}. Se requiere revisión humana.`
+        : `Incomplete check-in — unanswered items require human review: ${missing.join(', ')}.`;
+      setMessages((current) => [...current, { role: 'assistant', text: detail }]);
+      completeWith('escalated', [], 'missing_data', detail);
       return;
     }
     const finished = finalizeCheckIn({
@@ -228,7 +269,7 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
         </div>
       )}
 
-      <div ref={logRef} className="max-h-72 space-y-2 overflow-y-auto p-3" role="log" aria-live="polite" aria-label="Check-in conversation">
+      <div ref={logRef} className="max-h-72 space-y-2 overflow-y-auto p-3" role="log" aria-live="polite" aria-label="Check-in conversation" lang={locale === 'es' ? 'es-US' : 'en-US'}>
         {messages.map((message, index) => (
           <p key={index} className={message.role === 'assistant'
             ? 'mr-6 rounded-lg rounded-bl-none bg-slate-100 p-2.5 text-xs leading-5 text-slate-900'
@@ -242,6 +283,7 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
       {result && (
         <div className={`mx-3 mb-3 rounded-lg border p-3 text-xs leading-5 ${RESULT_STYLES[result.disposition].box}`} data-testid="sandbox-ai-result">
           <p className="font-bold">{RESULT_STYLES[result.disposition].title}</p>
+          {result.detail && <p className="mt-1 font-semibold">{result.detail}</p>}
           {result.redFlags.length > 0 && (
             <ul className="mt-1 list-disc pl-4">
               {result.redFlags.map((flag) => (
@@ -252,24 +294,35 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
               ))}
             </ul>
           )}
-          <p className="mt-1">Disposition set by the registered clinical rules, never by the AI. A provider work item appears on the care-team side.</p>
+          <p className="mt-1">
+            {result.basis === 'missing_data'
+              ? 'Incomplete answers follow the demonstration’s fail-safe path to human review; AI did not infer negative answers.'
+              : 'Disposition set by the registered clinical rules, never by the AI.'}
+            {' '}In a connected controlled workspace this would create a provider work item; this public sandbox creates no clinical record.
+          </p>
         </div>
       )}
 
       {!result && mode === 'chat' && (
-        <form className="flex items-center gap-2 border-t p-3" onSubmit={(event) => { event.preventDefault(); void sendChatMessage(); }}>
-          <label className="sr-only" htmlFor="sandbox-ai-input">Type your check-in answer</label>
-          <input
-            id="sandbox-ai-input"
-            className="min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
-            value={input}
-            maxLength={500}
-            placeholder="Type your answer…"
-            onChange={(event) => setInput(event.target.value)}
-            disabled={busy}
-          />
-          <Button type="submit" className="min-h-11" disabled={busy || input.trim().length === 0} aria-label="Send answer"><Send className="size-4" /></Button>
-        </form>
+        <div className="border-t p-3">
+          <p id="sandbox-ai-synthetic-input-note" className="mb-2 text-[11px] font-semibold leading-4 text-amber-800">
+            Synthetic answers only — do not enter real patient, personal, or health information.
+          </p>
+          <form className="flex items-center gap-2" onSubmit={(event) => { event.preventDefault(); void sendChatMessage(); }}>
+            <label className="sr-only" htmlFor="sandbox-ai-input">Type your check-in answer</label>
+            <input
+              id="sandbox-ai-input"
+              className="min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
+              value={input}
+              maxLength={500}
+              aria-describedby="sandbox-ai-synthetic-input-note"
+              placeholder="Type a synthetic answer…"
+              onChange={(event) => setInput(event.target.value)}
+              disabled={busy}
+            />
+            <Button type="submit" className="min-h-11" disabled={busy || input.trim().length === 0} aria-label="Send answer"><Send className="size-4" /></Button>
+          </form>
+        </div>
       )}
 
       {!result && mode === 'form' && (
@@ -280,25 +333,25 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
         >
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="flex flex-col gap-1 font-semibold">Chest pain or fainting since yesterday?
-              <select name="chestPain" className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" defaultValue="no"><option value="no">No</option><option value="yes">Yes</option></select>
+              <select name="chestPain" className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" defaultValue=""><option value="">Not answered</option><option value="no">No</option><option value="yes">Yes</option></select>
             </label>
             <label className="flex flex-col gap-1 font-semibold">Weight this morning (lbs)
-              <input name="weight" type="number" min={50} max={500} step="0.1" required className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" />
+              <input name="weight" type="number" min={50} max={500} step="0.1" placeholder="Not answered" className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" />
             </label>
             <label className="flex flex-col gap-1 font-semibold">Breathing today
-              <select name="breathing" className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" defaultValue="0">{BREATHING_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+              <select name="breathing" className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" defaultValue=""><option value="">Not answered</option>{BREATHING_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
             </label>
             <label className="flex flex-col gap-1 font-semibold">New or worse swelling
-              <select name="swelling" className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" defaultValue="0">{SEVERITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+              <select name="swelling" className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" defaultValue=""><option value="">Not answered</option>{SEVERITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
             </label>
             <label className="flex flex-col gap-1 font-semibold">Needed extra pillows to sleep?
-              <select name="pillows" className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" defaultValue="no"><option value="no">No</option><option value="yes">Yes</option></select>
+              <select name="pillows" className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" defaultValue=""><option value="">Not answered</option><option value="no">No</option><option value="yes">Yes</option></select>
             </label>
             <label className="flex flex-col gap-1 font-semibold">Energy vs normal
-              <select name="energy" className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" defaultValue="0">{SEVERITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label} fatigue</option>)}</select>
+              <select name="energy" className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" defaultValue=""><option value="">Not answered</option>{SEVERITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label} fatigue</option>)}</select>
             </label>
             <label className="flex flex-col gap-1 font-semibold">All medicines taken?
-              <select name="meds" className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" defaultValue="yes"><option value="yes">Yes, all taken</option><option value="missed_some">Missed some</option><option value="no">No</option></select>
+              <select name="meds" className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" defaultValue=""><option value="">Not answered</option><option value="yes">Yes, all taken</option><option value="missed_some">Missed some</option><option value="no">No</option></select>
             </label>
             <label className="flex flex-col gap-1 font-semibold">Systolic BP (optional)
               <input name="sbp" type="number" min={50} max={260} className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" />

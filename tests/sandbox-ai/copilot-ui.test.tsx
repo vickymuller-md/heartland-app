@@ -65,6 +65,7 @@ describe('SandboxCopilot', () => {
 
     const brief = await screen.findByTestId('copilot-brief');
     expect(brief).toHaveTextContent('Earl Hutchins needs the first callback');
+    expect(screen.getByTestId('round-status')).toHaveTextContent('3 of 3 calls complete · text ready · voice ready');
 
     const prepared = screen.getByTestId('copilot-prepared');
     expect(prepared).toHaveTextContent('Earl Hutchins (synthetic)');
@@ -91,10 +92,20 @@ describe('SandboxCopilot', () => {
     expect(requestBody.reviewedCount).toBe(3);
   });
 
-  it('shows the simulation day and advances it without requiring a completed round', () => {
+  it('shows call progress and advances only after the simulated day completes', async () => {
     expect(screen.getByTestId('copilot-day-badge')).toHaveTextContent('Day 1 of 5');
+    expect(screen.getByTestId('advance-day')).toBeDisabled();
+    expect(screen.getByText('Complete this simulated day before advancing.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('run-morning-round'));
+    await screen.findByTestId('copilot-brief');
+    expect(screen.getByTestId('advance-day')).toBeEnabled();
     fireEvent.click(screen.getByTestId('advance-day'));
-    expect(onAdvanceDay).toHaveBeenCalledWith(0);
+    expect(onAdvanceDay).toHaveBeenCalledWith(1);
+  });
+
+  it('keeps the free-text copilot boundary adjacent to the input', () => {
+    expect(screen.getByText(/Synthetic prompts only — do not enter real patient/)).toBeInTheDocument();
   });
 
   it('hides the chat behind the unavailable notice on fallback', async () => {

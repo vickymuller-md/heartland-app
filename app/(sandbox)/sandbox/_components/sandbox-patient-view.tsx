@@ -13,9 +13,7 @@ export function SandboxPatientView({ patient, patientCheckIns, onCheckIn }: {
   patientCheckIns: string[];
   onCheckIn: (checkInId: string) => void;
 }) {
-  const [showCheckIn, setShowCheckIn] = useState(false);
-  const [showLiveCall, setShowLiveCall] = useState(false);
-  const [showTitrationCall, setShowTitrationCall] = useState(false);
+  const [activeExperience, setActiveExperience] = useState<'checkin' | 'daily-call' | 'titration-call' | null>(null);
   const symptomsTaskId = `${patient.id}-symptoms`;
   const tasks = [
     { id: `${patient.id}-weight`, icon: Scale, title: 'Record today’s weight', detail: patient.vitals.at(-1) ? `Last synthetic value: ${patient.vitals.at(-1)?.weight} lb` : 'No recent value' },
@@ -28,7 +26,9 @@ export function SandboxPatientView({ patient, patientCheckIns, onCheckIn }: {
   return (
     <div className="space-y-7" data-testid="sandbox-patient-view">
       <SectionHeading eyebrow="Two-sided product" title="Patient Today experience" description="The same operational loop becomes a simple daily plan: what to do, what changed, when to seek help, who will follow up, and who can access data." />
-      <SyntheticBanner>This is a fictional patient portal preview. Buttons update only local tour progress and never submit health information.</SyntheticBanner>
+      <SyntheticBanner>
+        Fictional patient portal preview. Standard buttons update only local tour progress. Free-text and voice answers inside AI demonstrations are sent to sandbox processing — use synthetic answers only and never enter real personal or health information.
+      </SyntheticBanner>
 
       <div className="grid gap-7 xl:grid-cols-[minmax(320px,0.7fr)_minmax(0,1.3fr)]">
         <section className="mx-auto w-full max-w-md rounded-[2rem] border-8 border-slate-900 bg-slate-50 shadow-xl" aria-label="Synthetic mobile patient portal">
@@ -39,23 +39,23 @@ export function SandboxPatientView({ patient, patientCheckIns, onCheckIn }: {
             <div className="space-y-3">{tasks.map((task) => {
               const done = patientCheckIns.includes(task.id);
               const Icon = task.icon;
-              return <button key={task.id} type="button" onClick={() => task.id === symptomsTaskId ? setShowCheckIn(true) : onCheckIn(task.id)} className={`flex min-h-20 w-full items-center gap-3 rounded-xl border p-3 text-left transition ${done ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white hover:border-blue-300'}`}><span className={done ? 'flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white' : 'flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700'}>{done ? <Check className="size-5" /> : <Icon className="size-5" />}</span><span><strong className="block text-sm text-slate-950">{task.title}</strong><span className="mt-1 block text-xs leading-5 text-slate-600">{done ? 'Completed in this synthetic visit' : task.detail}</span></span></button>;
+              return <button key={task.id} type="button" onClick={() => task.id === symptomsTaskId ? setActiveExperience('checkin') : onCheckIn(task.id)} className={`flex min-h-20 w-full items-center gap-3 rounded-xl border p-3 text-left transition ${done ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white hover:border-blue-300'}`}><span className={done ? 'flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white' : 'flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700'}>{done ? <Check className="size-5" /> : <Icon className="size-5" />}</span><span><strong className="block text-sm text-slate-950">{task.title}</strong><span className="mt-1 block text-xs leading-5 text-slate-600">{done ? 'Completed in this synthetic visit' : task.detail}</span></span></button>;
             })}</div>
 
-            {showCheckIn && (
+            {activeExperience === 'checkin' && (
               <SandboxAiCheckIn
                 key={patient.id}
                 patient={patient}
                 onComplete={() => onCheckIn(symptomsTaskId)}
-                onClose={() => setShowCheckIn(false)}
+                onClose={() => setActiveExperience(null)}
               />
             )}
 
-            {!showLiveCall && (
+            {activeExperience !== 'daily-call' && (
               <button
                 type="button"
                 data-testid="open-live-call"
-                onClick={() => { setShowCheckIn(false); setShowLiveCall(true); }}
+                onClick={() => setActiveExperience('daily-call')}
                 className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-left transition hover:border-emerald-400"
               >
                 <span className="flex size-10 shrink-0 animate-pulse items-center justify-center rounded-full bg-emerald-700 text-white"><PhoneIncoming className="size-5" /></span>
@@ -63,20 +63,20 @@ export function SandboxPatientView({ patient, patientCheckIns, onCheckIn }: {
               </button>
             )}
 
-            {showLiveCall && (
+            {activeExperience === 'daily-call' && (
               <SandboxLiveCall
                 key={`call-${patient.id}`}
                 patient={patient}
                 onComplete={() => onCheckIn(`${patient.id}-call`)}
-                onClose={() => setShowLiveCall(false)}
+                onClose={() => setActiveExperience(null)}
               />
             )}
 
-            {!showTitrationCall && (
+            {activeExperience !== 'titration-call' && (
               <button
                 type="button"
                 data-testid="open-titration-call"
-                onClick={() => { setShowCheckIn(false); setShowTitrationCall(true); }}
+                onClick={() => setActiveExperience('titration-call')}
                 className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-left transition hover:border-blue-400"
               >
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-700 text-white"><PhoneIncoming className="size-5" /></span>
@@ -84,13 +84,13 @@ export function SandboxPatientView({ patient, patientCheckIns, onCheckIn }: {
               </button>
             )}
 
-            {showTitrationCall && (
+            {activeExperience === 'titration-call' && (
               <SandboxLiveCall
                 key={`titration-${patient.id}`}
                 patient={patient}
                 scriptId="titration_followup"
                 onComplete={() => onCheckIn(`${patient.id}-titration-call`)}
-                onClose={() => setShowTitrationCall(false)}
+                onClose={() => setActiveExperience(null)}
               />
             )}
 

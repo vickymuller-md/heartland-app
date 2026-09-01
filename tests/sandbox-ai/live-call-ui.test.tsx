@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { SANDBOX_PATIENTS } from '@/lib/sandbox/fixtures';
 import { FILLER_LINES } from '@/lib/sandbox-ai/script';
 import { SandboxLiveCall } from '@/app/(sandbox)/sandbox/_components/sandbox-live-call';
@@ -59,6 +59,10 @@ function drainAudioQueue() {
   for (let i = 0; i < 10; i += 1) fireEvent(audioElement(), new Event('ended'));
 }
 
+function enableMicrophone() {
+  fireEvent.click(screen.getByTestId('live-call-mic-opt-in'));
+}
+
 describe('SandboxLiveCall — hands-free voice mode', () => {
   const onComplete = vi.fn();
   const onClose = vi.fn();
@@ -76,7 +80,18 @@ describe('SandboxLiveCall — hands-free voice mode', () => {
     vi.restoreAllMocks();
   });
 
-  it('opens the mic only after the assistant finishes speaking, then voices the server turn', async () => {
+  it('keeps the microphone off until the visitor opts in after seeing the processing disclosure', () => {
+    expect(screen.getByTestId('live-call-mic-opt-in')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByText(/browser speech service transcribes audio/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('answer-call'));
+    drainAudioQueue();
+
+    expect(FakeSpeechRecognition.instances).toHaveLength(0);
+    expect(screen.getByTestId('live-call-voice-status')).toHaveTextContent('Microphone off');
+  });
+
+  it('opens the mic only after explicit opt-in and after the assistant finishes speaking, then voices the server turn', async () => {
+    enableMicrophone();
     fireEvent.click(screen.getByTestId('answer-call'));
 
     // Intro + q1 clips are queued; while speaking there must be no listening.
@@ -128,6 +143,7 @@ describe('SandboxLiveCall — hands-free voice mode', () => {
     vi.mocked(HTMLMediaElement.prototype.play).mockRejectedValue(
       Object.assign(new Error('no supported source'), { name: 'NotSupportedError' }),
     );
+    enableMicrophone();
     fireEvent.click(screen.getByTestId('answer-call'));
     await act(async () => { /* flush play() rejections */ });
 
@@ -137,6 +153,7 @@ describe('SandboxLiveCall — hands-free voice mode', () => {
   });
 
   it('mute stops listening and the status explains typed and tapped answers still work', () => {
+    enableMicrophone();
     fireEvent.click(screen.getByTestId('answer-call'));
     drainAudioQueue();
     expect(latestRecognition().started).toBe(true);
@@ -151,6 +168,7 @@ describe('SandboxLiveCall — hands-free voice mode', () => {
   });
 
   it('suspends voice input after two consecutive failures and recovers on mic tap', () => {
+    enableMicrophone();
     fireEvent.click(screen.getByTestId('answer-call'));
     drainAudioQueue();
 
@@ -185,11 +203,12 @@ describe('SandboxLiveCall — locales and scripts (deterministic paths)', () => 
     fireEvent.click(screen.getByTestId('answer-call'));
 
     expect(screen.getByRole('log').textContent).toContain('dolor de pecho');
+    expect(screen.getByRole('log')).toHaveAttribute('lang', 'es-US');
     chip('No, nada de eso');
     expect(screen.getByRole('log').textContent).toContain('báscula');
   });
 
-  it('walks the titration follow-up to the gate-passed result', () => {
+  it('routes a titration follow-up with skipped readings to nurse review', () => {
     render(<SandboxLiveCall patient={maria} scriptId="titration_followup" onComplete={onComplete} onClose={onClose} />);
     fireEvent.click(screen.getByTestId('answer-call'));
     expect(screen.getByRole('log').textContent).toContain('since we increased your medicine');
@@ -202,7 +221,8 @@ describe('SandboxLiveCall — locales and scripts (deterministic paths)', () => 
     chip('Yes, every day');
 
     const result = screen.getByTestId('live-call-result');
-    expect(result).toHaveTextContent('Proceed confirmed — safety gates passed');
+    expect(result).toHaveTextContent('Held for nurse review');
+    expect(result).toHaveTextContent('systolic blood pressure, heart rate');
     expect(result).toHaveTextContent('registered titration safety gates, never by the AI');
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
@@ -221,6 +241,48 @@ describe('SandboxLiveCall — locales and scripts (deterministic paths)', () => 
     await screen.findByText(/use the quick answers below/);
 
     expect(FILLER_LINES.en.some((line) => screen.getByRole('log').textContent?.includes(line))).toBe(true);
+  });
+
+  it('locks the next answer until the streamed audio phase for the current turn resolves', async () => {
+    const encoder = new TextEncoder();
+    let releaseSpeech: (() => void) | undefined;
+    const firstTurn = {
+      assistantMessages: ['Thanks for telling me.'],
+      speech: [{ kind: 'pending' }],
+      state: { patientId: 'demo-maria', scriptId: 'daily_checkin', locale: 'en', phase: 'q1_safety', extraction: {}, reasksUsed: {}, turnCount: 1 },
+      done: false,
+      disposition: null,
+      redFlags: [],
+      fallback: false,
+    };
+    const reader = {
+      read: vi.fn()
+        .mockResolvedValueOnce({ done: false, value: encoder.encode(`${JSON.stringify(firstTurn)}\n`) })
+        .mockImplementationOnce(() => new Promise((resolve) => {
+          releaseSpeech = () => resolve({ done: false, value: encoder.encode(`${JSON.stringify({ speech: [null] })}\n`) });
+        }))
+        .mockResolvedValue({ done: true, value: undefined }),
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: () => 'application/x-ndjson' },
+      body: { getReader: () => reader },
+    }));
+    render(<SandboxLiveCall patient={maria} onComplete={onComplete} onClose={onClose} />);
+    fireEvent.click(screen.getByTestId('answer-call'));
+
+    const input = screen.getByLabelText('Say something in your own words');
+    expect(input).toHaveAttribute('aria-describedby', 'live-call-synthetic-input-note');
+    fireEvent.change(input, { target: { value: 'synthetic answer' } });
+    fireEvent.submit(input.closest('form')!);
+
+    await screen.findByText('Thanks for telling me.');
+    expect(input).toBeDisabled();
+    expect(screen.getByText(/preparing audio/i)).toBeInTheDocument();
+
+    await act(async () => { releaseSpeech?.(); });
+    await waitFor(() => expect(input).not.toBeDisabled());
   });
 });
 
@@ -249,6 +311,12 @@ describe('SandboxLiveCall — deterministic chip path (works fully offline)', ()
     const result = screen.getByTestId('live-call-result');
     expect(result).toHaveTextContent('Escalated to human review');
     expect(result).toHaveTextContent('Weight gain of 5+ lbs in 1 week detected');
+    const receipt = within(screen.getByTestId('live-call-decision-receipt'));
+    expect(receipt.getByText('Quick answer / structured entry')).toBeInTheDocument();
+    expect(receipt.getByText(/Not used — structured controls mapped directly/)).toBeInTheDocument();
+    expect(receipt.getByText(/Systolic BP, SpO₂/)).toBeInTheDocument();
+    expect(receipt.getByText(/weight_gain_5lb_7d · escalated/)).toBeInTheDocument();
+    expect(receipt.getByText(/Provider or nurse reviews before any care action/)).toBeInTheDocument();
     expect(onComplete).toHaveBeenCalledTimes(1);
     const events = vi.mocked(trackProductEvent).mock.calls.map(([input]) => input.eventName);
     expect(events).toEqual(expect.arrayContaining(['ai_checkin_started', 'ai_checkin_completed', 'ai_escalation_demonstrated']));

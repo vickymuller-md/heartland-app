@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { MessageSquareText, PhoneCall, Play, Send, Volume2 } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { LoaderCircle, MessageSquareText, PhoneCall, Play, Send, Square, Volume2 } from 'lucide-react';
 import { getPublicDisseminationContext } from '@/lib/product-analytics/public-context';
 import { requestAssist } from '@/lib/sandbox-ai/assist-client';
 import type { CopilotTraceEntry } from '@/lib/sandbox-ai/copilot';
@@ -59,18 +59,25 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
   const [progress, setProgress] = useState<ScenarioProgress[]>(initialProgress);
   const [elapsedSeconds, setElapsedSeconds] = useState<number | null>(null);
   const [brief, setBrief] = useState<string | null>(null);
+  const [briefState, setBriefState] = useState<'idle' | 'generating' | 'ready' | 'unavailable'>('idle');
+  const [briefHasAudio, setBriefHasAudio] = useState(false);
   const [question, setQuestion] = useState('');
   const [exchanges, setExchanges] = useState<CopilotExchange[]>([]);
   const [chatStatus, setChatStatus] = useState<'idle' | 'busy' | 'unavailable'>('idle');
+  const roundController = useRef<AbortController | null>(null);
   const { audioRef, needsTap, enqueue, resumeAfterTap } = useAssistantAudioQueue();
 
   const anonymousSessionId = () => getPublicDisseminationContext().anonymousSessionId;
 
   async function runMorningRound() {
-    if (roundState === 'running') return;
+    if (roundState === 'running' || briefState === 'generating') return;
     setRoundState('running');
     setBrief(null);
+    setBriefState('idle');
+    setBriefHasAudio(false);
     setElapsedSeconds(null);
+    const controller = new AbortController();
+    roundController.current = controller;
     const startedAt = Date.now();
     const runProgress = initialProgress();
     setProgress([...runProgress]);
@@ -84,12 +91,14 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ scenarioId: scenario.id, anonymousSessionId: anonymousSessionId() }),
+          signal: controller.signal,
         });
         if (!response.ok && response.status !== 429) throw new Error('request failed');
         const body = (await response.json()) as { fallback?: boolean; transcript?: SimulatedCallTranscript };
         if (body.fallback || !body.transcript) {
           runProgress[index] = { ...runProgress[index], status: 'failed' };
           setProgress([...runProgress]);
+          roundController.current = null;
           setRoundState('unavailable');
           return;
         }
@@ -98,8 +107,10 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
         runProgress[index] = { ...runProgress[index], status: 'done', transcript: body.transcript };
         setProgress([...runProgress]);
       } catch {
+        if (controller.signal.aborted) return;
         runProgress[index] = { ...runProgress[index], status: 'failed' };
         setProgress([...runProgress]);
+        roundController.current = null;
         setRoundState('unavailable');
         return;
       }
@@ -109,6 +120,8 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
     // that set each disposition order the queue; no AI unit is spent here.
     setElapsedSeconds(Math.round((Date.now() - startedAt) / 1000));
     setRoundState('done');
+    roundController.current = null;
+    setBriefState('generating');
 
     // Brief over the fresh round plus what was already in the queue.
     const briefItems = [
@@ -133,8 +146,23 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
     });
     if (result?.kind === 'morning_brief') {
       setBrief(result.brief);
+      setBriefHasAudio(Boolean(result.mp3Base64));
+      setBriefState('ready');
       if (result.mp3Base64) enqueue(`data:audio/mpeg;base64,${result.mp3Base64}`);
+    } else {
+      setBriefState('unavailable');
     }
+  }
+
+  function cancelMorningRound() {
+    roundController.current?.abort();
+    roundController.current = null;
+    setRoundState('idle');
+    setProgress(initialProgress());
+    setBrief(null);
+    setBriefState('idle');
+    setBriefHasAudio(false);
+    setElapsedSeconds(null);
   }
 
   async function ask(text: string) {
@@ -180,12 +208,17 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
     (entry) => entry.transcript && entry.transcript.disposition !== 'routine',
   );
   const isFinalDay = dayIndex >= SANDBOX_DAY_COUNT - 1;
+  const activeCallIndex = progress.findIndex((entry) => entry.status === 'calling');
+  const completedCalls = progress.filter((entry) => entry.status === 'done').length;
+  const progressPercent = Math.round((completedCalls / progress.length) * 100);
 
   function advance() {
     onAdvanceDay(escalations.length);
     setRoundState('idle');
     setProgress(initialProgress());
     setBrief(null);
+    setBriefState('idle');
+    setBriefHasAudio(false);
     setElapsedSeconds(null);
   }
 
@@ -215,15 +248,41 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
             </h3>
             <p className="mt-1 text-xs text-slate-500">Outreach calls to three synthetic personas, rule-based triage of the results, and the spoken brief — the repetitive part of one clinic day, end to end.</p>
           </div>
-          <Button
-            className="min-h-12 bg-slate-950 px-5 hover:bg-slate-800"
-            disabled={roundState === 'running'}
-            onClick={() => void runMorningRound()}
-            data-testid="run-morning-round"
-          >
-            <Play className="mr-2 size-4" /> {roundState === 'running' ? 'Running the day…' : 'Run the full day'}
-          </Button>
+          {roundState === 'running' ? (
+            <Button variant="outline" className="min-h-12 px-5" onClick={cancelMorningRound} data-testid="cancel-morning-round">
+              <Square className="mr-2 size-4" /> Cancel run
+            </Button>
+          ) : (
+            <Button
+              className="min-h-12 bg-slate-950 px-5 hover:bg-slate-800"
+              disabled={briefState === 'generating'}
+              onClick={() => void runMorningRound()}
+              data-testid="run-morning-round"
+            >
+              <Play className="mr-2 size-4" /> {roundState === 'done' ? 'Run the day again' : 'Run the full day'}
+            </Button>
+          )}
         </div>
+
+        {roundState !== 'idle' && (
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3" role="status" aria-live="polite" data-testid="round-status">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold">
+              <span className="text-slate-800">
+                {roundState === 'running' && activeCallIndex >= 0
+                  ? `Call ${activeCallIndex + 1} of ${progress.length} · ${progress[activeCallIndex].patientName}`
+                  : roundState === 'done' && briefState === 'generating'
+                    ? `${progress.length} of ${progress.length} calls complete · brief generating`
+                    : roundState === 'done' && briefState === 'ready'
+                      ? `${progress.length} of ${progress.length} calls complete · text ready · voice ${briefHasAudio ? 'ready' : 'not generated'}`
+                      : roundState === 'unavailable' ? 'Automation paused · live assistant unavailable' : 'Automation complete'}
+              </span>
+              <span className="tabular-nums text-slate-500">{completedCalls}/{progress.length} calls</span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-label="Automated call progress" aria-valuemin={0} aria-valuemax={progress.length} aria-valuenow={completedCalls}>
+              <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${progressPercent}%` }} />
+            </div>
+          </div>
+        )}
 
         {roundState !== 'idle' && (
           <ul className="mt-4 space-y-2" data-testid="round-progress">
@@ -260,6 +319,18 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
           </p>
         )}
 
+        {briefState === 'generating' && (
+          <p className="mt-3 flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 p-3 text-sm font-semibold text-violet-950" data-testid="brief-generating">
+            <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> Calls complete. AI is drafting the reviewable morning brief…
+          </p>
+        )}
+
+        {briefState === 'unavailable' && (
+          <p className="mt-3 rounded-xl border border-slate-300 bg-slate-100 p-3 text-sm text-slate-700">
+            Calls and registered-rule dispositions are complete. The optional AI-drafted brief was unavailable; review the queue directly.
+          </p>
+        )}
+
         {brief && (
           <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-sm leading-6 text-slate-800" data-testid="copilot-brief">
             {brief}
@@ -287,12 +358,15 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
               size="sm"
               variant="outline"
               className="min-h-11"
-              disabled={roundState === 'running'}
+              disabled={roundState !== 'done' || briefState === 'generating'}
               onClick={advance}
               data-testid="advance-day"
             >
               Advance to next day →
             </Button>
+          )}
+          {!isFinalDay && roundState !== 'done' && (
+            <span className="text-xs text-slate-500">Complete this simulated day before advancing.</span>
           )}
         </div>
 
@@ -352,6 +426,9 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
                 <Send className="size-4" />
               </Button>
             </form>
+            <p className="mt-2 text-[11px] font-semibold leading-4 text-violet-800">
+              Synthetic prompts only — do not enter real patient, personal, or health information.
+            </p>
             <div className="mt-2 flex flex-wrap gap-2">
               {SUGGESTED_QUESTIONS.map((suggestion) => (
                 <button

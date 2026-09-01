@@ -16,6 +16,7 @@ import {
 import type { AiOutreachRun, SandboxSectionId, SandboxTaskState, WorkedCase } from '@/lib/sandbox/types';
 import { RED_FLAG_CRITERIA } from '@/lib/vitals/constants';
 import { Button } from '@/components/ui/button';
+import { SandboxAiEvidenceFlow } from './sandbox-ai-evidence-flow';
 import { SandboxLiveCall, type LiveCallOutcome } from './sandbox-live-call';
 import { SandboxPopulationReplay } from './sandbox-population-replay';
 import { MetricCard, SectionHeading, SyntheticBanner } from './sandbox-ui';
@@ -71,23 +72,29 @@ export function SandboxCommandCenter({ taskStates, visitedSections, dayIndex, po
                 ))}
               </div>
             </div>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Button variant="ghost" className="min-h-11 border border-white/25 text-white hover:bg-white/10 hover:text-white" onClick={() => onNavigate(nextSection)}>
-                Continue guided tour <ArrowRight className="ml-2 size-4" />
-              </Button>
-              <Button variant="ghost" className="min-h-11 border border-white/25 text-white hover:bg-white/10 hover:text-white" data-testid="sandbox-open-patient-360" onClick={() => onNavigate('patient-360')}>
-                Meet the 3 patients you follow closely
-              </Button>
-            </div>
           </div>
 
           <SandboxPopulationReplay size={populationSize} dayIndex={dayIndex} onDone={setResult} />
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap lg:col-span-2" aria-label="Choose a sandbox path">
+            <Button className="min-h-11 bg-blue-600 text-white hover:bg-blue-500" onClick={() => onNavigate(nextSection)} data-testid="sandbox-guided-demo">
+              Start 5-minute guided demo <ArrowRight className="ml-2 size-4" />
+            </Button>
+            <Button variant="ghost" className="min-h-11 border border-white/25 text-white hover:bg-white/10 hover:text-white" onClick={() => onNavigate('daily-loop')}>
+              <ClipboardCheck className="mr-2 size-4" /> Provider workflow
+            </Button>
+            <Button variant="ghost" className="min-h-11 border border-white/25 text-white hover:bg-white/10 hover:text-white" data-testid="sandbox-open-patient-360" onClick={() => onNavigate('patient-view')}>
+              <HeartPulse className="mr-2 size-4" /> Patient experience
+            </Button>
+          </div>
         </div>
       </section>
 
       <SyntheticBanner>
         Names, events, values, messages, access relationships, and outcomes are fictional. Interaction state stays in this browser and never writes to clinical tables.
       </SyntheticBanner>
+
+      <SandboxAiEvidenceFlow populationSize={populationSize} dayIndex={dayIndex} />
 
       {result && (
         <ReviewQueueSection
@@ -105,7 +112,7 @@ export function SandboxCommandCenter({ taskStates, visitedSections, dayIndex, po
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="Sandbox product metrics">
         <MetricCard label="Close-follow patients" value={SANDBOX_PATIENTS.length} detail="The tour zooms into three synthetic cases." tone="blue" />
         <MetricCard label="Operational items" value={SANDBOX_TASKS.length} detail="Now, Today, Week, and Watching." tone="amber" />
-        <MetricCard label="Automated calls" value={automatedCallsCount} detail="AI-assisted outreach simulations with rule-based escalation." tone="blue" />
+        <MetricCard label="Outreach calls simulated" value={automatedCallsCount} detail="Completed voice simulations only; queue-only reviews are excluded." tone="blue" />
         <MetricCard label="Actions progressed" value={actioned} detail="Reviewed, actioned, awaiting, or closed." tone="violet" />
         <MetricCard label="Loops closed" value={closed} detail="Every closure requires a synthetic outcome." tone="emerald" />
       </section>

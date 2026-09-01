@@ -13,6 +13,7 @@
 import { getTitrationAction } from '@/lib/titration/engine';
 import { resolveCallPatient, type CallPatientChart } from './call-patient';
 import type { RedFlag } from '@/lib/vitals/types';
+import { incompleteClinicalDataFlag } from './safety';
 import { demoNoteFor } from './script';
 import type { CallLocale, CallScript, CheckInState, CheckInTurnResponse, ScriptQuestion, ScriptQuestionId } from './types';
 
@@ -140,6 +141,8 @@ export function finalizeTitration(state: CheckInState): CheckInTurnResponse {
   };
 
   const flags: RedFlag[] = [];
+  const incomplete = incompleteClinicalDataFlag('titration_followup', extraction);
+  if (incomplete) flags.push(incomplete);
   const gate = getTitrationAction(vitals);
   if (gate.action !== 'uptitrate') {
     flags.push({

@@ -20,9 +20,19 @@ async function reachFallbackForm(page: import('@playwright/test').Page) {
   await expect(page.getByTestId('sandbox-ai-checkin')).toContainText('unavailable right now');
 }
 
+async function fillRequiredFallbackAnswers(page: import('@playwright/test').Page) {
+  await page.getByLabel(/Chest pain or fainting/).selectOption('no');
+  await page.getByLabel(/Breathing today/).selectOption('0');
+  await page.getByLabel(/New or worse swelling/).selectOption('0');
+  await page.getByLabel(/Needed extra pillows/).selectOption('no');
+  await page.getByLabel(/Energy vs normal/).selectOption('0');
+  await page.getByLabel(/All medicines taken/).selectOption('yes');
+}
+
 test('check-in degrades to the deterministic form and escalates by the registered weight rules', async ({ page }) => {
   await reachFallbackForm(page);
 
+  await fillRequiredFallbackAnswers(page);
   await page.getByLabel(/Weight this morning/).fill('179.5');
   await page.getByRole('button', { name: 'Submit check-in' }).click();
 
@@ -39,6 +49,7 @@ test('a stable report stays routine and the task completes in the tour', async (
 
   // Maria's synthetic trend: 176 lbs is +0.8 vs yesterday and +4.2 vs 5 days
   // ago — below both thresholds, so the deterministic outcome is routine.
+  await fillRequiredFallbackAnswers(page);
   await page.getByLabel(/Weight this morning/).fill('176');
   await page.getByRole('button', { name: 'Submit check-in' }).click();
 
@@ -145,7 +156,10 @@ test('assist surfaces render drafted content from the assist endpoint', async ({
   await maria.getByRole('button', { name: /Draft SBAR handoff/ }).click();
   await page.getByTestId('sbar-polish').click();
   await expect(page.getByTestId('sbar-polish-note')).toContainText('review before use');
+  await page.getByRole('button', { name: 'Accept proposal' }).click();
   await expect(page.getByTestId('sandbox-sbar-draft').getByLabel('Situation')).toHaveValue('Polished situation.');
+  await expect(page.getByTestId('sandbox-sbar-draft').getByLabel('Assessment')).not.toHaveValue('Polished assessment.');
+  await expect(page.getByTestId('sandbox-sbar-draft').getByLabel('Recommendation')).not.toHaveValue('Polished recommendation.');
 });
 
 test('the copilot runs the morning round, narrates the brief, and answers queue questions with a tool trace', async ({ page }) => {
@@ -324,7 +338,7 @@ test('a case is fully workable: chart, protocol outcome, progress, Daily Loop, a
 
   // And the work shows up as adoption evidence.
   await page.getByTestId('sandbox-nav-impact').click();
-  await expect(page.getByText('Cases worked')).toBeVisible();
+  await expect(page.getByText('Cases documented')).toBeVisible();
 });
 
 test('calling a population patient opens the interactive check-in for that case', async ({ page }) => {
@@ -345,11 +359,34 @@ test('calling a population patient opens the interactive check-in for that case'
 });
 
 test('the day simulation advances the badge, logs the completed day, and survives a reload', async ({ page }) => {
+  let simulatedCall = 0;
+  await page.route('**/api/sandbox-ai/simulate-call', async (route) => {
+    simulatedCall += 1;
+    await route.fulfill({
+      json: {
+        transcript: {
+          id: `ai-run-day${simulatedCall}`,
+          patientId: null,
+          patientName: `Day persona ${simulatedCall} (synthetic)`,
+          channel: 'automated-voice-simulation',
+          placedLabel: 'This visit · just now',
+          turns: [], extraction: {}, redFlags: [], disposition: 'routine',
+        },
+      },
+    });
+  });
+  await page.route('**/api/sandbox-ai/assist', async (route) => {
+    await route.fulfill({ json: { kind: 'morning_brief', brief: 'All three synthetic calls stayed routine.' } });
+  });
+
   await page.goto('/sandbox');
   await page.getByTestId('sandbox-nav-copilot').click();
   await expect(page.getByTestId('copilot-day-badge')).toContainText('Day 1 of 5');
   await expect(page.getByTestId('sandbox-day-badge')).toContainText('Day 1 of 5');
+  await expect(page.getByTestId('advance-day')).toBeDisabled();
 
+  await page.getByTestId('run-morning-round').click();
+  await expect(page.getByTestId('copilot-brief')).toContainText('All three synthetic calls stayed routine.');
   await page.getByTestId('advance-day').click();
   await expect(page.getByTestId('copilot-day-badge')).toContainText('Day 2 of 5');
   await expect(page.getByTestId('copilot-day-controls')).toContainText('Day 1 ✓');
@@ -415,7 +452,10 @@ test('the live call supports hands-free voice answers with server-provided speec
   // The e2e web server has the AI disabled, so the voice turn is served by a
   // route mock — exactly the shape the real endpoint returns.
   await page.route('**/api/sandbox-ai/checkin', async (route) => {
-    const body = route.request().postDataJSON() as { state: { phase: string }; wantSpeech?: boolean };
+    const body = route.request().postDataJSON() as {
+      state: { phase: string; extraction: Record<string, unknown> };
+      wantSpeech?: boolean;
+    };
     if (body.wantSpeech !== true || body.state.phase !== 'q1_safety') {
       await route.fulfill({ json: { fallback: true } });
       return;
@@ -427,7 +467,12 @@ test('the live call supports hands-free voice answers with server-provided speec
           'What did the scale show this morning, in pounds?',
         ],
         speech: [null, { kind: 'clip', clipId: 'q2_weight' }],
-        state: { ...body.state, phase: 'q2_weight', turnCount: 1 },
+        state: {
+          ...body.state,
+          phase: 'q2_weight',
+          extraction: { ...body.state.extraction, chestPainOrSyncope: false },
+          turnCount: 1,
+        },
         done: false,
         disposition: null,
         redFlags: [],
@@ -439,6 +484,7 @@ test('the live call supports hands-free voice answers with server-provided speec
   await page.goto('/sandbox');
   await page.getByTestId('sandbox-nav-patient-view').click();
   await page.getByTestId('open-live-call').click();
+  await page.getByTestId('live-call-mic-opt-in').click();
   await page.getByTestId('answer-call').click();
 
   const status = page.getByTestId('live-call-voice-status');

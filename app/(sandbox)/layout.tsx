@@ -9,6 +9,9 @@ export default async function SandboxLayout({ children }: { children: React.Reac
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <a href="#main-content" className="sr-only z-50 rounded bg-white px-4 py-3 font-semibold text-slate-950 shadow focus:not-sr-only focus:fixed focus:left-3 focus:top-3">
+        Skip to main content
+      </a>
       <header className="border-b bg-white">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
           <Link href="/sandbox" className="flex min-h-11 items-center gap-2 font-bold text-slate-950">

@@ -7,6 +7,7 @@
  */
 
 import { z } from 'zod';
+import { containsClinicalAdvice, containsObviousIdentifier } from './safety';
 import type { LlmTurn } from './types';
 
 const severity = z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]);
@@ -53,6 +54,7 @@ export function sanitizeParaphrase(paraphrase: string, canonical: string): strin
   const cleaned = paraphrase.replace(/\s+/g, ' ').trim();
   if (cleaned.length === 0 || cleaned.length > 280) return canonical;
   if (PARAPHRASE_BLOCKLIST.test(cleaned)) return canonical;
+  if (containsClinicalAdvice(cleaned) || containsObviousIdentifier(cleaned)) return canonical;
   return cleaned;
 }
 
@@ -75,6 +77,7 @@ export function sanitizeSmallTalk(reply: string | null, locale: 'en' | 'es' = 'e
   const cleaned = (reply ?? '').replace(/\s+/g, ' ').trim();
   if (cleaned.length === 0 || cleaned.length > 280) return fallback;
   if (PARAPHRASE_BLOCKLIST.test(cleaned)) return fallback;
+  if (containsClinicalAdvice(cleaned) || containsObviousIdentifier(cleaned)) return fallback;
   const questionMarks = (cleaned.match(/\?/g) ?? []).length;
   if (questionMarks > 1) return fallback;
   if (questionMarks === 1 && SOCIAL_QUESTION_BLOCKLIST.test(cleaned)) return fallback;

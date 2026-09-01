@@ -70,6 +70,7 @@ function initialDemoState(): SandboxDemoState {
 
 const MAX_OUTREACH_RUNS = 40;
 const POPULATION_REVIEWED_ID = /^pop-\d{1,4}-d\d$/;
+const POPULATION_WORK_ITEM_ID = /^ai-run-pop/;
 
 const OUTREACH_DISPOSITIONS = new Set<AiOutreachRun['disposition']>(['emergency', 'escalated', 'routine', 'no_answer']);
 const RED_FLAG_IDS = new Set<string>(Object.keys(RED_FLAG_CRITERIA));
@@ -425,7 +426,7 @@ export function SandboxWorkspace() {
       case 'coordination': return <SandboxCoordination taskStates={demo.taskStates} onReassign={reassign} onDocumentAction={documentAction} />;
       case 'patient-view': return <SandboxPatientView patient={selectedPatient} patientCheckIns={demo.patientCheckIns} onCheckIn={checkIn} />;
       case 'impact': return <SandboxImpact visitedSections={demo.visitedSections} exploredPathways={demo.exploredPathways} taskStates={demo.taskStates} documentedActions={demo.documentedActions} patientCheckIns={demo.patientCheckIns} dayIndex={demo.dayIndex} dayLog={demo.dayLog} workedCasesCount={demo.workedCases.length} onReset={reset} />;
-      default: return <SandboxCommandCenter taskStates={demo.taskStates} visitedSections={demo.visitedSections} dayIndex={demo.dayIndex} populationSize={demo.populationSize} workedCases={demo.workedCases} sentWorkItemIds={demo.aiOutreachRuns.map((run) => run.id)} onPopulationSize={setPopulationSize} onWorkCase={workCase} onSendToDailyLoop={addPopulationWorkItem} onNavigate={navigate} automatedCallsCount={OUTREACH_TRANSCRIPTS.length + demo.aiOutreachRuns.length} />;
+      default: return <SandboxCommandCenter taskStates={demo.taskStates} visitedSections={demo.visitedSections} dayIndex={demo.dayIndex} populationSize={demo.populationSize} workedCases={demo.workedCases} sentWorkItemIds={demo.aiOutreachRuns.map((run) => run.id)} onPopulationSize={setPopulationSize} onWorkCase={workCase} onSendToDailyLoop={addPopulationWorkItem} onNavigate={navigate} automatedCallsCount={OUTREACH_TRANSCRIPTS.length + demo.aiOutreachRuns.filter((run) => !POPULATION_WORK_ITEM_ID.test(run.id)).length} />;
     }
   })();
 
@@ -453,7 +454,10 @@ export function SandboxWorkspace() {
         </div>
       </section>
 
-      <div aria-live="polite">{sectionContent}</div>
+      <p className="sr-only" role="status" aria-live="polite">
+        Now viewing {SANDBOX_SECTIONS[currentSectionIndex]?.title ?? 'the sandbox'}.
+      </p>
+      <div>{sectionContent}</div>
 
       {dayToast && (
         <div role="status" data-testid="day-toast" className="fixed bottom-4 left-1/2 z-50 w-[min(92vw,32rem)] -translate-x-1/2 rounded-xl border border-violet-300 bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-xl">

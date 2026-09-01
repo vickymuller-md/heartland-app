@@ -52,38 +52,92 @@ function ExtractionPanel({ extraction }: { extraction: CheckInExtraction }) {
 function SbarDraft({ patient, extraction }: { patient: SandboxPatient; extraction: CheckInExtraction }) {
   const draft = useMemo(() => draftSbarFromCheckIn(patient, extraction), [patient, extraction]);
   const [fields, setFields] = useState(draft);
-  const [polishStatus, setPolishStatus] = useState<'idle' | 'busy' | 'polished' | 'unavailable'>('idle');
+  const [polishStatus, setPolishStatus] = useState<'idle' | 'busy' | 'proposed' | 'accepted' | 'rejected' | 'unavailable'>('idle');
+  const [polishProposal, setPolishProposal] = useState<{
+    before: Pick<typeof draft, 'situation' | 'background'>;
+    after: Pick<typeof draft, 'situation' | 'background'>;
+  } | null>(null);
+  const [undoSnapshot, setUndoSnapshot] = useState<Pick<typeof draft, 'situation' | 'background'> | null>(null);
   const sections = [
     ['Situation', 'situation'], ['Background', 'background'],
     ['Assessment', 'assessment'], ['Recommendation', 'recommendation'],
   ] as const;
 
   async function polish() {
-    if (polishStatus === 'busy') return;
+    if (polishStatus === 'busy' || polishProposal) return;
+    const before = { situation: fields.situation, background: fields.background };
+    setPolishProposal(null);
+    setUndoSnapshot(null);
     setPolishStatus('busy');
     const result = await requestAssist({
       kind: 'sbar_polish',
-      input: { patientName: patient.name, sbar: fields },
+      input: {
+        patientName: patient.name,
+        sbar: {
+          situation: fields.situation,
+          background: fields.background,
+          assessment: 'Provider-owned field excluded from AI wording request.',
+          recommendation: 'Provider-owned field excluded from AI wording request.',
+        },
+      },
       anonymousSessionId: getPublicDisseminationContext().anonymousSessionId,
     });
     if (result?.kind === 'sbar_polish') {
-      setFields({
-        situation: result.situation,
-        background: result.background,
-        assessment: result.assessment,
-        recommendation: result.recommendation,
+      setPolishProposal({
+        before,
+        after: { situation: result.situation, background: result.background },
       });
-      setPolishStatus('polished');
+      setPolishStatus('proposed');
       return;
     }
     setPolishStatus('unavailable');
+  }
+
+  function acceptPolish() {
+    if (!polishProposal) return;
+    setUndoSnapshot({
+      situation: fields.situation,
+      background: fields.background,
+    });
+    setFields((current) => ({
+      ...current,
+      situation: polishProposal.after.situation,
+      background: polishProposal.after.background,
+    }));
+    setPolishProposal(null);
+    setPolishStatus('accepted');
+  }
+
+  function rejectPolish() {
+    setPolishProposal(null);
+    setPolishStatus('rejected');
+  }
+
+  function undoPolish() {
+    if (!undoSnapshot) return;
+    setFields((current) => ({
+      ...current,
+      situation: undoSnapshot.situation,
+      background: undoSnapshot.background,
+    }));
+    setUndoSnapshot(null);
+    setPolishStatus('idle');
+  }
+
+  function updateField(key: (typeof sections)[number][1], value: string) {
+    setFields((current) => ({ ...current, [key]: value }));
+    if (key === 'situation' || key === 'background') {
+      setPolishProposal(null);
+      setUndoSnapshot(null);
+      setPolishStatus('idle');
+    }
   }
 
   return (
     <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4" data-testid="sandbox-sbar-draft">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-bold text-slate-950">SBAR handoff draft</p>
-        <Button size="sm" variant="outline" disabled={polishStatus === 'busy'} onClick={() => void polish()} data-testid="sbar-polish">
+        <Button size="sm" variant="outline" disabled={polishStatus === 'busy' || polishProposal !== null} onClick={() => void polish()} data-testid="sbar-polish">
           <Wand2 className="mr-1 size-4" /> {polishStatus === 'busy' ? 'Polishing…' : 'Polish wording with AI'}
         </Button>
       </div>
@@ -91,14 +145,52 @@ function SbarDraft({ patient, extraction }: { patient: SandboxPatient; extractio
         Situation and Background are drafted from the structured check-in data shown above — verify
         against the source values. Assessment and Recommendation always stay with the provider.
       </p>
-      {polishStatus === 'polished' && (
+      <p className="mt-2 text-[11px] font-semibold leading-4 text-amber-800">
+        Synthetic draft only — do not paste real patient, personal, or health information. AI polish sends Situation and Background only; Assessment and Recommendation remain browser-local.
+      </p>
+      {polishStatus === 'proposed' && polishProposal && (
         <p className="mt-2 rounded-lg border border-blue-300 bg-white p-2 text-[11px] leading-4 text-slate-700" data-testid="sbar-polish-note">
-          AI-polished wording — review before use. Values and findings must match the source data;
-          the disposition and red flags were not touched.
+          AI wording proposal — review before use. Only Situation and Background are proposed;
+          the current draft stays unchanged until you accept.
         </p>
+      )}
+      {polishStatus === 'accepted' && (
+        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-emerald-300 bg-white p-2 text-[11px] leading-4 text-slate-700" data-testid="sbar-polish-accepted">
+          <span>AI wording accepted for Situation and Background only. Assessment and Recommendation stayed unchanged.</span>
+          <Button size="sm" variant="outline" onClick={undoPolish}>Undo accepted wording</Button>
+        </div>
+      )}
+      {polishStatus === 'rejected' && (
+        <p className="mt-2 text-[11px] text-slate-600" data-testid="sbar-polish-rejected">Proposal rejected — the draft is unchanged.</p>
       )}
       {polishStatus === 'unavailable' && (
         <p className="mt-2 text-[11px] text-slate-500">Polishing is unavailable right now — the deterministic draft below is unchanged.</p>
+      )}
+      {polishProposal && (
+        <div className="mt-3 rounded-xl border border-blue-200 bg-white p-3" data-testid="sbar-polish-proposal">
+          <p className="text-xs font-bold text-slate-900">Compare current draft with AI proposal</p>
+          <div className="mt-2 grid gap-3 lg:grid-cols-2">
+            {(['situation', 'background'] as const).map((key) => (
+              <div key={key} className="rounded-lg border border-slate-200 p-3" data-testid={`sbar-polish-diff-${key}`}>
+                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-600">{key}</p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Current</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-700">{polishProposal.before[key]}</p>
+                  </div>
+                  <div className="rounded-md bg-blue-50 p-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">Proposed</p>
+                    <p className="mt-1 text-xs leading-5 text-blue-950">{polishProposal.after[key]}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" onClick={acceptPolish}>Accept proposal</Button>
+            <Button size="sm" variant="outline" onClick={rejectPolish}>Reject proposal</Button>
+          </div>
+        </div>
       )}
       <div className="mt-3 grid gap-3 lg:grid-cols-2">
         {sections.map(([label, key]) => (
@@ -107,7 +199,8 @@ function SbarDraft({ patient, extraction }: { patient: SandboxPatient; extractio
             <textarea
               value={fields[key]}
               maxLength={1200}
-              onChange={(event) => setFields((current) => ({ ...current, [key]: event.target.value }))}
+              disabled={polishStatus === 'busy' && (key === 'situation' || key === 'background')}
+              onChange={(event) => updateField(key, event.target.value)}
               rows={4}
               className="rounded-lg border border-slate-300 bg-white p-2 font-normal text-slate-900"
             />

@@ -87,6 +87,43 @@ describe('POST /api/sandbox-ai/simulate-call', () => {
     expect(transcript.redFlags).toEqual([]);
   });
 
+  it('overrides a model false negative when the patient transcript says chest pain', async () => {
+    rpcMock.mockResolvedValue({ data: true, error: null });
+    const turns = GENERATED_TURNS.map((turn, index) => index === 3
+      ? { ...turn, text: 'I have crushing chest pain right now.' }
+      : turn);
+    runSimulatedCallMock.mockResolvedValueOnce({
+      turns,
+      extracted: {
+        ...emptyExtraction(),
+        weightLbs: 188,
+        dyspnea: 0,
+        edema: 0,
+        orthopnea: false,
+        fatigue: 0,
+        adherence: 'yes',
+        chestPainOrSyncope: false,
+      },
+    });
+
+    const { transcript } = await (await POST(simulateRequest())).json();
+    expect(transcript.disposition).toBe('emergency');
+    expect(transcript.extraction.chestPainOrSyncope).toBe(true);
+    expect(transcript.redFlags).toEqual([]);
+  });
+
+  it('routes missing generated clinical answers to human review, never routine', async () => {
+    rpcMock.mockResolvedValue({ data: true, error: null });
+    runSimulatedCallMock.mockResolvedValueOnce({
+      turns: GENERATED_TURNS,
+      extracted: { ...emptyExtraction(), chestPainOrSyncope: false },
+    });
+
+    const { transcript } = await (await POST(simulateRequest())).json();
+    expect(transcript.disposition).toBe('escalated');
+    expect(transcript.redFlags.map((flag: { id: string }) => flag.id)).toContain('needs_human_review');
+  });
+
   it('degrades to fallback when generation fails after billing', async () => {
     rpcMock.mockResolvedValue({ data: true, error: null });
     runSimulatedCallMock.mockResolvedValueOnce(null);

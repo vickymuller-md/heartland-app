@@ -10,6 +10,7 @@
  */
 
 import { scriptFor } from './call-scripts';
+import { containsObviousIdentifier, detectEmergencyMention } from './safety';
 import { sanitizeParaphrase, sanitizeSmallTalk } from './schema';
 import { deflectMessageFor, emergencyMessageFor } from './script';
 import { canonicalFor } from './types';
@@ -148,6 +149,22 @@ export async function runCheckInTurn(
   if (!current) return fallbackResponse(state);
 
   const turnCount = state.turnCount + 1;
+  const visitorReply = userMessage.slice(0, MAX_MESSAGE_LENGTH);
+
+  // Raw-text emergency detection runs before the extraction model. A model
+  // false negative therefore cannot suppress the fixed emergency path.
+  if (detectEmergencyMention(visitorReply)) {
+    const emergencyState: CheckInState = {
+      ...state,
+      extraction: mergeExtraction(state.extraction, { chestPainOrSyncope: true }),
+      turnCount,
+    };
+    return emergencyResponse(emergencyState);
+  }
+
+  // Obvious direct identifiers never reach the model. The unchanged state
+  // lets the existing deterministic fallback form take over safely.
+  if (containsObviousIdentifier(visitorReply)) return fallbackResponse(state);
   if (turnCount > MAX_TURNS) return fallbackResponse(state);
 
   const nextId = nextQuestionIdIn(script.order, current.id);
@@ -158,11 +175,19 @@ export async function runCheckInTurn(
     nextQuestion: nextId ? script.questions[nextId] ?? null : null,
     reasksUsed: state.reasksUsed[current.id] ?? 0,
     chatBudgetRemaining: Math.max(0, MAX_CHAT_TURNS - (state.chatTurnsUsed ?? 0)),
-    visitorReply: userMessage.slice(0, MAX_MESSAGE_LENGTH),
+    visitorReply,
   });
   if (!llm) return fallbackResponse(state);
 
-  const extraction = mergeExtraction(state.extraction, llm.extracted);
+  // An extraction explicitly marked unclear is not clinical data. Preserve
+  // only an affirmative emergency signal; everything else remains missing so
+  // deterministic completion routes it to human review rather than routine.
+  const extraction = mergeExtraction(
+    state.extraction,
+    llm.extracted.unclear
+      ? (llm.extracted.chestPainOrSyncope === true ? { chestPainOrSyncope: true } : {})
+      : llm.extracted,
+  );
   const base: CheckInState = { ...state, extraction, turnCount };
   const currentCanonical = canonicalFor(current, state.locale);
 

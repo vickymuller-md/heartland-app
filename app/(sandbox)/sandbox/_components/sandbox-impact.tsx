@@ -50,7 +50,7 @@ export function SandboxImpact({ visitedSections, exploredPathways, taskStates, d
         <MetricCard label="Pathways opened" value={exploredPathways.length} detail="Real public tools." tone="amber" />
         <MetricCard label="Patient actions" value={patientCheckIns.length} detail="Synthetic Today engagement." />
         <MetricCard label="Days simulated" value={`${dayIndex + 1}/5`} detail={`${dayLog.reduce((sum, entry) => sum + entry.escalations, 0)} escalations caught across completed days.`} tone="violet" />
-        <MetricCard label="Cases worked" value={workedCasesCount} detail="Population review-queue cases opened, called, and documented." tone="emerald" />
+        <MetricCard label="Cases documented" value={workedCasesCount} detail="Review-queue cases with a selected synthetic outcome; a call is not required." tone="emerald" />
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(320px,0.75fr)_minmax(0,1.25fr)]">
