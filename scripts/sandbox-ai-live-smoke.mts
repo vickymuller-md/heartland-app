@@ -43,15 +43,47 @@ async function main() {
       wantSpeech: true,
     }),
   });
-  const latencyMs = Date.now() - startedAt;
-  const body = await response.json() as {
+
+  // Two-phase NDJSON: line 1 = the turn (text lands here — the latency the
+  // caller feels); line 2 = the synthesized speech. Plain JSON still parses.
+  type TurnBody = {
     fallback?: boolean;
     assistantMessages?: string[];
     speech?: Array<{ kind: string; clipId?: string; mp3Base64?: string } | null>;
     state?: { phase: string };
   };
+  let body: TurnBody;
+  let textMs = 0;
+  let audioMs = 0;
+  const contentType = response.headers.get('content-type') ?? '';
+  if (contentType.includes('ndjson') && response.body) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffered = '';
+    const lines: string[] = [];
+    while (lines.length < 2) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffered += decoder.decode(value, { stream: true });
+      const parts = buffered.split('\n');
+      buffered = parts.pop() ?? '';
+      for (const part of parts) {
+        if (part.trim().length === 0) continue;
+        lines.push(part);
+        if (lines.length === 1) textMs = Date.now() - startedAt;
+      }
+    }
+    audioMs = Date.now() - startedAt;
+    body = JSON.parse(lines[0]) as TurnBody;
+    const phase2 = lines[1] ? (JSON.parse(lines[1]) as { speech?: TurnBody['speech'] }) : null;
+    if (phase2?.speech) body.speech = phase2.speech;
+  } else {
+    body = await response.json() as TurnBody;
+    textMs = audioMs = Date.now() - startedAt;
+  }
+  const latencyMs = audioMs;
 
-  console.log(`POST ${BASE_URL}/api/sandbox-ai/checkin -> ${response.status} in ${latencyMs} ms`);
+  console.log(`POST ${BASE_URL}/api/sandbox-ai/checkin -> ${response.status} · text in ${textMs} ms · audio in ${audioMs} ms`);
 
   if (body.fallback || !body.state) {
     console.error('FAIL: endpoint answered with the deterministic fallback.');

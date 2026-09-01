@@ -202,6 +202,55 @@ test('the copilot runs the morning round, narrates the brief, and answers queue 
   await expect(page.getByTestId('daily-loop-outreach')).toContainText('Persona 2 (synthetic)');
 });
 
+test('the call chats back on pure small talk and streams text before audio', async ({ page }) => {
+  let calls = 0;
+  await page.route('**/api/sandbox-ai/checkin', async (route) => {
+    calls += 1;
+    if (calls === 1) {
+      // Pure chat turn as two-phase NDJSON: the chat reply (pending audio),
+      // then the resolved speech line. Phase must NOT advance.
+      const body = JSON.parse(route.request().postData() ?? '{}');
+      const turn = {
+        assistantMessages: ['Lemon pie — now that sounds like a lovely afternoon. Who taught you that recipe?'],
+        speech: [{ kind: 'pending' }],
+        state: { ...body.state, turnCount: 1, chatTurnsUsed: 1 },
+        done: false, disposition: null, redFlags: [], fallback: false,
+      };
+      await route.fulfill({
+        contentType: 'application/x-ndjson',
+        body: `${JSON.stringify(turn)}\n${JSON.stringify({ speech: [null] })}\n`,
+      });
+      return;
+    }
+    const body = JSON.parse(route.request().postData() ?? '{}');
+    await route.fulfill({
+      json: {
+        assistantMessages: ['Thank you. What did the scale show this morning, in pounds?'],
+        state: { ...body.state, phase: 'q2_weight', turnCount: 2 },
+        done: false, disposition: null, redFlags: [], fallback: false,
+      },
+    });
+  });
+
+  await page.goto('/sandbox');
+  await page.getByTestId('sandbox-nav-patient-view').click();
+  await page.getByTestId('open-live-call').click();
+  await page.getByTestId('answer-call').click();
+
+  const input = page.getByLabel('Say something in your own words');
+  await input.fill('my granddaughter and I baked a lemon pie today!');
+  await input.press('Enter');
+  // The chat reply shows WITHOUT the script question appended — real chat.
+  // (The question legitimately appears ONCE, from the call opening.)
+  await expect(page.getByRole('log')).toContainText('Who taught you that recipe?');
+  const transcript = (await page.getByRole('log').textContent()) ?? '';
+  expect(transcript.split('any chest pain').length - 1).toBe(1);
+
+  await input.fill('my grandmother did! anyway, no chest pain today');
+  await input.press('Enter');
+  await expect(page.getByRole('log')).toContainText('What did the scale show this morning');
+});
+
 test('the population scene runs deterministically and funnels thousands into a small review queue', async ({ page }) => {
   // Reduced motion lands on the final state without the 30s theater replay.
   await page.emulateMedia({ reducedMotion: 'reduce' });

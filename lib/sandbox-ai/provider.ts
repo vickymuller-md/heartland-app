@@ -57,6 +57,7 @@ export async function runLlmTurn(input: {
   currentQuestion: ScriptQuestion;
   nextQuestion: ScriptQuestion | null;
   reasksUsed: number;
+  chatBudgetRemaining: number;
   visitorReply: string;
 }): Promise<LlmTurn | null> {
   try {
@@ -65,10 +66,13 @@ export async function runLlmTurn(input: {
     const extractionKeys = [...new Set(script.order.flatMap((id) => script.questions[id]?.extractionKeys ?? []))];
     const response = await client.messages.create({
       // `temperature` is intentionally omitted: deprecated for Claude 5 models.
-      model: process.env.SANDBOX_AI_MODEL ?? DEFAULT_MODEL,
+      // Conversational turns run on the fast tier: extraction and phrasing are
+      // fully guarded downstream (zod -> fallback form, sanitizers, and every
+      // clinical decision in the deterministic engine), so per-turn latency —
+      // the thing an elderly caller feels — wins. Rollback is one env var.
+      model: process.env.SANDBOX_AI_TURN_MODEL ?? 'claude-haiku-4-5',
       max_tokens: 400,
-      // Static system prompt is cache-marked: repeated turns bill ~10% of input.
-      system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+      system: [{ type: 'text', text: SYSTEM_PROMPT }],
       tools: [{
         name: 'check_in_turn',
         description: 'Report the structured result of one check-in turn: extracted data plus the paraphrased next question.',
