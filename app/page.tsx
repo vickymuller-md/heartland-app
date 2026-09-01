@@ -6,6 +6,7 @@ import { Masthead, Colophon } from "@heartland/ui";
 import { Hero } from "@/components/landing/hero";
 import { Abstract } from "@/components/landing/abstract";
 import { ScaleDemo } from "@/components/landing/scale-demo";
+import { AutomationEvidence } from "@/components/landing/automation-evidence";
 import { Modules } from "@/components/landing/modules";
 import { EvidenceFoundation } from "@/components/landing/evidence";
 import { AccessCta } from "@/components/landing/access-cta";
@@ -33,7 +34,7 @@ export default async function Home() {
         currentSite="app"
         navItems={[
           { label: "The Protocol", href: "/about" },
-          { label: "Try sandbox", href: "/sandbox" },
+          { label: "Evidence Lab", href: "/sandbox" },
           {
             label: "Research",
             href: "https://doi.org/10.5281/zenodo.19101219",
@@ -41,7 +42,7 @@ export default async function Home() {
           },
           { label: "Sign in", href: "/login" },
         ]}
-        cta={{ label: "Try sandbox", href: "/sandbox" }}
+        cta={{ label: "Open Evidence Lab", href: "/sandbox" }}
       />
       <aside className="border-b border-amber-900/40 bg-amber-950 px-6 py-3 text-center font-editorial text-sm leading-relaxed text-amber-100">
         Public routes: educational sandbox. Authenticated workspace: controlled evaluation only. Real PHI and unsupervised clinical use are not authorized until organizational security, privacy, validation, staffing, and governance gates are approved.
@@ -49,6 +50,7 @@ export default async function Home() {
       <Hero />
       <Abstract />
       <ScaleDemo />
+      <AutomationEvidence />
       <Modules />
       <EvidenceFoundation />
       <AccessCta />
@@ -70,7 +72,7 @@ export default async function Home() {
           {
             title: "Platform",
             links: [
-              { label: "Try sandbox", href: "/sandbox" },
+              { label: "Open Evidence Lab", href: "/sandbox" },
               { label: "Create tester account", href: "/register?mode=tester" },
               { label: "Request clinical access", href: "/request-access" },
               { label: "Sign in", href: "/login" },

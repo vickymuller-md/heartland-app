@@ -41,9 +41,9 @@ export function Abstract() {
 
         <p className="mx-auto mt-16 max-w-2xl text-center font-editorial text-[15.5px] leading-relaxed text-cool/75">
           GWTG-HF and ESC-HF-LT are registries. MAGGIC and SHFM are
-          prognostic calculators. None is a clinical operating system for
-          rural primary care.{" "}
-          <span className="text-cool">Heartland is.</span>
+          prognostic calculators. None demonstrates a shared implementation
+          workflow for rural primary care.{" "}
+          <span className="text-cool">Heartland makes that workflow inspectable.</span>
         </p>
 
         {/* Required disclaimers — verbatim text mandated by NIW_INTEGRATION.md */}
