@@ -59,10 +59,10 @@ For research collaborations, pilot deployments at Critical Access Hospitals, or 
 | Stream | State |
 |-|-|
 | Product workspace | Daily Loop, patient 60-second brief, action center, patient Today/Plan/Privacy, and privacy-minimized product telemetry implemented |
-| Public sandbox | Sandbox 2.0 instantâneo, sem conta, com sete áreas conectadas, três casos sintéticos profundos e workflow persistente; conta tester é opcional e SMTP próprio ainda é necessário para confirmação confiável |
+| Public sandbox | Account-free synthetic Evidence Lab with bilingual AI-assisted check-ins, provider workflow demonstrations, population replay, and inspectable decision receipts; not for real patient data or clinical use |
 | Clinical release posture | Controlled evaluation only; real-PHI and pilot go-live gates remain closed pending independent validation and organizational controls |
 | Product plan | Published in [`reference/HEARTLAND_PRODUCT_ADOPTION_PLAN.md`](./reference/HEARTLAND_PRODUCT_ADOPTION_PLAN.md) |
-| NIW petition integration | Tracked in [`NIW_INTEGRATION.md`](./NIW_INTEGRATION.md) |
+| Open-science release record | Version metadata in [`CITATION.cff`](./CITATION.cff) and [`.zenodo.json`](./.zenodo.json); release boundaries in [`reference/RELEASE_NOTES_v1.9.0.md`](./reference/RELEASE_NOTES_v1.9.0.md) |
 
 ## Stack
 
@@ -78,7 +78,7 @@ For research collaborations, pilot deployments at Critical Access Hospitals, or 
 
 ```bash
 npm install
-cp .env.example .env.local   # fill Supabase + GA4 keys
+cp .env.local.example .env.local   # fill Supabase + GA4 keys
 npm run dev
 npm test
 ```
