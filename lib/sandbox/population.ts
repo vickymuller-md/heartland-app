@@ -16,6 +16,7 @@ import { assignTrack } from '@/lib/remote-monitoring/engine';
 import type { TrackType } from '@/lib/remote-monitoring/types';
 import { calculateRiskScore } from '@/lib/risk-score/engine';
 import type { RiskInput } from '@/lib/risk-score/types';
+import type { SandboxLab, SandboxMedication, SandboxVitalPoint } from '@/lib/sandbox/types';
 import { evaluateRedFlags } from '@/lib/vitals/red-flags';
 
 // ── Deterministic randomness ─────────────────────────────────
@@ -57,6 +58,8 @@ const STREAM = {
   dayAdherence: 13,
   dayRetry: 14,
   dayMinute: 15,
+  chartLabs: 16,
+  chartVitals: 17,
 } as const;
 
 // ── Cohort generation ────────────────────────────────────────
@@ -505,10 +508,160 @@ export function getPopulationDayEvents(size: PopulationSize, dayIndex: number): 
   return events;
 }
 
+// ── Per-patient chart (the workable case) ────────────────────
+
+/**
+ * Pure REPLAY of generatePatient's demographics draws (frailty, then the 10
+ * risk factors, in RISK_FACTOR_MODEL order) — recovers the raw inputs the
+ * cohort generator computes and discards, without touching it or shifting any
+ * draw. The frozen regression fixture proves this stays side-effect-free.
+ */
+export function deriveRiskInput(ordinal: number): RiskInput {
+  const demo = mulberry32(seedFor(ordinal, 0, STREAM.demographics));
+  const frailty = demo();
+  const riskInput = {} as RiskInput;
+  for (const factor of RISK_FACTOR_MODEL) {
+    riskInput[factor.key] = demo() < factor.p + factor.loading * (frailty - 0.5);
+  }
+  return riskInput;
+}
+
+/** One patient's evaluated day; same numbers the queue and replay show. */
+export function getPopulationPatientDay(ordinal: number, dayIndex: number) {
+  const patient = generatePatient(clampChartOrdinal(ordinal));
+  return evaluatePatientDay(patient, dayIndex, buildRecordedAt(Date.now()));
+}
+
+export interface PopulationPatientChart {
+  ordinal: number;
+  name: string;
+  age: number;
+  state: string;
+  tier: RiskTierLabel;
+  track: TrackType;
+  riskInput: RiskInput;
+  /** Engine breakdown: every factor with its points and presence. */
+  riskFactors: Array<{ variable: string; present: boolean; points: number }>;
+  totalScore: number;
+  vitals: SandboxVitalPoint[];
+  labs: SandboxLab[];
+  medications: SandboxMedication[];
+  dayFlag: { ruleIds: string[]; reason: string; values: NonNullable<PatientDayOutcome['values']>; weightDelta: number } | null;
+  checkInReceived: boolean;
+}
+
+function clampChartOrdinal(ordinal: number): number {
+  if (!Number.isFinite(ordinal)) return 0;
+  return Math.min(Math.max(Math.trunc(ordinal), 0), 4999);
+}
+
+function round1(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+const chartCache = new Map<string, PopulationPatientChart>();
+
+export function getPopulationPatientChart(ordinal: number, dayIndex: number): PopulationPatientChart {
+  const safeOrdinal = clampChartOrdinal(ordinal);
+  const cacheKey = `${safeOrdinal}:${dayIndex}`;
+  const cached = chartCache.get(cacheKey);
+  if (cached) return cached;
+
+  const patient = generatePatient(safeOrdinal);
+  const riskInput = deriveRiskInput(safeOrdinal);
+  const risk = calculateRiskScore(riskInput);
+  const outcome = evaluatePatientDay(patient, dayIndex, buildRecordedAt(Date.now()));
+
+  // Arc-invariant labs (jitter only; ranges keep the titration gates sane:
+  // never K+ > 5.5, never eGFR <= 30 — the flags of the day stay the story).
+  const labsRng = mulberry32(seedFor(safeOrdinal, 0, STREAM.chartLabs));
+  const renal = riskInput.egfrBelow45;
+  const potassium = round1((renal ? 4.3 : 3.9) + labsRng() * 0.8);
+  const creatinine = round1((renal ? 1.5 : 0.9) * 10 + labsRng() * (renal ? 6 : 4)) / 10;
+  const egfr = Math.round(renal ? 31 + labsRng() * 13 : 55 + labsRng() * 30);
+  const labs: PopulationPatientChart['labs'] = [
+    { name: 'Potassium', value: `${potassium.toFixed(1)} mmol/L`, collected: '3 days ago', status: potassium >= 5.0 ? 'watch' : 'within range' },
+    { name: 'Creatinine', value: `${creatinine.toFixed(2)} mg/dL`, collected: '3 days ago', status: renal ? 'watch' : 'within range' },
+    { name: 'eGFR', value: `${egfr} mL/min/1.73m²`, collected: '3 days ago', status: renal ? 'watch' : 'within range' },
+  ];
+
+  const medications: PopulationPatientChart['medications'] = [
+    { name: 'Carvedilol', therapyClass: 'Beta blocker', dose: '12.5 mg twice daily', status: 'active', note: 'Tolerability documented' },
+    { name: 'Empagliflozin', therapyClass: 'SGLT2i', dose: '10 mg daily', status: 'active', note: 'Access confirmed' },
+  ];
+  if (riskInput.lvefBelow30) {
+    medications.unshift({ name: 'Sacubitril/valsartan', therapyClass: 'ARNI', dose: '49/51 mg twice daily', status: 'active', note: 'Last reconciliation 8 days ago' });
+    medications.push(renal
+      ? { name: 'Spironolactone', therapyClass: 'MRA', dose: 'Not documented', status: 'documented gap', note: 'Held pending current renal source' }
+      : { name: 'Spironolactone', therapyClass: 'MRA', dose: '25 mg daily', status: 'titration due', note: 'Target dose not yet reached' });
+  }
+  if (patient.tier === 'High') {
+    medications.push({ name: 'Furosemide', therapyClass: 'Loop diuretic', dose: '40 mg daily', status: 'active', note: 'Standing adjustment order on file' });
+  }
+
+  // Vitals series: the SAME 7 weights the day evaluation used, oldest first,
+  // labeled EXACTLY as labelToDaysAgo (daily-script.ts) parses — any other
+  // label silently empties the call's weight history and the flag never fires.
+  const vitalsRng = mulberry32(seedFor(safeOrdinal, dayIndex, STREAM.chartVitals));
+  const anchorSbp = outcome.values?.sbp ?? Math.round(112 + vitalsRng() * 20);
+  const anchorSpo2 = outcome.values?.spo2 ?? 95;
+  const anchorHr = 62 + Math.floor(vitalsRng() * 24);
+  const historyWeights = outcome.weightHistory
+    ?? Array.from({ length: 7 }, () => round1(patient.baselineWeightLbs + (vitalsRng() - 0.5) * 0.8));
+  const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), high);
+  const vitals: PopulationPatientChart['vitals'] = [];
+  for (let daysAgo = 7; daysAgo >= 1; daysAgo -= 1) {
+    vitals.push({
+      label: daysAgo === 1 ? 'Yesterday' : `${daysAgo}d ago`,
+      weight: historyWeights[daysAgo - 1],
+      sbp: clamp(Math.round(anchorSbp + (vitalsRng() - 0.5) * 12), 95, 140),
+      heartRate: clamp(Math.round(anchorHr + (vitalsRng() - 0.5) * 10), 55, 95),
+      spo2: clamp(Math.round(anchorSpo2 + (vitalsRng() - 0.5) * 2), 93, 98),
+    });
+  }
+  if (outcome.values) {
+    vitals.push({
+      label: 'Today',
+      weight: outcome.values.weightLbs,
+      sbp: outcome.values.sbp,
+      heartRate: anchorHr,
+      spo2: outcome.values.spo2,
+    });
+  }
+
+  const isFlagged = outcome.category === 'critical' || outcome.category === 'warning';
+  const chart: PopulationPatientChart = {
+    ordinal: safeOrdinal,
+    name: patient.name,
+    age: patient.age,
+    state: patient.state,
+    tier: patient.tier,
+    track: patient.track,
+    riskInput,
+    riskFactors: risk.breakdown.map((entry) => ({ variable: entry.variable, present: entry.present, points: entry.points })),
+    totalScore: risk.totalScore,
+    vitals,
+    labs,
+    medications,
+    dayFlag: isFlagged && outcome.values
+      ? { ruleIds: outcome.ruleIds, reason: outcome.reason ?? '', values: outcome.values, weightDelta: outcome.weightDelta ?? 0 }
+      : null,
+    checkInReceived: outcome.category !== 'no_answer',
+  };
+
+  chartCache.set(cacheKey, chart);
+  if (chartCache.size > 20) {
+    const oldest = chartCache.keys().next().value;
+    if (oldest !== undefined) chartCache.delete(oldest);
+  }
+  return chart;
+}
+
 /** Test hook: proves determinism by forcing full recomputation between calls. */
 export function clearPopulationCachesForTests(): void {
   cohortCache.clear();
   dayCache.clear();
+  chartCache.clear();
   lastEventsKey = null;
   lastEvents = null;
 }

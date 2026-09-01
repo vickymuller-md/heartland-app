@@ -7,10 +7,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { calculateRiskScore } from '@/lib/risk-score/engine';
 import {
   clearPopulationCachesForTests,
+  deriveRiskInput,
   generatePopulation,
   getPopulationDayEvents,
+  getPopulationPatientChart,
   POPULATION_SIZES,
   simulatePopulationDay,
 } from '@/lib/sandbox/population';
@@ -148,6 +151,60 @@ describe('replay event stream', () => {
       expect(event.values).toBeUndefined();
       expect(event.weightHistory).toBeUndefined();
     }
+  });
+});
+
+describe('per-patient chart', () => {
+  it('is deterministic and internally coherent with the cohort and the day', () => {
+    clearPopulationCachesForTests();
+    const cohort = generatePopulation(500);
+    const events = getPopulationDayEvents(500, 0);
+    const flagged = events.find((event) => event.category === 'critical' || event.category === 'warning')!;
+
+    const chart = getPopulationPatientChart(flagged.ordinal, 0);
+    clearPopulationCachesForTests();
+    expect(getPopulationPatientChart(flagged.ordinal, 0)).toEqual(chart);
+
+    // Risk factors reproduce the displayed tier and derive from the same draws.
+    const cohortPatient = cohort[flagged.ordinal];
+    expect(chart.name).toBe(cohortPatient.name);
+    expect(calculateRiskScore(deriveRiskInput(flagged.ordinal)).tierLabel).toBe(cohortPatient.tier);
+    const presentPoints = chart.riskFactors.filter((f) => f.present).reduce((sum, f) => sum + f.points, 0);
+    expect(presentPoints).toBe(chart.totalScore);
+
+    // The chart's day matches the queue event exactly.
+    expect(chart.dayFlag?.ruleIds).toEqual(flagged.ruleIds);
+    expect(chart.dayFlag?.values).toEqual(flagged.values);
+    expect(chart.vitals.at(-1)?.label).toBe('Today');
+    expect(chart.vitals.at(-1)?.weight).toBe(flagged.values!.weightLbs);
+    // Labels the call engine's labelToDaysAgo can parse — nothing else.
+    for (const point of chart.vitals) {
+      expect(point.label).toMatch(/^(Today|Yesterday|[2-7]d ago)$/);
+    }
+
+    // Titration gates stay sane: never K+ > 5.5, never eGFR <= 30.
+    const potassium = Number.parseFloat(chart.labs[0].value);
+    const egfr = Number.parseInt(chart.labs[2].value, 10);
+    expect(potassium).toBeLessThanOrEqual(5.5);
+    expect(egfr).toBeGreaterThan(30);
+    expect(chart.medications.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('renders an unreachable day as baseline-only without fabricated values', () => {
+    const events = getPopulationDayEvents(2500, 0);
+    const unreachable = events.find((event) => event.category === 'no_answer')!;
+    const chart = getPopulationPatientChart(unreachable.ordinal, 0);
+    expect(chart.checkInReceived).toBe(false);
+    expect(chart.dayFlag).toBeNull();
+    expect(chart.vitals.at(-1)?.label).toBe('Yesterday');
+  });
+
+  it('never pollutes the frozen aggregate numbers', () => {
+    clearPopulationCachesForTests();
+    for (let ordinal = 0; ordinal < 50; ordinal += 1) getPopulationPatientChart(ordinal, 1);
+    const result = simulatePopulationDay(500, 0);
+    expect(result.counts.reviewQueue).toBe(15);
+    expect(result.counts.routine).toBe(426);
   });
 });
 
