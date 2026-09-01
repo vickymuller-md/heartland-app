@@ -116,12 +116,18 @@ describe('POST /api/sandbox-ai/checkin', () => {
     });
 
     const response = await POST(checkInRequest({ ...validBody, wantSpeech: true }));
-    const body = await response.json();
-    expect(body.assistantMessages).toEqual([
+    // Two-phase NDJSON: text + resolved clips first, synthesized audio second.
+    expect(response.headers.get('content-type')).toContain('application/x-ndjson');
+    const [phase1, phase2] = (await response.text()).trim().split('\n').map((line) => JSON.parse(line));
+    expect(phase1.assistantMessages).toEqual([
       'What a treat to have your grandson visit.',
       SCRIPT_QUESTIONS.q2_weight.canonical,
     ]);
-    expect(body.speech).toEqual([
+    expect(phase1.speech).toEqual([
+      { kind: 'pending' },
+      { kind: 'clip', clipId: 'q2_weight' },
+    ]);
+    expect(phase2.speech).toEqual([
       { kind: 'audio', mp3Base64: Buffer.from('mp3').toString('base64') },
       { kind: 'clip', clipId: 'q2_weight' },
     ]);
@@ -143,8 +149,8 @@ describe('POST /api/sandbox-ai/checkin', () => {
     });
 
     const response = await POST(checkInRequest({ ...validBody, wantSpeech: true }));
-    const body = await response.json();
-    expect(body.speech).toEqual([null, { kind: 'clip', clipId: 'q2_weight' }]);
+    const [, phase2] = (await response.text()).trim().split('\n').map((line) => JSON.parse(line));
+    expect(phase2.speech).toEqual([null, { kind: 'clip', clipId: 'q2_weight' }]);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
