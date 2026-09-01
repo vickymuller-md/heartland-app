@@ -5,6 +5,7 @@ import { Activity, BarChart3, BookOpenCheck, ClipboardList, HeartPulse, PhoneCal
 import { trackProductEvent } from '@/lib/product-analytics/actions';
 import { getPublicDisseminationContext } from '@/lib/product-analytics/public-context';
 import { OUTREACH_TRANSCRIPTS, outreachWorkItems, type SimulatedCallTranscript } from '@/lib/sandbox-ai/fixtures';
+import { OUTCOME_KEYS } from '@/lib/sandbox/case-outcomes';
 import { clampDayIndex, SANDBOX_DAY_COUNT } from '@/lib/sandbox/day-selectors';
 import { DEFAULT_POPULATION_SIZE, POPULATION_SIZES, type PopulationSize } from '@/lib/sandbox/population';
 import { SANDBOX_PATHWAYS, SANDBOX_PATIENTS, SANDBOX_SECTIONS, SANDBOX_TASKS } from '@/lib/sandbox/fixtures';
@@ -62,7 +63,7 @@ function initialDemoState(): SandboxDemoState {
     dayIndex: 0,
     dayLog: [],
     populationSize: DEFAULT_POPULATION_SIZE,
-    populationReviewedIds: [],
+    workedCases: [],
     savedAt: Date.now(),
   };
 }
@@ -170,12 +171,41 @@ function restoreDemoState(value: unknown): SandboxDemoState | null {
     populationSize: POPULATION_SIZES.includes(value.populationSize as PopulationSize)
       ? value.populationSize as PopulationSize
       : DEFAULT_POPULATION_SIZE,
-    populationReviewedIds: Array.isArray(value.populationReviewedIds)
-      ? [...new Set(value.populationReviewedIds.filter((id): id is string =>
-          typeof id === 'string' && POPULATION_REVIEWED_ID.test(id)))].slice(0, 40)
-      : [],
+    workedCases: restoreWorkedCases(value),
     savedAt: value.savedAt,
   };
+}
+
+const WORKED_DISPOSITIONS = new Set(['routine', 'escalated', 'emergency', 'no_answer']);
+
+function restoreWorkedCases(value: Record<string, unknown>): SandboxDemoState['workedCases'] {
+  const cases: SandboxDemoState['workedCases'] = [];
+  const push = (id: string, outcome: string, disposition?: string) => {
+    if (!POPULATION_REVIEWED_ID.test(id) || !OUTCOME_KEYS.has(outcome)) return;
+    if (cases.some((entry) => entry.id === id)) return;
+    cases.push({
+      id, outcome,
+      dayIndex: clampDayIndex(Number(id.slice(id.lastIndexOf('-d') + 2))),
+      disposition: disposition && WORKED_DISPOSITIONS.has(disposition)
+        ? disposition as NonNullable<SandboxDemoState['workedCases'][number]['disposition']>
+        : undefined,
+    });
+  };
+  if (Array.isArray(value.workedCases)) {
+    for (const item of value.workedCases.slice(0, 40)) {
+      if (isRecord(item) && typeof item.id === 'string' && typeof item.outcome === 'string') {
+        push(item.id, item.outcome, typeof item.disposition === 'string' ? item.disposition : undefined);
+      }
+    }
+    return cases;
+  }
+  // One-way migration from the v1.7.0 shape: reviewed ids become worked cases.
+  if (Array.isArray(value.populationReviewedIds)) {
+    for (const id of value.populationReviewedIds.slice(0, 40)) {
+      if (typeof id === 'string') push(id, 'reviewed_legacy');
+    }
+  }
+  return cases;
 }
 
 function hasMeaningfulAction(state: SandboxDemoState): boolean {
@@ -332,11 +362,16 @@ export function SandboxWorkspace() {
     });
   }
 
-  function markPopulationReviewed(reviewedId: string) {
+  /** Documents (or re-documents) one population case; the latest outcome wins. */
+  function workCase(caseId: string, outcome: string, disposition?: SandboxDemoState['workedCases'][number]['disposition']) {
     trackFirstAction();
-    setDemo((current) => current.populationReviewedIds.includes(reviewedId)
-      ? current
-      : { ...current, populationReviewedIds: [...current.populationReviewedIds, reviewedId].slice(-40) });
+    setDemo((current) => ({
+      ...current,
+      workedCases: [
+        ...current.workedCases.filter((entry) => entry.id !== caseId),
+        { id: caseId, outcome, dayIndex: current.dayIndex, disposition },
+      ].slice(-40),
+    }));
   }
 
   function advanceDay(escalations: number) {
@@ -382,15 +417,15 @@ export function SandboxWorkspace() {
 
   const sectionContent = (() => {
     switch (demo.selectedSection) {
-      case 'copilot': return <SandboxCopilot outreachItems={outreachWorkItems(dayRuns)} dayIndex={demo.dayIndex} dayLog={demo.dayLog} populationSize={demo.populationSize} reviewedCount={demo.populationReviewedIds.filter((id) => id.endsWith(`-d${demo.dayIndex}`)).length} onAdvanceDay={advanceDay} onRecordRun={recordOutreachRun} onNavigate={navigate} />;
+      case 'copilot': return <SandboxCopilot outreachItems={outreachWorkItems(dayRuns)} dayIndex={demo.dayIndex} dayLog={demo.dayLog} populationSize={demo.populationSize} reviewedCount={demo.workedCases.filter((entry) => entry.dayIndex === demo.dayIndex).length} onAdvanceDay={advanceDay} onRecordRun={recordOutreachRun} onNavigate={navigate} />;
       case 'daily-loop': return <SandboxDailyLoop taskStates={demo.taskStates} onTaskState={updateTask} onOpenPatient={openPatient} onBulkReview={bulkReview} outreachItems={outreachWorkItems(dayRuns)} dayIndex={demo.dayIndex} onOpenOutreach={() => navigate('outreach')} />;
       case 'outreach': return <SandboxOutreach liveCalls={liveCalls} runs={demo.aiOutreachRuns} onLiveCall={recordOutreachRun} />;
       case 'patient-360': return <SandboxPatientWorkspace patient={selectedPatient} documentedActions={demo.documentedActions} onPatientChange={(patientId) => setDemo((current) => ({ ...current, selectedPatientId: patientId }))} onDocumentAction={documentAction} />;
       case 'pathways': return <SandboxPathways exploredPathways={demo.exploredPathways} onExplore={explorePathway} />;
       case 'coordination': return <SandboxCoordination taskStates={demo.taskStates} onReassign={reassign} onDocumentAction={documentAction} />;
       case 'patient-view': return <SandboxPatientView patient={selectedPatient} patientCheckIns={demo.patientCheckIns} onCheckIn={checkIn} />;
-      case 'impact': return <SandboxImpact visitedSections={demo.visitedSections} exploredPathways={demo.exploredPathways} taskStates={demo.taskStates} documentedActions={demo.documentedActions} patientCheckIns={demo.patientCheckIns} dayIndex={demo.dayIndex} dayLog={demo.dayLog} onReset={reset} />;
-      default: return <SandboxCommandCenter taskStates={demo.taskStates} visitedSections={demo.visitedSections} dayIndex={demo.dayIndex} populationSize={demo.populationSize} populationReviewedIds={demo.populationReviewedIds} sentWorkItemIds={demo.aiOutreachRuns.map((run) => run.id)} onPopulationSize={setPopulationSize} onMarkPopulationReviewed={markPopulationReviewed} onSendToDailyLoop={addPopulationWorkItem} onNavigate={navigate} automatedCallsCount={OUTREACH_TRANSCRIPTS.length + demo.aiOutreachRuns.length} />;
+      case 'impact': return <SandboxImpact visitedSections={demo.visitedSections} exploredPathways={demo.exploredPathways} taskStates={demo.taskStates} documentedActions={demo.documentedActions} patientCheckIns={demo.patientCheckIns} dayIndex={demo.dayIndex} dayLog={demo.dayLog} workedCasesCount={demo.workedCases.length} onReset={reset} />;
+      default: return <SandboxCommandCenter taskStates={demo.taskStates} visitedSections={demo.visitedSections} dayIndex={demo.dayIndex} populationSize={demo.populationSize} workedCases={demo.workedCases} sentWorkItemIds={demo.aiOutreachRuns.map((run) => run.id)} onPopulationSize={setPopulationSize} onWorkCase={workCase} onSendToDailyLoop={addPopulationWorkItem} onNavigate={navigate} automatedCallsCount={OUTREACH_TRANSCRIPTS.length + demo.aiOutreachRuns.length} />;
     }
   })();
 

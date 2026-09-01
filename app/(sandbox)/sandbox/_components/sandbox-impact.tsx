@@ -6,7 +6,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { MetricCard, SectionHeading, SyntheticBanner } from './sandbox-ui';
 
-export function SandboxImpact({ visitedSections, exploredPathways, taskStates, documentedActions, patientCheckIns, dayIndex, dayLog, onReset }: {
+export function SandboxImpact({ visitedSections, exploredPathways, taskStates, documentedActions, patientCheckIns, dayIndex, dayLog, workedCasesCount, onReset }: {
   visitedSections: SandboxSectionId[];
   exploredPathways: string[];
   taskStates: Record<string, SandboxTaskState>;
@@ -14,6 +14,7 @@ export function SandboxImpact({ visitedSections, exploredPathways, taskStates, d
   patientCheckIns: string[];
   dayIndex: number;
   dayLog: SandboxDayLogEntry[];
+  workedCasesCount: number;
   onReset: () => void;
 }) {
   const closed = Object.values(taskStates).filter((state) => state.status === 'closed').length;
@@ -49,6 +50,7 @@ export function SandboxImpact({ visitedSections, exploredPathways, taskStates, d
         <MetricCard label="Pathways opened" value={exploredPathways.length} detail="Real public tools." tone="amber" />
         <MetricCard label="Patient actions" value={patientCheckIns.length} detail="Synthetic Today engagement." />
         <MetricCard label="Days simulated" value={`${dayIndex + 1}/5`} detail={`${dayLog.reduce((sum, entry) => sum + entry.escalations, 0)} escalations caught across completed days.`} tone="violet" />
+        <MetricCard label="Cases worked" value={workedCasesCount} detail="Population review-queue cases opened, called, and documented." tone="emerald" />
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(320px,0.75fr)_minmax(0,1.25fr)]">

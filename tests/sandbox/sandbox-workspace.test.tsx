@@ -131,5 +131,32 @@ describe('SandboxWorkspace', () => {
     render(<SandboxWorkspace />);
     const badges = await screen.findAllByTestId('sandbox-day-badge');
     expect(badges.at(-1)).toHaveTextContent('Day 5 of 5');
+
+    // v1.7 reviewed ids migrate one-way into worked cases; garbage is dropped.
+    await waitFor(() => {
+      const saved = JSON.parse(window.localStorage.getItem('heartland_synthetic_sandbox_v2')!);
+      expect(saved.workedCases).toEqual([{ id: 'pop-3-d0', outcome: 'reviewed_legacy', dayIndex: 0 }]);
+      expect(saved.populationReviewedIds).toBeUndefined();
+    });
+  });
+
+  it('restores worked cases and rejects unknown outcome keys', async () => {
+    window.localStorage.setItem('heartland_synthetic_sandbox_v2', JSON.stringify({
+      savedAt: Date.now(),
+      selectedSection: 'command',
+      workedCases: [
+        { id: 'pop-7-d1', outcome: 'diuretic_adjustment_24h', disposition: 'escalated' },
+        { id: 'pop-7-d1', outcome: 'nurse_visit_same_day' },
+        { id: 'pop-8-d0', outcome: 'made_up_outcome' },
+        { id: 'not-a-case', outcome: 'reviewed_no_call' },
+      ],
+    }));
+    render(<SandboxWorkspace />);
+    await waitFor(() => {
+      const saved = JSON.parse(window.localStorage.getItem('heartland_synthetic_sandbox_v2')!);
+      expect(saved.workedCases).toEqual([
+        { id: 'pop-7-d1', outcome: 'diuretic_adjustment_24h', dayIndex: 1, disposition: 'escalated' },
+      ]);
+    });
   });
 });

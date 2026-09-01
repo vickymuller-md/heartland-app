@@ -215,7 +215,16 @@ export interface SandboxDemoState {
   dayLog: SandboxDayLogEntry[];
   /** Size of the synthetic population scene on the Command Center. */
   populationSize: 500 | 2500 | 5000;
-  /** Review-queue entries the visitor marked reviewed (`pop-<ordinal>-d<day>`). */
-  populationReviewedIds: string[];
+  /** Review-queue cases the visitor worked; outcome is a whitelisted key. */
+  workedCases: WorkedCase[];
   savedAt: number;
+}
+
+export interface WorkedCase {
+  /** `pop-<ordinal>-d<day>` */
+  id: string;
+  /** Whitelisted key from lib/sandbox/case-outcomes.ts — never free text. */
+  outcome: string;
+  dayIndex: number;
+  disposition?: 'routine' | 'escalated' | 'emergency' | 'no_answer';
 }
