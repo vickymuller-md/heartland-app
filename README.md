@@ -89,14 +89,13 @@ Protocol content and research materials are available through the existing depos
 
 - **Cureus** (peer-reviewed, indexed PubMed/PMC/Scopus)
 - **Zenodo** (protocol): [`10.5281/zenodo.19101219`](https://doi.org/10.5281/zenodo.19101219)
+- **Zenodo** (software, all versions): [`10.5281/zenodo.19600593`](https://doi.org/10.5281/zenodo.19600593)
 - **OSF**: [`10.17605/OSF.IO/YUSGH`](https://doi.org/10.17605/OSF.IO/YUSGH)
 - **medRxiv**: three complementary systematic reviews registered in PROSPERO
 
 ## Software preservation
 
-Software Heritage snapshot (archived 2026-08-25): [`swh:1:snp:3e39be4952047172a2c1a131c2965bd580a6dc69`](https://archive.softwareheritage.org/swh:1:snp:3e39be4952047172a2c1a131c2965bd580a6dc69/)
-
-This persistent SWHID identifies the repository snapshot captured on that date; archival does not imply endorsement or validation.
+Tagged GitHub releases are deposited under the Zenodo software concept DOI above. Each version record exposes its own immutable archive, checksum inventory, and version-specific Software Heritage identifier when preservation processing completes. Archival does not imply endorsement or validation.
 
 ## License
 
