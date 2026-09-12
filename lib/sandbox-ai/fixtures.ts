@@ -90,6 +90,8 @@ const JAMES_ADHERENCE_EXTRACTION: CheckInExtraction = {
   adherence: 'missed_some', chestPainOrSyncope: false,
 };
 
+const FIXTURE_DEMO_NOTE = 'Synthetic demo: no real calls, notifications, appointments, or deliveries.';
+
 export const OUTREACH_TRANSCRIPTS: SimulatedCallTranscript[] = [
   fixtureCall({
     id: 'call-maria-redflag',
@@ -97,7 +99,7 @@ export const OUTREACH_TRANSCRIPTS: SimulatedCallTranscript[] = [
     patientName: 'Maria Santos',
     placedLabel: 'Today · 7:45 AM',
     turns: [
-      { speaker: 'assistant', text: "Good morning, Mrs. Santos — it's the daily check-in call from your heart care team. How are you doing today? Any chest pain since yesterday, or any—" },
+      { speaker: 'assistant', text: `${FIXTURE_DEMO_NOTE} Good morning, Mrs. Santos — this is a simulated daily check-in. I collect and structure answers; clinical decisions require human review. How are you doing today? Any chest pain since yesterday, or any—` },
       { speaker: 'patient', text: "Oh — no, no chest pain, dear. I'm just... so tired lately. Didn't sleep well again." },
       { speaker: 'assistant', text: "I'm sorry to hear that — and we'll get to the sleeping in just a second. Did you get a chance to step on the scale this morning?" },
       { speaker: 'patient', text: "The scale? Yes... hold on, let me find where I wrote it. My daughter got me one of those little notebooks... here it is — 179 and a half." },
@@ -109,11 +111,12 @@ export const OUTREACH_TRANSCRIPTS: SimulatedCallTranscript[] = [
       { speaker: 'patient', text: "I ended up in the recliner again. Second night in a row. The bed just... I can't breathe laying flat, you know?" },
       { speaker: 'assistant', text: "That's really helpful to know, thank you. Almost done — your medicines, were you able to take all of them, yesterday and today?" },
       { speaker: 'patient', text: "Oh yes, all of them. I never miss those — my daughter makes sure of it." },
-      { speaker: 'assistant', text: "Good. Okay, Mrs. Santos, here's what happens now. Because of the weight change and the breathing, I'm flagging this for your care team right away — a nurse is going to call you back today, so keep the phone nearby. And if anything suddenly gets worse before that — chest pain, real trouble breathing — you call 911, alright?" },
-      { speaker: 'patient', text: "Alright... I'll keep the phone close. Thank you, dear. Bye-bye now." },
-      { speaker: 'assistant', text: "You take care, Mrs. Santos. Talk soon. Bye-bye." },
+      { speaker: 'assistant', text: "Thank you, Mrs. Santos. In this synthetic case, the weight change and breathing reports trigger preset rules requiring human review. This demo shows the need for nurse review; it does not contact a nurse or arrange a callback. If you have actual chest pain or severe trouble breathing, call 911 immediately — do not wait for this demo or a callback, alright?" },
+      { speaker: 'patient', text: "Alright... I understand this is a demonstration. Thank you, dear. Bye-bye now." },
+      { speaker: 'assistant', text: "That completes the simulated check-in, Mrs. Santos. Bye-bye." },
     ],
     extraction: MARIA_EXTRACTION,
+    note: `${FIXTURE_DEMO_NOTE} Weight and symptom flags illustrate a need for human review; no clinician review or follow-up has occurred.`,
   }),
   fixtureCall({
     id: 'call-james-stable',
@@ -121,7 +124,7 @@ export const OUTREACH_TRANSCRIPTS: SimulatedCallTranscript[] = [
     patientName: 'James Walker',
     placedLabel: 'Today · 8:10 AM',
     turns: [
-      { speaker: 'assistant', text: "Morning, Mr. Walker — daily check-in from your care team. Any chest pain or fainting since—" },
+      { speaker: 'assistant', text: `${FIXTURE_DEMO_NOTE} Morning, Mr. Walker — this is a simulated daily check-in after simulated human follow-up on a bottle-cap barrier. Any chest pain or fainting since—` },
       { speaker: 'patient', text: "Nope. None of that. Feeling pretty good today, actually." },
       { speaker: 'assistant', text: "Well, that was fast. What did the scale say this morning?" },
       { speaker: 'patient', text: "Uh... 187.8. Right about where it's been all week. I wrote it on the calendar like the nurse showed me." },
@@ -129,12 +132,12 @@ export const OUTREACH_TRANSCRIPTS: SimulatedCallTranscript[] = [
       { speaker: 'patient', text: "Breathing's fine. Energy's — well, I mowed half the yard yesterday, so I'd call that normal. No swelling. Ankles look like ankles." },
       { speaker: 'assistant', text: "Half the yard, huh? Not bad at all. Last one — all your medicines, yesterday and today? And how's that new easy-open bottle working out?" },
       { speaker: 'patient', text: "Yep, all of 'em. And that cap the pharmacy sent over — works like a charm. Coffee first, pills second, same as always." },
-      { speaker: 'assistant', text: "Glad that's sorted. That's everything I need, Mr. Walker — everything looks nice and steady today. Same time tomorrow?" },
-      { speaker: 'patient', text: "I'll be here. You have a good one now. Bye." },
-      { speaker: 'assistant', text: "You too, Mr. Walker. Bye now." },
+      { speaker: 'assistant', text: "Thank you, Mr. Walker. That completes this synthetic check-in. The preset rules mark this case routine, but clinical decisions require human review. The easy-open cap is a simulated human resolution, not a delivery made by this demo. No next call is scheduled." },
+      { speaker: 'patient', text: "Understood. You have a good one now. Bye." },
+      { speaker: 'assistant', text: "That completes the simulated check-in, Mr. Walker. Bye now." },
     ],
     extraction: JAMES_STABLE_EXTRACTION,
-    note: 'Day after the adherence barrier call: the pharmacy swapped the bottle for an easy-open cap and adherence is restored — the loop was closed by human follow-up.',
+    note: `${FIXTURE_DEMO_NOTE} Simulated human follow-up: a fictional pharmacy swaps the bottle for an easy-open cap, and the synthetic patient reports taking all medicines. This illustrates a possible human resolution, not observed delivery, verified adherence, or a real closed loop.`,
   }),
   fixtureCall({
     id: 'call-james-adherence',
@@ -142,7 +145,7 @@ export const OUTREACH_TRANSCRIPTS: SimulatedCallTranscript[] = [
     patientName: 'James Walker',
     placedLabel: 'Yesterday · 8:05 AM',
     turns: [
-      { speaker: 'assistant', text: "Morning, Mr. Walker — it's your care team's check-in call. Any chest pain or fainting since yesterday?" },
+      { speaker: 'assistant', text: `${FIXTURE_DEMO_NOTE} Morning, Mr. Walker — this is a simulated daily check-in. I collect and structure answers; clinical decisions require human review. Any chest pain or fainting since yesterday?` },
       { speaker: 'patient', text: "No... no, nothing like that." },
       { speaker: 'assistant', text: "Good. And the scale this morning?" },
       { speaker: 'patient', text: "188.2. Hang on — yeah, 188.2, I wrote it down." },
@@ -150,12 +153,12 @@ export const OUTREACH_TRANSCRIPTS: SimulatedCallTranscript[] = [
       { speaker: 'patient', text: "Breathing's fine, no swelling... I'm dragging a little, though. More than usual." },
       { speaker: 'assistant', text: "Okay, noted. And the medicines — everything taken, yesterday and—" },
       { speaker: 'patient', text: "Well, now... I'll be honest with you. I missed the evening ones yesterday. That new bottle they gave me — I couldn't get the darn cap off. The arthritis, you know. Didn't want to bother anybody over a bottle cap." },
-      { speaker: 'assistant', text: "You're not bothering anyone, Mr. Walker — that's exactly what this call is for. I'm noting it down, and someone from the team will get you a bottle you can actually open, today. Anything else before I let you go?" },
+      { speaker: 'assistant', text: "Thank you for explaining that, Mr. Walker. I'm recording the bottle-cap barrier in this synthetic summary for human review. A pharmacist could assess packaging options; this demo does not contact a pharmacy, promise a bottle, or confirm a resolution. Anything else to add?" },
       { speaker: 'patient', text: "No, that'll do it. Thank you kindly. Bye now." },
-      { speaker: 'assistant', text: "Take care, Mr. Walker. We'll check in tomorrow. Bye-bye." },
+      { speaker: 'assistant', text: "That completes the simulated check-in, Mr. Walker. No next call is scheduled. Bye-bye." },
     ],
     extraction: JAMES_ADHERENCE_EXTRACTION,
-    note: 'Adherence barrier reported (missed evening doses); pharmacist follow-up suggested by workflow, decision stays with the care team.',
+    note: `${FIXTURE_DEMO_NOTE} Adherence barrier reported (missed evening doses); human review required. Pharmacist assessment is a suggested workflow step, not an assigned task, delivered bottle, or completed resolution.`,
   }),
   {
     id: 'call-robert-noanswer',
@@ -164,13 +167,13 @@ export const OUTREACH_TRANSCRIPTS: SimulatedCallTranscript[] = [
     channel: 'automated-voice-simulation',
     placedLabel: 'Today · 9:00 AM and 11:30 AM',
     turns: [
-      { speaker: 'assistant', text: "Attempt 1, 9:00 AM — no answer after six rings. Voicemail left: \"Hi, this message is for Robert Lee — it's the daily check-in call from your heart care team. We missed you this morning. No emergency — please call us back at the clinic when you get a chance. Thank you.\"" },
-      { speaker: 'assistant', text: "Attempt 2, 11:30 AM — no answer. Voicemail left: \"Mr. Lee, it's your care team calling again for your daily check-in. We'd like to hear how you're doing. Please call us back today.\" Per protocol, the missed outreach is now routed to a human coordinator — it is never silently dropped." },
+      { speaker: 'assistant', text: `${FIXTURE_DEMO_NOTE} Simulated attempt 1, 9:00 AM — no answer after six rings. An example voicemail script would request a return call to the clinic; no voicemail is sent. An unanswered call provides no evidence about the person's symptoms or safety.` },
+      { speaker: 'assistant', text: 'Simulated attempt 2, 11:30 AM — no answer. The demonstration marks the unanswered outreach as requiring human review by a coordinator, not a completed check-in. It does not contact a coordinator, send a voicemail, or schedule human outreach.' },
     ],
     extraction: emptyExtraction(),
     redFlags: [],
     disposition: 'no_answer',
-    note: 'No answer after 2 attempts — human outreach scheduled with the assigned coordinator (silence escalates; it never closes a loop).',
+    note: `${FIXTURE_DEMO_NOTE} No answer after 2 simulated attempts — human outreach review required; no coordinator is contacted or scheduled. Silence supplies no clinical data and never represents a completed loop.`,
     audioSrc: '/outreach-audio/call-robert-noanswer.mp3',
   },
 ];

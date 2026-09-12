@@ -108,6 +108,11 @@ describe('SandboxCopilot', () => {
     expect(screen.getByText(/Synthetic prompts only — do not enter real patient/)).toBeInTheDocument();
   });
 
+  it('requires human review without claiming that a human has reviewed the demo', () => {
+    expect(screen.getByText(/Clinical decisions require human review\./)).toBeVisible();
+    expect(screen.queryByText(/A human reviews everything\./)).not.toBeInTheDocument();
+  });
+
   it('hides the chat behind the unavailable notice on fallback', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ fallback: true }) })));
     fireEvent.click(screen.getByRole('button', { name: 'Why was the weight-gain call escalated?' }));

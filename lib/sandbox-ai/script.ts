@@ -93,20 +93,21 @@ export function nextQuestionId(current: ScriptQuestionId): ScriptQuestionId | nu
   return index >= 0 && index < QUESTION_ORDER.length - 1 ? QUESTION_ORDER[index + 1] : null;
 }
 
-const DEMO_NOTE = '[Demonstration environment — synthetic data, no real call or alert is placed.]';
-const DEMO_NOTE_ES = '[Entorno de demostración — datos sintéticos; no se realiza ninguna llamada ni alerta real.]';
+// Plain text is shared with speech; brackets may be interpreted as audio tags.
+const DEMO_NOTE = 'Synthetic demo: no real calls, alerts, notifications, or appointments.';
+const DEMO_NOTE_ES = 'Demostración sintética: sin llamadas, alertas, notificaciones ni citas reales.';
 
 export function demoNoteFor(locale: CallLocale): string {
   return locale === 'es' ? DEMO_NOTE_ES : DEMO_NOTE;
 }
 
 export const INTRO_MESSAGES: readonly string[] = [
-  "Hi! This is the automated daily check-in from your heart care team. I collect a few quick answers and a member of your care team reviews everything — I never make medical decisions. This takes about 2 minutes.",
+  `Hi! This is a simulated daily check-in. I collect and structure answers — I never make medical decisions. Clinical decisions require human review. ${DEMO_NOTE}`,
   SCRIPT_QUESTIONS.q1_safety.canonical,
 ];
 
 export const INTRO_MESSAGES_ES: readonly string[] = [
-  '¡Hola! Este es el chequeo diario automático de su equipo de atención del corazón. Recojo unas respuestas rápidas y un miembro de su equipo revisa todo — yo nunca tomo decisiones médicas. Esto toma unos 2 minutos.',
+  `¡Hola! Este es un chequeo diario simulado. Recojo y organizo respuestas — yo nunca tomo decisiones médicas. Las decisiones clínicas requieren revisión humana. ${DEMO_NOTE_ES}`,
   SCRIPT_QUESTIONS.q1_safety.canonicalEs,
 ];
 
@@ -115,11 +116,11 @@ export function introMessagesFor(locale: CallLocale): readonly string[] {
 }
 
 export const EMERGENCY_911_MESSAGE =
-  'Thank you for telling me. Chest pain or fainting needs immediate attention. This ends the automated check-in and alerts your care team right now. In a real deployment: call 911 or your local emergency number immediately. ' +
+  'Thank you for telling me. Chest pain or fainting needs immediate attention. This ends the simulated check-in. If you are experiencing these symptoms, call 911 or your local emergency number immediately. Do not wait for this demo or a care-team callback. ' +
   DEMO_NOTE;
 
 export const EMERGENCY_911_MESSAGE_ES =
-  'Gracias por decírmelo. El dolor de pecho o los desmayos necesitan atención inmediata. Esto termina el chequeo automático y avisa a su equipo de atención ahora mismo. En un despliegue real: llame al 911 o a su número local de emergencias de inmediato. ' +
+  'Gracias por decírmelo. El dolor de pecho o los desmayos necesitan atención inmediata. Esto termina el chequeo simulado. Si está experimentando estos síntomas, llame al 911 o a su número local de emergencias de inmediato. No espere a esta demostración ni una llamada de su equipo de atención. ' +
   DEMO_NOTE_ES;
 
 export function emergencyMessageFor(locale: CallLocale): string {
@@ -127,10 +128,10 @@ export function emergencyMessageFor(locale: CallLocale): string {
 }
 
 export const DEFLECT_MESSAGE =
-  "I can't give medical advice — I only collect your daily check-in so your care team can review it. If you're worried, contact your care team; for an emergency, call 911. Now, back to the check-in:";
+  `I can't give medical advice — I only collect and structure answers in this demo. Clinical decisions require human review. If you're worried, contact your care team; for an emergency, call 911. ${DEMO_NOTE} Now, back to the check-in:`;
 
 export const DEFLECT_MESSAGE_ES =
-  'No puedo dar consejos médicos — solo recojo su chequeo para que su equipo de atención lo revise. Si está preocupado o preocupada, comuníquese con su equipo de atención; en una emergencia, llame al 911. Ahora, volvamos al chequeo:';
+  `No puedo dar consejos médicos — solo recojo y organizo respuestas en esta demostración. Las decisiones clínicas requieren revisión humana. Si está preocupado o preocupada, comuníquese con su equipo de atención; en una emergencia, llame al 911. ${DEMO_NOTE_ES} Ahora, volvamos al chequeo:`;
 
 export function deflectMessageFor(locale: CallLocale): string {
   return locale === 'es' ? DEFLECT_MESSAGE_ES : DEFLECT_MESSAGE;
@@ -151,14 +152,14 @@ export function escalationMessage(flags: RedFlag[], locale: CallLocale = 'en'): 
   const detail = flags.map((flag) => `${flag.message} — ${flag.action}.`).join(' ');
   if (locale === 'es') {
     return (
-      `Gracias. Según las reglas preestablecidas de su plan de atención, lo que usted reportó necesita revisión: ${detail} ` +
-      'Un miembro de su equipo de atención está siendo notificado y le llamará hoy. ' +
+      `Gracias. Las reglas preestablecidas requieren revisión humana de este caso sintético: ${detail} ` +
+      'La demostración estructura el resumen, pero no realiza la revisión ni el seguimiento. En una emergencia, llame al 911 sin esperar a esta demostración. ' +
       DEMO_NOTE_ES
     );
   }
   return (
-    `Thank you. Based on your care plan's preset rules, what you reported needs review: ${detail} ` +
-    'A member of your care team is being notified and will call you today. ' +
+    `Thank you. The preset rules require human review of this synthetic case: ${detail} ` +
+    'The demo structures the summary but does not provide review or follow-up. For an emergency, call 911 without waiting for this demo. ' +
     DEMO_NOTE
   );
 }
@@ -182,7 +183,7 @@ export function recordedSummary(extraction: CheckInExtraction, locale: CallLocal
       `presión arterial: ${extraction.sbp !== null ? `${extraction.sbp} mmHg sistólica` : 'omitida'}`,
       `oxígeno: ${extraction.spo2 !== null ? `${extraction.spo2}%` : 'omitido'}`,
     ];
-    return `Esto es lo que registré para su equipo de atención: ${parts.join(' · ')}.`;
+    return `Resumen estructurado de este caso sintético: ${parts.join(' · ')}.`;
   }
   const parts = [
     `weight ${extraction.weightLbs !== null ? `${extraction.weightLbs} lbs` : 'not recorded'}`,
@@ -194,21 +195,21 @@ export function recordedSummary(extraction: CheckInExtraction, locale: CallLocal
     `blood pressure: ${extraction.sbp !== null ? `${extraction.sbp} mmHg systolic` : 'skipped'}`,
     `oxygen: ${extraction.spo2 !== null ? `${extraction.spo2}%` : 'skipped'}`,
   ];
-  return `Here is what I recorded for your care team: ${parts.join(' · ')}.`;
+  return `Structured summary of this synthetic case: ${parts.join(' · ')}.`;
 }
 
 export function routineClosingMessage(extraction: CheckInExtraction, locale: CallLocale = 'en'): string {
   if (locale === 'es') {
     return (
-      `${recordedSummary(extraction, 'es')} Su equipo de atención verá este resumen. ` +
-      'Nada de lo que reportó necesita atención urgente según las reglas preestablecidas de su plan de atención. ' +
+      `${recordedSummary(extraction, 'es')} ` +
+      'Nada de lo que reportó necesita atención urgente según las reglas preestablecidas. Esto no es una evaluación clínica; toda decisión clínica requiere revisión humana. ' +
       'Si algo cambia o le preocupa, contacte a su equipo de atención — y en una emergencia, llame al 911. ' +
       DEMO_NOTE_ES
     );
   }
   return (
-    `${recordedSummary(extraction)} Your care team will see this summary. ` +
-    "Nothing you reported needs urgent attention according to your care plan's preset rules. " +
+    `${recordedSummary(extraction)} ` +
+    'Nothing you reported needs urgent attention according to the preset rules. This is not a clinical assessment; human review is required for any clinical decision. ' +
     'If anything changes or worries you, contact your care team — and for an emergency, call 911. ' +
     DEMO_NOTE
   );
@@ -217,36 +218,36 @@ export function routineClosingMessage(extraction: CheckInExtraction, locale: Cal
 // ── Spoken lines for the simulated live call (fixed; pre-generated audio) ──
 
 export const SPOKEN_CALL_INTRO =
-  "Hi, this is the automated daily check-in call from your heart care team. A member of your care team reviews everything I collect — I never make medical decisions. This takes about two minutes.";
+  `Hi, this is a simulated daily check-in. I collect and structure answers — I never make medical decisions. Clinical decisions require human review. ${DEMO_NOTE}`;
 
 export const SPOKEN_ESCALATION =
-  "Thank you. Based on your care plan's preset rules, what you reported today needs a closer look. I'm flagging it for your care team right now, and a nurse will call you back today — please keep your phone nearby. If anything suddenly gets worse before then, call 911. Take care, and we'll talk soon. Bye-bye.";
+  `Thank you. Preset rules require human review of this case. I structure the summary; no review or follow-up occurs here. If anything suddenly gets worse, call 911 without waiting for this demo. ${DEMO_NOTE} Goodbye.`;
 
 export const SPOKEN_ROUTINE =
-  "Thank you — that's everything I need today. Nothing you reported needs urgent attention according to your care plan's preset rules, and your care team will see the full summary. Same time tomorrow? Take care. Bye-bye.";
+  `Thank you. No urgent flags were found by the preset rules for this case. Clinical decisions still require human review. Contact your care team if concerned; for an emergency, call 911. ${DEMO_NOTE} Goodbye.`;
 
 export const SPOKEN_EMERGENCY =
-  "Thank you for telling me. Chest pain or fainting needs immediate attention, so this ends the automated check-in and alerts your care team right now. In a real deployment: call 911 or your local emergency number immediately.";
+  EMERGENCY_911_MESSAGE;
 
 export const SPOKEN_DEFLECT =
-  "I can't give medical advice — I only collect your daily check-in so your care team can review it. If you're worried, contact your care team, and for an emergency call 911. Now, back to the check-in.";
+  DEFLECT_MESSAGE;
 
-// Spanish spoken lines (clinical translation; reviewed before audio generation).
+// Spanish spoken lines require bilingual review before regenerated audio is released.
 
 export const SPOKEN_CALL_INTRO_ES =
-  'Hola, esta es la llamada automática de chequeo diario de su equipo de atención del corazón. Un miembro de su equipo revisa todo lo que recojo — yo nunca tomo decisiones médicas. Esto toma unos dos minutos.';
+  `Hola, este es un chequeo diario simulado. Recojo y organizo respuestas — yo nunca tomo decisiones médicas. Las decisiones clínicas requieren revisión humana. ${DEMO_NOTE_ES}`;
 
 export const SPOKEN_ESCALATION_ES =
-  'Gracias. Según las reglas preestablecidas de su plan de atención, lo que reportó hoy necesita una revisión más de cerca. Lo estoy marcando para su equipo ahora mismo, y una enfermera le devolverá la llamada hoy — por favor mantenga su teléfono cerca. Si algo empeora de repente antes de eso, llame al 911. Cuídese, hablamos pronto. Adiós.';
+  `Gracias. Las reglas preestablecidas requieren revisión humana de este caso. Organizo el resumen; aquí no se realiza la revisión ni el seguimiento. Si algo empeora de repente, llame al 911 sin esperar a esta demostración. ${DEMO_NOTE_ES} Adiós.`;
 
 export const SPOKEN_ROUTINE_ES =
-  'Gracias — eso es todo lo que necesito hoy. Nada de lo que reportó necesita atención urgente según las reglas preestablecidas de su plan de atención, y su equipo verá el resumen completo. ¿A la misma hora mañana? Cuídese. Adiós.';
+  `Gracias. Las reglas preestablecidas no detectaron alertas urgentes en este caso. Las decisiones clínicas aún requieren revisión humana. Si algo le preocupa, contacte a su equipo; en una emergencia, llame al 911. ${DEMO_NOTE_ES} Adiós.`;
 
 export const SPOKEN_EMERGENCY_ES =
-  'Gracias por decírmelo. El dolor de pecho o los desmayos necesitan atención inmediata, así que esto termina el chequeo automático y alerta a su equipo de atención ahora mismo. En un despliegue real: llame al 911 o a su número local de emergencias de inmediato.';
+  EMERGENCY_911_MESSAGE_ES;
 
 export const SPOKEN_DEFLECT_ES =
-  'No puedo dar consejos médicos — solo recojo su chequeo para que su equipo de atención lo revise. Si está preocupado, contacte a su equipo, y en una emergencia llame al 911. Ahora, volvamos al chequeo.';
+  DEFLECT_MESSAGE_ES;
 
 /** Short spoken acknowledgments played while the server processes a voice turn. */
 export const FILLER_LINES: Record<CallLocale, readonly string[]> = {

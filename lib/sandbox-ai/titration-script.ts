@@ -79,22 +79,22 @@ export const TITRATION_ORDER: readonly ScriptQuestionId[] = [
 // ── Fixed spoken lines (pre-generated audio per locale) ──────
 
 export const SPOKEN_TITRATION_INTRO =
-  'Hi, this is the automated follow-up call from your heart care team about your recent medicine adjustment. A member of your care team reviews everything I collect — I never make medical decisions. This takes about two minutes.';
+  `Hi, this is a simulated follow-up about a medicine adjustment. I collect and structure answers — I never make medical decisions. Clinical decisions require human review. ${demoNoteFor('en')}`;
 
 export const SPOKEN_TITRATION_INTRO_ES =
-  'Hola, esta es la llamada automática de seguimiento de su equipo de atención del corazón sobre su ajuste reciente de medicina. Un miembro de su equipo revisa todo lo que recojo — yo nunca tomo decisiones médicas. Esto toma unos dos minutos.';
+  `Hola, este es un seguimiento simulado sobre un ajuste de medicina. Recojo y organizo respuestas — yo nunca tomo decisiones médicas. Las decisiones clínicas requieren revisión humana. ${demoNoteFor('es')}`;
 
 export const SPOKEN_TITRATION_ROUTINE =
-  "Thank you — that's everything I need. Your answers and home readings passed the preset safety checks, so your care team will confirm the next dose step. If anything changes before then, call your care team — and for an emergency, call 911. Take care. Bye-bye.";
+  `Thank you. The reported answers and readings passed the preset safety checks. Human review and confirmation are required before any dose change. If anything changes, call your care team; for an emergency, call 911. ${demoNoteFor('en')} Goodbye.`;
 
 export const SPOKEN_TITRATION_ROUTINE_ES =
-  'Gracias — eso es todo lo que necesito. Sus respuestas y lecturas en casa pasaron las verificaciones de seguridad preestablecidas, así que su equipo de atención confirmará el siguiente paso de dosis. Si algo cambia antes, llame a su equipo — y en una emergencia, llame al 911. Cuídese. Adiós.';
+  `Gracias. Las respuestas y lecturas reportadas pasaron las verificaciones de seguridad preestablecidas. Se requiere revisión humana y confirmación antes de cualquier cambio de dosis. Si algo cambia, llame a su equipo; en una emergencia, llame al 911. ${demoNoteFor('es')} Adiós.`;
 
 export const SPOKEN_TITRATION_ESCALATION =
-  "Thank you. Based on your care plan's preset safety rules, your dose should not change until a nurse reviews this with you — she will call you back today, so please keep your phone nearby. Please don't change anything on your own before that call. If anything suddenly gets worse, call 911. Take care. Bye-bye.";
+  `Thank you. Preset safety rules require human review by a nurse before any dose change; no review occurs here. Please don't change anything on your own. If anything suddenly gets worse, call 911 without waiting for this demo. ${demoNoteFor('en')} Goodbye.`;
 
 export const SPOKEN_TITRATION_ESCALATION_ES =
-  'Gracias. Según las reglas de seguridad preestablecidas de su plan de atención, su dosis no debe cambiar hasta que una enfermera lo revise con usted — ella le devolverá la llamada hoy, así que por favor mantenga su teléfono cerca. No cambie nada por su cuenta antes de esa llamada. Si algo empeora de repente, llame al 911. Cuídese. Adiós.';
+  `Gracias. Las reglas de seguridad preestablecidas requieren revisión humana por enfermería antes de cualquier cambio de dosis; aquí no se realiza esa revisión. No cambie nada por su cuenta. Si algo empeora de repente, llame al 911 sin esperar a esta demostración. ${demoNoteFor('es')} Adiós.`;
 
 // ── Deterministic completion (registered safety gates decide) ──
 
@@ -109,13 +109,13 @@ function closingMessage(escalated: boolean, flags: RedFlag[], locale: CallLocale
   const note = demoNoteFor(locale);
   if (!escalated) {
     return locale === 'es'
-      ? `Sus respuestas y lecturas pasaron las verificaciones de seguridad preestablecidas del plan de titulación. Su equipo de atención confirmará el siguiente paso de dosis — ningún cambio ocurre sin esa confirmación. ${note}`
-      : `Your answers and readings passed the titration plan's preset safety checks. Your care team will confirm the next dose step — no change happens without that confirmation. ${note}`;
+      ? `Las respuestas y lecturas pasaron las verificaciones de seguridad preestablecidas del plan de titulación. Se requiere revisión humana y confirmación antes de cualquier cambio de dosis — ningún cambio ocurre sin esa confirmación. ${note}`
+      : `The answers and readings passed the titration plan's preset safety checks. Human review and confirmation are required before any dose change — no change happens without that confirmation. ${note}`;
   }
   const detail = flags.map((flag) => `${flag.message} — ${flag.action}.`).join(' ');
   return locale === 'es'
-    ? `Según las reglas de seguridad preestablecidas de su plan, su dosis no debe cambiar todavía: ${detail} Una enfermera le llamará hoy. ${note}`
-    : `Based on your plan's preset safety rules, your dose should not change yet: ${detail} A nurse will call you today. ${note}`;
+    ? `Las reglas de seguridad requieren revisión humana por enfermería antes de cualquier cambio de dosis: ${detail} La demostración no realiza la revisión ni el seguimiento. ${note}`
+    : `Safety rules require human review by a nurse before any dose change: ${detail} The demo does not provide review or follow-up. ${note}`;
 }
 
 /**
@@ -159,7 +159,7 @@ export function finalizeTitration(state: CheckInState): CheckInTurnResponse {
       id: 'titration_symptomatic_hypotension',
       severity: 'critical',
       message: 'Symptomatic low blood pressure since the dose change',
-      action: 'Hold the new dose; nurse callback today',
+      action: 'Hold the new dose; nurse review required',
     });
   }
   if (extraction.worseSymptoms === true) {

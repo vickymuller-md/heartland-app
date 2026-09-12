@@ -230,7 +230,7 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
       <SectionHeading
         eyebrow="Provider workspace"
         title="Copilot"
-        description="The repetitive part of the morning — placing routine check-in calls, reading through the results, drafting the handoffs — runs automatically here. Registered clinical rules route every call; the AI structures conversations, narrates the queue, and drafts. A human reviews everything."
+        description="The repetitive part of the morning — placing routine check-in calls, reading through the results, drafting the handoffs — runs automatically here. Registered clinical rules route every call; the AI structures conversations, narrates the queue, and drafts. Clinical decisions require human review."
       />
 
       <SyntheticBanner>
