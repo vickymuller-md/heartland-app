@@ -11,6 +11,7 @@ vi.mock('@anthropic-ai/sdk', () => ({
 
 import {
   copilotRequestSchema,
+  COPILOT_PROMPT,
   executeCopilotTool,
   type CopilotWorkItem,
 } from '@/lib/sandbox-ai/copilot';
@@ -25,6 +26,12 @@ const ITEMS: CopilotWorkItem[] = [
 afterEach(() => vi.clearAllMocks());
 
 describe('copilotRequestSchema', () => {
+  it('keeps out-of-contract stress sizes and excess visit counts out of public requests', () => {
+    const request = { question: 'What happened?', snapshot: { workItems: [] } };
+    expect(copilotRequestSchema.safeParse({ ...request, populationSize: 10000 }).success).toBe(false);
+    expect(copilotRequestSchema.safeParse({ ...request, populationSize: 5000, reviewedCount: 40 }).success).toBe(true);
+    expect(copilotRequestSchema.safeParse({ ...request, reviewedCount: 41 }).success).toBe(false);
+  });
   it('accepts a valid request and rejects oversized or extra input', () => {
     expect(copilotRequestSchema.safeParse({
       question: 'Who should I call first?',
@@ -85,6 +92,24 @@ describe('executeCopilotTool', () => {
 });
 
 describe('runCopilot — bounded tool loop', () => {
+  it('carries population uncertainty and limited examples through the mocked vendor boundary', async () => {
+    createMock.mockResolvedValueOnce({ content: [{ type: 'tool_use', id: 'population', name: 'get_population_snapshot', input: {} }] })
+      .mockResolvedValueOnce({ content: [{ type: 'text', text: 'Outside the queue is not resolved.' }] });
+    await runCopilot({ question: 'Were all other cases resolved?', snapshot: { workItems: [] }, populationSize: 2500, reviewedCount: 40 });
+    expect(COPILOT_PROMPT).toContain('outside the review queue does not mean resolved');
+    expect(COPILOT_PROMPT).toContain('monitoring-gap policies');
+    expect(COPILOT_PROMPT).toContain('not proof of human review');
+    expect(COPILOT_PROMPT).toContain('Never infer staffing capacity');
+    const first = createMock.mock.calls[0][0];
+    expect(first.system[0].text).toBe(COPILOT_PROMPT);
+    const transported = createMock.mock.calls[1][0].messages[2].content[0].content;
+    const parsed = JSON.parse(transported);
+    expect(parsed).not.toHaveProperty('error');
+    expect(parsed.counts.reviewQueue).toBe(47);
+    expect(parsed.clientReportedSyntheticSelections).toBe(40);
+    expect(parsed.note).toContain('outside is not resolved');
+    expect(parsed.note).toContain('no human review or delivered care');
+  });
   it('executes tool rounds and returns the sanitized final answer with the trace', async () => {
     createMock
       .mockResolvedValueOnce({

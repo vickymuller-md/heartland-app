@@ -16,6 +16,7 @@ import {
   getPopulationPatientChart,
   POPULATION_SIZES,
   simulatePopulationDay,
+  type PopulationSize,
 } from '@/lib/sandbox/population';
 import { RED_FLAG_CRITERIA } from '@/lib/vitals/constants';
 
@@ -86,7 +87,7 @@ describe('daily funnel', () => {
     }
   });
 
-  it('review queue only holds rule-flagged, adherence, or high-risk-unreachable patients', () => {
+  it('review queue only holds rule-flagged or high-risk-unreachable patients', () => {
     const { exceptions } = simulatePopulationDay(5000, 2);
     expect(exceptions.length).toBeGreaterThan(5);
     for (const exception of exceptions) {
@@ -103,6 +104,41 @@ describe('daily funnel', () => {
     const firstWarning = exceptions.findIndex((exception) => exception.category === 'warning');
     const lastCritical = exceptions.map((exception) => exception.category).lastIndexOf('critical');
     if (firstWarning >= 0 && lastCritical >= 0) expect(lastCritical).toBeLessThan(firstWarning);
+  });
+
+  it('reconciles all public scenarios against complete events, not the limited examples', () => {
+    for (const size of POPULATION_SIZES) {
+      for (let day = 0; day < 5; day += 1) {
+        const { counts, exceptions } = simulatePopulationDay(size, day);
+        const events = getPopulationDayEvents(size, day);
+        const highRiskGaps = events.filter((event) => event.category === 'no_answer' && event.riskTier === 'High');
+        const flags = events.filter((event) => event.category === 'critical' || event.category === 'warning');
+        expect(counts.reviewQueue).toBe(flags.length + highRiskGaps.length);
+        expect(counts.responded).toBe(size - counts.unresolvedNoAnswer);
+        expect(exceptions).toHaveLength(Math.min(counts.reviewQueue, 30));
+        // Missing Low/Moderate check-ins remain unknown outside the review queue.
+        expect(counts.unresolvedNoAnswer - highRiskGaps.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('keeps the full queue count when intermediate examples are pruned (out-of-contract stress only)', () => {
+    // Deliberately NOT a supported UI/API size. No seed, rate, or rule is replaced.
+    const stressSize = 10000 as PopulationSize;
+    const { counts, exceptions } = simulatePopulationDay(stressSize, 0);
+    const events = getPopulationDayEvents(stressSize, 0);
+    const eligible = events.filter((event) => event.category === 'critical' || event.category === 'warning'
+      || (event.category === 'no_answer' && event.riskTier === 'High'));
+    expect(eligible).toHaveLength(180);
+    expect(counts.reviewQueue).toBe(eligible.length);
+    expect(counts.automatedPct).toBe(98.2);
+    expect(exceptions).toHaveLength(30);
+    const rank = { critical: 0, warning: 1, no_answer: 2 };
+    const topNames = eligible.sort((a, b) => rank[a.category as keyof typeof rank] - rank[b.category as keyof typeof rank]
+      || a.ordinal - b.ordinal).slice(0, 30).map((event) => event.name);
+    expect(exceptions.map((exception) => exception.name)).toEqual(topNames);
+    expect(counts.routine + counts.retriedResolved + counts.unresolvedNoAnswer
+      + counts.critical + counts.warning + counts.adherenceLapse).toBe(stressSize);
   });
 });
 

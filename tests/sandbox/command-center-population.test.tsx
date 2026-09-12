@@ -6,9 +6,10 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { SandboxCommandCenter } from '@/app/(sandbox)/sandbox/_components/sandbox-command-center';
-import { simulatePopulationDay } from '@/lib/sandbox/population';
+import { SandboxPopulationReplay } from '@/app/(sandbox)/sandbox/_components/sandbox-population-replay';
+import { getPopulationDayEvents, simulatePopulationDay } from '@/lib/sandbox/population';
 
 vi.mock('@/lib/product-analytics/actions', () => ({
   trackProductEvent: vi.fn().mockResolvedValue(undefined),
@@ -71,14 +72,26 @@ describe('SandboxCommandCenter population scene', () => {
     expect(funnel).toHaveTextContent(String(expected.counts.reviewQueue));
 
     expect(screen.getByTestId('population-claim')).toHaveTextContent(
-      `${expected.counts.reviewQueue} of ${numberFormat.format(expected.counts.total)} synthetic check-ins reached the clinician review queue — ${expected.counts.automatedPct}% resolved by the registered rules.`,
+      `${expected.counts.reviewQueue} of ${numberFormat.format(expected.counts.total)} synthetic check-ins entered the review queue; ${expected.counts.automatedPct}% stayed outside the simulated review queue.`,
     );
     // The metric never phrases capacity as a staffing ratio.
     expect(screen.getByTestId('population-claim')).not.toHaveTextContent('1 clinician');
+    expect(screen.getByRole('heading', { level: 1 })).not.toHaveTextContent('One clinician');
+    expect(funnel).toHaveTextContent('Outside the queue does not mean resolved.');
+    expect(funnel).toHaveTextContent('A retry answer is not a normal clinical classification.');
+    expect(screen.getByTestId('population-announcement')).toHaveTextContent('not resolved');
+    const categories = screen.getByTestId('population-categories');
+    expect(within(categories).getAllByRole('definition')).toHaveLength(6);
+    expect(categories).toHaveTextContent('Critical flags');
+    expect(categories).toHaveTextContent('Warning flags');
+    expect(screen.getByRole('meter', { name: 'Outside the simulated review queue' })).toHaveAttribute('aria-valuenow', String(expected.counts.automatedPct));
 
     const queue = screen.getByTestId('population-exceptions');
     expect(queue).toHaveTextContent(`Today's review queue (${expected.counts.reviewQueue} of ${numberFormat.format(expected.counts.total)})`);
     expect(queue).toHaveTextContent(expected.exceptions[0].name);
+    expect(queue).toHaveTextContent(`Showing 12 examples from ${expected.counts.reviewQueue} eligible cases`);
+    expect(screen.getByTestId('queue-progress')).toHaveTextContent('0 of 12 displayed examples have a synthetic selection');
+    expect(queue).toHaveTextContent('not proof of human review or delivered care');
     const flagged = expected.exceptions.find((exception) => exception.ruleIds.length > 0);
     if (flagged) expect(queue).toHaveTextContent(`rule ${flagged.ruleIds[0]}`);
   });
@@ -96,6 +109,7 @@ describe('SandboxCommandCenter population scene', () => {
     expect(detail.textContent).toMatch(/Risk score \d+\/18/);
     expect(detail.textContent).toContain('Medications');
     expect(detail.textContent).toContain('Potassium');
+    expect(detail).toHaveTextContent('Selections below are simulated; they do not place orders or deliver care.');
     expect(screen.getByTestId(`queue-call-${ordinal}`)).toBeInTheDocument();
 
     // Fast path: reviewed without a call.
@@ -143,5 +157,37 @@ describe('SandboxCommandCenter population scene', () => {
     expect(onNavigate).toHaveBeenCalledWith('daily-loop');
     fireEvent.click(screen.getByRole('button', { name: /Patient experience/ }));
     expect(onNavigate).toHaveBeenCalledWith('patient-view');
+  });
+});
+
+describe('population replay counter continuity', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('keeps partial categories additive and lands on the same full queue before resetting scope', () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false })));
+    let nextFrame: FrameRequestCallback | undefined;
+    vi.stubGlobal('requestAnimationFrame', vi.fn((callback: FrameRequestCallback) => { nextFrame = callback; return 1; }));
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    const onDone = vi.fn();
+    const { rerender } = render(<SandboxPopulationReplay size={500} dayIndex={0} onDone={onDone} />);
+    fireEvent.click(screen.getByTestId('population-run'));
+    act(() => nextFrame!(0));
+    act(() => nextFrame!(15000));
+    const events = getPopulationDayEvents(500, 0).filter((event) => event.minute <= 390);
+    const eligible = events.filter((event) => event.category === 'critical' || event.category === 'warning'
+      || (event.category === 'no_answer' && event.riskTier === 'High'));
+    expect(screen.getByTestId('population-count-processed')).toHaveTextContent(String(events.length));
+    expect(screen.getByTestId('population-count-review')).toHaveTextContent(String(eligible.length));
+    const values = within(screen.getByTestId('population-categories')).getAllByRole('definition', { hidden: true });
+    expect(values.reduce((sum, row) => sum + Number(row.textContent?.replaceAll(',', '')), 0)).toBe(events.length);
+    expect(onDone).not.toHaveBeenCalled();
+    act(() => nextFrame!(30000));
+    const final = simulatePopulationDay(500, 0);
+    expect(screen.getByTestId('population-count-review')).toHaveTextContent(String(final.counts.reviewQueue));
+    expect(onDone).toHaveBeenCalledExactlyOnceWith(final);
+    rerender(<SandboxPopulationReplay size={2500} dayIndex={1} onDone={onDone} />);
+    expect(screen.getByTestId('population-count-processed')).toHaveTextContent('—');
+    expect(screen.queryByTestId('population-claim')).toBeNull();
+    expect(onDone).toHaveBeenLastCalledWith(null);
   });
 });

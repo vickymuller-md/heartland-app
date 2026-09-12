@@ -507,18 +507,20 @@ const REGISTRY: Record<string, RegisteredCopilotTool> = {
   get_population_snapshot: {
     definition: {
       name: 'get_population_snapshot',
-      description: "The deterministic overnight round over the synthetic monitored population for the current simulation day: funnel counts and the top of the clinician review queue, all computed by the registered rules.",
+      description: 'Synthetic overnight counts from deterministic rules and monitoring-gap policies; limited queue examples, unknowns and client-reported selections. Not resolution or care-delivery evidence.',
       input_schema: NO_ARGS_INPUT_SCHEMA,
     },
     argsSchema: null,
     run: (_args, ctx) => {
       // Recomputed here from the same pure module the page uses — identical
-      // numbers, nothing taken on trust from the client.
+      // population numbers. Visit selections below are explicitly client-reported.
       const day = simulatePopulationDay(ctx.populationSize ?? DEFAULT_POPULATION_SIZE, contextDay(ctx));
+      const { automatedPct, retriedResolved, ...counts } = day.counts;
       return {
         result: {
           simulationDay: `Day ${day.dayIndex + 1} of 5`,
-          counts: day.counts,
+          counts: { ...counts, outsideReviewQueuePct: automatedPct, answeredOnRetry: retriedResolved },
+          queuePolicy: 'critical + warning + unanswered High',
           topReviewQueue: day.exceptions.slice(0, 6).map((exception) => ({
             name: exception.name,
             riskTier: exception.riskTier,
@@ -526,8 +528,8 @@ const REGISTRY: Record<string, RegisteredCopilotTool> = {
             category: exception.category,
             reason: exception.reason,
           })),
-          reviewedThisVisit: ctx.reviewedCount ?? 0,
-          note: 'Illustrative synthetic demonstration; every count and queue entry comes from the registered deterministic rules.',
+          clientReportedSyntheticSelections: ctx.reviewedCount ?? 0,
+          note: 'Synthetic workflow only. Outside-queue percentage uses total check-ins; outside is not resolved. Unanswered High cases overlap the queue; Low/Moderate gaps remain unknown. Retry answers are not normal classifications. Queue examples are limited, not reviewed cases. Selection count is client-reported, may include automatic entries, and proves no human review or delivered care.',
         },
         trace: { tool: 'get_population_snapshot', summary: `population (${day.counts.total} synthetic patients)` },
       };

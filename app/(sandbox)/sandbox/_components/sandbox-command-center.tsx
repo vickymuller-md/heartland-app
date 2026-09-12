@@ -44,20 +44,19 @@ export function SandboxCommandCenter({ taskStates, visitedSections, dayIndex, po
   const [result, setResult] = useState<PopulationDayResult | null>(null);
 
   return (
-    <div className="space-y-8" data-testid="sandbox-command-center">
-      <section className="overflow-hidden rounded-3xl bg-slate-950 px-5 py-8 text-white sm:px-8 lg:px-10">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.9fr)] lg:items-start">
-          <div>
+    <div className="min-w-0 space-y-8 [overflow-wrap:anywhere] [&_button]:h-auto [&_button]:min-h-11 [&_button]:max-w-full [&_button]:whitespace-normal [&_button]:py-2" data-testid="sandbox-command-center">
+      <section className="rounded-3xl bg-slate-950 px-3 py-8 text-white sm:px-8 lg:px-10">
+        <div className="grid min-w-0 grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:items-start">
+          <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-300">Full synthetic product tour</p>
-            <h1 className="mt-3 max-w-3xl text-3xl font-bold tracking-tight sm:text-5xl">One clinician. Thousands of patients. Every decision by registered rules.</h1>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              HEARTLAND automates the repetitive part of daily heart-failure monitoring over a
-              synthetic rural population: the registered clinical rules process every check-in,
-              retry the unreachable, route adherence gaps — and hand the clinician only the
-              exceptions. Run the round and watch.
+            <h1 className="mt-3 max-w-3xl text-3xl font-bold tracking-tight sm:text-5xl">Explore a synthetic monitoring round.</h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
+              Choose a population and follow its simulated check-ins. Registered rules identify
+              flags; monitoring-gap policies route missing responses. See what enters the review
+              queue, what remains unknown, and a limited set of cases to explore.
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              <div className="inline-flex rounded-lg border border-white/20 p-1" role="group" aria-label="Synthetic population size">
+              <div className="inline-flex max-w-full flex-wrap rounded-lg border border-white/20 p-1" role="group" aria-label="Synthetic population size">
                 {POPULATION_SIZES.map((size) => (
                   <button
                     key={size}
@@ -119,7 +118,7 @@ export function SandboxCommandCenter({ taskStates, visitedSections, dayIndex, po
 
       <section className="space-y-5">
         <SectionHeading eyebrow="Product map" title="Eight connected experiences" description="The sandbox mirrors the app’s operational logic instead of presenting isolated screenshots." />
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {SANDBOX_SECTIONS.filter((section) => section.id !== 'command').map((section, index) => {
             const Icon = ICONS[index % ICONS.length];
             const visited = visitedSections.includes(section.id);
@@ -202,12 +201,18 @@ function ReviewQueueSection({ result, populationSize, dayIndex, workedCases, sen
       <SectionHeading
         eyebrow="Your shift — work the queue"
         title={`Today's review queue (${numberFormat.format(result.counts.reviewQueue)} of ${numberFormat.format(result.counts.total)})`}
-        description="Every entry was put here by a registered clinical rule or a documented monitoring-gap policy — never by AI. Open a case, review the chart, call the synthetic patient, and document the outcome."
+        description="Entries come from registered clinical rules or a documented monitoring-gap policy — never AI. Explore the synthetic chart and available workflow actions. Eligibility for this queue does not mean a case has been reviewed."
       />
-      <p className="mt-2 text-sm font-semibold text-emerald-800" data-testid="queue-progress">
-        {workedInView} of {queue.length} listed cases worked today
+      <p className="mt-3 text-base text-slate-700">
+        Showing {queue.length} examples from {numberFormat.format(result.counts.reviewQueue)} eligible cases — not the full queue.
       </p>
-      <ul className="mt-4 grid gap-2 md:grid-cols-2">
+      <p className="mt-2 text-sm font-semibold text-slate-800" data-testid="queue-progress">
+        {workedInView} of {queue.length} displayed examples have a synthetic selection this visit.
+      </p>
+      <p className="mt-1 text-sm leading-6 text-slate-600">
+        Visit state may include automatic entries after a simulated call; it is not proof of human review or delivered care.
+      </p>
+      <ul className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
         {queue.map((event) => {
           const caseId = `pop-${event.ordinal}-d${dayIndex}`;
           const runId = `ai-run-pop${event.ordinal}d${dayIndex}`;
@@ -368,6 +373,9 @@ function CasePanel({ event, caseId, runId, dayIndex, worked, sent, callOpen, onO
       {/* ── Stage 3: document ── */}
       <div className="rounded-xl bg-white p-3">
         <p className="text-xs font-bold uppercase tracking-wide text-slate-500">3 · Document the outcome{callOutcome && callOutcome.disposition !== 'routine' && <span className="ml-2 normal-case text-red-700">call escalated — choose the follow-through</span>}</p>
+        <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950">
+          Selections below are simulated; they do not place orders or deliver care.
+        </p>
         {worked && (
           <p className="mt-2 text-sm font-semibold text-emerald-800" data-testid={`queue-worked-${event.ordinal}`}>Worked ✓ — {outcomeLabel(worked.outcome)}</p>
         )}

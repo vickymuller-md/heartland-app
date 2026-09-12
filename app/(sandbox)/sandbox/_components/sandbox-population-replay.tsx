@@ -61,10 +61,12 @@ interface PartialCounts {
   retried: number;
   adherence: number;
   unreachable: number;
+  critical: number;
+  warning: number;
   reviewQueue: number;
 }
 
-const EMPTY_PARTIAL: PartialCounts = { processed: 0, routine: 0, retried: 0, adherence: 0, unreachable: 0, reviewQueue: 0 };
+const EMPTY_PARTIAL: PartialCounts = { processed: 0, routine: 0, retried: 0, adherence: 0, unreachable: 0, critical: 0, warning: 0, reviewQueue: 0 };
 
 function formatClock(minute: number): string {
   const clamped = Math.min(Math.max(Math.round(minute), WINDOW_START_MINUTE), WINDOW_START_MINUTE + WINDOW_MINUTES);
@@ -193,6 +195,8 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone }: {
       if (event.riskTier === 'High') partial.reviewQueue += 1;
     }
     if (event.category === 'critical' || event.category === 'warning') partial.reviewQueue += 1;
+    if (event.category === 'critical') partial.critical += 1;
+    if (event.category === 'warning') partial.warning += 1;
     feedRef.current.push(event);
     if (feedRef.current.length > FEED_LINES) feedRef.current.shift();
   }
@@ -210,6 +214,8 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone }: {
           retried: final.counts.retriedResolved,
           adherence: final.counts.adherenceLapse,
           unreachable: final.counts.unresolvedNoAnswer,
+          critical: final.counts.critical,
+          warning: final.counts.warning,
           reviewQueue: final.counts.reviewQueue,
         },
         feed: [...feedRef.current],
@@ -303,6 +309,8 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone }: {
         retried: final.counts.retriedResolved,
         adherence: final.counts.adherenceLapse,
         unreachable: final.counts.unresolvedNoAnswer,
+        critical: final.counts.critical,
+        warning: final.counts.warning,
         reviewQueue: final.counts.reviewQueue,
       },
       feed: [...feedRef.current],
@@ -332,9 +340,19 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone }: {
   const counts = result?.counts ?? null;
   const partial = frame.partial;
   const running = scene === 'running';
+  const highRiskGaps = partial.reviewQueue - partial.critical - partial.warning;
+  const outsideReviewQueuePct = counts?.automatedPct;
+  const categoryRows = [
+    { key: 'routine', label: 'Routine on first response', value: partial.routine, tone: 'text-emerald-200' },
+    { key: 'retry', label: 'Answered on simulated retry', value: partial.retried, tone: 'text-blue-200' },
+    { key: 'no_answer', label: 'Unanswered after simulated retry', value: partial.unreachable, tone: 'text-slate-200' },
+    { key: 'critical', label: 'Critical flags', value: partial.critical, tone: 'text-red-200' },
+    { key: 'warning', label: 'Warning flags', value: partial.warning, tone: 'text-amber-200' },
+    { key: 'adherence', label: 'Adherence gaps · pharmacist workflow', value: partial.adherence, tone: 'text-purple-200' },
+  ];
 
   return (
-    <div className="rounded-2xl border border-white/15 bg-white/5 p-5" data-testid="population-funnel">
+    <div className="min-w-0 rounded-2xl border border-white/15 bg-white/5 p-3 [overflow-wrap:anywhere] sm:p-5" data-testid="population-funnel">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold text-blue-200">
           Overnight round · Day {dayIndex + 1} of 5
@@ -344,11 +362,11 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone }: {
         </p>
         {/* Speed controls live OUTSIDE the aria-hidden subtree (focusable). */}
         {running && (
-          <span className="flex gap-1.5">
-            <Button size="sm" variant="ghost" className="min-h-9 border border-white/25 px-2 text-xs text-white hover:bg-white/10 hover:text-white" aria-pressed={doubleSpeed} onClick={toggleSpeed} data-testid="population-speed">
-              <FastForward className="mr-1 size-3.5" /> 2×
+          <span className="flex max-w-full flex-wrap gap-1.5">
+            <Button size="sm" variant="ghost" className="min-h-11 border border-white/25 px-2 text-sm text-white hover:bg-white/10 hover:text-white" aria-pressed={doubleSpeed} onClick={toggleSpeed} data-testid="population-speed">
+              <FastForward className="mr-1 size-3.5" /> 2.5×
             </Button>
-            <Button size="sm" variant="ghost" className="min-h-9 border border-white/25 px-2 text-xs text-white hover:bg-white/10 hover:text-white" onClick={skip} data-testid="population-skip">
+            <Button size="sm" variant="ghost" className="min-h-11 border border-white/25 px-2 text-sm text-white hover:bg-white/10 hover:text-white" onClick={skip} data-testid="population-skip">
               <SkipForward className="mr-1 size-3.5" /> Skip to results
             </Button>
           </span>
@@ -366,11 +384,11 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone }: {
             <canvas
               ref={canvasRef}
               role="img"
-              aria-label={`Dot wall: one cell per synthetic patient, colored as the registered rules process each overnight check-in (${numberFormat.format(size)} patients).`}
+              aria-label={`Dot wall: one cell per synthetic patient, colored by simulated response or flag category (${numberFormat.format(size)} patients). Counts and missing responses are listed below.`}
               className="mt-3 w-full rounded-lg bg-slate-950/60"
               data-testid="population-wall"
             />
-            <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-400" aria-hidden="true">
+            <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-slate-300" aria-hidden="true">
               {LEGEND.map((entry) => (
                 <li key={entry.category} className="flex items-center gap-1">
                   <span className="inline-block size-2 rounded-sm" style={{ backgroundColor: CATEGORY_COLORS[entry.category] }} />
@@ -378,7 +396,7 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone }: {
                 </li>
               ))}
             </ul>
-            <div className="mt-3 space-y-1 font-mono text-[11px] leading-4" data-testid="population-feed" aria-hidden="true">
+            <div className="mt-3 space-y-1 font-mono text-xs leading-5" data-testid="population-feed" aria-hidden="true">
               {frame.feed.map((event) => (
                 <p key={`${event.ordinal}`} className={isExceptionEvent(event) ? 'font-bold text-amber-200' : 'text-slate-400'}>
                   {formatClock(event.minute)} · {event.name} · {event.state} · {event.detail}
@@ -388,38 +406,58 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone }: {
           </>
         )}
 
-        <dl className="mt-4 space-y-2 text-sm">
-          <div className="flex items-baseline justify-between gap-3"><dt className="text-slate-300">Check-ins processed</dt><dd className="text-xl font-bold tabular-nums">{scene === 'idle' ? '—' : numberFormat.format(partial.processed)}</dd></div>
-          <div className="flex items-baseline justify-between gap-3"><dt className="text-slate-300">Routine — auto-documented</dt><dd className="font-bold tabular-nums">{scene === 'idle' ? '—' : numberFormat.format(partial.routine)}</dd></div>
-          <div className="flex items-baseline justify-between gap-3"><dt className="text-slate-300">Answered on automated retry</dt><dd className="font-bold tabular-nums">{scene === 'idle' ? '—' : numberFormat.format(partial.retried)}</dd></div>
-          <div className="flex items-baseline justify-between gap-3"><dt className="text-slate-300">Adherence gaps → pharmacist workflow</dt><dd className="font-bold tabular-nums">{scene === 'idle' ? '—' : numberFormat.format(partial.adherence)}</dd></div>
-          <div className="flex items-baseline justify-between gap-3"><dt className="text-slate-300">Unreachable — retry cadence continues</dt><dd className="font-bold tabular-nums">{scene === 'idle' ? '—' : numberFormat.format(partial.unreachable)}</dd></div>
-          <div className="flex items-baseline justify-between gap-3 rounded-lg bg-amber-400/15 px-2 py-1.5"><dt className="font-semibold text-amber-200">Review queue — for the clinician</dt><dd className="text-lg font-bold tabular-nums text-amber-100">{scene === 'idle' ? '—' : numberFormat.format(partial.reviewQueue)}</dd></div>
+        <dl className="mt-5 border-b border-white/15 pb-3 text-base">
+          <div className="flex flex-wrap items-baseline justify-between gap-3"><dt className="text-slate-200">Synthetic check-ins processed</dt><dd className="text-2xl font-bold tabular-nums" data-testid="population-count-processed">{scene === 'idle' ? '—' : numberFormat.format(partial.processed)}</dd></div>
         </dl>
+        <p className="mt-4 text-sm font-semibold text-slate-200">These six categories sum to processed check-ins.</p>
+        <dl className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-2 text-sm" data-testid="population-categories">
+          {categoryRows.map(({ key, label, value, tone }) => (
+            <div key={key} className="min-w-0 rounded-lg border border-white/10 bg-slate-950/30 p-3">
+              <dt className={`leading-5 ${tone}`}>{label}</dt>
+              <dd className="mt-1 text-xl font-bold tabular-nums text-white">{scene === 'idle' ? '—' : numberFormat.format(value)}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mt-2 text-sm leading-6 text-slate-300">A retry answer is not a normal clinical classification.</p>
+
+        <div className="mt-4 rounded-xl border border-amber-300/30 bg-amber-400/10 p-3" data-testid="population-routing">
+          <dl>
+            <div className="flex flex-wrap items-baseline justify-between gap-3"><dt className="text-base font-semibold text-amber-100">Eligible for simulated review</dt><dd className="text-2xl font-bold tabular-nums text-amber-100" data-testid="population-count-review">{scene === 'idle' ? '—' : numberFormat.format(partial.reviewQueue)}</dd></div>
+          </dl>
+          <p className="mt-2 text-sm leading-6 text-amber-100">
+            Critical + warning flags + unanswered High-risk cases. This is a subset of the categories above, not an additional group.
+          </p>
+          {scene !== 'idle' && (
+            <p className="mt-2 text-sm leading-6 text-slate-200">
+              Of {numberFormat.format(partial.unreachable)} unanswered cases, {numberFormat.format(highRiskGaps)} are in this queue;
+              {' '}{numberFormat.format(partial.unreachable - highRiskGaps)} Low/Moderate-risk cases remain unknown outside it.
+            </p>
+          )}
+        </div>
 
         {counts && scene === 'done' && (
           <>
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/15">
-              <div className="h-full rounded-full bg-emerald-400" style={{ width: `${counts.automatedPct}%` }} />
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/15" role="meter" aria-label="Outside the simulated review queue" aria-valuemin={0} aria-valuemax={100} aria-valuenow={outsideReviewQueuePct} aria-valuetext={`${outsideReviewQueuePct}% of all synthetic check-ins; not resolved`}>
+              <div className="h-full rounded-full bg-slate-400" style={{ width: `${outsideReviewQueuePct}%` }} />
             </div>
-            <p className="mt-2 text-sm font-semibold text-emerald-300" data-testid="population-claim">
+            <p className="mt-2 text-base font-semibold leading-7 text-slate-200" data-testid="population-claim">
               {numberFormat.format(counts.reviewQueue)} of {numberFormat.format(counts.total)} synthetic
-              check-ins reached the clinician review queue — {counts.automatedPct}% resolved by the
-              registered rules.
+              check-ins entered the review queue; {outsideReviewQueuePct}% stayed outside the simulated review queue.
             </p>
+            <p className="mt-2 text-sm leading-6 text-slate-300">Outside the queue does not mean resolved. The queue does not prove review or care delivery.</p>
           </>
         )}
         {scene === 'idle' && (
-          <p className="mt-4 text-xs text-slate-400">Deterministic simulation — same numbers on every device, all decisions by the registered clinical rules, no AI in the loop. Press run and watch the night shift happen.</p>
+          <p className="mt-4 text-sm leading-6 text-slate-300">Same seeded scenario on every device. Rules and monitoring-gap policies determine this simulation; no AI or real outreach runs when you press Run.</p>
         )}
       </div>
 
-      <p role="status" aria-live="polite" className="sr-only">
+      <p role="status" aria-live="polite" className="sr-only" data-testid="population-announcement">
         {scene === 'done' && counts
-          ? `Overnight round complete: ${counts.total} synthetic check-ins processed, ${counts.reviewQueue} reached the clinician review queue, ${counts.automatedPct} percent resolved by the registered rules.`
+          ? `Overnight simulation complete: ${counts.total} check-ins, ${counts.reviewQueue} eligible for review, ${counts.unresolvedNoAnswer} unanswered. ${outsideReviewQueuePct} percent outside the review queue, not resolved. Unanswered High-risk cases overlap the queue; review is not proven.`
           : ''}
       </p>
-      <p className="mt-3 text-[11px] leading-4 text-slate-400" data-testid="population-disclaimer">
+      <p className="mt-3 text-sm leading-6 text-slate-300" data-testid="population-disclaimer">
         Illustrative workflow demonstration on synthetic data — not a clinical outcome or
         staffing claim.
       </p>

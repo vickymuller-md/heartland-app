@@ -182,13 +182,14 @@ export interface PopulationDayCounts {
   total: number;
   responded: number;
   routine: number;
+  /** Legacy key: answered on simulated retry, not clinically classified as normal. */
   retriedResolved: number;
   unresolvedNoAnswer: number;
   critical: number;
   warning: number;
   adherenceLapse: number;
   reviewQueue: number;
-  /** Share of check-ins fully handled by the registered rules, one decimal. */
+  /** Legacy key: percentage outside the simulated review queue, not resolved; one decimal. */
   automatedPct: number;
 }
 
@@ -349,6 +350,7 @@ export function simulatePopulationDay(size: PopulationSize, dayIndex: number): P
   const tiers = { low: 0, moderate: 0, high: 0 };
   const tracks = { trackA: 0, hybrid: 0, trackB: 0 };
   const exceptions: PopulationException[] = [];
+  let highRiskUnreachable = 0;
 
   const pushException = (exception: PopulationException) => {
     exceptions.push(exception);
@@ -378,6 +380,8 @@ export function simulatePopulationDay(size: PopulationSize, dayIndex: number): P
       // Only unresolved high-risk gaps interrupt the human; the rest stay on
       // the automated retry cadence — mirrors the Track B downtime plan.
       if (patient.tier === 'High') {
+        // Full-population count must not depend on the bounded example list.
+        highRiskUnreachable += 1;
         pushException({
           name: patient.name, age: patient.age, state: patient.state, track: patient.track,
           riskTier: patient.tier, category: 'no_answer',
@@ -407,7 +411,6 @@ export function simulatePopulationDay(size: PopulationSize, dayIndex: number): P
     counts.routine += 1;
   }
 
-  const highRiskUnreachable = exceptions.filter((exception) => exception.category === 'no_answer').length;
   // The clinician queue: rule-flagged plus unreachable high-risk. Adherence
   // lapses count separately (pharmacist row) and never inflate this number.
   counts.reviewQueue = counts.critical + counts.warning + highRiskUnreachable;

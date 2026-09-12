@@ -2,7 +2,6 @@ import {
   AudioLines,
   Bot,
   CheckCircle2,
-  ChevronRight,
   ClipboardCheck,
   Cog,
   FileInput,
@@ -21,7 +20,7 @@ const LAYERS = [
   { label: 'AI language layer', detail: 'converses and extracts', icon: Bot, tone: 'border-violet-200 bg-violet-50 text-violet-900' },
   { label: 'Registered rules', detail: 'set disposition', icon: Cog, tone: 'border-emerald-200 bg-emerald-50 text-emerald-900' },
   { label: 'Voice interface', detail: 'optional narration', icon: AudioLines, tone: 'border-blue-200 bg-blue-50 text-blue-900' },
-  { label: 'Human review', detail: 'authorizes action', icon: UserRoundCheck, tone: 'border-amber-200 bg-amber-50 text-amber-950' },
+  { label: 'Human review', detail: 'required before real use', icon: UserRoundCheck, tone: 'border-amber-200 bg-amber-50 text-amber-950' },
 ] as const;
 
 function formatSeverity(value: number | null) {
@@ -48,11 +47,11 @@ export function SandboxAiEvidenceFlow({ populationSize, dayIndex }: {
       tone: 'bg-slate-100 text-slate-800',
     },
     {
-      label: 'Classify',
+      label: 'Separate',
       value: `${population.counts.automatedPct}%`,
-      detail: 'resolved by rules',
+      detail: 'outside the review queue',
       icon: Cog,
-      tone: 'bg-emerald-100 text-emerald-900',
+      tone: 'bg-slate-100 text-slate-800',
     },
     {
       label: 'Route',
@@ -76,9 +75,9 @@ export function SandboxAiEvidenceFlow({ populationSize, dayIndex }: {
       tone: 'bg-emerald-100 text-emerald-900',
     },
     {
-      label: 'Close loop',
+      label: 'Review required',
       value: 'Human',
-      detail: 'reviews and documents',
+      detail: 'verify before follow-through',
       icon: ClipboardCheck,
       tone: 'bg-blue-100 text-blue-900',
     },
@@ -86,26 +85,26 @@ export function SandboxAiEvidenceFlow({ populationSize, dayIndex }: {
 
   return (
     <section
-      className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
+      className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white [overflow-wrap:anywhere]"
       aria-labelledby="ai-evidence-flow-title"
       data-testid="ai-evidence-flow"
     >
-      <div className="border-b border-slate-200 bg-slate-950 px-5 py-5 text-white sm:px-6">
+      <div className="border-b border-slate-200 bg-slate-950 px-3 py-5 text-white sm:px-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">How the automation works</p>
             <h2 id="ai-evidence-flow-title" className="mt-2 text-2xl font-bold tracking-tight">See every handoff, not a black box</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-              AI handles language. Registered rules set every simulated disposition. A person reviews the evidence and authorizes the next action.
+            <p className="mt-2 max-w-3xl text-base leading-7 text-slate-300">
+              AI handles language. Registered rules and monitoring-gap policies determine simulated routing. Real use would require human review and authorization; this demonstration does not deliver care.
             </p>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5" aria-label="Automation layer legend">
+          <div className="grid gap-2 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] xl:min-w-[45%]" aria-label="Automation layer legend">
             {LAYERS.map(({ label, detail, icon: Icon, tone }) => (
-              <div key={label} className={`flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 ${tone}`}>
+              <div key={label} className={`flex min-w-0 flex-wrap items-center gap-2 rounded-lg border px-3 py-2 ${tone}`}>
                 <Icon className="size-4 shrink-0" aria-hidden="true" />
                 <span className="min-w-0">
-                  <span className="block text-xs font-bold leading-4">{label}</span>
-                  <span className="block text-[10px] leading-4 opacity-80">{detail}</span>
+                  <span className="block text-sm font-bold leading-5">{label}</span>
+                  <span className="block text-xs leading-5">{detail}</span>
                 </span>
               </div>
             ))}
@@ -113,39 +112,41 @@ export function SandboxAiEvidenceFlow({ populationSize, dayIndex }: {
         </div>
       </div>
 
-      <div className="p-5 sm:p-6">
-        <ol className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[repeat(5,minmax(0,1fr)_1.25rem)_minmax(0,1fr)]" aria-label="Automation evidence pipeline">
+      <div className="p-3 sm:p-6">
+        <p className="mb-3 text-base leading-7 text-slate-700">
+          Steps 1–3 describe the chosen population scenario. Steps 4–6 illustrate the fixed transcript example below, not a completed workflow for every check-in.
+        </p>
+        <ol className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,20rem),1fr))] gap-3" aria-label="Automation evidence pipeline">
           {steps.map(({ label, value, detail, icon: Icon, tone }, index) => (
-            <li key={label} className="contents">
-              <div className="min-w-0 rounded-xl bg-slate-50 p-3 xl:col-span-1">
+            <li key={label} className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="mb-3 text-xs font-semibold text-slate-600">{index < 3 ? 'Population scenario' : 'Fixed example'}</p>
                 <span className={`inline-flex size-8 items-center justify-center rounded-lg ${tone}`}>
                   <Icon className="size-4" aria-hidden="true" />
                 </span>
-                <p className="mt-3 text-[11px] font-bold uppercase tracking-wide text-slate-500">{index + 1} · {label}</p>
+                <p className="mt-3 text-sm font-bold text-slate-700">{index + 1} · {label}</p>
                 <p className="mt-1 text-lg font-bold tabular-nums text-slate-950">{value}</p>
-                <p className="mt-1 text-xs leading-5 text-slate-600">{detail}</p>
-              </div>
-              {index < steps.length - 1 && (
-                <div className="hidden items-center justify-center text-slate-300 xl:flex" aria-hidden="true">
-                  <ChevronRight className="size-5" />
-                </div>
-              )}
+                <p className="mt-1 text-sm leading-6 text-slate-600">{detail}</p>
             </li>
           ))}
         </ol>
+        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950">
+          {numberFormat.format(population.counts.unresolvedNoAnswer)} unanswered after simulated retry, including High-risk cases in the queue.
+          {' '}These counts overlap. Outside the queue does not mean resolved; answering a retry does not establish a normal classification.
+        </p>
 
         <div className="mt-6 overflow-hidden rounded-xl border border-slate-200" data-testid="decision-receipt">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3">
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Decision receipt · worked example</p>
               <p className="mt-0.5 text-sm font-bold text-slate-950">Maria Santos · synthetic outreach</p>
+              <p className="mt-1 text-sm leading-6 text-slate-600">Fixed example, not a member of the generated population. Changing population or day does not change this receipt.</p>
             </div>
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-950">
               <UserRoundCheck className="size-3.5" aria-hidden="true" /> Human review required
             </span>
           </div>
 
-          <div className="grid lg:grid-cols-3">
+          <div className="grid grid-cols-1 lg:grid-cols-3">
             <div className="border-b border-slate-200 p-4 lg:border-b-0 lg:border-r">
               <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
                 <MessageSquareText className="size-4 text-slate-700" aria-hidden="true" /> 1 · Source transcript
@@ -160,7 +161,7 @@ export function SandboxAiEvidenceFlow({ populationSize, dayIndex }: {
               <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-violet-800">
                 <Bot className="size-4" aria-hidden="true" /> 2 · AI extraction
               </p>
-              <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              <dl className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(min(100%,6rem),1fr))] gap-x-4 gap-y-2 text-sm">
                 <div><dt className="text-xs text-slate-500">Weight</dt><dd className="font-bold text-slate-950">{receipt.extraction.weightLbs ?? 'Unknown'} lb</dd></div>
                 <div><dt className="text-xs text-slate-500">Dyspnea</dt><dd className="font-bold text-slate-950">{formatSeverity(receipt.extraction.dyspnea)}</dd></div>
                 <div><dt className="text-xs text-slate-500">Edema</dt><dd className="font-bold text-slate-950">{formatSeverity(receipt.extraction.edema)}</dd></div>

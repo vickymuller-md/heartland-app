@@ -12,7 +12,7 @@ import {
   executeCopilotTool,
   serializeCopilotToolResult,
 } from '@/lib/sandbox-ai/copilot';
-import { simulatePopulationDay } from '@/lib/sandbox/population';
+import { POPULATION_SIZES, simulatePopulationDay, type PopulationSize } from '@/lib/sandbox/population';
 import { RED_FLAG_CRITERIA } from '@/lib/vitals/constants';
 
 const DAY0 = { workItems: [] };
@@ -128,15 +128,52 @@ describe('get_population_snapshot', () => {
     const expected = simulatePopulationDay(500, 1);
     const typed = result as { simulationDay: string; counts: unknown; topReviewQueue: unknown[]; note: string };
     expect(typed.simulationDay).toBe('Day 2 of 5');
-    expect(typed.counts).toEqual(expected.counts);
+    const { automatedPct, retriedResolved, ...counts } = expected.counts;
+    expect(typed.counts).toEqual({ ...counts, outsideReviewQueuePct: automatedPct, answeredOnRetry: retriedResolved });
     expect(typed.topReviewQueue.length).toBeLessThanOrEqual(6);
-    expect(typed.note).toContain('registered deterministic rules');
+    expect(typed.note).toContain('outside is not resolved');
     expect(serializeCopilotToolResult(result).length).toBeLessThanOrEqual(1800);
   });
 
   it('defaults to the standard population size when the request omits it', () => {
     const { result } = executeCopilotTool('get_population_snapshot', {}, DAY0);
     expect((result as { counts: { total: number } }).counts.total).toBe(2500);
+  });
+
+  it('transports counts, uncertainty and client provenance under the actual JSON cap for every scenario', () => {
+    // Stress entry is internal only; the public request schema still rejects it.
+    const scenarios = POPULATION_SIZES.flatMap((size) => Array.from({ length: 5 }, (_, dayIndex) => ({ size, dayIndex })));
+    scenarios.push({ size: 10000 as PopulationSize, dayIndex: 0 });
+    for (const { size, dayIndex } of scenarios) {
+      for (const reviewedCount of [0, 40]) {
+        const { result } = executeCopilotTool('get_population_snapshot', {}, { workItems: [], populationSize: size, dayIndex, reviewedCount });
+        const serialized = serializeCopilotToolResult(result);
+        expect(serialized.length).toBeLessThanOrEqual(1800);
+        const parsed = JSON.parse(serialized);
+        expect(parsed).not.toHaveProperty('error');
+        const { automatedPct, retriedResolved, ...counts } = simulatePopulationDay(size, dayIndex).counts;
+        expect(parsed.counts).toEqual({ ...counts, outsideReviewQueuePct: automatedPct, answeredOnRetry: retriedResolved });
+        expect(parsed.counts).not.toHaveProperty('automatedPct');
+        expect(parsed.counts).not.toHaveProperty('retriedResolved');
+        expect(parsed.clientReportedSyntheticSelections).toBe(reviewedCount);
+        expect(parsed.queuePolicy).toBe('critical + warning + unanswered High');
+        const rawExamples = (result as { topReviewQueue: unknown[] }).topReviewQueue;
+        expect(rawExamples).toHaveLength(Math.min(simulatePopulationDay(size, dayIndex).exceptions.length, 6));
+        expect(parsed.topReviewQueue).toEqual(rawExamples.slice(0, parsed.topReviewQueue.length));
+        expect(parsed.topReviewQueue.length).toBeGreaterThan(0);
+        expect(parsed.topReviewQueue.length).toBeLessThanOrEqual(6);
+        if (parsed.topReviewQueue.length < Math.min(counts.reviewQueue, 6)) expect(parsed.resultTruncated).toBe(true);
+        expect(parsed.note).toContain('uses total check-ins');
+        expect(parsed.note).toContain('outside is not resolved');
+        expect(parsed.note).toContain('overlap the queue');
+        expect(parsed.note).toContain('remain unknown');
+        expect(parsed.note).toContain('not normal classifications');
+        expect(parsed.note).toContain('examples are limited');
+        expect(parsed.note).toContain('client-reported');
+        expect(parsed.note).toContain('automatic entries');
+        expect(parsed.note).toContain('no human review or delivered care');
+      }
+    }
   });
 });
 

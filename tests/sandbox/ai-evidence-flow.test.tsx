@@ -17,6 +17,10 @@ describe('SandboxAiEvidenceFlow', () => {
     expect(flow).toHaveTextContent('2,500');
     expect(flow).toHaveTextContent(`${expected.counts.automatedPct}%`);
     expect(flow).toHaveTextContent(String(expected.counts.reviewQueue));
+    expect(flow).toHaveTextContent('outside the review queue');
+    expect(flow).toHaveTextContent('60 unanswered after simulated retry');
+    expect(flow).toHaveTextContent('Outside the queue does not mean resolved');
+    expect(flow).not.toHaveTextContent('resolved by rules');
   });
 
   it('renders a decision receipt from the same synthetic fixture and rule output', () => {
@@ -29,5 +33,14 @@ describe('SandboxAiEvidenceFlow', () => {
     expect(receipt).toHaveTextContent(fixture.redFlags[0].id);
     expect(receipt).toHaveTextContent(fixture.disposition);
     expect(receipt).toHaveTextContent('Human review required');
+    expect(receipt).toHaveTextContent('Fixed example, not a member of the generated population');
+  });
+
+  it('updates the population scenario without presenting the fixed receipt as a generated case', () => {
+    const { rerender } = render(<SandboxAiEvidenceFlow populationSize={500} dayIndex={0} />);
+    const receipt = screen.getByTestId('decision-receipt').textContent;
+    rerender(<SandboxAiEvidenceFlow populationSize={5000} dayIndex={4} />);
+    expect(screen.getByTestId('ai-evidence-flow')).toHaveTextContent('5,000');
+    expect(screen.getByTestId('decision-receipt').textContent).toBe(receipt);
   });
 });
