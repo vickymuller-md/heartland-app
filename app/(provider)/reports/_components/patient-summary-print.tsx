@@ -100,28 +100,31 @@ export const PatientSummaryPrint = React.forwardRef<
 
           {/* c. Lab Results */}
           <h2 className="font-semibold mt-4 mb-2 border-b pb-1">Lab Results</h2>
+          <p className="text-xs text-gray-600 mb-2">Laboratory date range uses complete UTC calendar days. Flags are shown only when recorded.</p>
           {data.labs.length === 0 ? (
-            <p className="text-sm text-gray-500 mb-4">No labs in period.</p>
+            <p className="text-sm text-gray-500 mb-4">No lab values recorded in period.</p>
           ) : (
             <table className="w-full text-sm mb-4 border-collapse">
               <thead>
                 <tr className="border-b">
                   <th className="py-1 text-left font-medium">Test</th>
                   <th className="py-1 text-left font-medium">Value</th>
-                  <th className="py-1 text-left font-medium">Date</th>
+                  <th className="py-1 text-left font-medium">Collected at (UTC)</th>
                   <th className="py-1 text-left font-medium">Flag</th>
                 </tr>
               </thead>
               <tbody>
-                {data.labs.slice(0, 10).map((lab) => (
-                  <tr key={lab.id} className="border-b border-gray-200">
+                {data.labs.map((lab) => (
+                  <tr key={lab.id} className="border-b border-gray-200 break-inside-avoid">
                     <td className="py-1">{lab.test_name}</td>
                     <td className="py-1">
                       {lab.value} {lab.unit}
                     </td>
-                    <td className="py-1">{lab.collected_at}</td>
+                    <td className="py-1"><time dateTime={lab.collected_at}>{new Date(lab.collected_at).toISOString()}</time></td>
                     <td className="py-1">
-                      {lab.flag && lab.flag !== 'normal' ? (
+                      {lab.flag == null ? (
+                        <span className="text-gray-500">Not recorded</span>
+                      ) : lab.flag !== 'normal' ? (
                         <span
                           className={
                             lab.flag === 'critical'

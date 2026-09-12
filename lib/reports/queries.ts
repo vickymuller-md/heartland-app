@@ -14,11 +14,11 @@ import type {
   MonthlyReportData,
   PatientSummaryData,
   ReportDateRange,
-  LabResultRow,
   NiwTractionData,
   MonthlyCount,
 } from './types';
 import { getPatientDetail } from '@/lib/dashboard/queries';
+import { getReportLabResults } from './lab-results';
 
 // Re-export types for consumers that import from queries
 export type { MonthlyReportData, PatientSummaryData, NiwTractionData, MonthlyCount } from './types';
@@ -155,20 +155,12 @@ export async function getPatientSummaryData(
   const detail = await getPatientDetail(supabase, providerId, patientId);
   if (!detail) return null;
 
-  // 2. Fetch lab results within date range
-  const { data: labsData, error: labsError } = await supabase
-    .from('lab_results')
-    .select('id, patient_id, test_name, value, unit, collected_at, flag')
-    .eq('patient_id', patientId)
-    .gte('collected_at', range.from)
-    .lte('collected_at', range.to)
-    .order('collected_at', { ascending: false });
-
-  if (labsError) throw labsError;
+  // 2. Read persisted wide panels and retain each recorded analyte and collection instant.
+  const labs = await getReportLabResults(supabase, [patientId], range);
 
   return {
     ...detail,
-    labs: (labsData ?? []) as LabResultRow[],
+    labs,
     dateRange: range,
   };
 }

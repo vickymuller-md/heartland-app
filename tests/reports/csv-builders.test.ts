@@ -16,6 +16,7 @@ import {
   buildMedsCSV,
   truncateToYear,
 } from '@/lib/reports/csv-builders';
+import { projectLabResults } from '@/lib/reports/lab-results';
 
 describe('REPT-03 downloadCSV / arrayToCSV', () => {
   it('wraps each cell in double quotes per RFC 4180', () => {
@@ -83,7 +84,19 @@ describe('REPT-03 buildLabsCSV', () => {
     expect(headers).toContain('collected_at');
   });
 
-  it.todo('returns correct data row shape once lab query is defined');
+  it('exports projected wide results with exact collection time and blank unrecorded flag', () => {
+    const labs = projectLabResults([{
+      id: 'draw-1', patient_id: 'patient-1', collected_at: '2025-08-01T09:15:00-04:00',
+      potassium: 6.2, creatinine: 1.1, egfr: null,
+    }]);
+    const rows = buildLabsCSV(labs, { deidentify: false });
+    expect(rows.slice(1)).toEqual([
+      ['patient-1', 'Potassium', '6.2', 'mEq/L', '2025-08-01T09:15:00-04:00', ''],
+      ['patient-1', 'Creatinine', '1.1', 'mg/dL', '2025-08-01T09:15:00-04:00', ''],
+    ]);
+    const reduced = buildLabsCSV(labs, { deidentify: true, patientMap: new Map([['patient-1', 'P001']]) });
+    expect(reduced[1]).toEqual(['P001', 'Potassium', '6.2', 'mEq/L', '2025', '']);
+  });
 });
 
 describe('REPT-03 buildMedsCSV', () => {

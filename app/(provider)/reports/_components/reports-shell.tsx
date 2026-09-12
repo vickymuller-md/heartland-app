@@ -10,7 +10,7 @@
  *               REPT-03 (CSV Export), REPT-04 (Date Range), REPT-05 (Navigation)
  */
 
-import { useRef, useState, useTransition, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import { DateRangePicker } from './date-range-picker';
 import { MonthlyReportPrint } from './monthly-report-print';
@@ -24,6 +24,7 @@ import {
   buildMedsCSV,
 } from '@/lib/reports/csv-builders';
 import type { MonthlyReportData, PatientSummaryData } from '@/lib/reports/types';
+import { getReportLabResults } from '@/lib/reports/lab-results';
 import type { PatientWithStatus } from '@/lib/dashboard/types';
 import { Printer, Download } from 'lucide-react';
 
@@ -53,25 +54,43 @@ export function ReportsShell({ data, patients, from, to }: ReportsShellProps) {
   // Patient summary state
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [patientSummaryData, setPatientSummaryData] = useState<PatientSummaryData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [patientSummaryError, setPatientSummaryError] = useState<string | null>(null);
+  const [patientSummaryLoading, setPatientSummaryLoading] = useState(false);
+  const printablePatientSummary = patientSummaryData?.patient.id === selectedPatientId
+    && patientSummaryData?.dateRange.from === from && patientSummaryData?.dateRange.to === to
+    ? patientSummaryData : null;
 
   // Fetch patient data when selection changes
   useEffect(() => {
-    if (!selectedPatientId) {
-      setPatientSummaryData(null);
-      return;
-    }
+    let obsolete = false;
+    setPatientSummaryData(null);
+    setPatientSummaryError(null);
+    setPatientSummaryLoading(Boolean(selectedPatientId));
+    if (!selectedPatientId) return;
 
-    startTransition(async () => {
-      const result = await fetchPatientSummary(selectedPatientId, from, to);
-      setPatientSummaryData(result);
-    });
+    const loadSummary = async () => {
+      try {
+        const result = await fetchPatientSummary(selectedPatientId, from, to);
+        if (obsolete) return;
+        setPatientSummaryData(result);
+        if (!result) setPatientSummaryError('Unable to load patient summary. Please try again.');
+      } catch {
+        if (obsolete) return;
+        setPatientSummaryData(null);
+        setPatientSummaryError('Unable to load patient summary. Please try again.');
+      } finally {
+        if (!obsolete) setPatientSummaryLoading(false);
+      }
+    };
+    void loadSummary();
+    return () => { obsolete = true; };
   }, [selectedPatientId, from, to]);
 
   // CSV export state
   const [csvType, setCsvType] = useState<'vitals' | 'labs' | 'medications'>('vitals');
   const [deidentify, setDeidentify] = useState(false);
   const [csvLoading, setCsvLoading] = useState(false);
+  const [csvError, setCsvError] = useState<string | null>(null);
 
   const linkedPatientIds = patients.map((p) => p.id);
 
@@ -79,6 +98,7 @@ export function ReportsShell({ data, patients, from, to }: ReportsShellProps) {
     if (linkedPatientIds.length === 0) return;
 
     setCsvLoading(true);
+    setCsvError(null);
     try {
       const supabase = createClient();
 
@@ -101,15 +121,8 @@ export function ReportsShell({ data, patients, from, to }: ReportsShellProps) {
         const rows = buildVitalsCSV(vitals ?? [], opts);
         downloadCSV(`heartland-vitals-${from}-to-${to}.csv`, rows);
       } else if (csvType === 'labs') {
-        const { data: labs } = await supabase
-          .from('lab_results')
-          .select('id, patient_id, test_name, value, unit, collected_at, flag')
-          .in('patient_id', linkedPatientIds)
-          .gte('collected_at', from)
-          .lte('collected_at', to)
-          .order('collected_at', { ascending: false });
-
-        const rows = buildLabsCSV(labs ?? [], opts);
+        const labs = await getReportLabResults(supabase, linkedPatientIds, { from, to });
+        const rows = buildLabsCSV(labs, opts);
         downloadCSV(`heartland-labs-${from}-to-${to}.csv`, rows);
       } else {
         // medications: join medication_logs with medications
@@ -137,6 +150,8 @@ export function ReportsShell({ data, patients, from, to }: ReportsShellProps) {
         );
         downloadCSV(`heartland-medications-${from}-to-${to}.csv`, rows);
       }
+    } catch {
+      setCsvError('Unable to export data. Please try again.');
     } finally {
       setCsvLoading(false);
     }
@@ -146,6 +161,9 @@ export function ReportsShell({ data, patients, from, to }: ReportsShellProps) {
     <div className="space-y-8">
       {/* Date Range Picker */}
       <DateRangePicker from={from} to={to} />
+      <p className="text-xs text-gray-600">
+        Lab reports use UTC calendar dates and include the full final day. Collection timestamps are retained unless privacy-minimized export is selected.
+      </p>
 
       {/* Section A: Monthly Report */}
       <section>
@@ -196,7 +214,7 @@ export function ReportsShell({ data, patients, from, to }: ReportsShellProps) {
           <button
             type="button"
             className="flex items-center gap-2 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            disabled={!patientSummaryData || isPending}
+            disabled={!printablePatientSummary || patientSummaryLoading}
             onClick={() => handlePatientPrint()}
           >
             <Printer className="size-4" />
@@ -223,13 +241,15 @@ export function ReportsShell({ data, patients, from, to }: ReportsShellProps) {
               </option>
             ))}
           </select>
-          {isPending && (
+          {patientSummaryLoading && (
             <span className="text-sm text-gray-500">Loading...</span>
           )}
         </div>
 
+        {patientSummaryError && <p role="alert" className="mb-4 text-sm text-red-600">{patientSummaryError}</p>}
+
         {/* Print layout -- always mounted, hidden on screen */}
-        <PatientSummaryPrint ref={patientPrintRef} data={patientSummaryData} />
+        <PatientSummaryPrint ref={patientPrintRef} data={printablePatientSummary} />
       </section>
 
       {/* Section C: CSV Export */}
@@ -241,7 +261,8 @@ export function ReportsShell({ data, patients, from, to }: ReportsShellProps) {
             <button
               key={tab}
               type="button"
-              className={`rounded px-3 py-1 text-sm font-medium capitalize ${
+              disabled={csvLoading}
+              className={`rounded px-3 py-1 text-sm font-medium capitalize disabled:opacity-50 ${
                 csvType === tab
                   ? 'bg-gray-900 text-white'
                   : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -258,6 +279,7 @@ export function ReportsShell({ data, patients, from, to }: ReportsShellProps) {
             <input
               type="checkbox"
               checked={deidentify}
+              disabled={csvLoading}
               onChange={(e) => setDeidentify(e.target.checked)}
               aria-describedby="privacy-minimized-export-note"
               className="rounded border-gray-300"
@@ -278,6 +300,7 @@ export function ReportsShell({ data, patients, from, to }: ReportsShellProps) {
         <p id="privacy-minimized-export-note" className="mt-3 max-w-3xl text-xs leading-5 text-gray-600">
           When selected, patient IDs are replaced with local export labels and dates are reduced to year only. These transformations do not independently establish de-identification or HIPAA compliance; authorized reviewers must assess the complete dataset and intended disclosure.
         </p>
+        {csvError && <p role="alert" className="mt-3 text-sm text-red-600">{csvError}</p>}
       </section>
     </div>
   );
