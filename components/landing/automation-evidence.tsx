@@ -3,45 +3,43 @@ import Link from "next/link";
 const FLOW_STEPS = [
   {
     number: "01",
-    layer: "Synthetic input",
-    title: "A fictional patient answers",
-    body: "Typed or opt-in voice input starts as an explicitly synthetic demonstration.",
-    accent: "bg-stone",
+    title: "Collection",
+    body: "Start with the answer, its source and its time.",
+    source: 'Fictional check-in: “I did not record my weight today.”',
+    record: "Demo day 1, 09:00 · typed answer · weight not provided.",
+    owner: "Visitor playing a fictional patient. Voice is optional and starts off.",
   },
   {
     number: "02",
-    layer: "Input safety",
-    title: "Deterministic preflight runs",
-    body: "Selected emergency phrases and obvious identifier patterns can trigger a bounded response before the model.",
-    accent: "bg-alert",
+    title: "Record",
+    body: "Keep what was said separate from what was extracted.",
+    source: "The original answer remains the reference for this explanation.",
+    record: "Weight: unknown. No value is invented to complete the record.",
+    owner: "AI can structure language; selected input and generated-text screens apply on supported paths.",
   },
   {
     number: "03",
-    layer: "Language layer",
-    title: "AI structures the conversation",
-    body: "English or Spanish responses become bounded fields; facts the visitor did not provide stay unknown.",
-    accent: "bg-violet-600",
+    title: "Signal",
+    body: "Make missing information visible to the reviewer.",
+    source: "A required answer is missing in this fictional check-in.",
+    record: "Monitoring gap for review — not a diagnosis or a normal result.",
+    owner: "Registered rules and documented gap policies set simulated routing, not the language model.",
   },
   {
     number: "04",
-    layer: "Output safety",
-    title: "Supported generated text is screened",
-    body: "On generated paraphrase and small-talk paths, selected prescriptive wording can trigger a canonical replacement.",
-    accent: "bg-blue-500",
+    title: "Human review",
+    body: "Show the evidence before choosing the next action.",
+    source: "Source answer, unknown fields and routing reason are available together.",
+    record: "Example owner: demo reviewer. Next step: clarify the missing answer.",
+    owner: "A person verifies context. AI wording is a proposal, never clinical authorization.",
   },
   {
     number: "05",
-    layer: "Registered rules",
-    title: "The registry sets the simulated disposition",
-    body: "Named rules and documented monitoring-gap policies — including required-input gaps — route the fictional case.",
-    accent: "bg-signal",
-  },
-  {
-    number: "06",
-    layer: "Review record",
-    title: "Displayed evidence meets human review",
-    body: "The receipt shows source, extraction, unknowns, rule ID, disposition, and the human next action.",
-    accent: "bg-cool",
+    title: "Documented outcome",
+    body: "Record what happened, not just that a button was pressed.",
+    source: "Illustrated outcome: clarification still pending with the demo reviewer.",
+    record: "No real contact, delivery or clinical benefit is demonstrated.",
+    owner: "People own follow-up and closure. A saved or acknowledged receipt is not clinical review.",
   },
 ];
 
@@ -113,11 +111,11 @@ const CAPABILITIES = [
 
 export function AutomationEvidence() {
   return (
-    <section id="evidence-lab" className="border-b border-grid bg-panel" data-testid="landing-evidence-lab">
+    <section id="evidence-lab" className="border-b border-grid bg-panel font-editorial [overflow-wrap:anywhere]" data-testid="landing-evidence-lab">
       <div className="mx-auto max-w-[1200px] px-6 py-24 md:py-32">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:items-end">
           <div className="lg:col-span-7">
-            <p className="font-editorial text-[12.5px] uppercase tracking-[0.18em] text-alert">
+            <p className="text-sm uppercase tracking-[0.18em] text-alert">
               The Evidence Lab
             </p>
             <h2 className="mt-5 max-w-3xl text-[clamp(2rem,4.2vw,3.5rem)] font-editorial font-semibold leading-[1.05] tracking-[-0.02em] text-cool">
@@ -126,23 +124,23 @@ export function AutomationEvidence() {
                 and what it never decides.
               </span>
             </h2>
-            <p className="mt-6 max-w-2xl font-editorial text-[15.5px] leading-relaxed text-cool/75">
+            <p className="mt-6 max-w-2xl text-base leading-relaxed text-cool/80">
               The public sandbox turns automation into an inspectable workflow.
               AI handles bounded language tasks; registered rules set simulated dispositions;
               people own clinical judgment and the next action.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:col-span-5">
+          <div data-testid="responsibility-layers" className="grid grid-cols-1 gap-3 lg:col-span-5">
             {RESPONSIBILITY_LAYERS.map((layer) => (
               <div key={layer.label} className="rounded-2xl border border-grid bg-terminal p-4">
                 <div className="flex items-center gap-2">
                   <span className={`h-2 w-2 rounded-full ${layer.accent}`} aria-hidden="true" />
-                  <p className="font-editorial text-[10.5px] font-semibold uppercase tracking-[0.12em] text-cool">
+                  <p className="text-sm font-semibold text-cool">
                     {layer.label}
                   </p>
                 </div>
-                <p className="mt-2 font-editorial text-[11.5px] leading-relaxed text-cool/75">
+                <p className="mt-2 text-base leading-relaxed text-cool/80">
                   {layer.detail}
                 </p>
               </div>
@@ -150,76 +148,84 @@ export function AutomationEvidence() {
           </div>
         </div>
 
-        <div className="mt-14 rounded-3xl border border-grid bg-terminal p-5 md:p-8">
-          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-            <div>
-              <p className="font-editorial text-[11px] uppercase tracking-[0.18em] text-stone">
-                One example, layer by layer
-              </p>
-              <h3 className="mt-2 font-editorial text-[22px] font-semibold text-cool">
-                An inspectable workflow record
-              </h3>
-            </div>
-            <p className="max-w-lg font-editorial text-[13px] leading-relaxed text-cool/80">
-              The interface labels each displayed role so a fluent sentence cannot
-              masquerade as a registered rule or a human authorization.
-            </p>
-          </div>
-
-          <ol className="mt-8 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <div data-testid="synthetic-walkthrough" className="mt-14 rounded-3xl border border-grid bg-terminal p-5 md:p-8">
+          <p className="text-sm font-semibold text-alert">Synthetic walkthrough · No clinical care</p>
+          <h3 className="mt-3 text-2xl font-semibold text-cool">One answer, five visible handoffs.</h3>
+          <p className="mt-4 max-w-3xl text-base leading-relaxed text-cool/80">
+            Open each step to follow a fixed fictional example. This explanation does not run AI,
+            save a patient record or contact anyone. It is not the laboratory recovery candidate below.
+          </p>
+          <ol className="mt-8 space-y-3">
             {FLOW_STEPS.map((step) => (
-              <li key={step.number} className="rounded-2xl border border-grid bg-panel p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="inline-flex items-center gap-2 font-editorial text-[11px] font-semibold uppercase tracking-[0.16em] text-cool">
-                    <span className={`h-2 w-2 rounded-full ${step.accent}`} aria-hidden="true" />
-                    {step.layer}
-                  </span>
-                  <span className="font-mono-editorial text-[11px] text-cool/70">{step.number}</span>
-                </div>
-                <p className="mt-5 font-editorial text-[14px] font-semibold leading-snug text-cool">
-                  {step.title}
-                </p>
-                <p className="mt-2 font-editorial text-[12.5px] leading-relaxed text-cool/80">
-                  {step.body}
-                </p>
+              <li key={step.number}>
+                <details open={step.number === "01"} className="group rounded-2xl border border-grid bg-panel">
+                  <summary className="min-h-12 cursor-pointer rounded-2xl px-5 py-5 text-cool marker:text-alert focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-alert">
+                    <span className="ml-2 text-sm font-semibold text-alert">{step.number}</span>{" "}
+                    <span className="ml-2 text-lg font-semibold">{step.title}</span>
+                    <span className="mt-2 block text-base leading-relaxed text-cool/80">{step.body}</span>
+                  </summary>
+                  <dl className="grid gap-5 border-t border-grid px-5 py-5 text-base leading-relaxed md:grid-cols-3">
+                    <div><dt className="text-sm font-semibold text-alert">Source</dt><dd className="mt-2 text-cool/80">{step.source}</dd></div>
+                    <div><dt className="text-sm font-semibold text-alert">What changes</dt><dd className="mt-2 text-cool/80">{step.record}</dd></div>
+                    <div><dt className="text-sm font-semibold text-alert">Responsibility</dt><dd className="mt-2 text-cool/80">{step.owner}</dd></div>
+                  </dl>
+                </details>
               </li>
             ))}
           </ol>
         </div>
 
-        <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-14">
+          <p className="text-sm font-semibold text-signal">Published release · v1.9.0</p>
+          <h3 className="mt-3 text-2xl font-semibold text-cool">Choose what to explore.</h3>
+          <p className="mt-3 max-w-3xl text-base leading-relaxed text-cool/80">These capabilities belong to the published App baseline. Public interactions are synthetic; AI availability is bounded by capacity and safety controls.</p>
+        </div>
+        <div data-testid="published-capabilities" className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {CAPABILITIES.map((capability) => (
-            <article key={capability.eyebrow} className="rounded-2xl border border-grid bg-terminal p-6">
-              <p className="font-editorial text-[11px] font-semibold uppercase tracking-[0.16em] text-alert">
+            <article key={capability.eyebrow} className="min-w-0 break-words rounded-2xl border border-grid bg-terminal p-6">
+              <p className="text-sm font-semibold text-alert">
                 {capability.eyebrow}
               </p>
               <h3 className="mt-3 font-editorial text-[18px] font-semibold tracking-tight text-cool">
                 {capability.title}
               </h3>
-              <p className="mt-3 font-editorial text-[13.5px] leading-relaxed text-cool/75">
+              <p className="mt-3 text-base leading-relaxed text-cool/80">
                 {capability.body}
               </p>
             </article>
           ))}
         </div>
 
-        <div className="mt-10 flex flex-col gap-5 rounded-2xl border border-alert/30 bg-alert/10 p-6 md:flex-row md:items-center md:justify-between">
-          <div>
+        <div className="mt-10 flex flex-col flex-wrap gap-5 rounded-2xl border border-alert/30 bg-alert/10 p-6 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0 flex-1">
             <p className="font-editorial text-[16px] font-semibold text-cool">
-              Walk through the complete synthetic workflow in about five minutes.
+              Try the published synthetic workflow.
             </p>
-            <p className="mt-1 max-w-2xl font-editorial text-[12.5px] leading-relaxed text-cool/80">
+            <p className="mt-2 max-w-2xl text-base leading-relaxed text-cool/80">
               Demonstration only. Do not enter real patient, personal, or health
               information. The sandbox does not authorize real-world or unsupervised clinical use.
             </p>
           </div>
           <Link
             href="/sandbox"
-            className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-xl bg-alert px-6 font-editorial text-[15px] font-semibold text-terminal transition-colors hover:bg-cool hover:text-terminal"
+            prefetch={false}
+            className="inline-flex min-h-12 max-w-full items-center justify-center rounded-xl bg-alert px-6 py-3 text-center text-base font-semibold text-white transition-colors hover:bg-cool focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-alert"
           >
             Open the Evidence Lab →
           </Link>
         </div>
+        <aside data-testid="local-candidate" aria-labelledby="lab-candidate-title" className="mt-10 rounded-3xl border-2 border-dashed border-cool/40 bg-terminal p-6 md:p-8">
+          <p className="text-sm font-semibold text-cool">Local candidate · Not deployed</p>
+          <h3 id="lab-candidate-title" className="mt-3 text-2xl font-semibold text-cool">Laboratory submission recovery</h3>
+          <p className="mt-4 max-w-3xl text-base leading-relaxed text-cool/80">Implemented and tested locally; not available in the public sandbox or hosted workspace. Hosted integration and coordinated rollout remain pending.</p>
+          <dl className="mt-6 grid gap-6 text-base leading-relaxed md:grid-cols-2">
+            <div><dt className="font-semibold text-cool">Keep the collection time</dt><dd className="mt-2 text-cool/80">Reports retain the recorded collection time. Patient-summary printouts label a missing classification “Not recorded”; CSV leaves it blank. Neither export assumes “Normal”.</dd></div>
+            <div><dt className="font-semibold text-cool">Separate save from evaluation</dt><dd className="mt-2 text-cool/80">A saved-result receipt and pending alert evaluation are distinct states. Retrying evaluation does not insert another exam.</dd></div>
+            <div><dt className="font-semibold text-cool">Return without resending</dt><dd className="mt-2 text-cool/80">A prepared submission can be checked after leaving the page. Recovery reads its saved receipt; it does not retransmit the exam or recreate unsaved values.</dd></div>
+            <div><dt className="font-semibold text-cool">Acknowledge or cancel explicitly</dt><dd className="mt-2 text-cool/80">Acknowledgment is not clinical review. Protected cancellation rejects a late submission; it does not erase a saved result.</dd></div>
+          </dl>
+          <p className="mt-6 border-t border-grid pt-5 text-base leading-relaxed text-cool/80">Earlier submissions without a prepared attempt still need their exact known identifier. Revised English/Spanish scripts are also local; matching audio review is pending.</p>
+        </aside>
       </div>
     </section>
   );
