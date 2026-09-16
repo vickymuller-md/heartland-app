@@ -18,7 +18,9 @@ async function assertAreaReflow(area: import('@playwright/test').Locator, width:
         left: element.getBoundingClientRect().left, right: element.getBoundingClientRect().right,
         scroll: element.scrollWidth, client: element.clientWidth,
         height: element.getBoundingClientRect().height,
-        clippedY: element.scrollHeight > element.clientHeight + 1 && getComputedStyle(element).overflowY !== 'visible',
+        // Explicit local exception: conversation transcripts are bounded-height
+        // scroll regions with keyboard access, asserted separately.
+        clippedY: element.getAttribute('role') !== 'log' && element.scrollHeight > element.clientHeight + 1 && getComputedStyle(element).overflowY !== 'visible',
         control: element.matches('button, a, [role="tab"]'),
       }));
   });
@@ -467,6 +469,95 @@ test.describe('sandbox navigation shell', () => {
         await area.getByTestId('draft-morning-brief').click();
         await expect(area.getByTestId('morning-brief-unavailable')).toBeVisible();
         await assertAreaReflow(area, width);
+      });
+
+      test('conversation surfaces reflow, stay keyboard-reachable and manage focus', async ({ page }) => {
+        await page.route('**/outreach-audio/**', (route) => route.abort());
+        await page.getByTestId('sandbox-nav-patient-view').click();
+        const view = page.getByTestId('sandbox-patient-view');
+        // Bounded-height transcripts must stay readable from the keyboard.
+        const assertLogKeyboard = async (log: Locator) => {
+          await log.focus();
+          await expect(log).toBeFocused();
+          if (await log.evaluate((element) => element.scrollHeight > element.clientHeight + 1)) {
+            const before = await log.evaluate((element) => element.scrollTop);
+            await page.keyboard.press('ArrowUp');
+            await expect.poll(() => log.evaluate((element) => element.scrollTop)).toBeLessThan(before);
+          }
+        };
+
+        const checkInOpener = view.getByRole('button', { name: /Complete symptom check-in/ });
+        await checkInOpener.click();
+        const checkIn = page.getByTestId('sandbox-ai-checkin');
+        await expect(checkIn).toBeFocused();
+        await assertAreaReflow(checkIn, width);
+        await page.getByTestId('checkin-locale-es').click();
+        await expect(checkIn).toContainText('dolor de pecho');
+        await assertAreaReflow(checkIn, width);
+        await page.getByTestId('checkin-locale-en').click();
+        await page.getByLabel('Type your check-in answer').fill('no chest pain today');
+        await page.getByRole('button', { name: 'Send answer' }).click();
+        await expect(page.getByTestId('sandbox-ai-form')).toBeVisible();
+        await assertAreaReflow(checkIn, width);
+        await assertLogKeyboard(checkIn.getByRole('log'));
+        await fillRequiredFallbackAnswers(page);
+        await page.getByLabel(/Weight this morning/).fill('179.5');
+        await page.getByRole('button', { name: 'Submit check-in' }).click();
+        await expect(page.getByTestId('sandbox-ai-result')).toBeVisible();
+        await assertAreaReflow(checkIn, width);
+        await checkIn.getByTestId('explain-rule-button-weight_gain_3lb_2d').click();
+        await expect(checkIn).toContainText('Explanation unavailable right now.');
+        await assertAreaReflow(checkIn, width);
+        await page.getByRole('button', { name: 'Close check-in' }).click();
+        await expect(checkIn).toHaveCount(0);
+        await expect(checkInOpener).toBeFocused();
+
+        const call = page.getByTestId('sandbox-live-call');
+        const chips = page.getByTestId('live-call-chips');
+        const numbers = page.getByTestId('live-call-numbers');
+        await page.getByTestId('open-live-call').click();
+        await expect(call).toBeFocused();
+        await assertAreaReflow(call, width);
+        await page.getByTestId('call-locale-es').click();
+        await expect(page.getByTestId('call-locale-es')).toHaveAttribute('aria-pressed', 'true');
+        await assertAreaReflow(call, width);
+        await page.getByTestId('answer-call').click();
+        await expect(chips).toBeVisible();
+        await expect(call.getByRole('log')).toContainText('dolor de pecho');
+        await assertAreaReflow(call, width);
+        await page.getByRole('button', { name: 'End simulated call' }).click();
+        await expect(call).toHaveCount(0);
+        await expect(page.getByTestId('open-live-call')).toBeFocused();
+
+        await page.getByTestId('open-live-call').click();
+        await expect(call).toBeFocused();
+        await page.getByTestId('answer-call').click();
+        await expect(chips).toBeVisible();
+        await assertAreaReflow(call, width);
+        await chips.getByRole('button', { name: 'No, nothing like that' }).click();
+        await expect(numbers).toBeVisible();
+        await assertAreaReflow(call, width);
+        await numbers.getByLabel(/Weight/).fill('179.5');
+        await numbers.getByRole('button', { name: 'Send', exact: true }).click();
+        for (const name of ['Breathing fine', 'No new swelling', 'No, slept normally', 'Normal energy', 'Yes, all taken']) await chips.getByRole('button', { name, exact: true }).click();
+        await numbers.getByRole('button', { name: 'Send / skip' }).click();
+        await expect(page.getByTestId('live-call-result')).toBeVisible();
+        await assertAreaReflow(call, width);
+        await assertLogKeyboard(call.getByRole('log'));
+        await call.getByTestId('explain-rule-button-weight_gain_3lb_2d').click();
+        await expect(call).toContainText('Explanation unavailable right now.');
+        await assertAreaReflow(call, width);
+        await page.getByRole('button', { name: 'End simulated call' }).click();
+        await expect(call).toHaveCount(0);
+        await expect(page.getByTestId('open-live-call')).toBeFocused();
+
+        await page.getByTestId('open-titration-call').click();
+        await expect(call).toBeFocused();
+        await page.getByTestId('answer-call').click();
+        await expect(chips).toBeVisible();
+        await assertAreaReflow(call, width);
+        await page.getByRole('button', { name: 'End simulated call' }).click();
+        await expect(page.getByTestId('open-titration-call')).toBeFocused();
       });
     });
   }

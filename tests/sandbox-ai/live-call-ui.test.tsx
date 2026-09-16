@@ -59,6 +59,13 @@ function audioElement(): HTMLAudioElement {
   return screen.getByTestId('live-call-audio') as HTMLAudioElement;
 }
 
+// Opening the call focuses its panel; jsdom then schedules a 0 ms
+// selectionchange notification (Selection.collapse → setTimeout). That timer is
+// a test-environment artifact, not a product timer, so flush it before counting.
+function flushFocusSelectionTimer() {
+  vi.advanceTimersByTime(0);
+}
+
 /** Drain the assistant audio queue by firing `ended` until it stops advancing. */
 function drainAudioQueue() {
   for (let i = 0; i < 10; i += 1) finishAudio(audioElement());
@@ -296,6 +303,7 @@ describe('SandboxLiveCall — conversation integrity regressions', () => {
     const stream = pendingSpeechResponse(turn);
     vi.mocked(fetch).mockResolvedValue(stream.response as Response);
     const view = render(<SandboxLiveCall patient={maria} onComplete={onComplete} onClose={onClose} />);
+    flushFocusSelectionTimer();
     fireEvent.click(screen.getByTestId('answer-call'));
     typeAnswer();
     await act(async () => {});
@@ -321,6 +329,7 @@ describe('SandboxLiveCall — conversation integrity regressions', () => {
     const stream = pendingSpeechResponse(turn);
     vi.mocked(fetch).mockResolvedValue(stream.response as Response);
     const view = render(<SandboxLiveCall patient={maria} onComplete={onComplete} onClose={onClose} />);
+    flushFocusSelectionTimer();
     fireEvent.click(screen.getByTestId('answer-call'));
     typeAnswer();
     await act(async () => {});
@@ -385,6 +394,7 @@ describe('SandboxLiveCall — conversation integrity regressions', () => {
     vi.stubGlobal('SpeechRecognition', FakeSpeechRecognition);
     vi.useFakeTimers();
     render(<SandboxLiveCall patient={maria} onComplete={onComplete} onClose={onClose} />);
+    flushFocusSelectionTimer();
     enableMicrophone();
     fireEvent.click(screen.getByTestId('answer-call'));
     drainAudioQueue();
@@ -755,6 +765,15 @@ describe('SandboxLiveCall — deterministic chip path (works fully offline)', ()
   beforeEach(() => {
     vi.clearAllMocks();
     render(<SandboxLiveCall patient={maria} onComplete={onComplete} onClose={onClose} />);
+  });
+
+  it('moves focus into the call panel on open and keeps the transcript keyboard-focusable', () => {
+    expect(screen.getByTestId('sandbox-live-call')).toHaveFocus();
+    fireEvent.click(screen.getByTestId('answer-call'));
+    const log = screen.getByRole('log');
+    expect(log).toHaveAttribute('tabindex', '0');
+    log.focus();
+    expect(log).toHaveFocus();
   });
 
   it('answers the call and walks the whole check-in to a rules-driven escalation', () => {

@@ -161,6 +161,30 @@ describe('SandboxPatientView — mutually exclusive check-in experiences', () =>
     expect(screen.getByTestId('sandbox-ai-checkin')).toBeInTheDocument();
     expect(screen.queryByTestId('sandbox-live-call')).toBeNull();
   });
+
+  it('moves focus into the opened panel and returns it to the opener on close', () => {
+    render(<SandboxPatientView patient={james} patientCheckIns={[]} onCheckIn={vi.fn()} />);
+
+    const checkInOpener = screen.getByRole('button', { name: /Complete symptom check-in/ });
+    fireEvent.click(checkInOpener);
+    expect(screen.getByTestId('sandbox-ai-checkin')).toHaveFocus();
+    expect(screen.getByRole('log')).toHaveAttribute('tabindex', '0');
+    fireEvent.click(screen.getByRole('button', { name: 'Close check-in' }));
+    expect(screen.queryByTestId('sandbox-ai-checkin')).toBeNull();
+    expect(checkInOpener).toHaveFocus();
+
+    fireEvent.click(screen.getByTestId('open-live-call'));
+    expect(screen.getByTestId('sandbox-live-call')).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'End simulated call' }));
+    expect(screen.queryByTestId('sandbox-live-call')).toBeNull();
+    expect(screen.getByTestId('open-live-call')).toHaveFocus();
+
+    // Replacing one experience with another keeps focus in the new panel.
+    fireEvent.click(screen.getByTestId('open-titration-call'));
+    expect(screen.getByTestId('sandbox-live-call')).toHaveFocus();
+    fireEvent.click(checkInOpener);
+    expect(screen.getByTestId('sandbox-ai-checkin')).toHaveFocus();
+  });
 });
 
 describe('SandboxAiCheckIn — completed data and request lifetime', () => {

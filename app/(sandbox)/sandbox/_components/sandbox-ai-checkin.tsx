@@ -63,6 +63,7 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
   const startedTracked = useRef(false);
   const startedAt = useRef(Date.now());
   const logRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useRef<HTMLElement | null>(null);
   const requestEpoch = useRef(0);
   const requestController = useRef<AbortController | null>(null);
   const closed = useRef(false);
@@ -77,6 +78,12 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
       requestController.current?.abort();
       requestController.current = null;
     };
+  }, []);
+
+  // Opening the check-in moves keyboard focus into the panel; the parent
+  // returns it to the opener when the check-in closes.
+  useEffect(() => {
+    panelRef.current?.focus();
   }, []);
 
   useEffect(() => {
@@ -263,15 +270,15 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
   }
 
   return (
-    <section className="rounded-xl border border-blue-200 bg-white" data-testid="sandbox-ai-checkin" aria-label="Automated check-in demonstration">
+    <section ref={panelRef} tabIndex={-1} className="min-w-0 rounded-xl border border-blue-200 bg-white [overflow-wrap:anywhere] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 [&_button]:h-auto [&_button]:min-h-11 [&_button]:min-w-11 [&_button]:max-w-full [&_button]:whitespace-normal" data-testid="sandbox-ai-checkin" aria-label="Automated check-in demonstration">
       {/* Hidden element that plays the assistant's clips and synthesized lines. */}
       <audio ref={audioRef} data-testid="checkin-audio" />
 
-      <div className="flex items-center justify-between gap-2 rounded-t-xl bg-blue-50 px-3 py-2">
-        <p className="text-xs font-bold text-blue-950">Automated Check-In (AI-assisted) · Demonstration</p>
-        <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-t-xl bg-blue-50 px-3 py-2">
+        <p className="min-w-0 text-xs font-bold text-blue-950">Automated Check-In (AI-assisted) · Demonstration</p>
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1">
           {mode === 'chat' && !result && (
-            <div className="mr-1 flex gap-1" role="group" aria-label="Conversation language">
+            <div className="mr-1 flex flex-wrap gap-1" role="group" aria-label="Conversation language">
               {(['en', 'es'] as const).map((option) => (
                 <button
                   key={option}
@@ -279,7 +286,7 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
                   aria-pressed={locale === option}
                   data-testid={`checkin-locale-${option}`}
                   onClick={() => chooseLocale(option)}
-                  className={`min-h-8 rounded-full px-2.5 text-[11px] font-semibold ${locale === option ? 'bg-blue-700 text-white' : 'bg-white text-blue-900 hover:bg-blue-100'}`}
+                  className={`min-h-11 min-w-11 rounded-full px-3 text-xs font-semibold ${locale === option ? 'bg-blue-700 text-white' : 'bg-white text-blue-900 hover:bg-blue-100'}`}
                 >
                   {option === 'en' ? 'EN' : 'ES'}
                 </button>
@@ -293,12 +300,12 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
               aria-pressed={voiceOn}
               aria-label={voiceOn ? 'Turn assistant voice off' : 'Turn assistant voice on'}
               data-testid="checkin-voice-toggle"
-              className={`flex size-8 items-center justify-center rounded-full ${voiceOn ? 'bg-blue-100 text-blue-900' : 'text-blue-900 hover:bg-blue-100'}`}
+              className={`flex size-11 items-center justify-center rounded-full ${voiceOn ? 'bg-blue-100 text-blue-900' : 'text-blue-900 hover:bg-blue-100'}`}
             >
               {voiceOn ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
             </button>
           )}
-          <button type="button" onClick={closeCheckIn} aria-label="Close check-in" className="flex size-8 items-center justify-center rounded-full text-blue-900 hover:bg-blue-100"><X className="size-4" /></button>
+          <button type="button" onClick={closeCheckIn} aria-label="Close check-in" className="flex size-11 items-center justify-center rounded-full text-blue-900 hover:bg-blue-100"><X className="size-4" /></button>
         </div>
       </div>
 
@@ -310,7 +317,7 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
         </div>
       )}
 
-      <div ref={logRef} className="max-h-72 space-y-2 overflow-y-auto p-3" role="log" aria-live="polite" aria-label="Check-in conversation" lang={locale === 'es' ? 'es-US' : 'en-US'}>
+      <div ref={logRef} tabIndex={0} className="max-h-72 min-w-0 space-y-2 overflow-y-auto p-3 focus-visible:outline-2 focus-visible:outline-blue-700" role="log" aria-live="polite" aria-label="Check-in conversation" lang={locale === 'es' ? 'es-US' : 'en-US'}>
         {messages.map((message, index) => (
           <p key={index} className={message.role === 'assistant'
             ? 'mr-6 rounded-lg rounded-bl-none bg-slate-100 p-2.5 text-xs leading-5 text-slate-900'
@@ -346,14 +353,14 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
 
       {!result && mode === 'chat' && (
         <div className="border-t p-3">
-          <p id="sandbox-ai-synthetic-input-note" className="mb-2 text-[11px] font-semibold leading-4 text-amber-800">
+          <p id="sandbox-ai-synthetic-input-note" className="mb-2 text-[0.6875rem] font-semibold leading-4 text-amber-800">
             Synthetic answers only — do not enter real patient, personal, or health information.
           </p>
-          <form className="flex items-center gap-2" onSubmit={(event) => { event.preventDefault(); void sendChatMessage(); }}>
+          <form className="flex min-w-0 items-center gap-2" onSubmit={(event) => { event.preventDefault(); void sendChatMessage(); }}>
             <label className="sr-only" htmlFor="sandbox-ai-input">Type your check-in answer</label>
             <input
               id="sandbox-ai-input"
-              className="min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
+              className="min-h-11 w-full min-w-0 rounded-lg border border-slate-300 px-3 text-sm"
               value={input}
               maxLength={500}
               aria-describedby="sandbox-ai-synthetic-input-note"
@@ -372,40 +379,40 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
           data-testid="sandbox-ai-form"
           onSubmit={(event) => { event.preventDefault(); submitForm(new FormData(event.currentTarget)); }}
         >
-          <div className="grid gap-2 sm:grid-cols-2">
-            <label className="flex flex-col gap-1 font-semibold">Chest pain or fainting since yesterday?
-              <select name="chestPain" className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" defaultValue=""><option value="">Not answered</option><option value="no">No</option><option value="yes">Yes</option></select>
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-[repeat(2,minmax(0,1fr))]">
+            <label className="flex min-w-0 flex-col gap-1 font-semibold">Chest pain or fainting since yesterday?
+              <select name="chestPain" className="min-h-11 w-full min-w-0 rounded-lg border border-slate-300 px-2 font-normal" defaultValue=""><option value="">Not answered</option><option value="no">No</option><option value="yes">Yes</option></select>
             </label>
-            <label className="flex flex-col gap-1 font-semibold">Weight this morning (lbs)
-              <input name="weight" type="number" min={50} max={500} step="0.1" placeholder="Not answered" className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" />
+            <label className="flex min-w-0 flex-col gap-1 font-semibold">Weight this morning (lbs)
+              <input name="weight" type="number" min={50} max={500} step="0.1" placeholder="Not answered" className="min-h-11 w-full min-w-0 rounded-lg border border-slate-300 px-2 font-normal" />
             </label>
-            <label className="flex flex-col gap-1 font-semibold">Breathing today
-              <select name="breathing" className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" defaultValue=""><option value="">Not answered</option>{BREATHING_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+            <label className="flex min-w-0 flex-col gap-1 font-semibold">Breathing today
+              <select name="breathing" className="min-h-11 w-full min-w-0 rounded-lg border border-slate-300 px-2 font-normal" defaultValue=""><option value="">Not answered</option>{BREATHING_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
             </label>
-            <label className="flex flex-col gap-1 font-semibold">New or worse swelling
-              <select name="swelling" className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" defaultValue=""><option value="">Not answered</option>{SEVERITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+            <label className="flex min-w-0 flex-col gap-1 font-semibold">New or worse swelling
+              <select name="swelling" className="min-h-11 w-full min-w-0 rounded-lg border border-slate-300 px-2 font-normal" defaultValue=""><option value="">Not answered</option>{SEVERITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
             </label>
-            <label className="flex flex-col gap-1 font-semibold">Needed extra pillows to sleep?
-              <select name="pillows" className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" defaultValue=""><option value="">Not answered</option><option value="no">No</option><option value="yes">Yes</option></select>
+            <label className="flex min-w-0 flex-col gap-1 font-semibold">Needed extra pillows to sleep?
+              <select name="pillows" className="min-h-11 w-full min-w-0 rounded-lg border border-slate-300 px-2 font-normal" defaultValue=""><option value="">Not answered</option><option value="no">No</option><option value="yes">Yes</option></select>
             </label>
-            <label className="flex flex-col gap-1 font-semibold">Energy vs normal
-              <select name="energy" className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" defaultValue=""><option value="">Not answered</option>{SEVERITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label} fatigue</option>)}</select>
+            <label className="flex min-w-0 flex-col gap-1 font-semibold">Energy vs normal
+              <select name="energy" className="min-h-11 w-full min-w-0 rounded-lg border border-slate-300 px-2 font-normal" defaultValue=""><option value="">Not answered</option>{SEVERITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label} fatigue</option>)}</select>
             </label>
-            <label className="flex flex-col gap-1 font-semibold">All medicines taken?
-              <select name="meds" className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" defaultValue=""><option value="">Not answered</option><option value="yes">Yes, all taken</option><option value="missed_some">Missed some</option><option value="no">No</option></select>
+            <label className="flex min-w-0 flex-col gap-1 font-semibold">All medicines taken?
+              <select name="meds" className="min-h-11 w-full min-w-0 rounded-lg border border-slate-300 px-2 font-normal" defaultValue=""><option value="">Not answered</option><option value="yes">Yes, all taken</option><option value="missed_some">Missed some</option><option value="no">No</option></select>
             </label>
-            <label className="flex flex-col gap-1 font-semibold">Systolic BP (optional)
-              <input name="sbp" type="number" min={50} max={260} className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" />
+            <label className="flex min-w-0 flex-col gap-1 font-semibold">Systolic BP (optional)
+              <input name="sbp" type="number" min={50} max={260} className="min-h-11 w-full min-w-0 rounded-lg border border-slate-300 px-2 font-normal" />
             </label>
-            <label className="flex flex-col gap-1 font-semibold">Oxygen % (optional)
-              <input name="spo2" type="number" min={50} max={100} className="min-h-11 rounded-lg border border-slate-300 px-2 font-normal" />
+            <label className="flex min-w-0 flex-col gap-1 font-semibold">Oxygen % (optional)
+              <input name="spo2" type="number" min={50} max={100} className="min-h-11 w-full min-w-0 rounded-lg border border-slate-300 px-2 font-normal" />
             </label>
           </div>
           <Button type="submit" className="min-h-11 w-full">Submit check-in</Button>
         </form>
       )}
 
-      <p className="border-t px-3 py-2 text-[11px] leading-4 text-slate-500">
+      <p className="border-t px-3 py-2 text-[0.6875rem] leading-4 text-slate-500">
         Synthetic demonstration only. This assistant collects check-in answers and never provides
         medical advice. Escalation is decided by preset clinical rules, reviewed by humans. Not for
         real patient use. <span className="font-semibold">AI structures the conversation · preset clinical rules decide escalation.</span>

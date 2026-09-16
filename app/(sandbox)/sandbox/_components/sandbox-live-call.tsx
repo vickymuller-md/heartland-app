@@ -146,6 +146,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
   const [aiExtractionReceipt, setAiExtractionReceipt] = useState<AiExtractionReceipt>('not_used');
   const { audioRef, speaking, needsTap, enqueue: enqueueAudio, resumeAfterTap, stop: stopAudio } = useAssistantAudioQueue();
   const logRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useRef<HTMLElement | null>(null);
   const startedTracked = useRef(false);
   const startedAt = useRef(Date.now());
   const micFailuresRef = useRef(0);
@@ -174,6 +175,12 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
       cancelPendingTurn();
     };
   }, [cancelPendingTurn]);
+
+  // Opening the call moves keyboard focus into the panel; the parent returns
+  // it to the opener when the call closes.
+  useEffect(() => {
+    panelRef.current?.focus();
+  }, []);
 
   function closeCall() {
     if (closedRef.current) return;
@@ -652,15 +659,15 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
   const turnLocked = busy || speechPending;
 
   return (
-    <section className="rounded-xl border border-emerald-200 bg-white" data-testid="sandbox-live-call" aria-label="Simulated incoming call">
+    <section ref={panelRef} tabIndex={-1} className="min-w-0 rounded-xl border border-emerald-200 bg-white [overflow-wrap:anywhere] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 [&_button]:h-auto [&_button]:min-h-11 [&_button]:min-w-11 [&_button]:max-w-full [&_button]:whitespace-normal" data-testid="sandbox-live-call" aria-label="Simulated incoming call">
       {/* Hidden element that plays the assistant's clips and synthesized lines. */}
       <audio ref={audioRef} data-testid="live-call-audio" />
 
-      <div className="flex items-center justify-between gap-2 rounded-t-xl bg-emerald-50 px-3 py-2">
-        <p className="text-xs font-bold text-emerald-950">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-t-xl bg-emerald-50 px-3 py-2">
+        <p className="min-w-0 text-xs font-bold text-emerald-950">
           {phase === 'ringing' ? `Incoming call · ${copy.header}` : `${copy.header} · ${minutes}:${secs}`} · Simulation
         </p>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           {voiceSupported && phase === 'active' && !result && (
             <button
               type="button"
@@ -668,12 +675,12 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
               aria-pressed={micOn}
               aria-label={micOn ? 'Turn microphone off' : 'Turn microphone on'}
               data-testid="live-call-mic-toggle"
-              className={`flex size-8 items-center justify-center rounded-full ${micOn ? 'text-emerald-900 hover:bg-emerald-100' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}
+              className={`flex size-11 items-center justify-center rounded-full ${micOn ? 'text-emerald-900 hover:bg-emerald-100' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}
             >
               {micOn ? <Mic className="size-4" /> : <MicOff className="size-4" />}
             </button>
           )}
-          <button type="button" onClick={closeCall} aria-label="End simulated call" className="flex size-8 items-center justify-center rounded-full text-emerald-900 hover:bg-emerald-100"><PhoneOff className="size-4" /></button>
+          <button type="button" onClick={closeCall} aria-label="End simulated call" className="flex size-11 items-center justify-center rounded-full text-emerald-900 hover:bg-emerald-100"><PhoneOff className="size-4" /></button>
         </div>
       </div>
 
@@ -693,17 +700,17 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
                 aria-describedby="live-call-mic-disclosure-copy"
                 data-testid="live-call-mic-opt-in"
                 onClick={toggleMic}
-                className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-blue-300 bg-white px-3 text-xs font-semibold text-blue-950 hover:bg-blue-100"
+                className="inline-flex min-h-11 max-w-full flex-wrap items-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2 text-left text-xs font-semibold text-blue-950 hover:bg-blue-100"
               >
                 {micOn ? <Mic className="size-4" aria-hidden="true" /> : <MicOff className="size-4" aria-hidden="true" />}
                 {micOn ? 'Microphone enabled' : 'Enable optional microphone'}
               </button>
-              <p id="live-call-mic-disclosure-copy" className="mt-2 text-[11px] leading-4 text-blue-950">
+              <p id="live-call-mic-disclosure-copy" className="mt-2 text-[0.6875rem] leading-4 text-blue-950">
                 Optional. Your browser speech service transcribes audio, then the transcript is processed by the sandbox AI to structure this synthetic turn. Do not say real patient, personal, or health information.
               </p>
             </div>
           )}
-          <div className="flex justify-center gap-2" role="group" aria-label="Call language">
+          <div className="flex flex-wrap justify-center gap-2" role="group" aria-label="Call language">
             {(['en', 'es'] as const).map((option) => (
               <button
                 key={option}
@@ -711,13 +718,13 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
                 aria-pressed={locale === option}
                 data-testid={`call-locale-${option}`}
                 onClick={() => chooseLocale(option)}
-                className={`min-h-9 rounded-full px-4 text-xs font-semibold ${locale === option ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                className={`min-h-11 rounded-full px-4 text-xs font-semibold ${locale === option ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
               >
                 {option === 'en' ? 'English' : 'Español'}
               </button>
             ))}
           </div>
-          <div className="flex justify-center gap-2">
+          <div className="flex flex-wrap justify-center gap-2">
             <Button className="min-h-11 bg-emerald-700 hover:bg-emerald-800" onClick={answer} data-testid="answer-call"><Phone className="mr-2 size-4" /> Answer</Button>
             <Button variant="outline" className="min-h-11" onClick={closeCall}>Decline</Button>
           </div>
@@ -726,25 +733,25 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
 
       {phase !== 'ringing' && (
         <>
-          <div ref={logRef} className="max-h-64 space-y-2 overflow-y-auto p-3" role="log" aria-live="polite" aria-label="Call transcript" lang={locale === 'es' ? 'es-US' : 'en-US'}>
+          <div ref={logRef} tabIndex={0} className="max-h-64 min-w-0 space-y-2 overflow-y-auto p-3 focus-visible:outline-2 focus-visible:outline-emerald-700" role="log" aria-live="polite" aria-label="Call transcript" lang={locale === 'es' ? 'es-US' : 'en-US'}>
             {lines.map((line, index) => (
               <p key={index} className={line.speaker === 'assistant'
                 ? 'mr-6 rounded-lg rounded-bl-none bg-slate-100 p-2.5 text-xs leading-5 text-slate-900'
                 : 'ml-6 rounded-lg rounded-br-none bg-emerald-600 p-2.5 text-xs leading-5 text-white'}>
-                <span className="block text-[10px] font-semibold uppercase tracking-wide opacity-70">{line.speaker === 'assistant' ? 'Assistant (voice)' : 'You'}</span>
+                <span className="block text-[0.625rem] font-semibold uppercase tracking-wide opacity-70">{line.speaker === 'assistant' ? 'Assistant (voice)' : 'You'}</span>
                 {line.text}
               </p>
             ))}
             {interim.length > 0 && (
               <p className="ml-6 rounded-lg rounded-br-none bg-emerald-600/60 p-2.5 text-xs leading-5 text-white">
-                <span className="block text-[10px] font-semibold uppercase tracking-wide opacity-70">You (speaking…)</span>
+                <span className="block text-[0.625rem] font-semibold uppercase tracking-wide opacity-70">You (speaking…)</span>
                 {interim}
               </p>
             )}
           </div>
 
           {showVoiceStatus && (
-            <p className="px-3 pb-1 text-[11px] font-semibold text-emerald-800" data-testid="live-call-voice-status" aria-live="polite">
+            <p className="px-3 pb-1 text-[0.6875rem] font-semibold text-emerald-800" data-testid="live-call-voice-status" aria-live="polite">
               {micSuspended
                 ? 'Voice input paused — use the quick answers or type below, or tap the mic to try again.'
                 : !micOn
@@ -762,7 +769,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
           )}
 
           {speechPending && !showVoiceStatus && (
-            <p className="px-3 pb-1 text-[11px] font-semibold text-slate-600" role="status">
+            <p className="px-3 pb-1 text-[0.6875rem] font-semibold text-slate-600" role="status">
               Assistant reply ready — preparing audio…
             </p>
           )}
@@ -813,23 +820,23 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
               {numericFields && (
                 <form className="flex flex-wrap items-end gap-2 text-xs" onSubmit={(event) => { event.preventDefault(); submitNumbers(new FormData(event.currentTarget)); }} data-testid="live-call-numbers">
                   {numericFields.includes('weight') && (
-                    <label className="flex flex-col gap-1 font-semibold">Weight (lbs)
-                      <input name="weight" type="number" min={50} max={500} step="0.1" required className="min-h-11 w-28 rounded-lg border border-slate-300 px-2 font-normal" />
+                    <label className="flex min-w-0 max-w-full basis-28 flex-col gap-1 font-semibold">Weight (lbs)
+                      <input name="weight" type="number" min={50} max={500} step="0.1" required className="min-h-11 w-full min-w-0 rounded-lg border border-slate-300 px-2 font-normal" />
                     </label>
                   )}
                   {numericFields.includes('sbp') && (
-                    <label className="flex flex-col gap-1 font-semibold">Systolic BP
-                      <input name="sbp" type="number" min={50} max={260} className="min-h-11 w-24 rounded-lg border border-slate-300 px-2 font-normal" />
+                    <label className="flex min-w-0 max-w-full basis-24 flex-col gap-1 font-semibold">Systolic BP
+                      <input name="sbp" type="number" min={50} max={260} className="min-h-11 w-full min-w-0 rounded-lg border border-slate-300 px-2 font-normal" />
                     </label>
                   )}
                   {numericFields.includes('spo2') && (
-                    <label className="flex flex-col gap-1 font-semibold">Oxygen %
-                      <input name="spo2" type="number" min={50} max={100} className="min-h-11 w-24 rounded-lg border border-slate-300 px-2 font-normal" />
+                    <label className="flex min-w-0 max-w-full basis-24 flex-col gap-1 font-semibold">Oxygen %
+                      <input name="spo2" type="number" min={50} max={100} className="min-h-11 w-full min-w-0 rounded-lg border border-slate-300 px-2 font-normal" />
                     </label>
                   )}
                   {numericFields.includes('hr') && (
-                    <label className="flex flex-col gap-1 font-semibold">Pulse (bpm)
-                      <input name="hr" type="number" min={30} max={220} className="min-h-11 w-24 rounded-lg border border-slate-300 px-2 font-normal" />
+                    <label className="flex min-w-0 max-w-full basis-24 flex-col gap-1 font-semibold">Pulse (bpm)
+                      <input name="hr" type="number" min={30} max={220} className="min-h-11 w-full min-w-0 rounded-lg border border-slate-300 px-2 font-normal" />
                     </label>
                   )}
                   <Button type="submit" size="sm" variant="outline" disabled={turnLocked} className="min-h-11">
@@ -839,14 +846,14 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
               )}
               {!offlineMode && !numericFields && (
                 <div>
-                  <p id="live-call-synthetic-input-note" className="mb-2 text-[11px] font-semibold leading-4 text-amber-800">
+                  <p id="live-call-synthetic-input-note" className="mb-2 text-[0.6875rem] font-semibold leading-4 text-amber-800">
                     Synthetic answers only — do not enter real patient, personal, or health information.
                   </p>
-                  <form className="flex items-center gap-2" onSubmit={(event) => { event.preventDefault(); void answerWithText(); }}>
+                  <form className="flex min-w-0 items-center gap-2" onSubmit={(event) => { event.preventDefault(); void answerWithText(); }}>
                     <label className="sr-only" htmlFor="live-call-input">Say something in your own words</label>
                     <input
                       id="live-call-input"
-                      className="min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                      className="min-h-11 w-full min-w-0 rounded-lg border border-slate-300 px-3 text-sm"
                       value={input}
                       maxLength={500}
                       aria-describedby="live-call-synthetic-input-note"
@@ -863,7 +870,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
         </>
       )}
 
-      <p className="border-t px-3 py-2 text-[11px] leading-4 text-slate-500">
+      <p className="border-t px-3 py-2 text-[0.6875rem] leading-4 text-slate-500">
         Synthetic demonstration only — no real call, no medical advice. Assistant audio is
         synthetic voice; your answers are structured by AI and
         <span className="font-semibold"> preset clinical rules decide escalation.</span> Voice

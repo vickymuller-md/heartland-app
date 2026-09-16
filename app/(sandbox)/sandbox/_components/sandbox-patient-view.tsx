@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BookOpen, Check, HeartPulse, LockKeyhole, MessageSquareText, PhoneCall, PhoneIncoming, Pill, Scale, ShieldAlert } from 'lucide-react';
 import type { SandboxPatient } from '@/lib/sandbox/types';
 import { Button } from '@/components/ui/button';
@@ -8,12 +8,16 @@ import { SandboxAiCheckIn } from './sandbox-ai-checkin';
 import { SandboxLiveCall } from './sandbox-live-call';
 import { SectionHeading, SyntheticBanner } from './sandbox-ui';
 
+type Experience = 'checkin' | 'daily-call' | 'titration-call';
+
 export function SandboxPatientView({ patient, patientCheckIns, onCheckIn }: {
   patient: SandboxPatient;
   patientCheckIns: string[];
   onCheckIn: (checkInId: string) => void;
 }) {
-  const [activeExperience, setActiveExperience] = useState<'checkin' | 'daily-call' | 'titration-call' | null>(null);
+  const [activeExperience, setActiveExperience] = useState<Experience | null>(null);
+  const openerRefs = useRef<Record<Experience, HTMLButtonElement | null>>({ checkin: null, 'daily-call': null, 'titration-call': null });
+  const returnFocusTo = useRef<Experience | null>(null);
   const symptomsTaskId = `${patient.id}-symptoms`;
   const tasks = [
     { id: `${patient.id}-weight`, icon: Scale, title: 'Record today’s weight', detail: patient.vitals.at(-1) ? `Last synthetic value: ${patient.vitals.at(-1)?.weight} lb` : 'No recent value' },
@@ -22,6 +26,20 @@ export function SandboxPatientView({ patient, patientCheckIns, onCheckIn }: {
     { id: `${patient.id}-education`, icon: BookOpen, title: 'Review next education item', detail: patient.education.next },
   ];
   const completed = tasks.filter((task) => patientCheckIns.includes(task.id)).length;
+
+  function closeExperience(experience: Experience) {
+    returnFocusTo.current = experience;
+    setActiveExperience(null);
+  }
+
+  // Closing an experience returns keyboard focus to the button that opened it;
+  // replacing one experience with another leaves focus in the new panel.
+  useEffect(() => {
+    if (activeExperience !== null || returnFocusTo.current === null) return;
+    const opener = openerRefs.current[returnFocusTo.current];
+    returnFocusTo.current = null;
+    opener?.focus();
+  }, [activeExperience]);
 
   return (
     <div className="min-w-0 space-y-7 [overflow-wrap:anywhere]" data-testid="sandbox-patient-view">
@@ -39,7 +57,7 @@ export function SandboxPatientView({ patient, patientCheckIns, onCheckIn }: {
             <div className="space-y-3">{tasks.map((task) => {
               const done = patientCheckIns.includes(task.id);
               const Icon = task.icon;
-              return <button key={task.id} type="button" onClick={() => task.id === symptomsTaskId ? setActiveExperience('checkin') : onCheckIn(task.id)} className={`h-auto min-w-0 max-w-full whitespace-normal [overflow-wrap:anywhere] flex min-h-20 w-full flex-wrap items-center gap-3 rounded-xl border p-3 text-left transition ${done ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white hover:border-blue-300'}`}><span className={done ? 'flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white' : 'flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700'}>{done ? <Check className="size-5" /> : <Icon className="size-5" />}</span><span className="min-w-0 flex-1 basis-28"><strong className="block text-sm text-slate-950">{task.title}</strong><span className="mt-1 block text-xs leading-5 text-slate-600">{done ? 'Completed in this synthetic visit' : task.detail}</span></span></button>;
+              return <button key={task.id} type="button" ref={task.id === symptomsTaskId ? (element) => { openerRefs.current.checkin = element; } : undefined} onClick={() => task.id === symptomsTaskId ? setActiveExperience('checkin') : onCheckIn(task.id)} className={`h-auto min-w-0 max-w-full whitespace-normal [overflow-wrap:anywhere] flex min-h-20 w-full flex-wrap items-center gap-3 rounded-xl border p-3 text-left transition ${done ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white hover:border-blue-300'}`}><span className={done ? 'flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white' : 'flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700'}>{done ? <Check className="size-5" /> : <Icon className="size-5" />}</span><span className="min-w-0 flex-1 basis-28"><strong className="block text-sm text-slate-950">{task.title}</strong><span className="mt-1 block text-xs leading-5 text-slate-600">{done ? 'Completed in this synthetic visit' : task.detail}</span></span></button>;
             })}</div>
 
             {activeExperience === 'checkin' && (
@@ -47,7 +65,7 @@ export function SandboxPatientView({ patient, patientCheckIns, onCheckIn }: {
                 key={patient.id}
                 patient={patient}
                 onComplete={() => onCheckIn(symptomsTaskId)}
-                onClose={() => setActiveExperience(null)}
+                onClose={() => closeExperience('checkin')}
               />
             )}
 
@@ -55,6 +73,7 @@ export function SandboxPatientView({ patient, patientCheckIns, onCheckIn }: {
               <button
                 type="button"
                 data-testid="open-live-call"
+                ref={(element) => { openerRefs.current['daily-call'] = element; }}
                 onClick={() => setActiveExperience('daily-call')}
                 className="flex min-h-14 w-full flex-wrap items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-left transition hover:border-emerald-400 h-auto min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]"
               >
@@ -68,7 +87,7 @@ export function SandboxPatientView({ patient, patientCheckIns, onCheckIn }: {
                 key={`call-${patient.id}`}
                 patient={patient}
                 onComplete={() => onCheckIn(`${patient.id}-call`)}
-                onClose={() => setActiveExperience(null)}
+                onClose={() => closeExperience('daily-call')}
               />
             )}
 
@@ -76,6 +95,7 @@ export function SandboxPatientView({ patient, patientCheckIns, onCheckIn }: {
               <button
                 type="button"
                 data-testid="open-titration-call"
+                ref={(element) => { openerRefs.current['titration-call'] = element; }}
                 onClick={() => setActiveExperience('titration-call')}
                 className="flex min-h-14 w-full flex-wrap items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-left transition hover:border-blue-400 h-auto min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]"
               >
@@ -90,7 +110,7 @@ export function SandboxPatientView({ patient, patientCheckIns, onCheckIn }: {
                 patient={patient}
                 scriptId="titration_followup"
                 onComplete={() => onCheckIn(`${patient.id}-titration-call`)}
-                onClose={() => setActiveExperience(null)}
+                onClose={() => closeExperience('titration-call')}
               />
             )}
 
