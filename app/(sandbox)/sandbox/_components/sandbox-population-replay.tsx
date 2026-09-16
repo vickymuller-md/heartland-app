@@ -121,7 +121,17 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [size, dayIndex]);
 
-  useEffect(() => () => stopLoop(), []);
+  // The animation loop belongs to the running scene, not to one mount. React
+  // can run this cleanup without unmounting (StrictMode's dev-only effect
+  // replay, Fast Refresh); the cleanup drops the pending frame and the re-run
+  // resumes from the current virtual clock, so a round never stays "running"
+  // with no frame scheduled.
+  useEffect(() => {
+    if (scene !== 'running') return;
+    rafRef.current = requestAnimationFrame(resultRef.current ? tick : startRound);
+    return () => stopLoop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene]);
 
   function stopLoop() {
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
@@ -288,14 +298,17 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone }: {
     partialRef.current = { ...EMPTY_PARTIAL };
     feedRef.current = [];
     cellsRef.current = new Uint8Array(size);
-    rafRef.current = requestAnimationFrame((timestamp) => {
-      // Compute inside the first frame so the "Running…" state paints first.
-      eventsRef.current = getPopulationDayEvents(size, dayIndex);
-      resultRef.current = simulatePopulationDay(size, dayIndex);
-      repaintAll();
-      lastTsRef.current = timestamp;
-      rafRef.current = requestAnimationFrame(tick);
-    });
+    eventsRef.current = [];
+    resultRef.current = null;
+  }
+
+  function startRound(timestamp: number) {
+    // Compute inside the first frame so the "Running…" state paints first.
+    eventsRef.current = getPopulationDayEvents(size, dayIndex);
+    resultRef.current = simulatePopulationDay(size, dayIndex);
+    repaintAll();
+    lastTsRef.current = timestamp;
+    rafRef.current = requestAnimationFrame(tick);
   }
 
   function finishReducedMotion() {
