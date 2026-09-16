@@ -142,6 +142,18 @@ describe('SandboxCommandCenter population scene', () => {
     expect(screen.getByText(/Decline/)).toBeInTheDocument();
   });
 
+  it('moves focus into the inline call and back to its opener when the call ends', () => {
+    fireEvent.click(screen.getByTestId('population-run'));
+    const firstEntry = screen.getAllByTestId(/^queue-entry-/)[0];
+    const ordinal = firstEntry.getAttribute('data-testid')!.replace('queue-entry-', '');
+    fireEvent.click(firstEntry);
+    fireEvent.click(screen.getByTestId(`queue-call-${ordinal}`));
+    expect(screen.getByTestId('sandbox-live-call')).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'End simulated call' }));
+    expect(screen.queryByTestId('sandbox-live-call')).toBeNull();
+    expect(screen.getByTestId(`queue-call-${ordinal}`)).toHaveFocus();
+  });
+
   it('lets the visitor change the population size', () => {
     fireEvent.click(screen.getByTestId('population-size-2500'));
     expect(onPopulationSize).toHaveBeenCalledWith(2500);

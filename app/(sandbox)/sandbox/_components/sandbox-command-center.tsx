@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Activity, ArrowRight, BookOpenCheck, ClipboardCheck, HeartPulse, Network, PhoneCall, ShieldCheck, Users } from 'lucide-react';
 import { outcomeLabel, outcomeOptionsFor } from '@/lib/sandbox/case-outcomes';
 import { SANDBOX_PATIENTS, SANDBOX_SECTIONS, SANDBOX_TASKS } from '@/lib/sandbox/fixtures';
@@ -280,6 +280,14 @@ function CasePanel({ event, caseId, runId, dayIndex, worked, sent, callOpen, onO
   onNextCase: () => void;
 }) {
   const [callOutcome, setCallOutcome] = useState<LiveCallOutcome | null>(null);
+  const callButtonRef = useRef<HTMLButtonElement | null>(null);
+  const callWasOpen = useRef(false);
+  // Closing the inline call returns keyboard focus to the button that opened
+  // it, unless the visitor already moved focus elsewhere (another case's call).
+  useEffect(() => {
+    if (callWasOpen.current && !callOpen && document.activeElement === document.body) callButtonRef.current?.focus();
+    callWasOpen.current = callOpen;
+  }, [callOpen]);
   const chart = getPopulationPatientChart(event.ordinal, dayIndex);
   const category = event.category as 'critical' | 'warning' | 'no_answer';
   const options = outcomeOptionsFor(event.ruleIds ?? [], category);
@@ -348,7 +356,7 @@ function CasePanel({ event, caseId, runId, dayIndex, worked, sent, callOpen, onO
         <p className="text-xs font-bold uppercase tracking-wide text-slate-500">2 · Call the synthetic patient</p>
         {!callOpen && (
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Button size="sm" className="min-h-11 bg-slate-950 text-white hover:bg-slate-800" onClick={onOpenCall} data-testid={`queue-call-${event.ordinal}`}>
+            <Button ref={callButtonRef} size="sm" className="min-h-11 bg-slate-950 text-white hover:bg-slate-800" onClick={onOpenCall} data-testid={`queue-call-${event.ordinal}`}>
               <PhoneCall className="mr-1.5 size-4" /> Call {event.name.split(' ')[0]} now
             </Button>
             {callOutcome && (
