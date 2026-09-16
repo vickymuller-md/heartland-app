@@ -74,17 +74,17 @@ export function SandboxDailyLoop({ taskStates, onTaskState, onOpenPatient, onBul
   const closed = SANDBOX_TASKS.length - activeTasks.length;
 
   return (
-    <div className="space-y-7" data-testid="sandbox-daily-loop">
+    <div className="min-w-0 space-y-7 [overflow-wrap:anywhere]" data-testid="sandbox-daily-loop">
       <SectionHeading
         eyebrow="Provider workspace"
         title="Daily Loop"
         description={`Simulation day ${dayIndex + 1}: a single operational queue connects signal, reason, owner, source freshness, action, deadline, and outcome. Outreach results below belong to the current simulated day.`}
-        action={<Button variant="outline" className="min-h-11" disabled={visibleOpen.length === 0} onClick={() => onBulkReview(visibleOpen)}><Eye className="mr-2 size-4" /> Review visible ({visibleOpen.length})</Button>}
+        action={<Button variant="outline" className="min-h-11 h-auto min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]" disabled={visibleOpen.length === 0} onClick={() => onBulkReview(visibleOpen)}><Eye className="mr-2 size-4" /> Review visible ({visibleOpen.length})</Button>}
       />
 
       <SyntheticBanner>Actions below update only this demonstration. No message, note, assignment, or clinical record is created.</SyntheticBanner>
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="Daily Loop synthetic metrics">
+      <section className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3" aria-label="Daily Loop synthetic metrics">
         <MetricCard label="Open" value={activeTasks.length} detail="All non-closed work." />
         <MetricCard label="Now" value={activeTasks.filter((task) => task.priority === 'now').length} detail="Immediate review queue." tone="amber" />
         <MetricCard label="Due today" value={activeTasks.filter((task) => task.priority === 'today').length} detail="Time-bound workflow." tone="blue" />
@@ -92,10 +92,10 @@ export function SandboxDailyLoop({ taskStates, onTaskState, onOpenPatient, onBul
         <MetricCard label="Closed" value={closed} detail="Outcome required." tone="emerald" />
       </section>
 
-      <section className="rounded-2xl border bg-white p-4" aria-label="Queue filters">
+      <section className="rounded-2xl border bg-white p-3 sm:p-4" aria-label="Queue filters">
         <div className="flex flex-wrap gap-2">
           {PRIORITIES.map((item) => (
-            <button key={item.id} type="button" aria-pressed={priority === item.id} onClick={() => setPriority(item.id)} className={`min-h-11 rounded-lg px-4 text-sm font-semibold transition ${priority === item.id ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
+            <button key={item.id} type="button" aria-pressed={priority === item.id} onClick={() => setPriority(item.id)} className={`h-auto min-h-11 min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere] min-h-11 rounded-lg px-4 text-sm font-semibold transition ${priority === item.id ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
               {item.label}
             </button>
           ))}
@@ -107,11 +107,11 @@ export function SandboxDailyLoop({ taskStates, onTaskState, onOpenPatient, onBul
         {visibleTasks.map((task) => {
           const state = taskStates[task.id] ?? { status: 'open', owner: task.owner, updatedLabel: 'Not yet reviewed' };
           return (
-            <article key={task.id} className={`rounded-2xl border bg-white p-5 shadow-sm ${state.status === 'closed' ? 'opacity-70' : ''}`}>
+            <article key={task.id} className={`rounded-2xl border bg-white p-3 sm:p-5 shadow-sm ${state.status === 'closed' ? 'opacity-70' : ''}`}>
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <button type="button" onClick={() => onOpenPatient(task.patientId)} className="min-h-11 font-bold text-blue-700 hover:underline">{task.patientName}</button>
+                    <button type="button" onClick={() => onOpenPatient(task.patientId)} className="min-h-11 font-bold text-blue-700 hover:underline h-auto min-w-0 max-w-full whitespace-normal [overflow-wrap:anywhere]">{task.patientName}</button>
                     <SeverityPill severity={task.severity} />
                     <StatusPill status={state.status} />
                     {task.occurrences > 1 && <span className="rounded-full bg-violet-100 px-2 py-1 text-xs font-semibold text-violet-800">{task.occurrences} observations</span>}
@@ -127,25 +127,25 @@ export function SandboxDailyLoop({ taskStates, onTaskState, onOpenPatient, onBul
                   <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700"><strong>Suggested workflow:</strong> {task.suggestedAction}</div>
                   {state.outcome && <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900"><strong>Outcome:</strong> {state.outcome}</div>}
                 </div>
-                <Button variant="outline" className="min-h-11 shrink-0" onClick={() => onOpenPatient(task.patientId)}>Open Patient 360 <ChevronRight className="ml-1 size-4" /></Button>
+                <Button variant="outline" className="min-h-11 shrink-0 h-auto min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]" onClick={() => onOpenPatient(task.patientId)}>Open Patient 360 <ChevronRight className="ml-1 size-4" /></Button>
               </div>
 
               {state.status !== 'closed' && (
                 <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4">
                   <span className="mr-auto inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-amber-800"><Clock3 className="size-4" /> {task.dueLabel}</span>
-                  {state.status === 'open' && <Button variant="outline" className="min-h-11" onClick={() => onTaskState(task, 'reviewed')}><Eye className="mr-1 size-4" /> Review</Button>}
-                  {!['actioned', 'awaiting'].includes(state.status) && <Button variant="outline" className="min-h-11" onClick={() => onTaskState(task, 'actioned')}><PlayCircle className="mr-1 size-4" /> Action taken</Button>}
-                  {state.status !== 'awaiting' && <Button variant="outline" className="min-h-11" onClick={() => onTaskState(task, 'awaiting')}><PauseCircle className="mr-1 size-4" /> Awaiting data/patient</Button>}
-                  <Button className="min-h-11" onClick={() => setClosingTaskId(closingTaskId === task.id ? null : task.id)}><CheckCircle2 className="mr-1 size-4" /> Close with outcome</Button>
+                  {state.status === 'open' && <Button variant="outline" className="min-h-11 h-auto min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]" onClick={() => onTaskState(task, 'reviewed')}><Eye className="mr-1 size-4" /> Review</Button>}
+                  {!['actioned', 'awaiting'].includes(state.status) && <Button variant="outline" className="min-h-11 h-auto min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]" onClick={() => onTaskState(task, 'actioned')}><PlayCircle className="mr-1 size-4" /> Action taken</Button>}
+                  {state.status !== 'awaiting' && <Button variant="outline" className="min-h-11 h-auto min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]" onClick={() => onTaskState(task, 'awaiting')}><PauseCircle className="mr-1 size-4" /> Awaiting data/patient</Button>}
+                  <Button className="min-h-11 h-auto min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]" onClick={() => setClosingTaskId(closingTaskId === task.id ? null : task.id)}><CheckCircle2 className="mr-1 size-4" /> Close with outcome</Button>
                 </div>
               )}
 
               {closingTaskId === task.id && state.status !== 'closed' && (
-                <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 sm:p-4">
                   <p className="text-sm font-bold text-emerald-950">Choose a synthetic outcome</p>
                   <p className="mt-1 text-xs text-emerald-800">Production requires a meaningful outcome before work can close.</p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {CLOSE_OUTCOMES.map((outcome) => <Button key={outcome} size="sm" variant="outline" onClick={() => { onTaskState(task, 'closed', outcome); setClosingTaskId(null); }}>{outcome}</Button>)}
+                    {CLOSE_OUTCOMES.map((outcome) => <Button className="h-auto min-h-11 min-w-0 max-w-full whitespace-normal px-3 py-2 text-sm [overflow-wrap:anywhere]" key={outcome} size="sm" variant="outline" onClick={() => { onTaskState(task, 'closed', outcome); setClosingTaskId(null); }}>{outcome}</Button>)}
                   </div>
                 </div>
               )}
@@ -154,7 +154,7 @@ export function SandboxDailyLoop({ taskStates, onTaskState, onOpenPatient, onBul
         })}
       </section>
 
-      <section className="rounded-2xl border bg-white p-5" aria-label="Work items from automated outreach" data-testid="daily-loop-outreach">
+      <section className="rounded-2xl border bg-white p-3 sm:p-5" aria-label="Work items from automated outreach" data-testid="daily-loop-outreach">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="text-lg font-bold text-slate-950">From automated outreach (demonstration)</h3>
@@ -163,20 +163,20 @@ export function SandboxDailyLoop({ taskStates, onTaskState, onOpenPatient, onBul
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
-              className="min-h-11"
+              className="min-h-11 h-auto min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]"
               disabled={briefStatus === 'busy' || outreachItems.length === 0}
               onClick={() => void draftMorningBrief()}
               data-testid="draft-morning-brief"
             >
               <NotebookPen className="mr-2 size-4" /> {briefStatus === 'busy' ? 'Drafting…' : brief ? 'Refresh morning brief' : 'Draft morning brief'}
             </Button>
-            <Button variant="outline" className="min-h-11" onClick={onOpenOutreach}><PhoneCall className="mr-2 size-4" /> Open outreach</Button>
+            <Button variant="outline" className="min-h-11 h-auto min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]" onClick={onOpenOutreach}><PhoneCall className="mr-2 size-4" /> Open outreach</Button>
           </div>
         </div>
         {brief && (
           <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-sm leading-6 text-slate-800" data-testid="morning-brief">
             {brief}
-            <p className="mt-2 text-[11px] font-semibold text-slate-600">
+            <p className="mt-2 text-xs font-semibold text-slate-600">
               AI-drafted summary — priorities were set by the registered clinical rules, never by the AI. Verify against the items below.
             </p>
           </div>
@@ -189,7 +189,7 @@ export function SandboxDailyLoop({ taskStates, onTaskState, onOpenPatient, onBul
         <ul className="mt-4 space-y-2">
           {outreachItems.map((item) => (
             <li key={item.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 p-3 text-sm">
-              <span className="mr-auto min-w-40 font-semibold text-slate-900">{item.patientName}</span>
+              <span className="mr-auto min-w-0 font-semibold text-slate-900">{item.patientName}</span>
               <OutreachDispositionPill disposition={item.disposition} />
               <span className="text-xs text-slate-500">{item.atLabel}</span>
               {(item.redFlagMessages.length > 0 || item.note) && (
@@ -202,7 +202,7 @@ export function SandboxDailyLoop({ taskStates, onTaskState, onOpenPatient, onBul
         </ul>
       </section>
 
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 sm:p-4 text-sm text-amber-950">
         <AlertTriangle className="mr-2 inline size-4" aria-hidden="true" /><strong>Safety behavior:</strong> a technical error must never render as “zero work.” Production shows explicit unavailable/error states and a downtime workflow.
       </div>
     </div>

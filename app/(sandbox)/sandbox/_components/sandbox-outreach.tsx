@@ -30,9 +30,9 @@ const EXTRACTION_ROWS: Array<{ key: keyof CheckInExtraction; label: string; rend
 
 function ExtractionPanel({ extraction }: { extraction: CheckInExtraction }) {
   return (
-    <div className="rounded-xl bg-slate-50 p-4">
+    <div className="rounded-xl bg-slate-50 p-3 sm:p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Structured data captured by the AI layer</p>
-      <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">
+      <dl className="mt-2 grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-x-4 gap-y-1 text-sm">
         {EXTRACTION_ROWS.map((row) => {
           const value = extraction[row.key];
           return (
@@ -134,10 +134,10 @@ function SbarDraft({ patient, extraction }: { patient: SandboxPatient; extractio
   }
 
   return (
-    <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4" data-testid="sandbox-sbar-draft">
+    <div className="rounded-xl border border-blue-200 bg-blue-50/50 px-2 py-3 sm:p-4" data-testid="sandbox-sbar-draft">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-bold text-slate-950">SBAR handoff draft</p>
-        <Button size="sm" variant="outline" disabled={polishStatus === 'busy' || polishProposal !== null} onClick={() => void polish()} data-testid="sbar-polish">
+        <Button className="h-auto min-h-11 min-w-0 max-w-full whitespace-normal px-3 py-2 text-sm [overflow-wrap:anywhere]" size="sm" variant="outline" disabled={polishStatus === 'busy' || polishProposal !== null} onClick={() => void polish()} data-testid="sbar-polish">
           <Wand2 className="mr-1 size-4" /> {polishStatus === 'busy' ? 'Polishing…' : 'Polish wording with AI'}
         </Button>
       </div>
@@ -145,41 +145,41 @@ function SbarDraft({ patient, extraction }: { patient: SandboxPatient; extractio
         Situation and Background are drafted from the structured check-in data shown above — verify
         against the source values. Assessment and Recommendation always stay with the provider.
       </p>
-      <p className="mt-2 text-[11px] font-semibold leading-4 text-amber-800">
+      <p className="mt-2 text-xs font-semibold leading-4 text-amber-800">
         Synthetic draft only — do not paste real patient, personal, or health information. AI polish sends Situation and Background only; Assessment and Recommendation remain browser-local.
       </p>
       {polishStatus === 'proposed' && polishProposal && (
-        <p className="mt-2 rounded-lg border border-blue-300 bg-white p-2 text-[11px] leading-4 text-slate-700" data-testid="sbar-polish-note">
+        <p className="mt-2 rounded-lg border border-blue-300 bg-white p-2 text-xs leading-4 text-slate-700" data-testid="sbar-polish-note">
           AI wording proposal — review before use. Only Situation and Background are proposed;
           the current draft stays unchanged until you accept.
         </p>
       )}
       {polishStatus === 'accepted' && (
-        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-emerald-300 bg-white p-2 text-[11px] leading-4 text-slate-700" data-testid="sbar-polish-accepted">
+        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-emerald-300 bg-white p-2 text-xs leading-4 text-slate-700" data-testid="sbar-polish-accepted">
           <span>AI wording accepted for Situation and Background only. Assessment and Recommendation stayed unchanged.</span>
-          <Button size="sm" variant="outline" onClick={undoPolish}>Undo accepted wording</Button>
+          <Button className="h-auto min-h-11 min-w-0 max-w-full whitespace-normal px-3 py-2 text-sm [overflow-wrap:anywhere]" size="sm" variant="outline" onClick={undoPolish}>Undo accepted wording</Button>
         </div>
       )}
       {polishStatus === 'rejected' && (
-        <p className="mt-2 text-[11px] text-slate-600" data-testid="sbar-polish-rejected">Proposal rejected — the draft is unchanged.</p>
+        <p className="mt-2 text-xs text-slate-600" data-testid="sbar-polish-rejected">Proposal rejected — the draft is unchanged.</p>
       )}
       {polishStatus === 'unavailable' && (
-        <p className="mt-2 text-[11px] text-slate-500">Polishing is unavailable right now — the deterministic draft below is unchanged.</p>
+        <p className="mt-2 text-xs text-slate-500">Polishing is unavailable right now — the deterministic draft below is unchanged.</p>
       )}
       {polishProposal && (
-        <div className="mt-3 rounded-xl border border-blue-200 bg-white p-3" data-testid="sbar-polish-proposal">
+        <div className="mt-3 rounded-xl border border-blue-200 bg-white px-1 py-3 sm:p-3" data-testid="sbar-polish-proposal">
           <p className="text-xs font-bold text-slate-900">Compare current draft with AI proposal</p>
           <div className="mt-2 grid gap-3 lg:grid-cols-2">
             {(['situation', 'background'] as const).map((key) => (
-              <div key={key} className="rounded-lg border border-slate-200 p-3" data-testid={`sbar-polish-diff-${key}`}>
-                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-600">{key}</p>
+              <div key={key} className="rounded-lg border border-slate-200 px-1 py-3 sm:p-3" data-testid={`sbar-polish-diff-${key}`}>
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-600">{key}</p>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Current</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Current</p>
                     <p className="mt-1 text-xs leading-5 text-slate-700">{polishProposal.before[key]}</p>
                   </div>
-                  <div className="rounded-md bg-blue-50 p-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">Proposed</p>
+                  <div className="rounded-md bg-blue-50 px-1 py-2 sm:p-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Proposed</p>
                     <p className="mt-1 text-xs leading-5 text-blue-950">{polishProposal.after[key]}</p>
                   </div>
                 </div>
@@ -187,8 +187,8 @@ function SbarDraft({ patient, extraction }: { patient: SandboxPatient; extractio
             ))}
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button size="sm" onClick={acceptPolish}>Accept proposal</Button>
-            <Button size="sm" variant="outline" onClick={rejectPolish}>Reject proposal</Button>
+            <Button className="h-auto min-h-11 min-w-0 max-w-full whitespace-normal px-3 py-2 text-sm [overflow-wrap:anywhere]" size="sm" onClick={acceptPolish}>Accept proposal</Button>
+            <Button className="h-auto min-h-11 min-w-0 max-w-full whitespace-normal px-3 py-2 text-sm [overflow-wrap:anywhere]" size="sm" variant="outline" onClick={rejectPolish}>Reject proposal</Button>
           </div>
         </div>
       )}
@@ -202,7 +202,7 @@ function SbarDraft({ patient, extraction }: { patient: SandboxPatient; extractio
               disabled={polishStatus === 'busy' && (key === 'situation' || key === 'background')}
               onChange={(event) => updateField(key, event.target.value)}
               rows={4}
-              className="rounded-lg border border-slate-300 bg-white p-2 font-normal text-slate-900"
+              className="min-w-0 w-full rounded-lg border border-slate-300 bg-white p-2 text-sm font-normal text-slate-900"
             />
           </label>
         ))}
@@ -219,7 +219,7 @@ function CallCard({ transcript }: { transcript: SimulatedCallTranscript }) {
     : null;
 
   return (
-    <article className="rounded-2xl border bg-white p-5 shadow-sm" data-testid={`outreach-call-${transcript.id}`}>
+    <article className="rounded-2xl border bg-white px-2 py-3 sm:p-5 shadow-sm" data-testid={`outreach-call-${transcript.id}`}>
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="mr-auto text-lg font-bold text-slate-950">{transcript.patientName}</h3>
         <OutreachDispositionPill disposition={transcript.disposition} />
@@ -243,22 +243,22 @@ function CallCard({ transcript }: { transcript: SimulatedCallTranscript }) {
             controls
             preload="none"
             src={transcript.audioSrc}
-            className="h-9 w-full"
+            className="h-14 min-w-0 w-full max-w-full"
             aria-label={`Synthetic audio simulation of the call with ${transcript.patientName}`}
           />
-          <p className="mt-1 text-[11px] leading-4 text-slate-600">
+          <p className="mt-1 text-xs leading-4 text-slate-600">
             Synthetic audio simulation (AI-generated voices) — no real call is placed. The transcript below is the source of record.
           </p>
         </div>
       )}
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button variant="outline" className="min-h-11" onClick={() => setExpanded((current) => !current)}>
+        <Button variant="outline" className="min-h-11 h-auto min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]" onClick={() => setExpanded((current) => !current)}>
           {expanded ? <ChevronUp className="mr-1 size-4" /> : <ChevronDown className="mr-1 size-4" />}
           {expanded ? 'Hide transcript' : 'View transcript'}
         </Button>
         {patient && transcript.disposition !== 'no_answer' && (
-          <Button variant="outline" className="min-h-11" onClick={() => setShowSbar((current) => !current)}>
+          <Button variant="outline" className="min-h-11 h-auto min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]" onClick={() => setShowSbar((current) => !current)}>
             <FileText className="mr-1 size-4" /> {showSbar ? 'Hide SBAR draft' : 'Draft SBAR handoff'}
           </Button>
         )}
@@ -268,9 +268,9 @@ function CallCard({ transcript }: { transcript: SimulatedCallTranscript }) {
         <div className="mt-3 space-y-2 rounded-xl border border-slate-200 p-3" aria-label={`Transcript of the simulated call with ${transcript.patientName}`}>
           {transcript.turns.map((turn, index) => (
             <p key={index} className={turn.speaker === 'assistant'
-              ? 'mr-8 rounded-lg rounded-bl-none bg-slate-100 p-2.5 text-xs leading-5 text-slate-900'
-              : 'ml-8 rounded-lg rounded-br-none bg-blue-100 p-2.5 text-xs leading-5 text-blue-950'}>
-              <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+              ? 'sm:mr-8 rounded-lg rounded-bl-none bg-slate-100 p-2.5 text-xs leading-5 text-slate-900'
+              : 'sm:ml-8 rounded-lg rounded-br-none bg-blue-100 p-2.5 text-xs leading-5 text-blue-950'}>
+              <span className="block text-xs font-semibold uppercase tracking-wide text-slate-600">
                 {turn.speaker === 'assistant' ? 'Automated assistant' : 'Synthetic patient'}
               </span>
               {turn.text}
@@ -325,13 +325,13 @@ export function SandboxOutreach({ liveCalls, runs, onLiveCall }: {
   }
 
   return (
-    <div className="space-y-7" data-testid="sandbox-outreach">
+    <div className="min-w-0 space-y-7 [overflow-wrap:anywhere]" data-testid="sandbox-outreach">
       <SectionHeading
         eyebrow="Provider workspace"
         title="Automated Outreach (demonstration)"
         description="Routine daily check-in calls run automatically at scale; the AI layer structures each conversation while registered clinical rules route every call to routine monitoring or human review. Silence and no-answers escalate — they never close a loop."
         action={
-          <Button className="min-h-11" disabled={running} onClick={() => void runSimulatedCall()} data-testid="run-simulated-call">
+          <Button className="min-h-11 h-auto min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]" disabled={running} onClick={() => void runSimulatedCall()} data-testid="run-simulated-call">
             <PhoneCall className="mr-2 size-4" /> {running ? 'Simulating…' : 'Run a new simulated call'}
           </Button>
         }
@@ -343,13 +343,13 @@ export function SandboxOutreach({ liveCalls, runs, onLiveCall }: {
       </SyntheticBanner>
 
       {unavailable && (
-        <p className="rounded-xl border border-slate-300 bg-slate-100 p-4 text-sm text-slate-700" data-testid="simulate-unavailable">
+        <p className="rounded-xl border border-slate-300 bg-slate-100 p-3 sm:p-4 text-sm text-slate-700" data-testid="simulate-unavailable">
           Live simulation is unavailable right now (assistant disabled or usage cap reached). The
           pre-generated calls below demonstrate the same engine.
         </p>
       )}
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Automated outreach synthetic metrics">
+      <section className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3" aria-label="Automated outreach synthetic metrics">
         <MetricCard label="Calls demonstrated" value={allCalls.length} detail="Pre-generated fixtures plus live simulations." tone="blue" />
         <MetricCard label="Escalated to humans" value={escalations} detail="Routed by deterministic red-flag rules." tone="amber" />
         <MetricCard label="Routine" value={allCalls.filter((call) => call.disposition === 'routine').length} detail="Stay in the monitoring queue." tone="emerald" />
@@ -361,7 +361,7 @@ export function SandboxOutreach({ liveCalls, runs, onLiveCall }: {
       </section>
 
       {priorRuns.length > 0 && (
-        <section className="rounded-2xl border bg-white p-4" aria-label="Earlier simulated calls">
+        <section className="rounded-2xl border bg-white p-3 sm:p-4" aria-label="Earlier simulated calls">
           <p className="text-sm font-bold text-slate-950">Simulated earlier in this browser</p>
           <p className="mt-1 text-xs text-slate-500">Transcripts are session-local and are not retained after leaving the page; dispositions were recorded.</p>
           <ul className="mt-2 space-y-2">

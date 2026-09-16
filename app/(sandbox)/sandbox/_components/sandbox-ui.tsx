@@ -10,8 +10,8 @@ export function SectionHeading({ eyebrow, title, description, action }: {
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div className="max-w-3xl">
+    <div className="flex min-w-0 flex-wrap items-end justify-between gap-3 [overflow-wrap:anywhere]">
+      <div className="min-w-0 max-w-3xl flex-1 basis-80">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">{eyebrow}</p>
         <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">{title}</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
@@ -35,7 +35,7 @@ export function MetricCard({ label, value, detail, tone = 'slate' }: {
     violet: 'border-violet-200 bg-violet-50',
   };
   return (
-    <div className={cn('rounded-2xl border p-4', tones[tone])}>
+    <div className={cn('min-w-0 rounded-2xl border p-3 sm:p-4 [overflow-wrap:anywhere]', tones[tone])}>
       <p className="text-2xl font-bold text-slate-950">{value}</p>
       <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-600">{label}</p>
       <p className="mt-2 text-xs leading-5 text-slate-600">{detail}</p>
@@ -45,9 +45,9 @@ export function MetricCard({ label, value, detail, tone = 'slate' }: {
 
 export function SyntheticBanner({ children }: { children: ReactNode }) {
   return (
-    <div className="flex gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-950">
+    <div className="flex min-w-0 gap-2 rounded-xl border border-violet-200 bg-violet-50 p-3 sm:p-4 text-sm text-violet-950">
       <FlaskConical className="mt-0.5 size-5 shrink-0 text-violet-700" aria-hidden="true" />
-      <div><strong>Synthetic demonstration.</strong> {children}</div>
+      <div className="min-w-0 [overflow-wrap:anywhere]"><strong>Synthetic demonstration.</strong> {children}</div>
     </div>
   );
 }
@@ -58,7 +58,7 @@ export function SeverityPill({ severity }: { severity: SandboxSeverity }) {
     warning: 'border-amber-300 bg-amber-50 text-amber-900',
     informational: 'border-blue-200 bg-blue-50 text-blue-800',
   };
-  return <span className={cn('rounded-full border px-2 py-1 text-xs font-semibold capitalize', styles[severity])}>{severity}</span>;
+  return <span className={cn('max-w-full [overflow-wrap:anywhere] rounded-full border px-2 py-1 text-xs font-semibold capitalize', styles[severity])}>{severity}</span>;
 }
 
 export function StatusPill({ status }: { status: SandboxTaskStatus }) {
@@ -69,7 +69,7 @@ export function StatusPill({ status }: { status: SandboxTaskStatus }) {
     awaiting: 'bg-amber-100 text-amber-900',
     closed: 'bg-emerald-100 text-emerald-800',
   };
-  return <span className={cn('rounded-full px-2 py-1 text-xs font-semibold capitalize', styles[status])}>{status}</span>;
+  return <span className={cn('max-w-full [overflow-wrap:anywhere] rounded-full px-2 py-1 text-xs font-semibold capitalize', styles[status])}>{status}</span>;
 }
 
 export function OutreachDispositionPill({ disposition }: { disposition: 'emergency' | 'escalated' | 'routine' | 'no_answer' }) {
@@ -85,7 +85,7 @@ export function OutreachDispositionPill({ disposition }: { disposition: 'emergen
     routine: 'Routine',
     no_answer: 'No answer · human follow-up',
   };
-  return <span className={cn('rounded-full border px-2 py-1 text-xs font-semibold', styles[disposition])}>{labels[disposition]}</span>;
+  return <span className={cn('max-w-full [overflow-wrap:anywhere] rounded-full border px-2 py-1 text-xs font-semibold', styles[disposition])}>{labels[disposition]}</span>;
 }
 
 export function WeightTrend({ data }: { data: SandboxVitalPoint[] }) {
@@ -101,8 +101,8 @@ export function WeightTrend({ data }: { data: SandboxVitalPoint[] }) {
   }).join(' ');
 
   return (
-    <div>
-      <svg viewBox="0 0 100 90" role="img" aria-label={`Weight trend from ${weights[0]} to ${weights.at(-1)} pounds`} className="h-40 w-full overflow-visible">
+    <div className="mx-auto w-full min-w-0 max-w-sm">
+      <svg viewBox="0 0 100 90" role="img" aria-label={`Weight trend from ${weights[0]} to ${weights.at(-1)} pounds`} className="block h-auto w-full overflow-visible">
         <line x1="10" y1="82" x2="90" y2="82" stroke="#cbd5e1" strokeWidth="1" />
         <polyline points={points} fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
         {data.map((point, index) => {
@@ -110,8 +110,8 @@ export function WeightTrend({ data }: { data: SandboxVitalPoint[] }) {
           return <circle key={point.label} cx={x} cy={y} r="2.4" fill="#1d4ed8"><title>{point.label}: {point.weight} lb</title></circle>;
         })}
       </svg>
-      <div className="grid grid-cols-5 gap-1 text-center text-[10px] font-medium text-slate-500">
-        {data.map((point) => <span key={point.label}>{point.label}</span>)}
+      <div className="flex justify-between text-center text-xs font-medium text-slate-500">
+        {data.map((point) => <span className="min-w-0 basis-1/5 shrink-0 [overflow-wrap:anywhere]" key={point.label}>{point.label}</span>)}
       </div>
     </div>
   );

@@ -39,7 +39,7 @@ function trackSandboxEvent(
     area: 'sandbox',
     durationMs,
     ...getPublicDisseminationContext(),
-  });
+  }).catch(() => undefined);
 }
 
 function initialTaskStates(): Record<string, SandboxTaskState> {
@@ -227,6 +227,8 @@ export function SandboxWorkspace() {
   const dayToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startedAt = useRef(Date.now());
   const firstActionTracked = useRef(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const focusRequested = useRef(false);
   const selectedPatient = SANDBOX_PATIENTS.find((patient) => patient.id === demo.selectedPatientId) ?? SANDBOX_PATIENTS[0];
   const currentSectionIndex = SANDBOX_SECTIONS.findIndex((section) => section.id === demo.selectedSection);
   const progress = Math.round((demo.visitedSections.length / SANDBOX_SECTIONS.length) * 100);
@@ -264,6 +266,18 @@ export function SandboxWorkspace() {
     if (dayToastTimer.current) clearTimeout(dayToastTimer.current);
   }, []);
 
+  useEffect(() => {
+    // Only explicit navigation requests focus; restoration and data updates do not.
+    if (!focusRequested.current) return;
+    focusRequested.current = false;
+    const content = contentRef.current;
+    if (!content) return;
+    content.focus({ preventScroll: true });
+    const smooth = typeof window.matchMedia === 'function'
+      && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    content.scrollIntoView({ block: 'start', behavior: smooth ? 'smooth' : 'auto' });
+  }, [demo]);
+
   function trackFirstAction() {
     if (firstActionTracked.current) return;
     firstActionTracked.current = true;
@@ -274,12 +288,12 @@ export function SandboxWorkspace() {
   }
 
   function navigate(section: SandboxSectionId) {
+    focusRequested.current = true;
     setDemo((current) => ({
       ...current,
       selectedSection: section,
       visitedSections: current.visitedSections.includes(section) ? current.visitedSections : [...current.visitedSections, section],
     }));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function updateTask(task: SandboxTask, status: SandboxTaskStatus, outcome?: string) {
@@ -311,13 +325,13 @@ export function SandboxWorkspace() {
   }
 
   function openPatient(patientId: string) {
+    focusRequested.current = true;
     setDemo((current) => ({
       ...current,
       selectedPatientId: patientId,
       selectedSection: 'patient-360',
       visitedSections: current.visitedSections.includes('patient-360') ? current.visitedSections : [...current.visitedSections, 'patient-360'],
     }));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function explorePathway(pathwayId: string) {
@@ -409,11 +423,11 @@ export function SandboxWorkspace() {
   }
 
   function reset() {
+    focusRequested.current = true;
     try { localStorage.removeItem(SANDBOX_STORAGE_KEY); } catch { /* Storage can be unavailable in hardened browsers. */ }
     firstActionTracked.current = false;
     startedAt.current = Date.now();
     setDemo(initialDemoState());
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   const sectionContent = (() => {
@@ -435,29 +449,29 @@ export function SandboxWorkspace() {
 
   return (
     <div className="space-y-6">
-      <section className="sticky top-0 z-20 -mx-4 border-y bg-slate-50/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6" aria-label="Sandbox product navigation">
+      <nav className="-mx-4 border-y bg-slate-50 px-4 py-3 sm:-mx-6 sm:px-6" aria-label="Sandbox product navigation">
         <div className="mx-auto max-w-7xl">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-3">
               <div><p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Sandbox coverage</p><p className="text-sm font-bold text-slate-950">{demo.visitedSections.length}/{SANDBOX_SECTIONS.length} areas explored</p></div>
-              <span data-testid="sandbox-day-badge" className="inline-flex shrink-0 items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-800">Day {demo.dayIndex + 1} of {SANDBOX_DAY_COUNT}</span>
+              <span data-testid="sandbox-day-badge" className="inline-flex max-w-full items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-sm font-bold text-violet-800">Day {demo.dayIndex + 1} of {SANDBOX_DAY_COUNT}</span>
             </div>
-            <div className="flex items-center gap-3"><div className="hidden h-2 w-40 overflow-hidden rounded-full bg-slate-200 sm:block"><div className="h-full rounded-full bg-violet-600 transition-all" style={{ width: `${progress}%` }} /></div><Button size="sm" variant="ghost" className="min-h-11" onClick={reset}><RotateCcw className="mr-1 size-4" /> Reset</Button></div>
+            <div className="flex min-w-0 flex-wrap items-center gap-3"><div aria-hidden="true" className="hidden h-2 w-40 overflow-hidden rounded-full bg-slate-200 sm:block"><div className="h-full rounded-full bg-violet-600 transition-all motion-reduce:transition-none" style={{ width: `${progress}%` }} /></div><Button size="sm" variant="ghost" className="h-auto min-h-11 max-w-full whitespace-normal py-2 text-sm" onClick={reset}><RotateCcw className="mr-1 size-4" /> Reset</Button></div>
           </div>
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+          <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-2">
             {SANDBOX_SECTIONS.map((section, index) => {
               const Icon = SECTION_ICONS[index];
               const active = demo.selectedSection === section.id;
-              return <button key={section.id} type="button" data-testid={`sandbox-nav-${section.id}`} aria-current={active ? 'page' : undefined} onClick={() => navigate(section.id)} className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition ${active ? 'bg-slate-950 text-white' : 'border bg-white text-slate-700 hover:border-violet-300'}`}><Icon className="size-4" />{section.shortLabel}{section.id === 'copilot' && !demo.visitedSections.includes('copilot') && <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-bold text-violet-800">NEW</span>}</button>;
+              return <button key={section.id} type="button" data-testid={`sandbox-nav-${section.id}`} aria-current={active ? 'page' : undefined} onClick={() => navigate(section.id)} className={`inline-flex min-h-11 min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-lg px-3 py-2 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-700 motion-reduce:transition-none ${active ? 'bg-slate-950 text-white' : 'border bg-white text-slate-700 hover:border-violet-300'}`}><Icon className="size-4 shrink-0" aria-hidden="true" /><span className="min-w-0 [overflow-wrap:anywhere]">{section.shortLabel}</span>{section.id === 'copilot' && !demo.visitedSections.includes('copilot') && <span aria-hidden="true" className="rounded-full bg-violet-100 px-1.5 py-0.5 text-xs font-bold text-violet-800">NEW</span>}</button>;
             })}
           </div>
         </div>
-      </section>
+      </nav>
 
       <p className="sr-only" role="status" aria-live="polite">
         Now viewing {SANDBOX_SECTIONS[currentSectionIndex]?.title ?? 'the sandbox'}.
       </p>
-      <div>{sectionContent}</div>
+      <div ref={contentRef} role="region" aria-label={`Sandbox area: ${SANDBOX_SECTIONS[currentSectionIndex]?.title ?? 'the sandbox'}`} tabIndex={-1} className="min-w-0 scroll-mt-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-700">{sectionContent}</div>
 
       {dayToast && (
         <div role="status" data-testid="day-toast" className="fixed bottom-4 left-1/2 z-50 w-[min(92vw,32rem)] -translate-x-1/2 rounded-xl border border-violet-300 bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-xl">
@@ -465,10 +479,10 @@ export function SandboxWorkspace() {
         </div>
       )}
 
-      <nav className="flex flex-col gap-3 rounded-2xl border bg-white p-4 sm:flex-row sm:items-center sm:justify-between" aria-label="Guided sandbox tour">
-        <div>{previousSection && <Button variant="outline" className="min-h-11" onClick={() => navigate(previousSection.id)}>← {previousSection.title}</Button>}</div>
-        <p className="text-center text-xs font-semibold uppercase tracking-wide text-slate-500">Step {currentSectionIndex + 1} of {SANDBOX_SECTIONS.length}</p>
-        <div className="sm:text-right">{nextSection ? <Button className="min-h-11" onClick={() => navigate(nextSection.id)}>{nextSection.title} →</Button> : <Button className="min-h-11" onClick={() => navigate('command')}>Return to Command Center</Button>}</div>
+      <nav className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-white p-4" aria-label="Guided sandbox tour">
+        <div className="min-w-0 max-w-full">{previousSection && <Button variant="outline" className="h-auto min-h-11 max-w-full whitespace-normal py-2" onClick={() => navigate(previousSection.id)}>← {previousSection.title}</Button>}</div>
+        <p className="text-center text-sm font-semibold uppercase tracking-wide text-slate-500">Step {currentSectionIndex + 1} of {SANDBOX_SECTIONS.length}</p>
+        <div className="min-w-0 max-w-full">{nextSection ? <Button className="h-auto min-h-11 max-w-full whitespace-normal py-2" onClick={() => navigate(nextSection.id)}>{nextSection.title} →</Button> : <Button className="h-auto min-h-11 max-w-full whitespace-normal py-2" onClick={() => navigate('command')}>Return to Command Center</Button>}</div>
       </nav>
     </div>
   );

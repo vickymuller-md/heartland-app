@@ -49,14 +49,14 @@ export function ExplainRuleButton({ ruleId, extraction }: {
 
   if (status === 'shown') {
     return (
-      <span className="mt-1 block rounded bg-white/70 p-2 text-[11px] leading-4" data-testid={`explain-rule-${ruleId}`}>
+      <span className="mt-1 block max-w-full [overflow-wrap:anywhere] rounded bg-white/70 p-2 text-xs leading-4" data-testid={`explain-rule-${ruleId}`}>
         {explanation}
-        <span className="mt-1 block font-semibold opacity-70">AI explanation of the registered rule — the rule itself made the decision.</span>
+        <span className="mt-1 block max-w-full [overflow-wrap:anywhere] font-semibold opacity-70">AI explanation of the registered rule — the rule itself made the decision.</span>
       </span>
     );
   }
   if (status === 'unavailable') {
-    return <span className="mt-1 block text-[11px] opacity-70">Explanation unavailable right now.</span>;
+    return <span className="mt-1 block max-w-full [overflow-wrap:anywhere] text-xs opacity-70">Explanation unavailable right now.</span>;
   }
   return (
     <button
@@ -64,7 +64,7 @@ export function ExplainRuleButton({ ruleId, extraction }: {
       onClick={() => void explain()}
       disabled={status === 'busy'}
       data-testid={`explain-rule-button-${ruleId}`}
-      className="mt-1 inline-flex min-h-8 items-center gap-1 text-[11px] font-semibold underline decoration-dotted underline-offset-2 opacity-80 hover:opacity-100"
+      className="mt-1 inline-flex items-center gap-1 text-xs font-semibold underline decoration-dotted underline-offset-2 opacity-80 hover:opacity-100 h-auto min-h-11 min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]"
     >
       <HelpCircle className="size-3" aria-hidden="true" />
       {status === 'busy' ? 'Explaining…' : 'Explain this rule'}

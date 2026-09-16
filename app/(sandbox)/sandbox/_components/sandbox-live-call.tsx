@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Mic, MicOff, Phone, PhoneOff, Send, Volume2 } from 'lucide-react';
 import { trackProductEvent, type ProductEventInput } from '@/lib/product-analytics/actions';
 import { getPublicDisseminationContext } from '@/lib/product-analytics/public-context';
@@ -107,7 +107,7 @@ function fullTranscript(event: SpeechRecognitionEventLike): string {
 }
 
 function trackAiEvent(eventName: ProductEventInput['eventName'], durationMs?: number) {
-  void trackProductEvent({ eventName, area: 'sandbox', durationMs, ...getPublicDisseminationContext() });
+  void trackProductEvent({ eventName, area: 'sandbox', durationMs, ...getPublicDisseminationContext() }).catch(() => undefined);
 }
 
 export interface LiveCallOutcome {
@@ -141,9 +141,10 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
   const [micSuspended, setMicSuspended] = useState(false);
   const [listenAttempt, setListenAttempt] = useState(0);
   const [speechPending, setSpeechPending] = useState(false);
+  const [closed, setClosed] = useState(false);
   const [answerModes, setAnswerModes] = useState<AnswerMode[]>([]);
   const [aiExtractionReceipt, setAiExtractionReceipt] = useState<AiExtractionReceipt>('not_used');
-  const { audioRef, speaking, needsTap, enqueue: enqueueAudio, resumeAfterTap } = useAssistantAudioQueue();
+  const { audioRef, speaking, needsTap, enqueue: enqueueAudio, resumeAfterTap, stop: stopAudio } = useAssistantAudioQueue();
   const logRef = useRef<HTMLDivElement | null>(null);
   const startedTracked = useRef(false);
   const startedAt = useRef(Date.now());
@@ -151,15 +152,56 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
   const sendSpokenRef = useRef<(message: string) => void>(() => undefined);
   const speechPendingRef = useRef(false);
   const turnEpochRef = useRef(0);
+  const closedRef = useRef(false);
+  const completedRef = useRef(false);
+  const requestRef = useRef<AbortController | null>(null);
+  const speechTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+
+  const cancelPendingTurn = useCallback(() => {
+    turnEpochRef.current += 1;
+    requestRef.current?.abort();
+    requestRef.current = null;
+    if (speechTimerRef.current !== null) clearTimeout(speechTimerRef.current);
+    speechTimerRef.current = null;
+    speechPendingRef.current = false;
+  }, []);
+
+  useEffect(() => {
+    closedRef.current = false;
+    return () => {
+      closedRef.current = true;
+      cancelPendingTurn();
+    };
+  }, [cancelPendingTurn]);
+
+  function closeCall() {
+    if (closedRef.current) return;
+    closedRef.current = true;
+    cancelPendingTurn();
+    const recognition = recognitionRef.current;
+    if (recognition) {
+      recognition.onresult = null;
+      recognition.onend = null;
+      try { recognition.abort(); } catch { /* already stopped */ }
+    }
+    stopAudio();
+    setClosed(true);
+    setBusy(false);
+    setSpeechPending(false);
+    setListening(false);
+    setInterim('');
+    onClose();
+  }
 
   const prompts = callPromptsFor(scriptId, locale);
   const copy = SCRIPT_COPY[scriptId];
 
   useEffect(() => {
-    if (phase !== 'active') return;
+    if (phase !== 'active' || closed) return;
     const timer = setInterval(() => setSeconds((current) => current + 1), 1000);
     return () => clearInterval(timer);
-  }, [phase]);
+  }, [phase, closed]);
 
   useEffect(() => {
     const log = logRef.current;
@@ -178,7 +220,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
   }
 
   function chooseLocale(next: CallLocale) {
-    if (phase !== 'ringing' || next === locale) return;
+    if (closedRef.current || phase !== 'ringing' || next === locale) return;
     turnEpochRef.current += 1;
     speechPendingRef.current = false;
     setSpeechPending(false);
@@ -211,6 +253,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
   }
 
   function answer() {
+    if (closedRef.current || startedTracked.current) return;
     trackStartOnce();
     setPhase('active');
     enqueueClip('intro');
@@ -218,6 +261,8 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
   }
 
   function completeCall(turn: CheckInTurnResponse): number {
+    if (closedRef.current || completedRef.current) return 0;
+    completedRef.current = true;
     const disposition = turn.disposition ?? 'routine';
     // The closing is always the LAST message; any earlier lines (a small-talk
     // ack on the final turn) play first with their own speech. The disposition
@@ -318,7 +363,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
   }
 
   function answerWithChip(values: Partial<CheckInExtraction>, label: string) {
-    if (busy || speechPendingRef.current || result) return;
+    if (closedRef.current || requestRef.current || busy || speechPendingRef.current || completedRef.current || result) return;
     turnEpochRef.current += 1;
     recordAnswerMode('Quick answer / structured entry');
     addLine('you', label);
@@ -331,7 +376,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
    * final speech array from the second line. Plain-JSON replies (older shape,
    * test stubs, error paths) fall back to response.json().
    */
-  async function readTurnPhases(response: Response): Promise<{
+  async function readTurnPhases(response: Response, signal: AbortSignal): Promise<{
     turn: Partial<CheckInTurnResponse> & { fallback?: boolean };
     finalSpeech: Promise<Array<SpeechItem | null> | null>;
   }> {
@@ -341,12 +386,26 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
       return { turn, finalSpeech: Promise.resolve(turn.speech ?? null) };
     }
     const reader = response.body.getReader();
+    let readerCancelled = false;
+    const cancelReader = () => {
+      if (readerCancelled) return;
+      readerCancelled = true;
+      void reader.cancel().catch(() => undefined);
+    };
+    const releaseReader = () => {
+      signal.removeEventListener('abort', cancelReader);
+      reader.releaseLock();
+    };
+    signal.addEventListener('abort', cancelReader, { once: true });
+    if (signal.aborted) cancelReader();
     const decoder = new TextDecoder();
     let buffered = '';
     const lines: string[] = [];
     async function readLine(): Promise<string | null> {
       while (lines.length === 0) {
+        if (signal.aborted) throw new Error('request cancelled');
         const { done, value } = await reader.read();
+        if (signal.aborted) throw new Error('request cancelled');
         if (done) {
           const rest = buffered.trim();
           buffered = '';
@@ -359,34 +418,49 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
       }
       return lines.shift() ?? null;
     }
-    const first = await readLine();
-    if (first === null) throw new Error('empty stream');
-    const turn = JSON.parse(first);
+    let turn;
+    try {
+      const first = await readLine();
+      if (first === null) throw new Error('empty stream');
+      turn = JSON.parse(first);
+    } catch (error) {
+      cancelReader();
+      releaseReader();
+      throw error;
+    }
     const finalSpeech = (async () => {
       try {
         const second = await readLine();
         return second ? (JSON.parse(second).speech ?? null) : null;
       } catch {
         return null;
+      } finally {
+        releaseReader();
       }
     })();
     return { turn, finalSpeech };
   }
 
   async function sendMessage(message: string, source: 'typed' | 'voice') {
-    if (!message || busy || speechPendingRef.current || result) return;
+    if (closedRef.current || !message || requestRef.current || busy || speechPendingRef.current || completedRef.current || result) return;
     const turnEpoch = ++turnEpochRef.current;
+    const controller = new AbortController();
+    requestRef.current = controller;
     recordAnswerMode(source === 'voice' ? 'Voice answer' : 'Typed answer');
     setBusy(true);
     addLine('you', message);
     // Conversational filler covers the model+synthesis latency (clip audio 1:1).
     const fillers = fillerPromptsFor(locale);
     const filler = fillers[Math.floor(Math.random() * fillers.length)];
-    if (filler) enqueueClip(filler.id, filler.text);
+    if (filler) {
+      addLine('assistant', filler.text);
+      enqueueAudio(filler.audioSrc);
+    }
     const previousPhase = callState.phase;
     try {
       const response = await fetch('/api/sandbox-ai/checkin', {
         method: 'POST',
+        signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           state: callState,
@@ -395,9 +469,10 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
           wantSpeech: true,
         }),
       });
+      if (closedRef.current || turnEpochRef.current !== turnEpoch) return;
       if (!response.ok && response.status !== 429) throw new Error('request failed');
-      const { turn, finalSpeech } = await readTurnPhases(response);
-      if (turnEpochRef.current !== turnEpoch) return;
+      const { turn, finalSpeech } = await readTurnPhases(response, controller.signal);
+      if (closedRef.current || turnEpochRef.current !== turnEpoch) return;
       if (turn.fallback || !turn.state) {
         recordAiExtraction('unavailable');
         setOfflineMode(true);
@@ -413,26 +488,34 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
         // until this turn's audio phase resolves. The epoch also prevents a
         // late phase-2 payload from attaching itself to a newer turn.
         setSpeechPhasePending(true);
-        void (async () => {
-          const resolved = await Promise.race([
-            finalSpeech,
-            new Promise<null>((resolve) => setTimeout(() => resolve(null), 10_000)),
-          ]);
-          const speech = resolved
-            ?? (fullTurn.speech ?? []).map((item) => (item?.kind === 'pending' ? null : item));
-          if (turnEpochRef.current !== turnEpoch) return;
-          finishPlayback(fullTurn, speech, stop);
-          setSpeechPhasePending(false);
-        })();
+        const resolved = await Promise.race([
+          finalSpeech,
+          new Promise<null>((resolve) => {
+            speechTimerRef.current = setTimeout(() => resolve(null), 10_000);
+          }),
+        ]);
+        if (closedRef.current || turnEpochRef.current !== turnEpoch) return;
+        const speech = resolved
+          ?? (fullTurn.speech ?? []).map((item) => (item?.kind === 'pending' ? null : item));
+        finishPlayback(fullTurn, speech, stop);
       }
     } catch {
-      if (turnEpochRef.current !== turnEpoch) return;
+      if (closedRef.current || turnEpochRef.current !== turnEpoch) return;
       recordAiExtraction('unavailable');
       setOfflineMode(true);
       trackAiEvent('ai_checkin_fallback');
       addLine('assistant', 'Spoken and typed answers are unavailable right now — please use the quick answers below. The call works exactly the same way.');
     } finally {
-      if (turnEpochRef.current === turnEpoch) setBusy(false);
+      if (requestRef.current === controller) {
+        controller.abort();
+        requestRef.current = null;
+        if (speechTimerRef.current !== null) clearTimeout(speechTimerRef.current);
+        speechTimerRef.current = null;
+      }
+      if (!closedRef.current && turnEpochRef.current === turnEpoch) {
+        setBusy(false);
+        setSpeechPhasePending(false);
+      }
     }
   }
   useEffect(() => {
@@ -449,7 +532,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
   // ── Hands-free listening: open the mic whenever the assistant is quiet ──
 
   const voiceActive = voiceSupported && micOn && !micSuspended && !offlineMode
-    && phase === 'active' && !result && !busy && !speechPending && !speaking && !needsTap;
+    && !closed && phase === 'active' && !result && !busy && !speechPending && !speaking && !needsTap;
 
   useEffect(() => {
     if (!voiceActive) return;
@@ -458,6 +541,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
     let finalized = false;
     let active = true;
     const recognition = new Ctor();
+    recognitionRef.current = recognition;
     recognition.lang = locale === 'es' ? 'es-US' : 'en-US';
     recognition.interimResults = true;
     recognition.continuous = false;
@@ -472,6 +556,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
     };
 
     recognition.onresult = (event) => {
+      if (!active || closedRef.current) return;
       const transcript = fullTranscript(event);
       setInterim(transcript);
       const last = event.results[event.results.length - 1];
@@ -488,6 +573,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
       }
     };
     recognition.onend = () => {
+      if (!active || closedRef.current) return;
       setListening(false);
       setInterim('');
       if (active && !finalized) failed();
@@ -501,6 +587,9 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
     }
     return () => {
       active = false;
+      recognition.onresult = null;
+      recognition.onend = null;
+      if (recognitionRef.current === recognition) recognitionRef.current = null;
       setListening(false);
       setInterim('');
       try { recognition.abort(); } catch { /* already gone */ }
@@ -508,6 +597,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
   }, [voiceActive, listenAttempt, locale]);
 
   function toggleMic() {
+    if (closedRef.current) return;
     if (micOn) {
       setMicOn(false);
       return;
@@ -518,7 +608,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
   }
 
   function submitNumbers(formData: FormData) {
-    if (busy || speechPendingRef.current || result) return;
+    if (closedRef.current || requestRef.current || busy || speechPendingRef.current || completedRef.current || result) return;
     turnEpochRef.current += 1;
     recordAnswerMode('Quick answer / structured entry');
     const current = callState.phase;
@@ -583,7 +673,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
               {micOn ? <Mic className="size-4" /> : <MicOff className="size-4" />}
             </button>
           )}
-          <button type="button" onClick={onClose} aria-label="End simulated call" className="flex size-8 items-center justify-center rounded-full text-emerald-900 hover:bg-emerald-100"><PhoneOff className="size-4" /></button>
+          <button type="button" onClick={closeCall} aria-label="End simulated call" className="flex size-8 items-center justify-center rounded-full text-emerald-900 hover:bg-emerald-100"><PhoneOff className="size-4" /></button>
         </div>
       </div>
 
@@ -629,7 +719,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
           </div>
           <div className="flex justify-center gap-2">
             <Button className="min-h-11 bg-emerald-700 hover:bg-emerald-800" onClick={answer} data-testid="answer-call"><Phone className="mr-2 size-4" /> Answer</Button>
-            <Button variant="outline" className="min-h-11" onClick={onClose}>Decline</Button>
+            <Button variant="outline" className="min-h-11" onClick={closeCall}>Decline</Button>
           </div>
         </div>
       )}
@@ -677,7 +767,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
             </p>
           )}
 
-          {needsTap && !result && (
+          {needsTap && (
             <div className="px-3 pb-2">
               <Button size="sm" variant="outline" onClick={resumeAfterTap}>
                 <Volume2 className="mr-1 size-4" /> Play assistant audio

@@ -223,7 +223,7 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
   }
 
   return (
-    <div className="space-y-7" data-testid="sandbox-copilot">
+    <div className="min-w-0 space-y-7 [overflow-wrap:anywhere]" data-testid="sandbox-copilot">
       {/* Hidden element that plays the spoken morning brief. */}
       <audio ref={audioRef} data-testid="copilot-audio" />
 
@@ -239,22 +239,22 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
       </SyntheticBanner>
 
       {/* ── Full day run ── */}
-      <section className="rounded-2xl border bg-white p-5" aria-label="Automated day run">
+      <section className="rounded-2xl border bg-white p-3 sm:p-5" aria-label="Automated day run">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="text-lg font-bold text-slate-950">
               Run the full day
-              <span className="ml-2 inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-bold text-violet-800" data-testid="copilot-day-badge">Day {dayIndex + 1} of {SANDBOX_DAY_COUNT}</span>
+              <span className="ml-2 inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-xs font-bold text-violet-800" data-testid="copilot-day-badge">Day {dayIndex + 1} of {SANDBOX_DAY_COUNT}</span>
             </h3>
             <p className="mt-1 text-xs text-slate-500">Outreach calls to three synthetic personas, rule-based triage of the results, and the spoken brief — the repetitive part of one clinic day, end to end.</p>
           </div>
           {roundState === 'running' ? (
-            <Button variant="outline" className="min-h-12 px-5" onClick={cancelMorningRound} data-testid="cancel-morning-round">
+            <Button variant="outline" className="min-h-12 px-5 h-auto min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]" onClick={cancelMorningRound} data-testid="cancel-morning-round">
               <Square className="mr-2 size-4" /> Cancel run
             </Button>
           ) : (
             <Button
-              className="min-h-12 bg-slate-950 px-5 hover:bg-slate-800"
+              className="min-h-12 bg-slate-950 px-5 hover:bg-slate-800 h-auto min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]"
               disabled={briefState === 'generating'}
               onClick={() => void runMorningRound()}
               data-testid="run-morning-round"
@@ -288,8 +288,8 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
           <ul className="mt-4 space-y-2" data-testid="round-progress">
             {progress.map((entry) => (
               <li key={entry.scenarioId} className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 p-3 text-sm">
-                <PhoneCall className={`size-4 ${entry.status === 'calling' ? 'animate-pulse text-blue-700' : 'text-slate-400'}`} aria-hidden="true" />
-                <span className="mr-auto min-w-40 font-semibold text-slate-900">{entry.patientName}</span>
+                <PhoneCall className={`size-4 ${entry.status === 'calling' ? 'animate-pulse motion-reduce:animate-none text-blue-700' : 'text-slate-400'}`} aria-hidden="true" />
+                <span className="mr-auto min-w-0 font-semibold text-slate-900">{entry.patientName}</span>
                 {entry.status === 'calling' && <span className="text-xs font-semibold text-blue-700">Calling…</span>}
                 {entry.status === 'pending' && <span className="text-xs text-slate-400">Waiting</span>}
                 {entry.status === 'failed' && <span className="text-xs font-semibold text-slate-500">Unavailable</span>}
@@ -321,7 +321,7 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
 
         {briefState === 'generating' && (
           <p className="mt-3 flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 p-3 text-sm font-semibold text-violet-950" data-testid="brief-generating">
-            <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> Calls complete. AI is drafting the reviewable morning brief…
+            <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" /> Calls complete. AI is drafting the reviewable morning brief…
           </p>
         )}
 
@@ -336,10 +336,10 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
             {brief}
             {needsTap && (
               <span className="mt-2 block">
-                <Button size="sm" variant="outline" onClick={resumeAfterTap}><Volume2 className="mr-1 size-4" /> Play the spoken brief</Button>
+                <Button className="h-auto min-h-11 min-w-0 max-w-full whitespace-normal px-3 py-2 text-sm [overflow-wrap:anywhere]" size="sm" variant="outline" onClick={resumeAfterTap}><Volume2 className="mr-1 size-4" /> Play the spoken brief</Button>
               </span>
             )}
-            <p className="mt-2 text-[11px] font-semibold text-slate-600">
+            <p className="mt-2 text-xs font-semibold text-slate-600">
               AI-drafted and spoken summary — priorities were set by the registered clinical rules. Verify against the queue.
             </p>
           </div>
@@ -347,7 +347,7 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
 
         <div className="mt-4 flex flex-wrap items-center gap-2" data-testid="copilot-day-controls">
           {dayLog.map((entry) => (
-            <span key={entry.dayIndex} className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-900">
+            <span key={entry.dayIndex} className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-900">
               Day {entry.dayIndex + 1} ✓ · {entry.escalations} escalation{entry.escalations === 1 ? '' : 's'}
             </span>
           ))}
@@ -357,7 +357,7 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
             <Button
               size="sm"
               variant="outline"
-              className="min-h-11"
+              className="min-h-11 h-auto min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]"
               disabled={roundState !== 'done' || briefState === 'generating'}
               onClick={advance}
               data-testid="advance-day"
@@ -384,9 +384,9 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
                     </li>
                   ))}
                 </ul>
-                <span className="mt-2 flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => onNavigate('outreach')}>Transcript &amp; SBAR</Button>
-                  <Button size="sm" variant="outline" onClick={() => onNavigate('daily-loop')}>Open Daily Loop</Button>
+                <span className="mt-2 flex flex-wrap gap-2">
+                  <Button className="h-auto min-h-11 min-w-0 max-w-full whitespace-normal px-3 py-2 text-sm [overflow-wrap:anywhere]" size="sm" variant="outline" onClick={() => onNavigate('outreach')}>Transcript &amp; SBAR</Button>
+                  <Button className="h-auto min-h-11 min-w-0 max-w-full whitespace-normal px-3 py-2 text-sm [overflow-wrap:anywhere]" size="sm" variant="outline" onClick={() => onNavigate('daily-loop')}>Open Daily Loop</Button>
                 </span>
               </div>
             ))}
@@ -395,7 +395,7 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
       </section>
 
       {/* ── Ask your queue ── */}
-      <section className="rounded-2xl border bg-white p-5" aria-label="Ask your queue">
+      <section className="rounded-2xl border bg-white p-3 sm:p-5" aria-label="Ask your queue">
         <div className="flex items-center gap-3">
           <MessageSquareText className="size-5 shrink-0 text-blue-700" aria-hidden="true" />
           <div>
@@ -409,24 +409,24 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
         {chatStatus !== 'unavailable' && (
           <>
             <form
-              className="mt-4 flex items-center gap-2"
+              className="mt-4 flex min-w-0 flex-wrap items-center gap-2"
               onSubmit={(event) => { event.preventDefault(); void ask(question); }}
             >
               <label className="sr-only" htmlFor="copilot-question">Ask about the synthetic queue</label>
               <input
                 id="copilot-question"
-                className="min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                className="min-h-11 min-w-0 w-full flex-1 basis-40 rounded-lg border border-slate-300 px-3 text-sm"
                 value={question}
                 maxLength={300}
                 placeholder="e.g. Who should I call first?"
                 onChange={(event) => setQuestion(event.target.value)}
                 disabled={chatStatus === 'busy'}
               />
-              <Button type="submit" className="min-h-11" disabled={chatStatus === 'busy' || question.trim().length < 3} aria-label="Ask the copilot">
+              <Button type="submit" className="min-h-11 h-auto min-w-11 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]" disabled={chatStatus === 'busy' || question.trim().length < 3} aria-label="Ask the copilot">
                 <Send className="size-4" />
               </Button>
             </form>
-            <p className="mt-2 text-[11px] font-semibold leading-4 text-violet-800">
+            <p className="mt-2 text-xs font-semibold leading-4 text-violet-800">
               Synthetic prompts only — do not enter real patient, personal, or health information.
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -436,7 +436,7 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
                   type="button"
                   disabled={chatStatus === 'busy'}
                   onClick={() => void ask(suggestion)}
-                  className="rounded-full border border-blue-200 bg-white px-3 py-1.5 text-xs text-blue-800 hover:bg-blue-100"
+                  className="rounded-full border border-blue-200 bg-white px-3 py-1.5 text-xs text-blue-800 hover:bg-blue-100 h-auto min-h-11 min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]"
                 >
                   {suggestion}
                 </button>
@@ -452,7 +452,7 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{exchange.question}</p>
             <p className="mt-2 text-sm leading-6 text-slate-800">{exchange.answer}</p>
             {exchange.toolTrace.length > 0 && (
-              <p className="mt-2 text-[11px] text-slate-500" data-testid="copilot-trace">
+              <p className="mt-2 text-xs text-slate-500" data-testid="copilot-trace">
                 Consulted: {exchange.toolTrace.map((entry) => entry.summary).join(' → ')}
               </p>
             )}
@@ -467,7 +467,7 @@ export function SandboxCopilot({ outreachItems, dayIndex, dayLog, populationSize
         )}
       </section>
 
-      <p className="text-[11px] leading-4 text-slate-500">
+      <p className="text-xs leading-4 text-slate-500">
         Synthetic demonstration only — educational implementation-support resource, not medical
         advice, not for real patient use. The copilot reads and drafts; it never sets priorities,
         dispositions, or care actions — <span className="font-semibold">registered clinical rules decide, humans review.</span>

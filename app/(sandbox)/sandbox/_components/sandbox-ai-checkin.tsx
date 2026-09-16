@@ -18,12 +18,13 @@ interface ChatMessage { role: 'assistant' | 'visitor'; text: string }
 interface CheckInResult {
   disposition: CheckInDisposition;
   redFlags: RedFlag[];
+  extraction: CheckInExtraction;
   basis: 'registered_rules' | 'missing_data';
   detail?: string;
 }
 
 function trackAiEvent(eventName: ProductEventInput['eventName'], durationMs?: number) {
-  void trackProductEvent({ eventName, area: 'sandbox', durationMs, ...getPublicDisseminationContext() });
+  void trackProductEvent({ eventName, area: 'sandbox', durationMs, ...getPublicDisseminationContext() }).catch(() => undefined);
 }
 
 const SEVERITY_OPTIONS: Array<{ value: SymptomSeverity; label: string }> = [
@@ -58,10 +59,25 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
   const [result, setResult] = useState<CheckInResult | null>(null);
   // Voice is opt-in in the chat (the simulated call is the voice-first surface).
   const [voiceOn, setVoiceOn] = useState(false);
-  const { audioRef, needsTap, enqueue, resumeAfterTap } = useAssistantAudioQueue();
+  const { audioRef, needsTap, enqueue, resumeAfterTap, stop } = useAssistantAudioQueue();
   const startedTracked = useRef(false);
   const startedAt = useRef(Date.now());
   const logRef = useRef<HTMLDivElement | null>(null);
+  const requestEpoch = useRef(0);
+  const requestController = useRef<AbortController | null>(null);
+  const closed = useRef(false);
+  const completed = useRef(false);
+
+  useEffect(() => {
+    closed.current = false;
+    requestEpoch.current += 1;
+    return () => {
+      closed.current = true;
+      requestEpoch.current += 1;
+      requestController.current?.abort();
+      requestController.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     // Keep the newest message in view; the log pane has its own overflow.
@@ -78,7 +94,7 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
 
   function chooseLocale(next: CallLocale) {
     // Language can only change before the first answer of the conversation.
-    if (startedTracked.current || next === locale) return;
+    if (closed.current || startedTracked.current || next === locale) return;
     setLocale(next);
     setCheckInState(createInitialState(patient.id, 'daily_checkin', next));
     setMessages(introMessagesFor(next).map((text) => ({ role: 'assistant', text })));
@@ -87,24 +103,43 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
   function completeWith(
     disposition: CheckInDisposition,
     redFlags: RedFlag[],
+    extraction: CheckInExtraction,
     basis: CheckInResult['basis'] = 'registered_rules',
     detail?: string,
   ) {
-    setResult({ disposition, redFlags, basis, detail });
+    if (closed.current || completed.current) return;
+    completed.current = true;
+    setResult({ disposition, redFlags, extraction: { ...extraction }, basis, detail });
     trackAiEvent('ai_checkin_completed', Math.min(Date.now() - startedAt.current, 3_600_000));
     if (disposition !== 'routine') trackAiEvent('ai_escalation_demonstrated');
     onComplete();
   }
 
   function switchToForm() {
+    if (closed.current || completed.current) return;
     setMode('form');
     setMessages((current) => [...current, { role: 'assistant', text: fallbackNoticeFor(locale) }]);
     trackAiEvent('ai_checkin_fallback');
   }
 
+  function closeCheckIn() {
+    if (closed.current) return;
+    closed.current = true;
+    requestEpoch.current += 1;
+    requestController.current?.abort();
+    requestController.current = null;
+    stop();
+    onClose();
+  }
+
   async function sendChatMessage() {
     const message = input.trim();
-    if (!message || busy || result) return;
+    if (!message || busy || closed.current || completed.current || requestController.current) return;
+    const epoch = ++requestEpoch.current;
+    const controller = new AbortController();
+    requestController.current = controller;
+    // Abort is best-effort; identity also rejects late responses and effect replays.
+    const isCurrent = () => !closed.current && requestEpoch.current === epoch && requestController.current === controller;
     trackStartOnce();
     setInput('');
     setBusy(true);
@@ -112,6 +147,7 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
     try {
       const response = await fetch('/api/sandbox-ai/checkin', {
         method: 'POST',
+        signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           state: checkInState,
@@ -120,8 +156,10 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
           wantSpeech: voiceOn,
         }),
       });
+      if (!isCurrent()) return;
       if (!response.ok && response.status !== 429) throw new Error('request failed');
       const turn = (await response.json()) as Partial<CheckInTurnResponse> & { fallback?: boolean };
+      if (!isCurrent()) return;
       if (turn.fallback || !turn.state) {
         switchToForm();
         return;
@@ -142,16 +180,19 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
         }
       }
       setCheckInState(turn.state);
-      if (turn.done && turn.disposition) completeWith(turn.disposition, turn.redFlags ?? []);
+      if (turn.done && turn.disposition) completeWith(turn.disposition, turn.redFlags ?? [], turn.state.extraction);
     } catch {
-      switchToForm();
+      if (isCurrent()) switchToForm();
     } finally {
-      setBusy(false);
+      if (isCurrent()) {
+        requestController.current = null;
+        setBusy(false);
+      }
     }
   }
 
   function submitForm(formData: FormData) {
-    if (result) return;
+    if (closed.current || completed.current) return;
     trackStartOnce();
     const chestPainValue = String(formData.get('chestPain') ?? '');
     const chestPain = chestPainValue === 'yes' ? true : chestPainValue === 'no' ? false : null;
@@ -189,7 +230,7 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
     if (chestPain === true) {
       // Same deterministic short-circuit the server engine applies.
       setMessages((current) => [...current, { role: 'assistant', text: emergencyMessageFor(locale) }]);
-      completeWith('emergency', []);
+      completeWith('emergency', [], extraction);
       return;
     }
     const requiredAnswers: Array<[string, unknown]> = [
@@ -207,7 +248,7 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
         ? `Chequeo incompleto — faltan respuestas sobre: ${missing.join(', ')}. Se requiere revisión humana.`
         : `Incomplete check-in — unanswered items require human review: ${missing.join(', ')}.`;
       setMessages((current) => [...current, { role: 'assistant', text: detail }]);
-      completeWith('escalated', [], 'missing_data', detail);
+      completeWith('escalated', [], extraction, 'missing_data', detail);
       return;
     }
     const finished = finalizeCheckIn({
@@ -218,7 +259,7 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
       ...current,
       ...finished.assistantMessages.map((text) => ({ role: 'assistant' as const, text })),
     ]);
-    completeWith(finished.disposition ?? 'routine', finished.redFlags);
+    completeWith(finished.disposition ?? 'routine', finished.redFlags, finished.state.extraction);
   }
 
   return (
@@ -257,11 +298,11 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
               {voiceOn ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
             </button>
           )}
-          <button type="button" onClick={onClose} aria-label="Close check-in" className="flex size-8 items-center justify-center rounded-full text-blue-900 hover:bg-blue-100"><X className="size-4" /></button>
+          <button type="button" onClick={closeCheckIn} aria-label="Close check-in" className="flex size-8 items-center justify-center rounded-full text-blue-900 hover:bg-blue-100"><X className="size-4" /></button>
         </div>
       </div>
 
-      {needsTap && voiceOn && !result && (
+      {needsTap && voiceOn && (
         <div className="px-3 pt-2">
           <Button size="sm" variant="outline" onClick={resumeAfterTap}>
             <Volume2 className="mr-1 size-4" /> Play assistant audio
@@ -289,7 +330,7 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
               {result.redFlags.map((flag) => (
                 <li key={flag.id}>
                   {flag.message} — {flag.action}
-                  <ExplainRuleButton ruleId={flag.id} extraction={checkInState.extraction} />
+                  <ExplainRuleButton ruleId={flag.id} extraction={result.extraction} />
                 </li>
               ))}
             </ul>
