@@ -1,5 +1,7 @@
 import { spawnSync } from "child_process";
 import crypto from "crypto";
+import { readdirSync, readFileSync } from "fs";
+import path from "path";
 import withSerwistInit from "@serwist/next";
 import type { NextConfig } from "next";
 
@@ -7,6 +9,22 @@ const revision =
   spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf-8" })
     .stdout?.trim()
     .slice(0, 7) ?? crypto.randomUUID();
+
+// additionalPrecacheEntries replaces Serwist's public/ scan, so the pocket
+// cards must be listed explicitly to stay available offline. Revisions are
+// content hashes: an updated card is re-fetched, an unchanged one is not.
+const figuresDir = path.join(process.cwd(), "public", "figures");
+const pocketCardEntries = readdirSync(figuresDir)
+  .filter((file) => file.endsWith(".jpg"))
+  .sort()
+  .map((file) => ({
+    url: `/figures/${file}`,
+    revision: crypto
+      .createHash("sha1")
+      .update(readFileSync(path.join(figuresDir, file)))
+      .digest("hex")
+      .slice(0, 16),
+  }));
 
 const withSerwist = withSerwistInit({
   swSrc: "app/sw.ts",
@@ -18,6 +36,7 @@ const withSerwist = withSerwistInit({
     { url: "/", revision },
     { url: "/~offline", revision },
     { url: "/downtime", revision },
+    ...pocketCardEntries,
   ],
 });
 

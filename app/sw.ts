@@ -63,6 +63,24 @@ const serwist = new Serwist({
         ],
       }),
     },
+    // Optimized pocket-card thumbnails; the raw cards are precached (next.config.ts).
+    {
+      matcher: ({ request, url, sameOrigin }) =>
+        sameOrigin &&
+        request.method === "GET" &&
+        request.destination === "image" &&
+        url.pathname === "/_next/image" &&
+        (url.searchParams.get("url") ?? "").startsWith("/figures/"),
+      handler: new CacheFirst({
+        cacheName: "pocket-card-thumbnails",
+        plugins: [
+          new ExpirationPlugin({
+            maxEntries: 40,
+            maxAgeSeconds: 30 * 24 * 60 * 60,
+          }),
+        ],
+      }),
+    },
     // Next.js static CSS/JS bundles contain code, never patient responses.
     {
       matcher: ({ request, url: { pathname }, sameOrigin }) =>
