@@ -35,9 +35,20 @@ const jetbrains = Sora({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://app.heartlandprotocol.org"),
   title: "HEARTLAND Protocol",
   description:
     "Clinical Implementation Companion for Rural Heart Failure Management",
+  alternates: { canonical: "./" },
+  openGraph: {
+    type: "website",
+    siteName: "HEARTLAND Protocol App",
+    title: "HEARTLAND Protocol",
+    description:
+      "Educational implementation companion for rural heart failure management. Public tools and the sandbox use synthetic data.",
+    url: "./",
+  },
+  twitter: { card: "summary" },
 };
 
 export default function RootLayout({

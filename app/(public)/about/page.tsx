@@ -1,14 +1,27 @@
 import type { Metadata } from "next";
+import { ProviderPageDisclaimer } from "@/components/disclaimers/provider-page-disclaimer";
+import { APP_ARCHIVE_DOI, APP_VERSION } from "@/lib/app-version";
 
 export const metadata: Metadata = {
   title: "About - HEARTLAND Protocol",
   description:
-    "About the HEARTLAND Protocol clinical implementation companion",
+    "About the HEARTLAND Protocol and its educational implementation companion app: eight modules, synthetic public tools, separate identities for the article, the Toolkit and the software.",
 };
+
+const MODULES = [
+  ["Risk stratification", "Explore the proposed ten-variable HEARTLAND score, including distance to cardiology and social support. Outcome validation remains a research objective."],
+  ["GDMT optimization", "Inspect HFrEF, HFmrEF and HFpEF pathways, evidence tiers and generic-bridge cost examples. Prices and patient suitability require independent verification."],
+  ["Telephone titration", "Walk through a telephone checklist with renal-function and potassium gates. Source studies provide context, not validation of this app's titration workflow."],
+  ["Discharge transitions", "Explore SBAR handoff, follow-up planning and medication reconciliation. A generated handoff still requires review and an accountable recipient."],
+  ["Remote monitoring", "Compare digital and analog workflow options by connectivity and literacy, with a billing reference. Telephone reports are not equivalent to connected-device measurements."],
+  ["Comorbidity care", "Inspect Cardio-Kidney-Metabolic staging, quality metrics and contextual prompts for diabetes, CKD, AF and obesity using fictional cases."],
+  ["Primary-care linkage", "Map roles, triggers and shared documentation between discharge and longitudinal primary care. A recorded assignment does not confirm delivery or follow-up."],
+  ["Implementation tier", "Explore Tier 1 / 2 / 3 resource profiles and planning checklists. A tier is not authorization to activate a clinical service."],
+] as const;
 
 export default function AboutPage() {
   return (
-    <main id="main-content" className="mx-auto max-w-4xl px-4 py-8 space-y-8">
+    <div className="mx-auto max-w-4xl space-y-8">
       <h1 className="text-3xl font-bold tracking-tight">
         About the HEARTLAND Protocol
       </h1>
@@ -49,57 +62,24 @@ export default function AboutPage() {
         <h2 className="text-2xl font-semibold">What This App Does</h2>
         <p>
           This app translates the eight HEARTLAND Protocol modules into
-          interactive clinical implementation tools:
+          interactive clinical implementation tools. Public tools and the
+          sandbox run on synthetic data only; they support education and
+          implementation planning and do not deliver care.
         </p>
-        <ol className="list-decimal list-inside space-y-3 ml-2">
-          <li>
-            <strong>Risk Stratification Calculator</strong> — Calculate the
-            HEARTLAND Risk Score using 10 variables including distance to
-            cardiology care and social support, generating a risk tier
-            (Low/Moderate/High) with recommended monitoring intensity and care
-            pathways.
-          </li>
-          <li>
-            <strong>GDMT Optimization Pathway</strong> — Interactive decision
-            tree for HFrEF (quadruple therapy) and HFpEF (evolving evidence),
-            with starting doses, target doses, safety gates, and the evidence
-            labeling system that distinguishes established, emerging, and
-            pragmatic recommendations.
-          </li>
-          <li>
-            <strong>Telephone Titration Checklist</strong> — Step-by-step guided
-            workflow for phone-based medication adjustment, adapted from the
-            Hozho Trial methodology that demonstrated a 53% absolute increase in
-            GDMT class addition using voice telephone calls in rural Navajo
-            Nation.
-          </li>
-          <li>
-            <strong>Remote Monitoring Track Assignment</strong> — Assess patient
-            capability and assign Digital (Track A) or Analog (Track B)
-            monitoring pathways, with alert thresholds and RPM billing code
-            reference for financial sustainability.
-          </li>
-          <li>
-            <strong>Generic Bridge Calculator</strong> — Demonstrate how
-            foundational heart failure therapy can be initiated at approximately
-            $15/month using generic medications, ensuring no patient remains
-            untreated due to cost while optimal agents are pursued.
-          </li>
-          <li>
-            <strong>Implementation Tier Selector</strong> — Questionnaire-based
-            assessment of facility resources, staffing, and technology to
-            recommend Tier 1 (Minimal), Tier 2 (Standard), or Tier 3 (Advanced)
-            implementation, with customized checklists for each tier.
-          </li>
-          <li>
-            <strong>Pocket Card Library</strong> — Digital versions of all
-            clinical reference tools: GDMT Quick Reference, Red Flags Alert
-            Card, Patient Daily Monitoring Diary, Track Assignment Form,
-            Financial Navigation Tracker, Risk Score Reference, Implementation
-            Tiers Summary, SBAR Handoff Template, Teach-Back Checklist, and
-            Comorbidity Quick Reference.
-          </li>
+        <ol className="list-decimal list-inside space-y-3 ml-2" data-testid="about-modules">
+          {MODULES.map(([title, body]) => (
+            <li key={title}>
+              <strong>{title}</strong> — {body}
+            </li>
+          ))}
         </ol>
+        <p>
+          Cross-cutting tools: a <strong>Generic Bridge calculator</strong> that
+          illustrates foundational therapy at approximately $15/month with
+          generic medications while optimal agents are pursued (prices require
+          independent verification), and a <strong>Pocket Card Library</strong>{" "}
+          with digital versions of all ten clinical reference figures.
+        </p>
       </section>
 
       {/* ---------- Who Is This For? ---------- */}
@@ -207,6 +187,12 @@ export default function AboutPage() {
             </tbody>
           </table>
         </div>
+        <p className="text-sm text-muted-foreground">
+          These studies evaluated the interventions and populations they
+          describe. They did not evaluate the HEARTLAND App or its AI features,
+          and the app&apos;s proposed risk framework has not been validated
+          against clinical outcomes.
+        </p>
       </section>
 
       {/* ---------- Federal Alignment ---------- */}
@@ -242,14 +228,25 @@ export default function AboutPage() {
       {/* ---------- Open Access ---------- */}
       <section className="space-y-4">
         <h2 className="text-2xl font-semibold">Open Access</h2>
-        <p>The HEARTLAND Protocol is freely available:</p>
+        <p>
+          The article, the Implementation Toolkit and this app are separate,
+          freely available works with their own identifiers:
+        </p>
         <ul className="list-disc list-inside space-y-2 ml-2">
           <li>
             <strong>Published article</strong>: Cureus (Springer Nature) —
-            peer-reviewed, indexed in PubMed/PMC/Scopus
+            peer-reviewed, indexed in PubMed/PMC/Scopus —{" "}
+            <a
+              href="https://doi.org/10.7759/cureus.104817"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 underline hover:text-blue-800"
+            >
+              DOI 10.7759/cureus.104817
+            </a>
           </li>
           <li>
-            <strong>Zenodo</strong>:{" "}
+            <strong>Implementation Toolkit V3.3</strong> (Zenodo):{" "}
             <a
               href="https://doi.org/10.5281/zenodo.19101219"
               target="_blank"
@@ -257,6 +254,17 @@ export default function AboutPage() {
               className="text-blue-600 underline hover:text-blue-800"
             >
               DOI 10.5281/zenodo.19101219
+            </a>
+          </li>
+          <li>
+            <strong>App software archive {APP_VERSION}</strong> (Zenodo):{" "}
+            <a
+              href={`https://doi.org/${APP_ARCHIVE_DOI}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 underline hover:text-blue-800"
+            >
+              DOI {APP_ARCHIVE_DOI}
             </a>
           </li>
           <li>
@@ -307,6 +315,8 @@ export default function AboutPage() {
           </p>
         </div>
       </section>
-    </main>
+
+      <ProviderPageDisclaimer variant="framework" />
+    </div>
   );
 }

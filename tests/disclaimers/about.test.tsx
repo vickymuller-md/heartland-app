@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import AboutPage from '@/app/about/page';
+import AboutPage from '@/app/(public)/about/page';
 
 // ==========================================================================
 // ABOUT-01: About page with all 7 content sections
@@ -14,12 +14,15 @@ describe('About Page (ABOUT-01)', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders "What This App Does" section with 7 tool descriptions', () => {
+  it('renders "What This App Does" section with the eight protocol modules', () => {
     render(<AboutPage />);
     expect(screen.getByText('What This App Does')).toBeInTheDocument();
-    expect(
-      screen.getByText(/Risk Stratification Calculator/),
-    ).toBeInTheDocument();
+    const modules = screen.getByTestId('about-modules');
+    expect(modules.querySelectorAll('li')).toHaveLength(8);
+    for (const title of ['Risk stratification', 'GDMT optimization', 'Telephone titration', 'Discharge transitions', 'Remote monitoring', 'Comorbidity care', 'Primary-care linkage', 'Implementation tier']) {
+      expect(modules).toHaveTextContent(title);
+    }
+    expect(screen.getByText(/did not evaluate the HEARTLAND App/)).toBeInTheDocument();
   });
 
   it('renders "Who Is This For?" section with 5 audience types', () => {

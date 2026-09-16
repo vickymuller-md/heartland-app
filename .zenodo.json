@@ -46,6 +46,12 @@
       "relation": "isDerivedFrom",
       "resource_type": "publication-article",
       "scheme": "doi"
+    },
+    {
+      "identifier": "10.7759/cureus.104817",
+      "relation": "isSupplementTo",
+      "resource_type": "publication-article",
+      "scheme": "doi"
     }
   ],
   "communities": [

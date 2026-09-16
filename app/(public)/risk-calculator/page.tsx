@@ -7,7 +7,7 @@ import { authorize } from '@/lib/auth/authorization';
 export const metadata: Metadata = {
   title: 'HEARTLAND Risk Calculator',
   description:
-    'HEARTLAND Risk Stratification Calculator — 10 clinical variables for rural heart failure risk assessment',
+    'HEARTLAND Risk Stratification Calculator — 10 clinical variables for rural heart failure risk assessment. Proposed framework, not yet validated against clinical outcomes.',
 };
 
 /**
