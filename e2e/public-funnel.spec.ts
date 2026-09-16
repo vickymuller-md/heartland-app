@@ -5,7 +5,7 @@ test('landing exposes immediate sandbox and separate clinical access', async ({ 
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Heart failure care');
   await expect(page.getByRole('link', { name: /try the sandbox now/i })).toHaveAttribute('href', '/sandbox');
-  await expect(page.getByRole('link', { name: /request a clinical workspace/i })).toHaveAttribute('href', '/request-access');
+  await expect(page.getByRole('link', { name: /request evaluation access/i }).first()).toHaveAttribute('href', '/request-access');
   await expect(page.locator('footer').filter({ hasText: 'Heartland · App' })).toContainText(/v\d+\.\d+\.\d+/);
   await expect(page.locator('body')).not.toContainText(/not a medical device|clinical decision support|no PHI is ever collected/i);
 });
@@ -49,6 +49,7 @@ test('tester registration is self-service and authenticator-free', async ({ page
 });
 
 const publicTools = [
+  '/about',
   '/risk-calculator',
   '/gdmt-pathway',
   '/titration-checklist',
@@ -69,6 +70,35 @@ for (const route of publicTools) {
     expect(horizontalOverflow).toBe(false);
   });
 }
+
+test('discovery endpoints are public and consistent', async ({ request }) => {
+  const robots = await request.get('/robots.txt', { maxRedirects: 0 });
+  expect(robots.status()).toBe(200);
+  const robotsText = await robots.text();
+  expect(robotsText).toContain('Sitemap: https://app.heartlandprotocol.org/sitemap.xml');
+  expect(robotsText).toContain('Disallow: /dashboard');
+  const sitemap = await request.get('/sitemap.xml', { maxRedirects: 0 });
+  expect(sitemap.status()).toBe(200);
+  const sitemapText = await sitemap.text();
+  for (const route of ['/about', '/sandbox', '/risk-calculator', '/pocket-cards']) expect(sitemapText).toContain(`https://app.heartlandprotocol.org${route}`);
+  expect(sitemapText).not.toContain('/dashboard');
+  const manifest = await request.get('/manifest.webmanifest', { maxRedirects: 0 });
+  expect(manifest.status()).toBe(200);
+  expect((await manifest.json()).name).toBe('HEARTLAND Protocol');
+});
+
+test('about page states the eight modules, separate identities and disclaimers', async ({ page }) => {
+  await page.goto('/about');
+  await expect(page).not.toHaveURL(/\/login/);
+  await expect(page.getByTestId('about-modules').getByRole('listitem')).toHaveCount(8);
+  await expect(page.getByRole('link', { name: /10\.7759\/cureus\.104817/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /zenodo\.22233054/ })).toBeVisible();
+  await expect(page.getByText(/did not evaluate the HEARTLAND App/)).toBeVisible();
+  await expect(page.getByRole('note', { name: 'Clinical use disclaimer' })).toContainText('has not been validated');
+  await expect(page.locator('body')).not.toContainText(/clinical decision support/i);
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://app.heartlandprotocol.org/about');
+  await expect(page.locator('footer').filter({ hasText: 'Heartland · App' })).toContainText('App software archive');
+});
 
 test('explain-this-result degrades silently when the assistant is disabled', async ({ page }) => {
   await page.goto('/risk-calculator');

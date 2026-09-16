@@ -304,7 +304,7 @@ function SubmittedPanel() {
           rel="noopener noreferrer"
           className="group inline-flex items-center gap-1.5 font-editorial text-[14.5px] font-medium text-cool transition-colors hover:text-alert"
         >
-          Read the Zenodo deposit
+          Read the Implementation Toolkit V3.3 (Zenodo)
           <span className="transition-transform group-hover:translate-x-1">↗</span>
         </Link>
       </div>

@@ -11,6 +11,6 @@ export async function proxy(request: NextRequest) {
 // allowlist as defense in depth for anything that still reaches it.
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|ico|css|js|woff2|woff|mp3)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|ico|css|js|woff2|woff|mp3)$).*)",
   ],
 };

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { APP_VERSION } from "@/lib/app-version";
 
 const FLOW_STEPS = [
   {
@@ -176,7 +177,7 @@ export function AutomationEvidence() {
         </div>
 
         <div className="mt-14">
-          <p className="text-sm font-semibold text-signal">Published release · v1.9.0</p>
+          <p className="text-sm font-semibold text-signal">Published release · {APP_VERSION}</p>
           <h3 className="mt-3 text-2xl font-semibold text-cool">Choose what to explore.</h3>
           <p className="mt-3 max-w-3xl text-base leading-relaxed text-cool/80">These capabilities belong to the published App baseline. Public interactions are synthetic; AI availability is bounded by capacity and safety controls.</p>
         </div>

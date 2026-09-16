@@ -30,8 +30,14 @@ const PUBLIC_PREFIXES = [
 const MFA_SETUP_PATH = "/security/mfa";
 
 // Exactly-matched paths that are public (no session required).
-// Using exact match avoids "/" inadvertently matching every route.
-const PUBLIC_EXACT = new Set<string>(["/"]);
+// Using exact match avoids "/" inadvertently matching every route. Discovery
+// endpoints (robots, sitemap, web manifest) must never redirect to /login.
+const PUBLIC_EXACT = new Set<string>([
+  "/",
+  "/robots.txt",
+  "/sitemap.xml",
+  "/manifest.webmanifest",
+]);
 
 const STATIC_PREFIXES = ["/api", "/_next", "/favicon.ico"];
 

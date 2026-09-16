@@ -34,7 +34,7 @@ This app translates the eight HEARTLAND Protocol modules into interactive implem
 | 4 | Discharge Transitions (SBAR) | `/(provider)/discharge` |
 | 5 | Remote Monitoring Track Assignment | `/remote-monitoring` |
 | 6 | Comorbidity Management | `/(provider)/comorbidity-manager` |
-| 7 | Primary Care Linkage | *Phase 2* |
+| 7 | Primary Care Linkage | provider workspace |
 | 8 | Implementation Tier Selector | `/tier-selector` |
 
 Cross-cutting:
@@ -42,7 +42,7 @@ Cross-cutting:
 - Pocket Card Library — digital versions of all ten protocol figures
 - Pharmacoeconomic Navigator — $15/month Generic Bridge calculator
 - NIW Traction Report — monthly aggregate usage statistics (geographic spread, module engagement, growth)
-- Offline-capable (PWA with service worker)
+- Offline-capable shell (PWA with service worker): the app shell, downtime page and the ten pocket cards are precached; AI features require connectivity
 - Mobile-first, print-friendly
 - Privacy-minimizing exports, row-level access control, immutable work events, and explicit access revocation
 
