@@ -219,6 +219,10 @@ async function processLabReceipt(receipt: LabReceipt): Promise<LabActionState> {
  * values using the existing immediate thresholds; recorded is not delivered.
  * Compatible with useActionState (prevState, formData) signature.
  */
+// PostgreSQL error codes the submission RPC raises before writing anything:
+// 22023 invalid collection time or empty panel, 42501 not authorized.
+const PROVEN_REJECTION_CODES = new Set(['22023', '42501']);
+
 export async function saveLabResult(
   _prevState: unknown,
   formData: FormData
@@ -252,6 +256,7 @@ export async function saveLabResult(
   if (!auth.authorized) return { error: auth.error };
 
   let receipt: LabReceipt | undefined;
+  let rejection: string | undefined;
   try {
     // Authenticated RPC independently rechecks access and compares a canonical
     // payload under the stable request identity before creating any new row.
@@ -268,8 +273,15 @@ export async function saveLabResult(
     });
     const result = labReceiptRowsSchema.safeParse(data);
     if (!error && result.success) receipt = result.data[0];
+    // A rejection raised by the database itself rolled the statement back: nothing
+    // was written, so the same prepared identity can be corrected and resubmitted.
+    // Any other outcome (lost response, timeout, unknown error) stays unconfirmed.
+    if (error && PROVEN_REJECTION_CODES.has(error.code)) rejection = error.message;
   } catch {
     // A lost response does not establish that the transaction was rolled back.
+  }
+  if (rejection) {
+    return { success: false, status: 'not_saved', error: rejection };
   }
   if (!receipt) {
     return {
