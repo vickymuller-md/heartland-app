@@ -190,6 +190,15 @@ export function getPerDrugRecommendations(
       if (drugClass === 'MRA' && vitals.egfr < EGFR_GATES.spironolactoneMin) {
         return { drugClass, action: 'hold' as const, reason: `eGFR ${vitals.egfr} <${EGFR_GATES.spironolactoneMin}`, safetyGateFailed: 'eGFR' };
       }
+      // Spironolactone keeps full daily dosing only above eGFR 50.
+      if (drugClass === 'MRA' && vitals.egfr < EGFR_GATES.spironolactoneFullDoseMin) {
+        return {
+          drugClass,
+          action: 'reduce' as const,
+          reason: `eGFR ${vitals.egfr} in ${EGFR_GATES.spironolactoneMin}-${EGFR_GATES.spironolactoneFullDoseMin}: half the dose or 25 mg every other day (ALDACTONE label 2.2)`,
+          safetyGateFailed: 'eGFR',
+        };
+      }
       // SGLT2i: the restriction is on dapagliflozin initiation, not on the
       // class and not on continuation; empagliflozin has no HF eGFR floor.
       if (drugClass === 'SGLT2i' && vitals.egfr < EGFR_GATES.dapagliflozinInitiationMin) {

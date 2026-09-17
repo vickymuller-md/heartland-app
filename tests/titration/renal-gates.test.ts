@@ -34,6 +34,7 @@ function panelActionFor(egfr: number): string {
 describe('EGFR_GATES is the single declaration of every renal threshold', () => {
   it('exposes one minimum per rule, all with "requires eGFR >= MIN" semantics', () => {
     expect(EGFR_GATES.spironolactoneMin).toBe(30);
+    expect(EGFR_GATES.spironolactoneFullDoseMin).toBe(50);
     expect(EGFR_GATES.finerenoneInitiationMin).toBe(25);
     expect(EGFR_GATES.dapagliflozinInitiationMin).toBe(25);
     expect(EGFR_GATES.arniHalfDoseMin).toBe(30);
@@ -59,6 +60,32 @@ describe('eGFR 30 boundary — steroidal MRA', () => {
 
   it('eGFR 31 does not hold the MRA', () => {
     expect(actionFor('MRA', 31)).not.toBe('hold');
+  });
+});
+
+describe('eGFR 50 boundary — steroidal MRA dose reduction (eGFR 30-50)', () => {
+  it('eGFR exactly 30 reduces the MRA dose instead of holding it', () => {
+    expect(actionFor('MRA', 30)).toBe('reduce');
+  });
+
+  it('eGFR 49 reduces the MRA dose', () => {
+    const rec = getPerDrugRecommendations({ ...NORMAL_VITALS, egfr: 49 }, ['MRA'])[0];
+    expect(rec.action).toBe('reduce');
+    expect(rec.reason).toMatch(/half|every other day/i);
+  });
+
+  it('eGFR exactly 50 does not reduce the MRA dose (full dose requires eGFR >= 50)', () => {
+    expect(actionFor('MRA', 50)).not.toBe('reduce');
+  });
+
+  it('eGFR 51 does not reduce the MRA dose', () => {
+    expect(actionFor('MRA', 51)).not.toBe('reduce');
+  });
+
+  it('the panel warns rather than passes in the 30-50 band', () => {
+    expect(panelStatusFor(49)).toBe('warning');
+    expect(panelActionFor(49)).toMatch(/half|every other day/i);
+    expect(panelStatusFor(50)).toBe('pass');
   });
 });
 
@@ -137,8 +164,8 @@ describe('the safety-gate panel and the per-drug engine agree at the same eGFR',
     },
   );
 
-  it('eGFR exactly 30 passes the panel, matching the per-drug engine', () => {
-    expect(panelStatusFor(30)).toBe('pass');
+  it('eGFR exactly 30 does not block the panel, matching the per-drug engine', () => {
+    expect(panelStatusFor(30)).not.toBe('blocked');
     expect(actionFor('MRA', 30)).not.toBe('hold');
   });
 });

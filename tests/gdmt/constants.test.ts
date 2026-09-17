@@ -8,6 +8,7 @@ import {
   GENERIC_BRIDGE_PRINCIPLE,
   NON_PHARMACOLOGICAL,
   SGLT2I_RENAL_GATES,
+  EPLERENONE_GUIDE,
 } from '@/lib/gdmt/constants';
 import { EVIDENCE_LEVEL_CONFIG } from '@/lib/gdmt/evidence-levels';
 
@@ -86,13 +87,20 @@ describe('GDMT-09: Content Matches Protocol', () => {
       expect(bb!.safetyGates).toEqual(['HR >50', 'SBP >90']);
     });
 
-    it('HFrEF MRA: agent is "Spironolactone", starting "12.5-25 mg daily", target "25-50 mg daily"', () => {
+    it('HFrEF MRA: spironolactone or eplerenone, starting "12.5-25 mg daily", target "25-50 mg daily"', () => {
       const mra = HFREF_MEDICATIONS.find((m) => m.id === 'mra');
       expect(mra).toBeDefined();
-      expect(mra!.agent).toBe('Spironolactone');
+      expect(mra!.agent).toBe('Spironolactone or eplerenone');
       expect(mra!.startingDose).toBe('12.5-25 mg daily');
       expect(mra!.targetDose).toBe('25-50 mg daily');
-      expect(mra!.safetyGates).toEqual(['eGFR >30', 'K+ <5.0']);
+      expect(mra!.safetyGates.slice(0, 2)).toEqual(['eGFR >30', 'K+ <5.0']);
+    });
+
+    it('HFrEF MRA carries the eGFR 30-50 dose reduction', () => {
+      const mra = HFREF_MEDICATIONS.find((m) => m.id === 'mra');
+      const reduction = mra!.safetyGates.find((g) => g.includes('eGFR 30-50'));
+      expect(reduction).toBeDefined();
+      expect(reduction).toMatch(/half the dose|25 mg every other day/i);
     });
 
     it('HFrEF SGLT2i: agent is "Dapagliflozin or Empagliflozin", dose "10 mg daily"', () => {
@@ -128,6 +136,39 @@ describe('GDMT-09: Content Matches Protocol', () => {
     it('HFpEF priority 2 MRA has evidenceContext mentioning FINEARTS-HF', () => {
       const mra = HFPEF_MEDICATIONS[1];
       expect(mra.evidenceContext).toContain('FINEARTS-HF');
+    });
+  });
+
+  // ========================================================================
+  // Eplerenone: the guideline alternative to spironolactone
+  // Source: INSPRA label (DailyMed SPL 1a52bedc-8e2c-4116-a296-a87770676b4a);
+  // 2022 AHA/ACC/HFSA COR 1 A; RALES (gynecomastia in 10% of men)
+  // ========================================================================
+  describe('Eplerenone reference (F11)', () => {
+    it('carries the label dose and the 4-week target', () => {
+      expect(EPLERENONE_GUIDE.startingDose).toMatch(/25 mg once daily/);
+      expect(EPLERENONE_GUIDE.targetDose).toMatch(/50 mg once daily/);
+      expect(EPLERENONE_GUIDE.targetDose).toMatch(/4 weeks/);
+    });
+
+    it('carries both label contraindications: CrCl <=30 mL/min and K+ >5.5 mEq/L', () => {
+      const joined = EPLERENONE_GUIDE.contraindications.join(' ');
+      expect(joined).toMatch(/creatinine clearance <=30 mL\/min/i);
+      expect(joined).toMatch(/potassium >5\.5 mEq\/L/i);
+    });
+
+    it('warns that creatinine clearance is not interchangeable with eGFR', () => {
+      expect(EPLERENONE_GUIDE.unitCaution).toMatch(/not interchangeable/i);
+    });
+
+    it('carries the four potassium bands of label Table 1, including >=6.0 with the restart rule', () => {
+      expect(EPLERENONE_GUIDE.potassiumBands).toHaveLength(4);
+      const ranges = EPLERENONE_GUIDE.potassiumBands.map((b) => b.range);
+      expect(ranges).toEqual(['<5.0', '5.0-5.4', '5.5-5.9', '>=6.0']);
+      const highest = EPLERENONE_GUIDE.potassiumBands[3];
+      expect(highest.action).toMatch(/withhold/i);
+      expect(highest.action).toMatch(/restart at 25 mg every other day/i);
+      expect(highest.action).toMatch(/<5\.5/);
     });
   });
 

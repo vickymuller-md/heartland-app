@@ -60,7 +60,7 @@ export const COMORBIDITY_DATA: ComorbidityDetail[] = [
       'Adjust doses per eGFR, monitor K+ closely, and select MRA therapy from current indication, guideline, and patient context',
     gdmtInteractions: [
       'ARNI: start at half the usual dose if eGFR <30 (ENTRESTO label 2.7); no renal floor — down-titrate or interrupt for a clinically significant fall in renal function',
-      'MRA therapy: apply agent-specific current labeling/guidelines; finerenone is not automatically preferred by eGFR alone',
+      'MRA therapy: apply agent-specific current labeling/guidelines; finerenone is not automatically preferred by eGFR alone. Spironolactone at eGFR 30-50: half the dose or 25 mg every other day (ALDACTONE label 2.2; 2022 AHA/ACC/HFSA p. e932). Eplerenone: contraindicated if creatinine clearance <=30 mL/min or K+ >5.5 mEq/L at initiation (INSPRA label 4)',
       'SGLT2i: dapagliflozin — do not initiate if eGFR <25, may continue 10 mg daily if eGFR falls below it (FARXIGA label 2.3); empagliflozin — no eGFR floor for the HF indication (JARDIANCE label 2)',
       'Beta-blocker: no dose adjustment needed for CKD',
       'Monitor BMP 1-2 weeks after any GDMT change',

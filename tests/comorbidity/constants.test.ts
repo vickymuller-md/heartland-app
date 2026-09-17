@@ -77,6 +77,12 @@ describe('COMORBIDITY_DATA CKD renal rules (COMR-03)', () => {
     expect(arni).not.toMatch(/hold if eGFR <20/i);
   });
 
+  it('MRA: carries the spironolactone eGFR 30-50 dose reduction (ALDACTONE §2.2)', () => {
+    const mra = lineStartingWith('MRA');
+    expect(mra).toMatch(/eGFR 30-50/);
+    expect(mra).toMatch(/half the dose|25 mg every other day/i);
+  });
+
   it('SGLT2i: per agent and per moment, with no minimum eGFR 20 (FARXIGA §2.3, JARDIANCE §2)', () => {
     const sglt2i = lineStartingWith('SGLT2i');
     expect(sglt2i).toMatch(/dapagliflozin/i);

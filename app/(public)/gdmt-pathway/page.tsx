@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { EVIDENCE_LEVEL_CONFIG } from '@/lib/gdmt/evidence-levels';
 import { GdmtTabs } from './gdmt-tabs';
 import { FinerenoneGuide } from '@/components/gdmt/finerenone-guide';
+import { MraReference } from '@/components/gdmt/mra-reference';
 import { SafetyGateCard } from '@/components/gdmt/safety-gate-card';
 import { NonPharmacological } from './non-pharmacological';
 import { GenericBridge } from '@/components/gdmt/generic-bridge';
@@ -70,6 +71,14 @@ export default async function GdmtPathwayPage() {
           Finerenone vs. Spironolactone Decision Guide
         </h2>
         <FinerenoneGuide />
+      </section>
+
+      {/* MRA label reference (dose, contraindications, potassium) */}
+      <section aria-labelledby="mra-reference-heading" className="print:hidden">
+        <h2 id="mra-reference-heading" className="text-xl font-semibold mb-4">
+          MRA Label Reference
+        </h2>
+        <MraReference />
       </section>
 
       {/* Titration Safety Gates */}

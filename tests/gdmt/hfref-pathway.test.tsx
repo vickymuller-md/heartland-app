@@ -26,7 +26,7 @@ describe('GDMT-02: HFrEF Pathway', () => {
     expect(screen.getByText('3.125 mg BID')).toBeInTheDocument();
     expect(screen.getByText('25 mg BID (50 if >85kg)')).toBeInTheDocument();
     // MRA
-    expect(screen.getByText('Spironolactone')).toBeInTheDocument();
+    expect(screen.getByText('Spironolactone or eplerenone')).toBeInTheDocument();
     expect(screen.getByText('12.5-25 mg daily')).toBeInTheDocument();
     expect(screen.getByText('25-50 mg daily')).toBeInTheDocument();
     // SGLT2i

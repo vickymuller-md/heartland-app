@@ -162,8 +162,15 @@ describe('eGFR safety gate (SAFE-03)', () => {
     expect(gate!.action).toMatch(/HOLD MRA \(spironolactone\)/);
   });
 
-  it('returns "pass" when eGFR >= 30', () => {
+  it('warns with the spironolactone dose reduction when eGFR is 30-50', () => {
     const results = evaluateSafetyGates({ ...NORMAL_VITALS, egfr: 35 });
+    const gate = results.find((r) => r.parameter === 'eGFR (mL/min)');
+    expect(gate!.status).toBe('warning');
+    expect(gate!.action).toBe('Spironolactone: half the dose or 25 mg every other day');
+  });
+
+  it('returns "pass" when eGFR >= 50', () => {
+    const results = evaluateSafetyGates({ ...NORMAL_VITALS, egfr: 55 });
     const gate = results.find((r) => r.parameter === 'eGFR (mL/min)');
     expect(gate!.status).toBe('pass');
     expect(gate!.action).toBe('eGFR acceptable');

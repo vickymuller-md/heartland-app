@@ -22,6 +22,12 @@ import type {
 export const EGFR_GATES = {
   /** Spironolactone/eplerenone: 2022 AHA/ACC/HFSA COR 1 A (eGFR >30, K+ <5.0). */
   spironolactoneMin: 30,
+  /**
+   * Spironolactone at full daily dose: ALDACTONE §2.2 initiates at 25 mg daily
+   * only above this eGFR; between 30 and 50 the label offers 25 mg every other
+   * day and 2022 AHA/ACC/HFSA p. e932 halves the dose.
+   */
+  spironolactoneFullDoseMin: 50,
   /** Finerenone: KERENDIA label Table 1 / §5.2 — initiation not recommended below 25. */
   finerenoneInitiationMin: 25,
   /**
@@ -199,6 +205,18 @@ export const SAFETY_GATES: SafetyGateDefinition[] = [
           status: 'blocked',
           action: 'HOLD MRA (spironolactone)',
           details: `eGFR below MRA threshold per ACC/AHA 2022 HF guidelines. ${SGLT2I_RENAL_NOTE}`,
+        };
+      }
+
+      if (vitals.egfr < EGFR_GATES.spironolactoneFullDoseMin) {
+        return {
+          parameter: 'eGFR (mL/min)',
+          value: vitals.egfr,
+          threshold: `eGFR ${eGFR_MRA_THRESHOLD}-${EGFR_GATES.spironolactoneFullDoseMin} mL/min`,
+          status: 'warning',
+          // Source: ALDACTONE label 2.2; 2022 AHA/ACC/HFSA p. e932
+          action: 'Spironolactone: half the dose or 25 mg every other day',
+          details: 'Full daily spironolactone dosing is reserved for eGFR above 50 (ALDACTONE label 2.2); the 2022 AHA/ACC/HFSA guideline halves the dose for eGFR 31-49.',
         };
       }
 

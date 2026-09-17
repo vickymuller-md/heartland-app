@@ -14,6 +14,13 @@ export interface Medication {
   notes?: string;
 }
 
+/** One row of an FDA-label potassium adjustment table. */
+export interface PotassiumBand {
+  /** Serum potassium range in mEq/L, exactly as the label prints it. */
+  range: string;
+  action: string;
+}
+
 export interface FinerenoneScenario {
   clinicalScenario: string;
   suggestedApproach: string;

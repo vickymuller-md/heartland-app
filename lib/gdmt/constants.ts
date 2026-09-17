@@ -1,4 +1,4 @@
-import type { Medication, FinerenoneScenario, SafetyGateRule, GenericBridgeItem } from './types';
+import type { Medication, FinerenoneScenario, SafetyGateRule, GenericBridgeItem, PotassiumBand } from './types';
 
 /**
  * SGLT2i renal rules, stated per agent and per moment.
@@ -38,11 +38,19 @@ export const HFREF_MEDICATIONS: Medication[] = [
   {
     id: 'mra',
     drugClass: 'MRA',
-    agent: 'Spironolactone',
+    agent: 'Spironolactone or eplerenone',
     startingDose: '12.5-25 mg daily',
     targetDose: '25-50 mg daily',
-    safetyGates: ['eGFR >30', 'K+ <5.0'],
+    safetyGates: [
+      'eGFR >30',
+      'K+ <5.0',
+      // ALDACTONE label 2.2; 2022 AHA/ACC/HFSA p. e932
+      'eGFR 30-50: half the dose or 25 mg every other day',
+      // INSPRA label 4 — creatinine clearance, not eGFR
+      'Eplerenone: contraindicated if creatinine clearance <=30 mL/min or K+ >5.5 mEq/L at initiation',
+    ],
     evidenceLevel: 'established',
+    evidenceContext: '2022 AHA/ACC/HFSA COR 1 A recommends an MRA (spironolactone or eplerenone) if eGFR >30 and K+ <5.0. Eplerenone is the guideline alternative when gynecomastia or breast pain occurs (10% of men on spironolactone vs 1% on placebo in RALES).',
   },
   {
     id: 'sglt2i',
@@ -102,6 +110,51 @@ export const HFPEF_MEDICATIONS: Medication[] = [
     priority: 4,
   },
 ];
+
+/**
+ * Eplerenone — the steroidal MRA the toolkit did not list.
+ * Source: INSPRA label, DailyMed SPL 1a52bedc-8e2c-4116-a296-a87770676b4a
+ * (rev. 6/2025), sections 1.1, 2.1, 2.3, 2.4, 4 and Table 1;
+ * 2022 AHA/ACC/HFSA COR 1 A; RALES (PMID 10471456) for gynecomastia.
+ */
+export const EPLERENONE_GUIDE: {
+  agent: string;
+  startingDose: string;
+  targetDose: string;
+  whyListed: string;
+  contraindications: string[];
+  doseCap: string;
+  unitCaution: string;
+  potassiumBands: PotassiumBand[];
+  monitoring: string;
+} = {
+  agent: 'Eplerenone',
+  startingDose: '25 mg once daily (INSPRA label 2.1)',
+  targetDose: '50 mg once daily, preferably within 4 weeks as tolerated (INSPRA label 2.1)',
+  whyListed: 'Guideline alternative to spironolactone (2022 AHA/ACC/HFSA COR 1 A), chiefly when gynecomastia or breast pain occurs: 10% of men on spironolactone vs 1% on placebo in RALES.',
+  contraindications: [
+    'Serum potassium >5.5 mEq/L at initiation (INSPRA label 4)',
+    'Creatinine clearance <=30 mL/min (INSPRA label 4)',
+    'Concomitant strong CYP3A inhibitors (INSPRA label 4)',
+  ],
+  doseCap: 'Maximum 25 mg once daily with a moderate CYP3A inhibitor (INSPRA label 2.4)',
+  unitCaution: 'The eplerenone renal contraindication is written in creatinine clearance (mL/min); it is not interchangeable with eGFR (mL/min/1.73m2), which is what this app stores.',
+  potassiumBands: [
+    { range: '<5.0', action: 'Increase dose one step (25 mg every other day to 25 mg daily; 25 mg daily to 50 mg daily)' },
+    { range: '5.0-5.4', action: 'No dose adjustment' },
+    { range: '5.5-5.9', action: 'Decrease one step (50 mg daily to 25 mg daily; 25 mg daily to 25 mg every other day; 25 mg every other day to withhold)' },
+    { range: '>=6.0', action: 'Withhold; restart at 25 mg every other day when potassium falls <5.5 mEq/L' },
+  ],
+  monitoring: 'Serum potassium before initiation, within the first week, at one month, and periodically thereafter; potassium and creatinine within 3-7 days of starting a moderate CYP3A inhibitor, an ACE inhibitor, an ARB or an NSAID (INSPRA label 2.3).',
+};
+
+/**
+ * Spironolactone dose reduction in moderate renal impairment.
+ * Source: ALDACTONE label 2.2 (DailyMed SPL 0fed2822-3a03-4b64-9857-c682fcd462bc);
+ * 2022 AHA/ACC/HFSA p. e932 ("for eGFR 31 to 49 ... dosing should be reduced by half").
+ */
+export const SPIRONOLACTONE_RENAL_DOSE_RULE =
+  'eGFR 30-50 mL/min/1.73m2: half the dose or 25 mg every other day (ALDACTONE label 2.2; 2022 AHA/ACC/HFSA p. e932). eGFR >50: standard daily dose.';
 
 // Source: reference/clinical_content.md Finerenone vs. Spironolactone Decision Guide
 export const FINERENONE_SCENARIOS: FinerenoneScenario[] = [
