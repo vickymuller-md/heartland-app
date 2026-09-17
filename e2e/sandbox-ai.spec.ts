@@ -1582,7 +1582,14 @@ test.describe('conversation integrity', () => {
     await held!.fulfill({ json: { ...applyDeterministicAnswer(pendingState, { chestPainOrSyncope: true }), speech: [{ kind: 'audio', mp3Base64: ENDING_AUDIO }] } });
     await expect(page.getByTestId(`queue-call-${ordinal}`)).toBeEnabled();
     await expect(page.getByTestId(`queue-call-result-${ordinal}`)).toHaveCount(0);
-    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('heartland_synthetic_sandbox_v2')!).workedCases)).toEqual([]);
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const raw = localStorage.getItem('heartland_synthetic_sandbox_v2');
+          return raw ? (JSON.parse(raw).workedCases as unknown) : null;
+        }),
+      )
+      .toEqual([]);
     expect((await conversationMedia(page)).plays.some((src) => src.endsWith(ENDING_AUDIO))).toBe(false);
   });
 
