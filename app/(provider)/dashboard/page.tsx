@@ -6,8 +6,9 @@ import { redirect } from 'next/navigation';
 import { MetricCards, MetricCardsSkeleton } from './_components/metric-cards';
 import { RpmTracker } from './_components/rpm-tracker';
 import { ProviderPageDisclaimer } from '@/components/disclaimers/provider-page-disclaimer';
-import { getDailyLoop, getSavedQueueViews } from '@/lib/daily-loop/queries';
+import { getDailyLoop, getSavedQueueViews, getTransfersAwaitingMe } from '@/lib/daily-loop/queries';
 import { DailyLoop } from './_components/daily-loop';
+import { PendingTransfers } from './_components/pending-transfers';
 import { ProductEventTracker } from '@/components/analytics/product-event-tracker';
 import { getTeamDirectory } from '@/lib/team/queries';
 import { QueueViewControls } from './_components/queue-view-controls';
@@ -55,9 +56,10 @@ export default async function ProviderDashboard({
 
   if (!user) redirect('/login');
 
-  const [savedViews, teamDirectory] = await Promise.all([
+  const [savedViews, teamDirectory, pendingTransfers] = await Promise.all([
     getSavedQueueViews(supabase, user.id),
     getTeamDirectory(supabase),
+    getTransfersAwaitingMe(supabase, user.id),
   ]);
   const selectedView = savedViews.views.find((view) => view.id === params.view);
   const directFilter: DailyLoopFilter = {
@@ -115,6 +117,12 @@ export default async function ProviderDashboard({
 
       {teamDirectory.error && (
         <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{teamDirectory.error} Delegation is unavailable.</div>
+      )}
+
+      {pendingTransfers.error ? (
+        <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{pendingTransfers.error}</div>
+      ) : (
+        <PendingTransfers transfers={pendingTransfers.transfers} />
       )}
 
       {dailyLoop.error ? (

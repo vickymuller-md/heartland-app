@@ -17,14 +17,24 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { assignWorkItem, bulkReviewWorkItems, transitionWorkItem } from '@/lib/daily-loop/actions';
+import {
+  acceptWorkItem,
+  assignWorkItem,
+  bulkReviewWorkItems,
+  reassignWorkItem,
+  transitionWorkItem,
+  type WorkItemTransitionInput,
+} from '@/lib/daily-loop/actions';
 import type { TeamMember } from '@/lib/team/types';
-import type {
-  DailyLoopMetrics,
-  DailyLoopResult,
-  DailyLoopSections,
-  WorkItem,
-  WorkStatus,
+import {
+  MANAGER_OUTCOME_CODE,
+  OUTCOME_CODE_LABELS,
+  PROVIDER_OUTCOME_CODES,
+  type DailyLoopMetrics,
+  type DailyLoopResult,
+  type DailyLoopSections,
+  type WorkItem,
+  type WorkStatus,
 } from '@/lib/daily-loop/types';
 
 const SECTION_CONFIG = {
@@ -102,7 +112,7 @@ function WorkItemCard({
   onSelectionChange: (selected: boolean) => void;
 }) {
   const [pending, startTransition] = useTransition();
-  const [mode, setMode] = useState<'none' | 'actioned' | 'awaiting' | 'closed'>('none');
+  const [mode, setMode] = useState<'none' | 'actioned' | 'awaiting' | 'closed' | 'reassign'>('none');
   const [error, setError] = useState<string | null>(null);
 
   const dueLabel = item.due_at
@@ -114,10 +124,18 @@ function WorkItemCard({
   const assignableMembers = teamMembers.filter(
     (member) => member.organization_id === item.organization_id,
   );
+  const transferTargets = assignableMembers.filter((member) => member.member_id !== item.assigned_to);
+  // Items created before the single-accountable model still close with outcome text only.
+  const requiresOutcomeCode = item.accountability_source !== null;
+  const isLegacyAccountability =
+    item.accountability_source === null || item.accountability_source === 'legacy_fan_out';
+  const outcomeCodes = canManage
+    ? [...PROVIDER_OUTCOME_CODES, MANAGER_OUTCOME_CODE]
+    : [...PROVIDER_OUTCOME_CODES];
 
   const transition = (
     status: 'reviewed' | 'actioned' | 'awaiting' | 'closed',
-    extra: { outcome?: string; snoozeReason?: string; dueAt?: string } = {},
+    extra: Omit<WorkItemTransitionInput, 'workItemId' | 'patientId' | 'status'> = {},
   ) => {
     setError(null);
     startTransition(async () => {
@@ -132,12 +150,62 @@ function WorkItemCard({
     });
   };
 
-  const assign = (assigneeId: string) => {
+  const offerTransfer = (assigneeId: string) => {
     setError(null);
     startTransition(async () => {
-      const result = await assignWorkItem({ workItemId: item.id, assigneeId });
-      if (!result.success) setError(result.error ?? 'Unable to reassign work');
+      const result = await assignWorkItem({
+        workItemId: item.id,
+        patientId: item.patient_id,
+        assigneeId,
+      });
+      if (!result.success) setError(result.error ?? 'Unable to offer this transfer');
     });
+  };
+
+  const reassign = (assigneeId: string, reason: string) => {
+    setError(null);
+    startTransition(async () => {
+      const result = await reassignWorkItem({
+        workItemId: item.id,
+        patientId: item.patient_id,
+        assigneeId,
+        reason,
+      });
+      if (!result.success) setError(result.error ?? 'Unable to reassign work');
+      else setMode('none');
+    });
+  };
+
+  const accept = () => {
+    setError(null);
+    startTransition(async () => {
+      const result = await acceptWorkItem({ workItemId: item.id, patientId: item.patient_id });
+      if (!result.success) setError(result.error ?? 'Unable to accept this item');
+    });
+  };
+
+  const outcomeCodeField = (
+    <label className="block text-sm font-medium text-slate-800">
+      Documented outcome
+      <select
+        name="outcomeCode"
+        required={requiresOutcomeCode}
+        defaultValue=""
+        className="mt-1 min-h-11 w-full rounded-md border bg-white px-3"
+      >
+        <option value="">
+          {requiresOutcomeCode ? 'Choose an outcome code' : 'No outcome code (created before this model)'}
+        </option>
+        {outcomeCodes.map((code) => (
+          <option key={code} value={code}>{OUTCOME_CODE_LABELS[code]}</option>
+        ))}
+      </select>
+    </label>
+  );
+
+  const readOutcomeCode = (form: FormData): WorkItemTransitionInput['outcomeCode'] => {
+    const value = String(form.get('outcomeCode') ?? '');
+    return value ? (value as WorkItemTransitionInput['outcomeCode']) : undefined;
   };
 
   return (
@@ -164,6 +232,26 @@ function WorkItemCard({
               {item.severity}
             </Badge>
             <Badge variant="secondary">{STATUS_LABELS[item.status]}</Badge>
+            {!item.accepted_at && (
+              <Badge variant="outline" className="border-violet-200 bg-violet-50 text-violet-800">
+                Awaiting your acceptance
+              </Badge>
+            )}
+            {item.transfer_pending_to && (
+              <Badge variant="outline" className="border-violet-300 bg-violet-50 text-violet-800">
+                Transfer pending{item.transfer_recipient_name ? ` · ${item.transfer_recipient_name}` : ''}
+              </Badge>
+            )}
+            {item.underlying_alert_resolved_at && (
+              <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
+                Underlying alert resolved — outcome required
+              </Badge>
+            )}
+            {isLegacyAccountability && (
+              <Badge variant="outline" className="border-slate-300 bg-slate-100 text-slate-700">
+                No designated owner (legacy)
+              </Badge>
+            )}
           </div>
           <h3 className="mt-2 text-base font-semibold text-slate-950">{item.title}</h3>
           {item.change_summary && <p className="mt-1 text-sm text-slate-700">{item.change_summary}</p>}
@@ -178,9 +266,15 @@ function WorkItemCard({
 
       <dl className="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-3">
         <div><dt className="font-semibold text-slate-700">Due</dt><dd>{dueLabel}</dd></div>
-        <div><dt className="font-semibold text-slate-700">Owner</dt><dd>{item.owner_name}</dd></div>
+        <div><dt className="font-semibold text-slate-700">Accountable</dt><dd>{item.owner_name}</dd></div>
         <div><dt className="font-semibold text-slate-700">Data</dt><dd>{item.data_quality} · {freshLabel}</dd></div>
       </dl>
+
+      {item.declined_at && item.declined_reason && (
+        <p className="mt-2 text-xs text-slate-600">
+          Transfer declined — {item.declined_reason}
+        </p>
+      )}
 
       <details className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-sm">
         <summary className="cursor-pointer font-medium text-slate-700">Why is this item here?</summary>
@@ -228,13 +322,28 @@ function WorkItemCard({
           className="mt-3 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3"
           onSubmit={(event) => {
             event.preventDefault();
-            transition('actioned', { outcome: String(new FormData(event.currentTarget).get('outcome')) });
+            const form = new FormData(event.currentTarget);
+            transition('actioned', {
+              outcome: String(form.get('outcome')),
+              outcomeCode: readOutcomeCode(form),
+            });
           }}
         >
           <label className="block text-sm font-medium text-slate-800">
             Document action taken
             <textarea name="outcome" required minLength={3} maxLength={1000} rows={2} className="mt-1 w-full rounded-md border bg-white px-3 py-2" />
           </label>
+          <select
+            name="outcomeCode"
+            aria-label="Outcome code for this action (optional)"
+            defaultValue=""
+            className="min-h-11 w-full rounded-md border bg-white px-3"
+          >
+            <option value="">No outcome code yet</option>
+            {outcomeCodes.map((code) => (
+              <option key={code} value={code}>{OUTCOME_CODE_LABELS[code]}</option>
+            ))}
+          </select>
           <div className="flex gap-2"><Button type="submit" className="min-h-11" disabled={pending}>Save action</Button><Button type="button" className="min-h-11" variant="ghost" onClick={() => setMode('none')}>Cancel</Button></div>
         </form>
       )}
@@ -244,13 +353,18 @@ function WorkItemCard({
           className="mt-3 space-y-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3"
           onSubmit={(event) => {
             event.preventDefault();
-            transition('closed', { outcome: String(new FormData(event.currentTarget).get('outcome')) });
+            const form = new FormData(event.currentTarget);
+            transition('closed', {
+              outcome: String(form.get('outcome')),
+              outcomeCode: readOutcomeCode(form),
+            });
           }}
         >
           <label className="block text-sm font-medium text-slate-800">
             Outcome required to close
             <textarea name="outcome" required minLength={3} maxLength={1000} rows={2} className="mt-1 w-full rounded-md border bg-white px-3 py-2" />
           </label>
+          {outcomeCodeField}
           <div className="flex gap-2">
             <Button type="submit" disabled={pending}>Close item</Button>
             <Button type="button" variant="ghost" onClick={() => setMode('none')}>Cancel</Button>
@@ -258,8 +372,45 @@ function WorkItemCard({
         </form>
       )}
 
+      {mode === 'reassign' && (
+        <form
+          className="mt-3 grid gap-3 rounded-lg border border-slate-300 bg-slate-50 p-3 sm:grid-cols-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const form = new FormData(event.currentTarget);
+            reassign(String(form.get('assigneeId')), String(form.get('reason')));
+          }}
+        >
+          <label className="text-sm font-medium text-slate-800">
+            Reassign to
+            <select name="assigneeId" required defaultValue="" className="mt-1 min-h-11 w-full rounded-md border bg-white px-3">
+              <option value="" disabled>Choose a team member</option>
+              {transferTargets.map((member) => (
+                <option key={member.member_id} value={member.member_id}>{member.member_name}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-medium text-slate-800">
+            Why is this being reassigned?
+            <input name="reason" required minLength={3} maxLength={500} className="mt-1 min-h-11 w-full rounded-md border bg-white px-3" />
+          </label>
+          <p className="text-xs text-slate-600 sm:col-span-2">
+            Reassigning moves the work without acceptance. The new provider still has to accept it.
+          </p>
+          <div className="flex gap-2 sm:col-span-2">
+            <Button type="submit" className="min-h-11" disabled={pending}>Reassign item</Button>
+            <Button type="button" className="min-h-11" variant="ghost" onClick={() => setMode('none')}>Cancel</Button>
+          </div>
+        </form>
+      )}
+
       {mode === 'none' && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
+          {!item.accepted_at && (
+            <Button className="min-h-11" size="sm" variant="outline" disabled={pending} onClick={accept}>
+              <UserRoundCheck className="mr-1 size-3.5" /> Accept
+            </Button>
+          )}
           {(item.status === 'new' || item.status === 'due') && (
             <Button className="min-h-11" size="sm" variant="outline" disabled={pending} onClick={() => transition('reviewed')}>
               <CircleDot className="mr-1 size-3.5" /> Review
@@ -277,21 +428,31 @@ function WorkItemCard({
             {pending ? <Loader2 className="mr-1 size-3.5 animate-spin" /> : <CheckCircle2 className="mr-1 size-3.5" />}
             Close
           </Button>
-          {canManage && assignableMembers.length > 1 && (
-            <label className="ml-auto inline-flex items-center gap-2 text-xs font-medium text-slate-700">
-              <UserRoundCheck className="size-4" /> Delegate
-              <select
-                aria-label={`Assign ${item.title}`}
-                defaultValue={item.assigned_to}
-                disabled={pending}
-                onChange={(event) => assign(event.target.value)}
-                className="min-h-11 rounded-md border bg-white px-2"
-              >
-                {assignableMembers.map((member) => (
-                  <option key={member.member_id} value={member.member_id}>{member.member_name}</option>
-                ))}
-              </select>
-            </label>
+          {transferTargets.length > 0 && (
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <label className="inline-flex items-center gap-2 text-xs font-medium text-slate-700">
+                <UserRoundCheck className="size-4" /> Offer transfer
+                <select
+                  aria-label={`Offer ${item.title} to another team member`}
+                  value=""
+                  disabled={pending}
+                  onChange={(event) => {
+                    if (event.target.value) offerTransfer(event.target.value);
+                  }}
+                  className="min-h-11 rounded-md border bg-white px-2"
+                >
+                  <option value="">Choose a member</option>
+                  {transferTargets.map((member) => (
+                    <option key={member.member_id} value={member.member_id}>{member.member_name}</option>
+                  ))}
+                </select>
+              </label>
+              {canManage && (
+                <Button className="min-h-11" size="sm" variant="ghost" disabled={pending} onClick={() => setMode('reassign')}>
+                  Reassign
+                </Button>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -397,6 +558,22 @@ export function DailyLoop({
         </p>
         <p className="text-xs">Day boundary: {timeZone}</p>
       </div>
+      {(metrics.unaccepted > 0 || metrics.awaitingOutcome > 0) && (
+        <div
+          role="status"
+          data-testid="accountability-summary"
+          className="space-y-1 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"
+        >
+          {metrics.unaccepted > 0 && (
+            <p>{metrics.unaccepted} assigned item(s) are awaiting your acceptance.</p>
+          )}
+          {metrics.awaitingOutcome > 0 && (
+            <p>
+              {metrics.awaitingOutcome} open item(s) have their underlying alert resolved and still need a documented outcome.
+            </p>
+          )}
+        </div>
+      )}
       {selectedIds.size > 0 && (
         <div className="sticky top-2 z-20 flex flex-wrap items-center gap-3 rounded-xl border border-blue-300 bg-blue-50 p-3 shadow-lg" role="region" aria-label="Bulk work actions">
           <span className="mr-auto text-sm font-bold text-blue-950">{selectedIds.size} selected</span>
