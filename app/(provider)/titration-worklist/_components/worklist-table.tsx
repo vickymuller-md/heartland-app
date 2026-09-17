@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Phone } from 'lucide-react';
 import type { TitrationWorklistRow } from '@/lib/dashboard/worklist-queries';
 import { isLabStale } from '@/lib/dashboard/worklist-queries';
+import { RiskTierDisclaimer } from '@/components/disclaimers/risk-score-disclaimer';
 
 interface WorklistTableProps {
   rows: TitrationWorklistRow[];
@@ -73,6 +74,7 @@ export function WorklistTable({ rows }: WorklistTableProps) {
           })}
         </tbody>
       </table>
+      <RiskTierDisclaimer className="border-t border-gray-200 px-4 py-3" />
     </div>
   );
 }

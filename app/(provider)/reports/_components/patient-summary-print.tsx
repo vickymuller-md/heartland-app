@@ -11,6 +11,7 @@
 
 import React from 'react';
 import type { PatientSummaryData } from '@/lib/reports/types';
+import { RiskTierDisclaimer } from '@/components/disclaimers/risk-score-disclaimer';
 
 interface PatientSummaryPrintProps {
   data: PatientSummaryData | null;
@@ -56,6 +57,9 @@ export const PatientSummaryPrint = React.forwardRef<
                   <span className="inline-block rounded px-2 py-0.5 text-xs font-semibold bg-gray-100">
                     {data.patient.risk_tier ?? 'Not assessed'}
                   </span>
+                  {data.patient.risk_tier && (
+                    <RiskTierDisclaimer className="mt-1" />
+                  )}
                 </td>
               </tr>
               <tr>

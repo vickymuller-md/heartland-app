@@ -118,6 +118,20 @@ describe('REPT-02 patient summary render', () => {
     expect(within(screen.getByTestId('patient-summary-print')).getByText('Normal')).toBeInTheDocument();
   });
 
+  it('caps a printed risk tier with the non-validated heuristic caveat', () => {
+    render(<PatientSummaryPrint data={{ ...summary, patient: { ...summary.patient, risk_tier: 'high' } }} />);
+    const report = within(screen.getByTestId('patient-summary-print'));
+    expect(report.getByText(/proposed, non-validated heuristic/i)).toBeInTheDocument();
+    expect(report.getByText(/not a prediction of events/i)).toBeInTheDocument();
+  });
+
+  it('omits the risk tier caveat when no tier was assessed', () => {
+    render(<PatientSummaryPrint data={summary} />);
+    const report = within(screen.getByTestId('patient-summary-print'));
+    expect(report.getByText('Not assessed')).toBeInTheDocument();
+    expect(report.queryByText(/non-validated heuristic/i)).not.toBeInTheDocument();
+  });
+
   it('does not replace the selected patient with an older response arriving out of order', async () => {
     let resolveFirst!: (data: PatientSummaryData | null) => void;
     const first = new Promise<PatientSummaryData | null>((resolve) => { resolveFirst = resolve; });

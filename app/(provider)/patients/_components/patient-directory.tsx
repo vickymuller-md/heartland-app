@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Search, User, Mail, Phone, Shield, Radio, Building2 } from 'lucide-react';
+import { RiskTierDisclaimer } from '@/components/disclaimers/risk-score-disclaimer';
 
 interface PatientEntry {
   id: string;
@@ -67,6 +68,8 @@ export function PatientDirectory({
           ))}
         </div>
       )}
+
+      {patients.some((patient) => patient.risk_tier) && <RiskTierDisclaimer />}
 
       {total > pageSize && <nav className="flex items-center justify-between rounded-lg border bg-white p-3" aria-label="Patient pages">{page > 1 ? <Link href={`/patients?page=${page - 1}${suffix}`} className="inline-flex min-h-11 items-center rounded-md border px-4 text-sm font-semibold">Previous</Link> : <span />}<span className="text-sm font-semibold">Page {page} of {Math.ceil(total / pageSize)}</span>{page * pageSize < total ? <Link href={`/patients?page=${page + 1}${suffix}`} className="inline-flex min-h-11 items-center rounded-md bg-slate-900 px-4 text-sm font-semibold text-white">Next</Link> : <span />}</nav>}
     </div>
