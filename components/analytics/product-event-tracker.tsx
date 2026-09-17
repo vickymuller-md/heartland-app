@@ -18,7 +18,9 @@ export function ProductEventTracker({
   useEffect(() => {
     const eventId = crypto.randomUUID();
     const publicContext = area === 'sandbox' ? getPublicDisseminationContext() : {};
-    void trackProductEvent({ eventId, eventName, area, deviceClass: getDeviceClass(), ...publicContext });
+    void trackProductEvent({ eventId, eventName, area, deviceClass: getDeviceClass(), ...publicContext }).catch(
+      () => undefined,
+    );
     if (!trackDuration) return;
 
     const startedAt = Date.now();
@@ -33,7 +35,7 @@ export function ProductEventTracker({
         deviceClass: getDeviceClass(),
         durationMs: Math.min(Date.now() - startedAt, 3_600_000),
         ...publicContext,
-      });
+      }).catch(() => undefined);
     };
     window.addEventListener('pagehide', recordDuration, { once: true });
     return () => {

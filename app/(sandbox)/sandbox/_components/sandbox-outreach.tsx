@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { MetricCard, OutreachDispositionPill, SectionHeading, SyntheticBanner } from './sandbox-ui';
 
 function trackAiEvent(eventName: ProductEventInput['eventName']) {
-  void trackProductEvent({ eventName, area: 'sandbox', ...getPublicDisseminationContext() });
+  void trackProductEvent({ eventName, area: 'sandbox', ...getPublicDisseminationContext() }).catch(() => undefined);
 }
 
 const EXTRACTION_ROWS: Array<{ key: keyof CheckInExtraction; label: string; render: (value: never) => string }> = [
