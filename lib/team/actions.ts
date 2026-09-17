@@ -36,7 +36,10 @@ const settingsSchema = z.object({
   organizationId: z.uuid(),
   name: z.string().trim().min(3).max(160),
   timezone: z.string().trim().min(3).max(80),
-  alertSlaMinutes: z.coerce.number().int().min(5).max(1440),
+  // organizations.alert_sla_minutes has no consumer that enforces it, so the
+  // settings form no longer submits it. The column and this field stay so a
+  // form that still sends the value keeps writing it.
+  alertSlaMinutes: z.coerce.number().int().min(5).max(1440).optional(),
   downtimeContact: z.string().trim().max(160).optional(),
 });
 
@@ -48,7 +51,7 @@ export async function updateOrganizationSettings(
     organizationId: formData.get('organizationId'),
     name: formData.get('name'),
     timezone: formData.get('timezone'),
-    alertSlaMinutes: formData.get('alertSlaMinutes'),
+    alertSlaMinutes: formData.get('alertSlaMinutes') ?? undefined,
     downtimeContact: formData.get('downtimeContact'),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid settings' };
@@ -60,7 +63,9 @@ export async function updateOrganizationSettings(
     .update({
       name: parsed.data.name,
       timezone: parsed.data.timezone,
-      alert_sla_minutes: parsed.data.alertSlaMinutes,
+      ...(parsed.data.alertSlaMinutes === undefined
+        ? {}
+        : { alert_sla_minutes: parsed.data.alertSlaMinutes }),
       downtime_contact: parsed.data.downtimeContact || null,
       updated_at: new Date().toISOString(),
     })

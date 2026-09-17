@@ -21,10 +21,6 @@ export function OrganizationSettingsForm({ organization }: { organization: Organ
         <input name="timezone" defaultValue={organization.timezone} required minLength={3} maxLength={80} className="mt-1 min-h-10 w-full rounded-md border px-3" />
       </label>
       <label className="text-sm font-medium text-slate-800">
-        Alert-response target · minutes
-        <input name="alertSlaMinutes" type="number" min={5} max={1440} defaultValue={organization.alert_sla_minutes} required className="mt-1 min-h-10 w-full rounded-md border px-3" />
-      </label>
-      <label className="text-sm font-medium text-slate-800">
         Downtime contact or instruction
         <input name="downtimeContact" defaultValue={organization.downtime_contact ?? ''} maxLength={160} className="mt-1 min-h-10 w-full rounded-md border px-3" />
       </label>

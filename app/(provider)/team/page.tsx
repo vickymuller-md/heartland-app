@@ -75,12 +75,12 @@ export default async function TeamOperationsPage() {
           <section className="space-y-4" aria-labelledby="settings-title">
             <div>
               <h2 id="settings-title" className="text-xl font-bold text-slate-950">Operating settings</h2>
-              <p className="text-sm text-slate-600">These targets guide workflow; they do not create a guaranteed clinical response service.</p>
+              <p className="text-sm text-slate-600">These settings guide workflow; they do not create a guaranteed clinical response service.</p>
             </div>
             {operations.organizations.map((organization) => operations.manageableOrganizationIds.includes(organization.id) ? (
               <OrganizationSettingsForm key={organization.id} organization={organization} />
             ) : (
-              <div key={organization.id} className="rounded-xl border bg-white p-4 text-sm text-slate-700">{organization.name} · {organization.timezone} · {organization.alert_sla_minutes}-minute target</div>
+              <div key={organization.id} className="rounded-xl border bg-white p-4 text-sm text-slate-700">{organization.name} · {organization.timezone}</div>
             ))}
           </section>
 
