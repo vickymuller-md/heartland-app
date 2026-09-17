@@ -659,8 +659,8 @@ export function GuideContent() {
           <Step n={2} title="Complete the Discharge Bundle">
             <p>Check off each item in the tier-appropriate bundle:</p>
             <ul className="list-disc list-inside ml-4 mt-1">
-              <li><strong>Tier 1 (Minimal):</strong> Case management, teach-back (3 core domains), medication reconciliation, follow-up scheduled</li>
-              <li><strong>Tier 2/3 (Standard/Advanced):</strong> All of Tier 1 plus teach-back for 8 domains, CHW engagement, cardiac rehab referral</li>
+              <li><strong>Tier 1 (Minimal):</strong> Case management, teach-back across all eight education domains (condensed where staffing is limited), medication reconciliation, follow-up scheduled</li>
+              <li><strong>Tier 2/3 (Standard/Advanced):</strong> All of Tier 1 plus CHW engagement and cardiac rehab referral</li>
             </ul>
           </Step>
           <Step n={3} title="Review task-shifting assignments">
