@@ -120,11 +120,11 @@ export function GdmtTabs({ clinicalIntegrationEnabled = false }: { clinicalInteg
       </div>
 
       <Tabs defaultValue="hfref" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="hfref">
+        <TabsList className="grid h-auto w-full grid-cols-2">
+          <TabsTrigger value="hfref" className="h-auto whitespace-normal py-2 text-center leading-tight">
             {HFREF_PATHWAY_LABEL}
           </TabsTrigger>
-          <TabsTrigger value="hfpef">
+          <TabsTrigger value="hfpef" className="h-auto whitespace-normal py-2 text-center leading-tight">
             {LVEF_GE_40_PATHWAY_LABEL}
           </TabsTrigger>
         </TabsList>
