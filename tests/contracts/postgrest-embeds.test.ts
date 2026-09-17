@@ -40,6 +40,7 @@ const EMBEDS: Array<{ table: string; select: string; used_by: string }> = [
   { table: 'patients', select: 'id,profiles!patients_id_fkey(full_name)', used_by: 'lib/dashboard/queries.ts, worklist-queries.ts, metrics-queries.ts' },
   { table: 'alerts', select: 'id,patients!inner(profiles!patients_id_fkey(full_name))', used_by: 'lib/dashboard/queries.ts alerts list' },
   { table: 'work_items', select: 'id,patients!work_items_patient_id_fkey(profiles!patients_id_fkey(full_name)),assignee:profiles!work_items_assigned_to_fkey(full_name)', used_by: 'lib/daily-loop/queries.ts' },
+  { table: 'work_items', select: 'id,recipient:profiles!work_items_transfer_pending_to_fkey(full_name),offered_by:profiles!work_items_transfer_offered_by_fkey(full_name)', used_by: 'lib/daily-loop/queries.ts — 00041 adds three more work_items→profiles paths, so these embeds must stay hinted' },
   { table: 'provider_messages', select: 'id,patients!provider_messages_patient_id_fkey(profiles!patients_id_fkey(full_name))', used_by: 'lib/inbox/queries.ts' },
   { table: 'organization_memberships', select: 'id,organizations(timezone)', used_by: 'lib/daily-loop/queries.ts:90 — unhinted, resolves only while organization_memberships has exactly one relationship to organizations' },
 ];

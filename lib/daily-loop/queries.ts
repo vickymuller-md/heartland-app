@@ -8,6 +8,7 @@ import type {
   DailyLoopResult,
   DailyLoopSections,
   DailyLoopPaginationInput,
+  PendingTransfer,
   SavedQueueView,
   WorkItem,
 } from './types';
@@ -26,10 +27,57 @@ const EMPTY_METRICS: DailyLoopMetrics = {
   dueToday: 0,
   closedLast7Days: 0,
   completionRate7Days: null,
+  unaccepted: 0,
+  awaitingOutcome: 0,
+  pendingTransfers: 0,
 };
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
+
+/**
+ * Every `profiles` embed carries an explicit FK hint: `work_items` references `profiles`
+ * from `assigned_to`, `accepted_by`, `transfer_pending_to` and `transfer_offered_by`, so an
+ * unhinted embed is ambiguous (PGRST201).
+ */
+const WORK_ITEM_SELECT =
+  'id, organization_id, patient_id, provider_id, assigned_to, source_type, source_id, title, reason, change_summary, priority, severity, status, due_at, freshness_at, data_quality, created_at, updated_at, accepted_at, accepted_by, transfer_pending_to, transfer_offered_at, transfer_offered_by, declined_at, declined_reason, accountability_source, underlying_alert_resolved_at, outcome_code, patients!work_items_patient_id_fkey(profiles!patients_id_fkey(full_name)), assignee:profiles!work_items_assigned_to_fkey(full_name), recipient:profiles!work_items_transfer_pending_to_fkey(full_name)';
+
+function toWorkItem(row: Record<string, unknown>): WorkItem {
+  return {
+    id: row.id,
+    organization_id: row.organization_id,
+    patient_id: row.patient_id,
+    patient_name: extractPatientFullName(row.patients) ?? 'Patient',
+    provider_id: row.provider_id,
+    assigned_to: row.assigned_to,
+    owner_name: extractFullName(row.assignee) ?? 'You',
+    source_type: row.source_type,
+    source_id: row.source_id,
+    title: row.title,
+    reason: row.reason,
+    change_summary: row.change_summary,
+    priority: row.priority,
+    severity: row.severity,
+    status: row.status,
+    due_at: row.due_at,
+    freshness_at: row.freshness_at,
+    data_quality: row.data_quality,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    accepted_at: row.accepted_at ?? null,
+    accepted_by: row.accepted_by ?? null,
+    transfer_pending_to: row.transfer_pending_to ?? null,
+    transfer_offered_at: row.transfer_offered_at ?? null,
+    transfer_offered_by: row.transfer_offered_by ?? null,
+    transfer_recipient_name: extractFullName(row.recipient) ?? null,
+    declined_at: row.declined_at ?? null,
+    declined_reason: row.declined_reason ?? null,
+    accountability_source: row.accountability_source ?? null,
+    underlying_alert_resolved_at: row.underlying_alert_resolved_at ?? null,
+    outcome_code: row.outcome_code ?? null,
+  } as WorkItem;
+}
 
 export function groupDailyLoopItems(
   items: WorkItem[],
@@ -103,10 +151,7 @@ export async function getDailyLoop(
 
   let itemsQuery = supabase
     .from('work_items')
-    .select(
-      'id, organization_id, patient_id, provider_id, assigned_to, source_type, source_id, title, reason, change_summary, priority, severity, status, due_at, freshness_at, data_quality, created_at, updated_at, patients!work_items_patient_id_fkey(profiles!patients_id_fkey(full_name)), assignee:profiles!work_items_assigned_to_fkey(full_name)',
-      { count: 'exact' },
-    )
+    .select(WORK_ITEM_SELECT, { count: 'exact' })
     .eq('assigned_to', providerId)
     .neq('status', 'closed')
     .order('due_at', { ascending: true, nullsFirst: false })
@@ -149,6 +194,24 @@ export async function getDailyLoop(
     .eq('assigned_to', providerId)
     .eq('status', 'closed')
     .gte('created_at', sevenDaysAgo.toISOString());
+  let unacceptedQuery = supabase
+    .from('work_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('assigned_to', providerId)
+    .neq('status', 'closed')
+    .is('accepted_at', null);
+  let awaitingOutcomeQuery = supabase
+    .from('work_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('assigned_to', providerId)
+    .neq('status', 'closed')
+    .not('underlying_alert_resolved_at', 'is', null);
+  // Offers are not part of this provider's queue, so the queue filters do not apply to them.
+  const pendingTransfersQuery = supabase
+    .from('work_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('transfer_pending_to', providerId)
+    .neq('status', 'closed');
 
   if (filter.severity) {
     itemsQuery = itemsQuery.eq('severity', filter.severity);
@@ -158,6 +221,8 @@ export async function getDailyLoop(
     closedQuery = closedQuery.eq('severity', filter.severity);
     createdQuery = createdQuery.eq('severity', filter.severity);
     createdClosedQuery = createdClosedQuery.eq('severity', filter.severity);
+    unacceptedQuery = unacceptedQuery.eq('severity', filter.severity);
+    awaitingOutcomeQuery = awaitingOutcomeQuery.eq('severity', filter.severity);
   }
   if (filter.priority) {
     itemsQuery = itemsQuery.eq('priority', filter.priority);
@@ -167,6 +232,8 @@ export async function getDailyLoop(
     closedQuery = closedQuery.eq('priority', filter.priority);
     createdQuery = createdQuery.eq('priority', filter.priority);
     createdClosedQuery = createdClosedQuery.eq('priority', filter.priority);
+    unacceptedQuery = unacceptedQuery.eq('priority', filter.priority);
+    awaitingOutcomeQuery = awaitingOutcomeQuery.eq('priority', filter.priority);
   }
   if (filter.sourceType) {
     itemsQuery = itemsQuery.eq('source_type', filter.sourceType);
@@ -176,6 +243,8 @@ export async function getDailyLoop(
     closedQuery = closedQuery.eq('source_type', filter.sourceType);
     createdQuery = createdQuery.eq('source_type', filter.sourceType);
     createdClosedQuery = createdClosedQuery.eq('source_type', filter.sourceType);
+    unacceptedQuery = unacceptedQuery.eq('source_type', filter.sourceType);
+    awaitingOutcomeQuery = awaitingOutcomeQuery.eq('source_type', filter.sourceType);
   }
 
   const [
@@ -186,6 +255,9 @@ export async function getDailyLoop(
     closedResult,
     createdResult,
     createdClosedResult,
+    unacceptedResult,
+    awaitingOutcomeResult,
+    pendingTransfersResult,
   ] = await Promise.all([
     itemsQuery,
     overdueQuery,
@@ -194,12 +266,16 @@ export async function getDailyLoop(
     closedQuery,
     createdQuery,
     createdClosedQuery,
+    unacceptedQuery,
+    awaitingOutcomeQuery,
+    pendingTransfersQuery,
   ]);
 
   if (
     itemsResult.error || overdueResult.error || dueTodayResult.error ||
     priorityTodayWithoutDueResult.error || closedResult.error ||
-    createdResult.error || createdClosedResult.error
+    createdResult.error || createdClosedResult.error ||
+    unacceptedResult.error || awaitingOutcomeResult.error || pendingTransfersResult.error
   ) {
     return {
       sections: EMPTY_SECTIONS,
@@ -210,28 +286,7 @@ export async function getDailyLoop(
     };
   }
 
-  const items = (itemsResult.data ?? []).map((row) => ({
-    id: row.id,
-    organization_id: row.organization_id,
-    patient_id: row.patient_id,
-    patient_name: extractPatientFullName(row.patients) ?? 'Patient',
-    provider_id: row.provider_id,
-    assigned_to: row.assigned_to,
-    owner_name: extractFullName(row.assignee) ?? 'You',
-    source_type: row.source_type,
-    source_id: row.source_id,
-    title: row.title,
-    reason: row.reason,
-    change_summary: row.change_summary,
-    priority: row.priority,
-    severity: row.severity,
-    status: row.status,
-    due_at: row.due_at,
-    freshness_at: row.freshness_at,
-    data_quality: row.data_quality,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  })) as WorkItem[];
+  const items = (itemsResult.data ?? []).map(toWorkItem);
 
   const total = itemsResult.count ?? 0;
   const overdue = overdueResult.count ?? 0;
@@ -251,6 +306,9 @@ export async function getDailyLoop(
         createdLast7Days > 0
           ? Math.round((createdAndClosedLast7Days / createdLast7Days) * 100)
           : null,
+      unaccepted: unacceptedResult.count ?? 0,
+      awaitingOutcome: awaitingOutcomeResult.count ?? 0,
+      pendingTransfers: pendingTransfersResult.count ?? 0,
     },
     pagination: {
       total,
@@ -271,38 +329,50 @@ export async function getPatientWorkItems(
 ): Promise<{ items: WorkItem[]; error: string | null }> {
   const { data, error } = await supabase
     .from('work_items')
-    .select(
-      'id, organization_id, patient_id, provider_id, assigned_to, source_type, source_id, title, reason, change_summary, priority, severity, status, due_at, freshness_at, data_quality, created_at, updated_at, patients!work_items_patient_id_fkey(profiles!patients_id_fkey(full_name)), assignee:profiles!work_items_assigned_to_fkey(full_name)'
-    )
+    .select(WORK_ITEM_SELECT)
     .eq('assigned_to', providerId)
     .eq('patient_id', patientId)
     .order('created_at', { ascending: false })
     .limit(30);
 
   if (error) return { items: [], error: 'Patient work could not be loaded.' };
-  const items = (data ?? []).map((row) => ({
+  const items = (data ?? []).map(toWorkItem);
+  return { items, error: null };
+}
+
+/**
+ * Transfers offered to this provider. The item stays with the previous accountable
+ * provider until the offer is accepted, so these rows are outside the provider queue.
+ */
+export async function getTransfersAwaitingMe(
+  supabase: SupabaseClient,
+  providerId: string,
+): Promise<{ transfers: PendingTransfer[]; error: string | null }> {
+  const { data, error } = await supabase
+    .from('work_items')
+    .select(
+      'id, organization_id, patient_id, title, reason, severity, status, due_at, transfer_offered_at, patients!work_items_patient_id_fkey(profiles!patients_id_fkey(full_name)), offered_by:profiles!work_items_transfer_offered_by_fkey(full_name)',
+    )
+    .eq('transfer_pending_to', providerId)
+    .neq('status', 'closed')
+    .order('transfer_offered_at', { ascending: true })
+    .limit(30);
+
+  if (error) return { transfers: [], error: 'Transfers offered to you could not be loaded.' };
+  const transfers = (data ?? []).map((row) => ({
     id: row.id,
     organization_id: row.organization_id,
     patient_id: row.patient_id,
     patient_name: extractPatientFullName(row.patients) ?? 'Patient',
-    provider_id: row.provider_id,
-    assigned_to: row.assigned_to,
-    owner_name: extractFullName(row.assignee) ?? 'You',
-    source_type: row.source_type,
-    source_id: row.source_id,
     title: row.title,
     reason: row.reason,
-    change_summary: row.change_summary,
-    priority: row.priority,
     severity: row.severity,
     status: row.status,
     due_at: row.due_at,
-    freshness_at: row.freshness_at,
-    data_quality: row.data_quality,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  })) as WorkItem[];
-  return { items, error: null };
+    transfer_offered_at: row.transfer_offered_at,
+    offered_by_name: extractFullName(row.offered_by) ?? null,
+  })) as PendingTransfer[];
+  return { transfers, error: null };
 }
 
 export async function getSavedQueueViews(
