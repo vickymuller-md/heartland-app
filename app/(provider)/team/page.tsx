@@ -3,13 +3,14 @@ import { formatDistanceToNow } from 'date-fns';
 import { redirect } from 'next/navigation';
 import { authorize } from '@/lib/auth/authorization';
 import { CLINICAL_RULE_REGISTRY, unapprovedClinicalRuleSets } from '@/lib/clinical-governance/rule-registry';
-import { getTeamOperations } from '@/lib/team/queries';
-import { AccessReviewForm, OrganizationSettingsForm } from './team-forms';
+import { getMemberCapabilities, getTeamOperations } from '@/lib/team/queries';
+import { AccessReviewForm, MemberCapabilitiesRow, OrganizationSettingsForm } from './team-forms';
 
 export default async function TeamOperationsPage() {
   const auth = await authorize('provider');
   if (!auth.authorized) redirect(auth.error === 'MFA required' ? '/security/mfa' : '/login');
   const operations = await getTeamOperations(auth.supabase);
+  const capabilities = await getMemberCapabilities(auth.supabase);
 
   return (
     <div className="space-y-7">
@@ -48,6 +49,24 @@ export default async function TeamOperationsPage() {
                 </tbody>
               </table>
             </div>
+          </section>
+
+          <section className="space-y-3" aria-labelledby="capabilities-title">
+            <div>
+              <h2 id="capabilities-title" className="text-xl font-bold text-slate-950">Member authorizations</h2>
+              <p className="text-sm text-slate-600">Capabilities decide who may record clinical work, and never derive from having a login. Grants marked role-derived came from the migration seed and are awaiting manager review.</p>
+            </div>
+            {capabilities.error ? (
+              <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-medium text-red-900">{capabilities.error}</div>
+            ) : capabilities.rows.length === 0 ? (
+              <p className="rounded-xl border border-dashed p-4 text-sm text-slate-600">No team membership to authorize.</p>
+            ) : (
+              <div className="space-y-3">
+                {capabilities.rows.map((member) => (
+                  <MemberCapabilitiesRow key={member.membership_id} member={member} />
+                ))}
+              </div>
+            )}
           </section>
 
           <section className="grid gap-4 lg:grid-cols-2" aria-labelledby="delivery-title">

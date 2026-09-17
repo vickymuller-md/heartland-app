@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { authorize } from '@/lib/auth/authorization';
 import { trackProductEvent } from '@/lib/product-analytics/actions';
+import { EVIDENCE_REQUIRED_CAPABILITIES, MEMBER_CAPABILITIES } from './types';
 
 const reviewSchema = z.object({
   organizationId: z.uuid(),
@@ -72,6 +73,80 @@ export async function updateOrganizationSettings(
     .eq('id', parsed.data.organizationId)
     .select('id');
   if (error || !data?.length) return { error: 'Organization settings could not be updated.' };
+  revalidatePath('/team');
+  return { success: true };
+}
+
+/**
+ * Member capabilities (migration 00040).
+ *
+ * Both writes go through the SECURITY DEFINER RPCs, which are the only path
+ * that can record the credential evidence and that enforce manager-only access.
+ */
+const grantSchema = z
+  .object({
+    membershipId: z.uuid(),
+    capability: z.enum(MEMBER_CAPABILITIES),
+    evidenceRef: z.string().trim().min(3).max(500).optional(),
+  })
+  .refine(
+    (value) =>
+      !EVIDENCE_REQUIRED_CAPABILITIES.includes(value.capability) ||
+      Boolean(value.evidenceRef),
+    {
+      message: 'This capability requires recorded credential evidence',
+      path: ['evidenceRef'],
+    },
+  );
+
+export async function grantMemberCapability(
+  input: z.input<typeof grantSchema>,
+): Promise<{ success?: boolean; error?: string }> {
+  const parsed = grantSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid grant' };
+  }
+
+  const auth = await authorize('provider');
+  if (!auth.authorized) return { success: false, error: auth.error };
+
+  const { error } = await auth.supabase.rpc('grant_member_capability', {
+    p_membership_id: parsed.data.membershipId,
+    p_capability: parsed.data.capability,
+    p_evidence_ref: parsed.data.evidenceRef ?? null,
+  });
+
+  if (error) {
+    if (error.code === '42501') {
+      return { success: false, error: 'Only a team manager can change authorizations.' };
+    }
+    return { success: false, error: 'This authorization could not be granted.' };
+  }
+
+  revalidatePath('/team');
+  return { success: true };
+}
+
+export async function revokeMemberCapability(
+  input: { authorizationId: string },
+): Promise<{ success?: boolean; error?: string }> {
+  const parsed = z.object({ authorizationId: z.uuid() }).safeParse(input);
+  if (!parsed.success) return { success: false, error: 'Invalid authorization' };
+
+  const auth = await authorize('provider');
+  if (!auth.authorized) return { success: false, error: auth.error };
+
+  const { error } = await auth.supabase.rpc('revoke_member_capability', {
+    p_authorization_id: parsed.data.authorizationId,
+  });
+
+  if (error) {
+    if (error.code === '42501') {
+      return { success: false, error: 'Only a team manager can change authorizations.' };
+    }
+    return { success: false, error: 'This authorization could not be revoked.' };
+  }
+
   revalidatePath('/team');
   return { success: true };
 }

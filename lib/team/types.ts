@@ -49,6 +49,56 @@ export interface DeliveryHealth {
   oldest_available_at: string | null;
 }
 
+/**
+ * Per-member clinical capabilities (migration 00040). `member_authorizations`
+ * is readable by the team and carries no credential strings; the evidence that
+ * backs a grant lives in a manager-only table and is never read here.
+ */
+export const MEMBER_CAPABILITIES = [
+  'reconcile_medications',
+  'educate',
+  'monitor',
+  'recommend',
+  'change_medication',
+  'clinical_disposition',
+] as const;
+
+export type MemberCapability = (typeof MEMBER_CAPABILITIES)[number];
+
+/** Capabilities the database refuses without recorded credential evidence. */
+export const EVIDENCE_REQUIRED_CAPABILITIES: readonly MemberCapability[] = [
+  'change_medication',
+  'clinical_disposition',
+];
+
+export const MEMBER_CAPABILITY_LABELS: Record<MemberCapability, string> = {
+  reconcile_medications: 'Reconcile medications',
+  educate: 'Educate',
+  monitor: 'Monitor',
+  recommend: 'Recommend',
+  change_medication: 'Change medication',
+  clinical_disposition: 'Clinical disposition',
+};
+
+export interface MemberAuthorization {
+  id: string;
+  capability: MemberCapability;
+  granted_at: string;
+  expires_at: string | null;
+  grant_source: 'manager_grant' | 'bootstrap_00040';
+}
+
+export interface MemberCapabilityRow {
+  membership_id: string;
+  organization_id: string;
+  organization_name: string;
+  member_id: string;
+  member_name: string;
+  member_role: string;
+  can_manage: boolean;
+  authorizations: MemberAuthorization[];
+}
+
 export interface TeamOperationsResult {
   members: TeamMember[];
   workloads: TeamWorkload[];
