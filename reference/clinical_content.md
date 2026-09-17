@@ -61,7 +61,7 @@ Source: `protocol_v34_candidate.Rmd` + `tables_v34.R` (September 2026). V3.4 is 
 
 ---
 
-## MODULE 2: GDMT Optimization & 2025 Pharmacology
+## MODULE 2: GDMT Optimization & Pharmacology
 
 ### 2.1 HFrEF (LVEF ≤40%) — Quadruple Therapy
 
