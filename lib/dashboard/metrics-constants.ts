@@ -12,6 +12,19 @@
  */
 export const RPM_CPT_99454_THRESHOLD = 16;
 
+// ---------- Non-clinical closure codes (migration 00041) ----------
+
+/**
+ * Outcome codes that close a work item without recording a clinical conclusion.
+ * `administrative_close` is a manager action; `outcome_not_recorded` is stamped by
+ * the database during the 00041 grace period when a client closes an item without
+ * sending a code. Neither may be counted as addressed clinical work (design O4 §5.3).
+ */
+export const NON_CLINICAL_OUTCOME_CODES = [
+  'administrative_close',
+  'outcome_not_recorded',
+] as const;
+
 // ---------- GDMT Drug Class Keywords (METR-02) ----------
 
 /**

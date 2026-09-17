@@ -24,6 +24,13 @@ export interface ProviderMetrics {
   rpmDataCompletenessCount: number;
   /** Percentage of HFrEF patients on >=3 of 4 GDMT drug classes, 0-100 */
   gdmtOptRate: number;
+  /**
+   * Alert work items closed with a documented clinical outcome in the last 30 days.
+   * Administrative closures and items closed without a recorded outcome are excluded
+   * (migration 00041); items created before it carry no outcome code and count on
+   * closure exactly as they did before.
+   */
+  addressedAlertsLast30Days: number;
 }
 
 /** Zero-state metrics for providers with no linked patients */
@@ -34,6 +41,7 @@ export const EMPTY_METRICS: ProviderMetrics = {
   avgAdherence: 0,
   rpmDataCompletenessCount: 0,
   gdmtOptRate: 0,
+  addressedAlertsLast30Days: 0,
 };
 
 // ---------- Sparkline Trend (METR-04) ----------

@@ -19,6 +19,7 @@ import { EMPTY_METRICS } from './metrics-types';
 import {
   RPM_CPT_99454_THRESHOLD,
   GDMT_CLASS_KEYWORDS,
+  NON_CLINICAL_OUTCOME_CODES,
 } from './metrics-constants';
 
 // ---------- Pure Functions ----------
@@ -76,6 +77,26 @@ export function computeGdmtRate(
 
   const rate = Math.round((classifiedCount / hfrefPatientIds.length) * 100);
   return { rate, classifiedCount, hfrefCount: hfrefPatientIds.length };
+}
+
+/**
+ * Whether a work item counts as addressed clinical work.
+ *
+ * Only closed items count, and a closure carrying one of NON_CLINICAL_OUTCOME_CODES
+ * does not: `administrative_close` is a manager action and `outcome_not_recorded` is
+ * the database's grace-period stamp (migration 00041, design O4 §5.3). Items created
+ * before 00041 (`accountability_source IS NULL`) carry no outcome code, so they count
+ * on closure exactly as they did before.
+ */
+export function countsAsAddressedWorkItem(item: {
+  status: string;
+  outcome_code: string | null;
+  /** NULL marks a row created before migration 00041. */
+  accountability_source: string | null;
+}): boolean {
+  if (item.status !== 'closed') return false;
+  if (item.outcome_code === null) return true;
+  return !(NON_CLINICAL_OUTCOME_CODES as readonly string[]).includes(item.outcome_code);
 }
 
 /**
@@ -210,7 +231,10 @@ export async function getProviderMetrics(
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const [alertResult, vitalsResult, medsResult, hfrefResult] =
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const [alertResult, vitalsResult, medsResult, hfrefResult, closedAlertItemsResult] =
     await Promise.all([
       // a. Active alerts count
       supabase
@@ -239,10 +263,28 @@ export async function getProviderMetrics(
         .select('id')
         .in('id', patientIds)
         .eq('hf_type', 'HFrEF'),
+
+      // e. Alert work items closed in the last 30 days, for the addressed count
+      supabase
+        .from('work_items')
+        .select('status, outcome_code, accountability_source')
+        .in('patient_id', patientIds)
+        .eq('source_type', 'alert')
+        .eq('status', 'closed')
+        .gte('closed_at', thirtyDaysAgo.toISOString()),
     ]);
 
   // activeAlerts
   const activeAlerts = alertResult.count ?? 0;
+
+  // addressedAlertsLast30Days: closures that recorded a clinical outcome
+  const addressedAlertsLast30Days = (
+    (closedAlertItemsResult.data ?? []) as Array<{
+      status: string;
+      outcome_code: string | null;
+      accountability_source: string | null;
+    }>
+  ).filter(countsAsAddressedWorkItem).length;
 
   // noCheckinCount
   const recentPatientSet = new Set(
@@ -289,5 +331,6 @@ export async function getProviderMetrics(
     avgAdherence,
     rpmDataCompletenessCount,
     gdmtOptRate,
+    addressedAlertsLast30Days,
   };
 }
