@@ -24,7 +24,6 @@ export function trackKeyFromAssignment(value: string | null | undefined): TrackK
 export interface EducationDomain {
   id: string;
   title: string;
-  tier: 'core' | 'extended'; // core = Tier 1+, extended = Tier 2/3 only
   icon: string; // lucide-react icon name
   content: {
     common: string[]; // paragraphs shown to all patients

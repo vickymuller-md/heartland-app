@@ -6,7 +6,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { EducationProgress } from './types';
+import type { EducationDomain, EducationProgress } from './types';
 import { EDUCATION_DOMAINS } from './constants';
 
 /**
@@ -29,10 +29,14 @@ export async function getEducationProgress(
 /**
  * Get education summary for provider dashboard (Phase 10).
  * Returns completion counts and per-domain status.
+ *
+ * `availableDomains` is the set the patient was actually offered, so the
+ * completion rate is never read against domains the patient never saw.
  */
 export async function getEducationSummary(
   supabase: SupabaseClient,
-  patientId: string
+  patientId: string,
+  availableDomains: EducationDomain[] = EDUCATION_DOMAINS
 ): Promise<{
   totalDomains: number;
   completedDomains: number;
@@ -47,7 +51,7 @@ export async function getEducationSummary(
   const progress = await getEducationProgress(supabase, patientId);
   const progressMap = new Map(progress.map((p) => [p.domain_id, p]));
 
-  const domains = EDUCATION_DOMAINS.map((d) => {
+  const domains = availableDomains.map((d) => {
     const p = progressMap.get(d.id);
     return {
       id: d.id,
@@ -58,7 +62,7 @@ export async function getEducationSummary(
   });
 
   const completedDomains = domains.filter((d) => d.completed).length;
-  const totalDomains = EDUCATION_DOMAINS.length;
+  const totalDomains = domains.length;
 
   return {
     totalDomains,

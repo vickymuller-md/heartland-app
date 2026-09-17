@@ -2,7 +2,7 @@
  * Education Domain Content Tests
  * Requirements: EDUC-01, EDUC-02, EDUC-04
  *
- * Verifies: 8 domains exist, tier assignments correct,
+ * Verifies: 8 domains exist and are available at every facility tier,
  * all domains have track-aware content and valid questions.
  */
 
@@ -15,31 +15,30 @@ describe('EDUCATION_DOMAINS', () => {
     expect(EDUCATION_DOMAINS).toHaveLength(8);
   });
 
-  it('has 3 core domains: daily_weight, medications, warning_signs', () => {
-    const coreDomains = EDUCATION_DOMAINS.filter((d) => d.tier === 'core');
-    expect(coreDomains).toHaveLength(3);
-    const coreIds = coreDomains.map((d) => d.id);
-    expect(coreIds).toContain('daily_weight');
-    expect(coreIds).toContain('medications');
-    expect(coreIds).toContain('warning_signs');
+  it('contains every protocol domain', () => {
+    const ids = EDUCATION_DOMAINS.map((d) => d.id);
+    expect(ids).toEqual([
+      'daily_weight',
+      'medications',
+      'warning_signs',
+      'what_is_hf',
+      'sodium_restriction',
+      'fluid_management',
+      'when_to_call',
+      'activity_guidance',
+    ]);
   });
 
-  it('has 5 extended domains: what_is_hf, sodium_restriction, fluid_management, when_to_call, activity_guidance', () => {
-    const extDomains = EDUCATION_DOMAINS.filter((d) => d.tier === 'extended');
-    expect(extDomains).toHaveLength(5);
-    const extIds = extDomains.map((d) => d.id);
-    expect(extIds).toContain('what_is_hf');
-    expect(extIds).toContain('sodium_restriction');
-    expect(extIds).toContain('fluid_management');
-    expect(extIds).toContain('when_to_call');
-    expect(extIds).toContain('activity_guidance');
+  it('carries no facility-tier marker on any domain', () => {
+    EDUCATION_DOMAINS.forEach((domain) => {
+      expect(domain).not.toHaveProperty('tier');
+    });
   });
 
-  it('every domain has required fields: id, title, tier, icon, content, question', () => {
+  it('every domain has required fields: id, title, icon, content, question', () => {
     EDUCATION_DOMAINS.forEach((domain) => {
       expect(domain.id).toBeTruthy();
       expect(domain.title).toBeTruthy();
-      expect(['core', 'extended']).toContain(domain.tier);
       expect(domain.icon).toBeTruthy();
       expect(domain.content).toBeDefined();
       expect(domain.question).toBeDefined();
@@ -91,43 +90,9 @@ describe('EDUCATION_DOMAINS', () => {
     });
   });
 
-  it('core domains are listed before extended domains', () => {
-    const firstExtIndex = EDUCATION_DOMAINS.findIndex(
-      (d) => d.tier === 'extended'
-    );
-    const lastCoreIndex = EDUCATION_DOMAINS.reduce(
-      (last, d, i) => (d.tier === 'core' ? i : last),
-      -1
-    );
-    expect(lastCoreIndex).toBeLessThan(firstExtIndex);
-  });
-
   it('each domain has a unique id', () => {
     const ids = EDUCATION_DOMAINS.map((d) => d.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
 
-describe('Tier filtering', () => {
-  it('facility_tier 1 shows only core domains (3)', () => {
-    const filtered = EDUCATION_DOMAINS.filter(
-      (d) => d.tier === 'core' || 1 >= 2
-    );
-    expect(filtered).toHaveLength(3);
-    expect(filtered.every((d) => d.tier === 'core')).toBe(true);
-  });
-
-  it('facility_tier 2 shows all 8 domains (core + extended)', () => {
-    const filtered = EDUCATION_DOMAINS.filter(
-      (d) => d.tier === 'core' || 2 >= 2
-    );
-    expect(filtered).toHaveLength(8);
-  });
-
-  it('facility_tier 3 shows all 8 domains (core + extended)', () => {
-    const filtered = EDUCATION_DOMAINS.filter(
-      (d) => d.tier === 'core' || 3 >= 2
-    );
-    expect(filtered).toHaveLength(8);
-  });
-});

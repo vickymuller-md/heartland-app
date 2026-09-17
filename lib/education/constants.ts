@@ -4,23 +4,17 @@
  * Source: HEARTLAND Protocol v3.3, Module 4 (Teach-Back Domains)
  * Clinical content sourced from protocol Sections 4.3, 5.1, and 5.2.
  *
- * 3 Core Domains (Tier 1 -- all patients):
- *   daily_weight, medications, warning_signs
- *
- * 5 Extended Domains (Tier 2/3 only):
- *   what_is_hf, sodium_restriction, fluid_management, when_to_call, activity_guidance
+ * All 8 domains are available to every patient, whatever the facility tier
+ * (including an unknown tier). The facility tier governs delivery format,
+ * sequence and support -- never whether a domain exists.
  */
 
 import type { EducationDomain } from './types';
 
 export const EDUCATION_DOMAINS: EducationDomain[] = [
-  // ───────────────────────────────────────────────
-  // CORE DOMAINS (Tier 1 -- Required for All)
-  // ───────────────────────────────────────────────
   {
     id: 'daily_weight',
     title: 'Daily Weight Monitoring',
-    tier: 'core',
     icon: 'Scale',
     content: {
       common: [
@@ -51,7 +45,6 @@ export const EDUCATION_DOMAINS: EducationDomain[] = [
   {
     id: 'medications',
     title: 'Taking Your Heart Medications',
-    tier: 'core',
     icon: 'Pill',
     content: {
       common: [
@@ -82,7 +75,6 @@ export const EDUCATION_DOMAINS: EducationDomain[] = [
   {
     id: 'warning_signs',
     title: 'Warning Signs to Watch For',
-    tier: 'core',
     icon: 'AlertTriangle',
     content: {
       common: [
@@ -111,14 +103,10 @@ export const EDUCATION_DOMAINS: EducationDomain[] = [
     },
   },
 
-  // ───────────────────────────────────────────────
-  // EXTENDED DOMAINS (Tier 2/3 -- 5 additional)
   // Source: Protocol v3.3 Module 4 Section 4.3
-  // ───────────────────────────────────────────────
   {
     id: 'what_is_hf',
     title: 'Understanding Heart Failure',
-    tier: 'extended',
     icon: 'Heart',
     content: {
       common: [
@@ -149,7 +137,6 @@ export const EDUCATION_DOMAINS: EducationDomain[] = [
   {
     id: 'sodium_restriction',
     title: 'Sodium (Salt) Restriction',
-    tier: 'extended',
     icon: 'UtensilsCrossed',
     content: {
       common: [
@@ -180,7 +167,6 @@ export const EDUCATION_DOMAINS: EducationDomain[] = [
   {
     id: 'fluid_management',
     title: 'Fluid Management',
-    tier: 'extended',
     icon: 'Droplets',
     content: {
       common: [
@@ -211,7 +197,6 @@ export const EDUCATION_DOMAINS: EducationDomain[] = [
   {
     id: 'when_to_call',
     title: 'When to Call for Help',
-    tier: 'extended',
     icon: 'Phone',
     content: {
       common: [
@@ -242,7 +227,6 @@ export const EDUCATION_DOMAINS: EducationDomain[] = [
   {
     id: 'activity_guidance',
     title: 'Staying Active Safely',
-    tier: 'extended',
     icon: 'Footprints',
     content: {
       common: [

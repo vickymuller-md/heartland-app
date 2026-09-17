@@ -20,22 +20,10 @@ const defaultProps = {
 };
 
 describe('PrintableInstructions', () => {
-  it('renders 3 teach-back domains for tier 1', () => {
-    render(<PrintableInstructions {...defaultProps} facilityTier={1} />);
+  it.each([1, 2, 3] as const)('renders all 8 teach-back domains for tier %s', (facilityTier) => {
+    render(<PrintableInstructions {...defaultProps} facilityTier={facilityTier} />);
     const content = screen.getByTestId('print-content');
-    // Tier 1: Daily Weight, Medications, Warning Signs
-    expect(within(content).getByTestId('print-domain-daily_weight')).toBeInTheDocument();
-    expect(within(content).getByTestId('print-domain-medications')).toBeInTheDocument();
-    expect(within(content).getByTestId('print-domain-warning_signs')).toBeInTheDocument();
-    // Should NOT have tier23 domains
-    expect(within(content).queryByTestId('print-domain-what_is_hf')).not.toBeInTheDocument();
-    expect(within(content).queryByTestId('print-domain-sodium_restriction')).not.toBeInTheDocument();
-  });
-
-  it('renders 8 teach-back domains for tier 2', () => {
-    render(<PrintableInstructions {...defaultProps} facilityTier={2} />);
-    const content = screen.getByTestId('print-content');
-    // All 8 domains
+    // Every tier prints every domain; the tier governs delivery, not availability.
     expect(within(content).getByTestId('print-domain-daily_weight')).toBeInTheDocument();
     expect(within(content).getByTestId('print-domain-medications')).toBeInTheDocument();
     expect(within(content).getByTestId('print-domain-warning_signs')).toBeInTheDocument();
@@ -44,13 +32,7 @@ describe('PrintableInstructions', () => {
     expect(within(content).getByTestId('print-domain-fluid_management')).toBeInTheDocument();
     expect(within(content).getByTestId('print-domain-when_to_call')).toBeInTheDocument();
     expect(within(content).getByTestId('print-domain-activity_guidance')).toBeInTheDocument();
-  });
-
-  it('renders 8 teach-back domains for tier 3', () => {
-    render(<PrintableInstructions {...defaultProps} facilityTier={3} />);
-    const content = screen.getByTestId('print-content');
-    const domains = within(content).getAllByTestId(/^print-domain-/);
-    expect(domains).toHaveLength(8);
+    expect(within(content).getAllByTestId(/^print-domain-/)).toHaveLength(8);
   });
 
   it('includes patient name in printed header', () => {

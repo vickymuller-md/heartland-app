@@ -66,5 +66,4 @@ export interface TeachBackDomain {
   id: string;
   title: string;
   description: string;
-  tier: 'all' | 'tier23';
 }

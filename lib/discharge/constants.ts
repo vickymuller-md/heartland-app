@@ -24,7 +24,7 @@ export const BUNDLE_COMPONENTS: BundleComponent[] = [
     id: 'teach_back',
     label: 'Teach-Back Education',
     timing: 'Before discharge',
-    tier1: '3 core domains',
+    tier1: '8 domains, condensed delivery',
     tier23: '8 domains',
   },
   {
@@ -107,59 +107,49 @@ export const TASK_SHIFTING_ROWS: TaskShiftRow[] = [
 ];
 
 /**
- * Teach-Back Core Domains (Protocol Section 4.3)
- * Tier 1: 3 domains (tier === 'all')
- * Tier 2/3: all 8 domains
+ * Teach-Back Domains (Protocol Section 4.3)
+ * All 8 domains apply at every facility tier. The tier governs delivery format
+ * and support, never whether a domain is offered.
  */
 export const TEACH_BACK_DOMAINS: TeachBackDomain[] = [
-  // Tier 1 (all tiers) -- 3 core domains
   {
     id: 'daily_weight',
     title: 'Daily Weight',
     description: 'Weigh same time daily; call if +3lbs/2 days or +5lbs/week',
-    tier: 'all',
   },
   {
     id: 'medications',
     title: 'Medications',
     description: 'Take daily even when well; never stop without calling',
-    tier: 'all',
   },
   {
     id: 'warning_signs',
     title: 'Warning Signs',
     description: 'SOB, swelling, waking breathless \u2192 call clinic',
-    tier: 'all',
   },
-  // Tier 2/3 additional -- 5 more domains
   {
     id: 'what_is_hf',
     title: 'What is HF',
     description: 'Understanding heart failure, how it affects the body, and why treatment matters',
-    tier: 'tier23',
   },
   {
     id: 'sodium_restriction',
     title: 'Sodium Restriction',
     description: 'Limit sodium intake to reduce fluid retention and manage symptoms',
-    tier: 'tier23',
   },
   {
     id: 'fluid_management',
     title: 'Fluid Management',
     description: 'Monitor fluid intake and output to prevent volume overload',
-    tier: 'tier23',
   },
   {
     id: 'when_to_call',
     title: 'When to Call',
     description: 'Detailed criteria for contacting the clinic or seeking emergency care',
-    tier: 'tier23',
   },
   {
     id: 'activity_guidance',
     title: 'Activity Guidance',
     description: 'Safe exercise and activity levels during recovery',
-    tier: 'tier23',
   },
 ];

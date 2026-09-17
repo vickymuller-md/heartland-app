@@ -1,7 +1,7 @@
 /**
  * Education Page -- Server Component
  *
- * Shows education modules filtered by patient's facility tier.
+ * Shows every education module, whatever the patient's facility tier.
  * Track assignment determines content variant (Track A vs Track B).
  * Requirements: EDUC-01, EDUC-02, EDUC-04, RMON-06
  */
@@ -22,22 +22,18 @@ export default async function EducationPage() {
 
   if (!user) redirect('/login');
 
-  // Fetch patient profile for track assignment and facility tier
+  // Fetch patient profile for track assignment
   const { data: patient } = await supabase
     .from('patients')
-    .select('track_assignment, facility_tier')
+    .select('track_assignment')
     .eq('id', user.id)
     .single();
 
   // Stored values are 'A' | 'B' | 'hybrid' | null; the screens use track keys (null -> Track B, RMON-06).
   const trackAssignment = trackKeyFromAssignment(patient?.track_assignment);
-  // Default facility_tier to 1 if null
-  const facilityTier = patient?.facility_tier ?? 1;
 
-  // Filter domains by tier: core always shown, extended only at tier >= 2
-  const availableDomains = EDUCATION_DOMAINS.filter(
-    (d) => d.tier === 'core' || facilityTier >= 2
-  );
+  // Every domain is available at every facility tier, including an unknown tier.
+  const availableDomains = EDUCATION_DOMAINS;
 
   // Fetch education progress
   const progress = await getEducationProgress(supabase, user.id);

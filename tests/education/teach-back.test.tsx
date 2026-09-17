@@ -48,10 +48,8 @@ describe('TeachBackCard', () => {
       expect(ws.question.text).toBeTruthy();
     });
 
-    it('all 3 core domains have tier set to core', () => {
-      const coreDomains = EDUCATION_DOMAINS.filter((d) => d.tier === 'core');
-      expect(coreDomains).toHaveLength(3);
-      coreDomains.forEach((d) => expect(d.tier).toBe('core'));
+    it('no domain carries a facility-tier marker', () => {
+      EDUCATION_DOMAINS.forEach((d) => expect(d).not.toHaveProperty('tier'));
     });
   });
 

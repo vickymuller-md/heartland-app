@@ -98,12 +98,13 @@ describe('TASK_SHIFTING_ROWS', () => {
 });
 
 describe('TEACH_BACK_DOMAINS', () => {
-  it('has 3 items for Tier 1 (tier === "all")', () => {
-    const tier1 = TEACH_BACK_DOMAINS.filter((d) => d.tier === 'all');
-    expect(tier1).toHaveLength(3);
+  it('carries no facility-tier marker', () => {
+    for (const domain of TEACH_BACK_DOMAINS) {
+      expect(domain).not.toHaveProperty('tier');
+    }
   });
 
-  it('has 8 total items for Tier 2/3', () => {
+  it('has 8 items, offered at every tier', () => {
     expect(TEACH_BACK_DOMAINS).toHaveLength(8);
   });
 });

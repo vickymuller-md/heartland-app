@@ -5,7 +5,8 @@
  * Requirement: DSCH-06 (tier-appropriate printable discharge instructions)
  *
  * Uses react-to-print for browser print dialog. Print target is hidden on screen,
- * visible on print. Tier 1 gets 3 core domains; Tier 2/3 gets all 8 domains.
+ * visible on print. Every tier prints all 8 teach-back domains; the tier governs
+ * delivery format and support, not which domains are offered.
  *
  * Source: HEARTLAND Protocol v3.3 Module 4, Section 4.3
  */
@@ -35,12 +36,7 @@ export function PrintableInstructions({
     contentRef: printRef,
   });
 
-  // Tier 1: domains with tier === 'all' (3 domains)
-  // Tier 2/3: all 8 domains
-  const domains =
-    facilityTier === 1
-      ? TEACH_BACK_DOMAINS.filter((d) => d.tier === 'all')
-      : TEACH_BACK_DOMAINS;
+  const domains = TEACH_BACK_DOMAINS;
 
   return (
     <>

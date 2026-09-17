@@ -98,15 +98,6 @@ export function EducationModuleList({
                   {domain.title}
                 </span>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span
-                    className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${
-                      domain.tier === 'core'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-purple-100 text-purple-700'
-                    }`}
-                  >
-                    {domain.tier === 'core' ? 'Core' : 'Extended'}
-                  </span>
                   {attempts > 0 && (
                     <span className="text-xs text-gray-500">
                       {attempts} {attempts === 1 ? 'attempt' : 'attempts'}

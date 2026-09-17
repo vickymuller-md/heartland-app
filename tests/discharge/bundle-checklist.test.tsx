@@ -23,10 +23,10 @@ describe('DischargeBundleChecklist', () => {
     expect(item).toHaveTextContent('If available');
   });
 
-  it('tier 1 shows "3 core domains" for teach-back', () => {
+  it('tier 1 shows all 8 domains with condensed delivery for teach-back', () => {
     render(<DischargeBundleChecklist tier={1} />);
     const item = screen.getByTestId('bundle-item-teach_back');
-    expect(item).toHaveTextContent('3 core domains');
+    expect(item).toHaveTextContent('8 domains, condensed delivery');
   });
 
   it('tier 2 shows "Required" for case management', () => {
