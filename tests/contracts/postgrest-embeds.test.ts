@@ -33,12 +33,15 @@ function loadEnvLocal(): Record<string, string> {
 const env = { ...loadEnvLocal(), ...process.env };
 const enabled = env.HEARTLAND_REST_CONTRACT === '1' && !!env.NEXT_PUBLIC_SUPABASE_URL && !!env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Every embed between patients and profiles that the App issues, with its hint.
+// Every embed the App issues that a new migration could make ambiguous, with its hint.
+// The last entry is deliberately unhinted: it is the one embed still shipping that way, so
+// this case is what fails first if a migration ever adds a second path between those tables.
 const EMBEDS: Array<{ table: string; select: string; used_by: string }> = [
   { table: 'patients', select: 'id,profiles!patients_id_fkey(full_name)', used_by: 'lib/dashboard/queries.ts, worklist-queries.ts, metrics-queries.ts' },
   { table: 'alerts', select: 'id,patients!inner(profiles!patients_id_fkey(full_name))', used_by: 'lib/dashboard/queries.ts alerts list' },
   { table: 'work_items', select: 'id,patients!work_items_patient_id_fkey(profiles!patients_id_fkey(full_name)),assignee:profiles!work_items_assigned_to_fkey(full_name)', used_by: 'lib/daily-loop/queries.ts' },
   { table: 'provider_messages', select: 'id,patients!provider_messages_patient_id_fkey(profiles!patients_id_fkey(full_name))', used_by: 'lib/inbox/queries.ts' },
+  { table: 'organization_memberships', select: 'id,organizations(timezone)', used_by: 'lib/daily-loop/queries.ts:90 — unhinted, resolves only while organization_memberships has exactly one relationship to organizations' },
 ];
 
 async function rest(table: string, select: string) {
