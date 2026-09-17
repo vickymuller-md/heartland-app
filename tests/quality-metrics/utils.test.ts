@@ -8,6 +8,7 @@
  */
 
 import { formatRate, evaluateTarget } from '@/lib/quality-metrics/utils';
+import { METRIC_DEFINITIONS } from '@/lib/quality-metrics/constants';
 
 import { describe, it, expect } from 'vitest';
 
@@ -64,5 +65,25 @@ describe('CKM-02 evaluateTarget (no_data cases)', () => {
 
   it('evaluateTarget(80, null, true) returns "no_data"', () => {
     expect(evaluateTarget(80, null, true)).toBe('no_data');
+  });
+});
+
+describe('CKM-02 target labels match the comparator in code', () => {
+  it('labels every numeric target with the inclusive comparator evaluateTarget applies', () => {
+    for (const definition of METRIC_DEFINITIONS) {
+      for (const label of [definition.tier1TargetLabel, definition.tier23TargetLabel]) {
+        expect(label).not.toMatch(/[<>]/);
+      }
+    }
+  });
+
+  it('a rate exactly on the target counts as met, as the labels now say', () => {
+    const contact = METRIC_DEFINITIONS[0];
+    expect(contact.tier1TargetLabel).toBe('≥70%');
+    expect(evaluateTarget(70, contact.tier1Target, contact.higherIsBetter)).toBe('met');
+
+    const readmission = METRIC_DEFINITIONS[3];
+    expect(readmission.tier23TargetLabel).toBe('≤15%');
+    expect(evaluateTarget(15, readmission.tier23Target, readmission.higherIsBetter)).toBe('met');
   });
 });
