@@ -8,7 +8,13 @@ import { HfrefPanel } from './hfref-panel';
 import { HfpefPanel } from './hfpef-panel';
 import { saveGdmtMedications } from '@/lib/integration/actions';
 import type { GdmtMedicationInput } from '@/lib/integration/types';
-import { HFREF_MEDICATIONS, HFPEF_MEDICATIONS } from '@/lib/gdmt/constants';
+import {
+  HFREF_MEDICATIONS,
+  HFPEF_MEDICATIONS,
+  HFREF_PATHWAY_LABEL,
+  LVEF_GE_40_PATHWAY_LABEL,
+  LVEF_BOUNDARIES,
+} from '@/lib/gdmt/constants';
 import type { Medication } from '@/lib/gdmt/types';
 import { Save } from 'lucide-react';
 import { toast } from 'sonner';
@@ -94,13 +100,21 @@ export function GdmtTabs({ clinicalIntegrationEnabled = false }: { clinicalInteg
         />
       </div>}
 
-      {/* HFmrEF guidance — 2022 AHA/ACC/HFSA Guideline, Class 2a */}
+      {/* HFmrEF and LVEF exactly 40% routing — 2022 AHA/ACC/HFSA Class 2a for
+          quadruple therapy; KERENDIA label §1 for the LVEF >=40% MRA line */}
       <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-900">
-        <span className="font-semibold">HFmrEF (LVEF 41–49%):</span>{' '}
-        Treat with the HFrEF pathway below. 2022 AHA/ACC/HFSA Guideline for the
+        <span className="font-semibold">
+          LVEF {LVEF_BOUNDARIES.hfrefMax}–{LVEF_BOUNDARIES.hfmrefMax}%: review both tabs.
+        </span>{' '}
+        Start from the quadruple-therapy tab. 2022 AHA/ACC/HFSA Guideline for the
         Management of Heart Failure: quadruple therapy (ARNi/ACEi/ARB,
         evidence-based beta-blocker, MRA, SGLT2i) is reasonable in patients
         with mildly reduced ejection fraction (Class 2a, Level of Evidence: B-R).
+        Then review the LVEF &ge;{LVEF_BOUNDARIES.mraSglt2iPathwayMin}% tab for the
+        MRA and SGLT2i lines: finerenone is FDA-labeled in heart failure with
+        LVEF &ge;{LVEF_BOUNDARIES.mraSglt2iPathwayMin}%, so a patient at exactly
+        40% or at 41–49% is inside that indication. The SGLT2i trials in preserved
+        ejection fraction (EMPEROR-Preserved, DELIVER) enrolled LVEF &gt;40%.
         Reassess EF after 3–6 months of optimized therapy and reclassify
         (HFrEF, HFmrEF, or HFimpEF) as indicated.
       </div>
@@ -108,10 +122,10 @@ export function GdmtTabs({ clinicalIntegrationEnabled = false }: { clinicalInteg
       <Tabs defaultValue="hfref" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="hfref">
-            HFrEF (LVEF &le;40%) · HFmrEF (41–49%)
+            {HFREF_PATHWAY_LABEL}
           </TabsTrigger>
           <TabsTrigger value="hfpef">
-            HFpEF (LVEF &ge;50%)
+            {LVEF_GE_40_PATHWAY_LABEL}
           </TabsTrigger>
         </TabsList>
         <TabsContent value="hfref" className="mt-4">

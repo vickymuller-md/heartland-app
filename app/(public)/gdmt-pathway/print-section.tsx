@@ -6,6 +6,8 @@ import {
   NON_PHARMACOLOGICAL,
   GENERIC_BRIDGE_ITEMS,
   GENERIC_BRIDGE_PRINCIPLE,
+  HFREF_PATHWAY_LABEL,
+  LVEF_GE_40_PATHWAY_LABEL,
 } from '@/lib/gdmt/constants';
 import { EVIDENCE_LEVEL_CONFIG } from '@/lib/gdmt/evidence-levels';
 import type { Medication } from '@/lib/gdmt/types';
@@ -68,18 +70,18 @@ export function PrintSection() {
         </p>
       </div>
 
-      {/* Section 1: HFrEF */}
+      {/* Section 1: HFrEF and HFmrEF */}
       <section>
         <h2 className="text-base font-bold mb-2 border-b pb-1">
-          HFrEF (LVEF &le;40%) -- Quadruple Therapy
+          {HFREF_PATHWAY_LABEL} -- Quadruple Therapy
         </h2>
         <MedicationTable medications={HFREF_MEDICATIONS} />
       </section>
 
-      {/* Section 2: HFpEF */}
+      {/* Section 2: LVEF >=40% (MRA and SGLT2i lines) */}
       <section>
         <h2 className="text-base font-bold mb-2 border-b pb-1">
-          HFpEF (LVEF &gt;40%) -- Evolving Evidence
+          {LVEF_GE_40_PATHWAY_LABEL} -- Evolving Evidence
         </h2>
         <MedicationTable
           medications={[...HFPEF_MEDICATIONS].sort(

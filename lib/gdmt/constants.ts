@@ -1,6 +1,28 @@
 import type { Medication, FinerenoneScenario, SafetyGateRule, GenericBridgeItem, PotassiumBand } from './types';
 
 /**
+ * LVEF boundaries, declared once for every pathway surface.
+ * Phenotypes follow 2022 AHA/ACC/HFSA Table 4 (HFrEF <=40%, HFmrEF 41-49%,
+ * HFpEF >=50%). The pathway that carries the MRA and SGLT2i lines starts at
+ * LVEF 40% because that is the finerenone indication boundary (KERENDIA label
+ * §1, "LVEF >= 40%"); labeling it "HFpEF >=50%" or "HFpEF >40%" left every
+ * patient between 40% and 49% without a route to finerenone.
+ */
+export const LVEF_BOUNDARIES = {
+  hfrefMax: 40,
+  hfmrefMin: 41,
+  hfmrefMax: 49,
+  hfpefMin: 50,
+  mraSglt2iPathwayMin: 40,
+} as const;
+
+/** Heading for the quadruple-therapy pathway. */
+export const HFREF_PATHWAY_LABEL = `HFrEF (LVEF <=${LVEF_BOUNDARIES.hfrefMax}%) and HFmrEF (${LVEF_BOUNDARIES.hfmrefMin}-${LVEF_BOUNDARIES.hfmrefMax}%)`;
+
+/** Heading for the pathway that carries the MRA and SGLT2i lines. */
+export const LVEF_GE_40_PATHWAY_LABEL = `LVEF >=${LVEF_BOUNDARIES.mraSglt2iPathwayMin}% (HFmrEF ${LVEF_BOUNDARIES.hfmrefMin}-${LVEF_BOUNDARIES.hfmrefMax}% and HFpEF >=${LVEF_BOUNDARIES.hfpefMin}%)`;
+
+/**
  * SGLT2i renal rules, stated per agent and per moment.
  * Neither US label carries a class-wide "eGFR >20" floor: that number is the
  * EMPEROR programme enrolment floor, not a labeled threshold.

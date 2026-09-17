@@ -1,4 +1,4 @@
-import { HFPEF_MEDICATIONS } from '@/lib/gdmt/constants';
+import { HFPEF_MEDICATIONS, LVEF_GE_40_PATHWAY_LABEL } from '@/lib/gdmt/constants';
 import { ExplainResultButton } from '@/components/ai/explain-result-button';
 import { MedicationCard } from '@/components/gdmt/medication-card';
 
@@ -16,7 +16,9 @@ export function HfpefPanel({ selectedPatient, existingMedNames = [], selectedDru
 
   return (
     <div>
-      <h3 className="text-lg font-semibold mb-4">Evolving Evidence</h3>
+      <h3 className="text-lg font-semibold mb-4">
+        {LVEF_GE_40_PATHWAY_LABEL} -- Evolving Evidence
+      </h3>
       <div className="grid gap-4 md:grid-cols-2">
         {sorted.map((med) => {
           const isExisting = existingMedNames.includes(med.agent.toLowerCase().trim());
