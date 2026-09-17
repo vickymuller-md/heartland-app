@@ -49,6 +49,18 @@ describe('CATEGORY_DEFINITIONS', () => {
     expect(riskStrat!.levels[1].label).toContain('Score at discharge');
   });
 
+  it('discharge-education offers every domain at every tier, differing only in delivery', () => {
+    const education = CATEGORY_DEFINITIONS.find((c) => c.id === 'discharge-education');
+    expect(education).toBeDefined();
+    for (const level of [1, 2, 3] as const) {
+      const { label, description } = education!.levels[level];
+      expect(description).toMatch(/all eight domains/i);
+      // No count may imply that a tier receives fewer domains than another.
+      expect(`${label} ${description}`).not.toMatch(/\b3 domains|3 essential|8 domains|8-domain\b/i);
+    }
+    expect(education!.levels[1].description).toMatch(/condensed form where staffing is limited/i);
+  });
+
   it('gdmt Tier 3 description matches protocol', () => {
     const gdmt = CATEGORY_DEFINITIONS.find((c) => c.id === 'gdmt');
     expect(gdmt).toBeDefined();

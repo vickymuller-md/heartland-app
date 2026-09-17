@@ -149,23 +149,23 @@ export const CATEGORY_DEFINITIONS: CategoryDefinition[] = [
     protocolComponent: 'Module 4',
     levels: {
       1: {
-        label: 'Condensed teach-back (3 domains)',
+        label: 'Condensed teach-back',
         description:
-          'Condensed teach-back covering 3 essential domains: medications, daily weight, and when to call.',
+          'Teach-back across all eight domains, delivered in condensed form where staffing is limited.',
         upgradeAction:
-          'Expand to full 8-domain teach-back protocol with documentation.',
+          'Move to full-length teach-back with structured documentation.',
       },
       2: {
-        label: 'Full teach-back (8 domains)',
+        label: 'Full teach-back',
         description:
-          'Full teach-back across all 8 educational domains with structured documentation and competency verification.',
+          'Full-length teach-back across all eight domains with structured documentation and competency verification.',
         upgradeAction:
           'Add CHW reinforcement for education retention and ongoing support.',
       },
       3: {
         label: 'Full + CHW reinforcement',
         description:
-          'Full 8-domain teach-back with CHW reinforcement visits for education retention and behavior change support.',
+          'Full-length teach-back across all eight domains with CHW reinforcement visits for education retention and behavior change support.',
         upgradeAction: '',
       },
     },
