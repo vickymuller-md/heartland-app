@@ -26,8 +26,12 @@ export const EGFR_GATES = {
   finerenoneInitiationMin: 25,
   /** SGLT2i: EMPEROR trial enrolment floor carried by the protocol. */
   sglt2iMin: 20,
-  /** ARNI: protocol operational floor. */
-  arniMin: 20,
+  /**
+   * ARNI: ENTRESTO §2.7 sets no renal floor. Below this eGFR the label halves
+   * the starting dose; suspension is driven by a clinically significant fall
+   * in renal function (§5.4), not by a fixed cut-off.
+   */
+  arniHalfDoseMin: 30,
 } as const;
 
 // ==========================================================================

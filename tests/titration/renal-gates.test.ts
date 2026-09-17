@@ -36,7 +36,11 @@ describe('EGFR_GATES is the single declaration of every renal threshold', () => 
     expect(EGFR_GATES.spironolactoneMin).toBe(30);
     expect(EGFR_GATES.finerenoneInitiationMin).toBe(25);
     expect(EGFR_GATES.sglt2iMin).toBe(20);
-    expect(EGFR_GATES.arniMin).toBe(20);
+    expect(EGFR_GATES.arniHalfDoseMin).toBe(30);
+  });
+
+  it('declares no renal floor for ARNI — the label has none', () => {
+    expect(EGFR_GATES).not.toHaveProperty('arniMin');
   });
 });
 
@@ -82,16 +86,30 @@ describe('eGFR 20 boundary — SGLT2i and ARNI', () => {
     expect(actionFor('SGLT2i', 21)).not.toBe('hold');
   });
 
-  it('eGFR 19 holds ARNI', () => {
-    expect(actionFor('ARNI', 19)).toBe('hold');
+  it('eGFR 19 does not hold ARNI — ENTRESTO sets no renal floor', () => {
+    expect(actionFor('ARNI', 19)).not.toBe('hold');
   });
 
-  it('eGFR exactly 20 does not hold ARNI (gate requires eGFR >= 20)', () => {
+  it('eGFR exactly 20 does not hold ARNI', () => {
     expect(actionFor('ARNI', 20)).not.toBe('hold');
   });
 
   it('eGFR 21 does not hold ARNI', () => {
     expect(actionFor('ARNI', 21)).not.toBe('hold');
+  });
+});
+
+describe('eGFR 30 boundary — ARNI half dose (ENTRESTO label §2.7)', () => {
+  it('eGFR 29 reduces the ARNI to half the usual dose', () => {
+    expect(actionFor('ARNI', 29)).toBe('reduce');
+  });
+
+  it('eGFR exactly 30 does not reduce the ARNI for renal function', () => {
+    expect(actionFor('ARNI', 30)).not.toBe('reduce');
+  });
+
+  it('eGFR 31 does not reduce the ARNI for renal function', () => {
+    expect(actionFor('ARNI', 31)).not.toBe('reduce');
   });
 });
 

@@ -125,7 +125,7 @@ export function getTitrationAction(vitals: VitalSigns): TitrationAction {
  * 1. SBP <90 -> reduce (ARNI only)
  * 2. SBP 90-99 -> hold (ARNI only)
  * 3. HR <50 -> reduce (Beta-blocker only)
- * 4. K+ >5.5 -> hold (MRA, ARNI)
+ * 4. K+ >5.5 -> hold (MRA); K+ >=5.5 -> hold (ARNI)
  * 5. K+ 5.0-5.5 -> hold (MRA only)
  * 6. Cr increase >30% -> hold (MRA, ARNI)
  * 7. eGFR per-drug thresholds (skip if undefined)
@@ -149,9 +149,13 @@ export function getPerDrugRecommendations(
       return { drugClass, action: 'reduce' as const, reason: 'HR <50', safetyGateFailed: 'HR' };
     }
 
-    // K+ >5.5 affects MRA and ARNI
-    if ((drugClass === 'MRA' || drugClass === 'ARNI') && vitals.potassium > 5.5) {
+    // K+ >5.5 holds the MRA; the ARNI initiation gate is K+ <5.5, so K+ exactly
+    // 5.5 already fails it and holds the ARNI too.
+    if (drugClass === 'MRA' && vitals.potassium > 5.5) {
       return { drugClass, action: 'hold' as const, reason: 'K+ >5.5', safetyGateFailed: 'K+' };
+    }
+    if (drugClass === 'ARNI' && vitals.potassium >= 5.5) {
+      return { drugClass, action: 'hold' as const, reason: 'K+ >=5.5', safetyGateFailed: 'K+' };
     }
 
     // K+ 5.0-5.5 affects MRA only (reduce dose)
@@ -189,8 +193,14 @@ export function getPerDrugRecommendations(
       if (drugClass === 'SGLT2i' && vitals.egfr < EGFR_GATES.sglt2iMin) {
         return { drugClass, action: 'hold' as const, reason: `eGFR ${vitals.egfr} <${EGFR_GATES.sglt2iMin}`, safetyGateFailed: 'eGFR' };
       }
-      if (drugClass === 'ARNI' && vitals.egfr < EGFR_GATES.arniMin) {
-        return { drugClass, action: 'hold' as const, reason: `eGFR ${vitals.egfr} <${EGFR_GATES.arniMin}`, safetyGateFailed: 'eGFR' };
+      // ARNI has no renal floor: below this eGFR the label halves the dose.
+      if (drugClass === 'ARNI' && vitals.egfr < EGFR_GATES.arniHalfDoseMin) {
+        return {
+          drugClass,
+          action: 'reduce' as const,
+          reason: `eGFR ${vitals.egfr} <${EGFR_GATES.arniHalfDoseMin}: half the usual dose (ENTRESTO label 2.7)`,
+          safetyGateFailed: 'eGFR',
+        };
       }
     }
 

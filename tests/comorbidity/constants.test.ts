@@ -61,3 +61,19 @@ describe('COMORBIDITY_DATA GDMT interactions (COMR-02)', () => {
     }
   });
 });
+
+// ==========================================================================
+// COMR-03: the CKD line follows the current FDA labels
+// Source: adjudication packet 2026-09-17, F9 (ARNI renal rule)
+// ==========================================================================
+describe('COMORBIDITY_DATA CKD renal rules (COMR-03)', () => {
+  const ckd = COMORBIDITY_DATA.find((d) => d.key === 'ckd')!;
+  const lineStartingWith = (prefix: string) =>
+    ckd.gdmtInteractions.find((i) => i.startsWith(prefix))!;
+
+  it('ARNI: half dose below eGFR 30 and no renal floor (ENTRESTO label §2.7)', () => {
+    const arni = lineStartingWith('ARNI');
+    expect(arni).toMatch(/half/i);
+    expect(arni).not.toMatch(/hold if eGFR <20/i);
+  });
+});

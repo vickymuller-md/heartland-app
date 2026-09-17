@@ -69,7 +69,11 @@ describe('GDMT-09: Content Matches Protocol', () => {
       expect(arni!.agent).toBe('Sacubitril/valsartan');
       expect(arni!.startingDose).toBe('24/26 mg BID');
       expect(arni!.targetDose).toBe('97/103 mg BID');
-      expect(arni!.safetyGates).toEqual(['SBP >100', 'K+ <5.5']);
+      expect(arni!.safetyGates).toEqual([
+        'SBP >100',
+        'K+ <5.5',
+        'eGFR <30: start at half the usual dose (ENTRESTO label 2.7); no renal floor',
+      ]);
     });
 
     it('HFrEF Beta-blocker: agent is "Carvedilol", starting "3.125 mg BID", target "25 mg BID (50 if >85kg)"', () => {

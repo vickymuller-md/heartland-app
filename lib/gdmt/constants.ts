@@ -8,7 +8,10 @@ export const HFREF_MEDICATIONS: Medication[] = [
     agent: 'Sacubitril/valsartan',
     startingDose: '24/26 mg BID',
     targetDose: '97/103 mg BID',
-    safetyGates: ['SBP >100', 'K+ <5.5'],
+    // ENTRESTO label 2.7: half the usual starting dose if eGFR <30. The label
+    // sets no renal floor; suspension follows a clinically significant fall in
+    // renal function (5.4).
+    safetyGates: ['SBP >100', 'K+ <5.5', 'eGFR <30: start at half the usual dose (ENTRESTO label 2.7); no renal floor'],
     evidenceLevel: 'established',
   },
   {

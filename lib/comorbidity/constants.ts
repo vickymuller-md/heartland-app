@@ -59,7 +59,7 @@ export const COMORBIDITY_DATA: ComorbidityDetail[] = [
     whatToDo:
       'Adjust doses per eGFR, monitor K+ closely, and select MRA therapy from current indication, guideline, and patient context',
     gdmtInteractions: [
-      'ARNI: use cautiously if eGFR <30; hold if eGFR <20',
+      'ARNI: start at half the usual dose if eGFR <30 (ENTRESTO label 2.7); no renal floor — down-titrate or interrupt for a clinically significant fall in renal function',
       'MRA therapy: apply agent-specific current labeling/guidelines; finerenone is not automatically preferred by eGFR alone',
       'SGLT2i: minimum eGFR 20 for HF indication (not glycemic control)',
       'Beta-blocker: no dose adjustment needed for CKD',

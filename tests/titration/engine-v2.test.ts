@@ -92,6 +92,30 @@ describe('getPerDrugRecommendations', () => {
 });
 
 // ==========================================================================
+// ARNI potassium boundary (below / equal / above 5.5)
+// The ARNI initiation gate is K+ <5.5 and K+ >5.5 is hyperkalemia everywhere
+// else in the app, which left K+ exactly 5.5 without a declared action.
+// Source: adjudication packet 2026-09-17, R5; dossier O2_ADJUDICACAO_3 B19.
+// ==========================================================================
+describe('ARNI potassium boundary', () => {
+  it('K+ 5.4 does not hold the ARNI', () => {
+    const recs = getPerDrugRecommendations({ ...NORMAL_VITALS, potassium: 5.4, egfr: 60 }, ['ARNI']);
+    expect(recs[0].action).not.toBe('hold');
+  });
+
+  it('K+ exactly 5.5 holds the ARNI', () => {
+    const recs = getPerDrugRecommendations({ ...NORMAL_VITALS, potassium: 5.5, egfr: 60 }, ['ARNI']);
+    expect(recs[0].action).toBe('hold');
+    expect(recs[0].safetyGateFailed).toBe('K+');
+  });
+
+  it('K+ 5.6 holds the ARNI', () => {
+    const recs = getPerDrugRecommendations({ ...NORMAL_VITALS, potassium: 5.6, egfr: 60 }, ['ARNI']);
+    expect(recs[0].action).toBe('hold');
+  });
+});
+
+// ==========================================================================
 // TITR-02: ACEi Detection and ARNI Consideration
 // ==========================================================================
 describe('detectAceiPresence / isArniBeingConsidered', () => {
