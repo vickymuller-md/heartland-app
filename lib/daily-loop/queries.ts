@@ -104,7 +104,7 @@ export async function getDailyLoop(
   let itemsQuery = supabase
     .from('work_items')
     .select(
-      'id, organization_id, patient_id, provider_id, assigned_to, source_type, source_id, title, reason, change_summary, priority, severity, status, due_at, freshness_at, data_quality, created_at, updated_at, patients!work_items_patient_id_fkey(profiles(full_name)), assignee:profiles!work_items_assigned_to_fkey(full_name)',
+      'id, organization_id, patient_id, provider_id, assigned_to, source_type, source_id, title, reason, change_summary, priority, severity, status, due_at, freshness_at, data_quality, created_at, updated_at, patients!work_items_patient_id_fkey(profiles!patients_id_fkey(full_name)), assignee:profiles!work_items_assigned_to_fkey(full_name)',
       { count: 'exact' },
     )
     .eq('assigned_to', providerId)
@@ -272,7 +272,7 @@ export async function getPatientWorkItems(
   const { data, error } = await supabase
     .from('work_items')
     .select(
-      'id, organization_id, patient_id, provider_id, assigned_to, source_type, source_id, title, reason, change_summary, priority, severity, status, due_at, freshness_at, data_quality, created_at, updated_at, patients!work_items_patient_id_fkey(profiles(full_name)), assignee:profiles!work_items_assigned_to_fkey(full_name)'
+      'id, organization_id, patient_id, provider_id, assigned_to, source_type, source_id, title, reason, change_summary, priority, severity, status, due_at, freshness_at, data_quality, created_at, updated_at, patients!work_items_patient_id_fkey(profiles!patients_id_fkey(full_name)), assignee:profiles!work_items_assigned_to_fkey(full_name)'
     )
     .eq('assigned_to', providerId)
     .eq('patient_id', patientId)

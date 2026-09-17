@@ -75,7 +75,7 @@ export async function getTitrationWorklist(
   // 2. Batch fetch patient profiles
   const { data: patients } = await supabase
     .from('patients')
-    .select('id, risk_tier, profiles(full_name)')
+    .select('id, risk_tier, profiles!patients_id_fkey(full_name)')
     .in('id', patientIds);
 
   if (!patients || patients.length === 0) return [];

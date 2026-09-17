@@ -166,7 +166,7 @@ export async function getRpmDataCompletenessPatients(
   // Fetch names for patients meeting the product marker.
   const { data: patients, error: nameError } = await supabase
     .from('patients')
-    .select('id, profiles(full_name)')
+    .select('id, profiles!patients_id_fkey(full_name)')
     .in('id', completeIds);
 
   if (nameError) throw nameError;

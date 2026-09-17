@@ -23,7 +23,7 @@ export async function getRecentMessageDeliveries(
   const { data, error } = await supabase
     .from('provider_messages')
     .select(
-      'id, patient_id, subject, created_at, read_at, patients!provider_messages_patient_id_fkey(profiles(full_name)), delivery:notification_deliveries!notification_deliveries_message_id_fkey(state, available_at, read_at)',
+      'id, patient_id, subject, created_at, read_at, patients!provider_messages_patient_id_fkey(profiles!patients_id_fkey(full_name)), delivery:notification_deliveries!notification_deliveries_message_id_fkey(state, available_at, read_at)',
     )
     .eq('provider_id', providerId)
     .order('created_at', { ascending: false })

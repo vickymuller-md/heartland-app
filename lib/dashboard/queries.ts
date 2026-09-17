@@ -53,7 +53,7 @@ export async function getLinkedPatients(
   // 2. Batch fetch patient profiles
   const { data: patients, error: patientError } = await supabase
     .from('patients')
-    .select('id, risk_tier, track_assignment, setup_completed_steps, profiles(full_name)')
+    .select('id, risk_tier, track_assignment, setup_completed_steps, profiles!patients_id_fkey(full_name)')
     .in('id', patientIds);
 
   if (patientError) throw patientError;
@@ -151,7 +151,7 @@ export async function getPatientDetail(
   // 2. Fetch patient profile
   const { data: patient, error: patientError } = await supabase
     .from('patients')
-    .select('id, risk_tier, track_assignment, profiles(full_name)')
+    .select('id, risk_tier, track_assignment, profiles!patients_id_fkey(full_name)')
     .eq('id', patientId)
     .single();
 
@@ -256,7 +256,7 @@ export async function getAlerts(
   // Build query with optional status filter
   let query = supabase
     .from('alerts')
-    .select('id, patient_id, vitals_id, flags, severity, status, acknowledged_by, acknowledged_at, resolved_by, resolved_at, created_at, occurrence_count, first_seen_at, last_seen_at, patients!inner(profiles(full_name))', { count: 'exact' })
+    .select('id, patient_id, vitals_id, flags, severity, status, acknowledged_by, acknowledged_at, resolved_by, resolved_at, created_at, occurrence_count, first_seen_at, last_seen_at, patients!inner(profiles!patients_id_fkey(full_name))', { count: 'exact' })
     .in('patient_id', patientIds)
     .order('last_seen_at', { ascending: false })
     .order('id', { ascending: true })
