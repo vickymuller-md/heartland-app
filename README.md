@@ -40,7 +40,7 @@ This app translates the eight HEARTLAND Protocol modules into interactive implem
 Cross-cutting:
 
 - Pocket Card Library — digital versions of all ten protocol figures
-- Pharmacoeconomic Navigator — $15/month Generic Bridge calculator
+- Pharmacoeconomic Navigator — Generic Bridge calculator (low-cost generics; prices verified against dated retail lists)
 - NIW Traction Report — monthly aggregate usage statistics (geographic spread, module engagement, growth)
 - Offline-capable shell (PWA with service worker): the app shell, downtime page and the ten pocket cards are precached; AI features require connectivity
 - Mobile-first, print-friendly

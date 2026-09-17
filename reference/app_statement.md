@@ -75,9 +75,9 @@ The protocol integrates evidence from landmark clinical trials:
 | DELIVER (NEJM 2022) | Confirms SGLT2i benefit across broad HFpEF population | Module 2: GDMT Optimization |
 | FINEARTS-HF (NEJM 2024) | Finerenone 16% reduction in CV death/HF events | Module 2: Emerging evidence integration |
 | STEP-HFpEF (NEJM 2023) | Semaglutide improves symptoms in obese HFpEF | Module 6: Comorbidity Management |
-| Hozho Trial (JAMA IM 2024) | 53% GDMT increase via telephone in rural population | Module 3: Telephone Titration |
-| STRONG-HF (Lancet 2022) | Rapid GDMT up-titration safe and effective | Module 8: Tier 3 methodology |
-| TIM-HF2 (Lancet 2018) | 30% mortality reduction with remote monitoring | Module 5: Remote Monitoring |
+| Hozho Trial (JAMA IM 2024) | Phone-based titration with a home BP cuff raised GDMT class addition at 30 days from 13.1% to 66.2% (rural Navajo Nation, n = 103) | Module 3: Telephone Titration |
+| STRONG-HF (Lancet 2022) | Rapid GDMT up-titration effective, with more non-serious adverse events | Module 8: Tier 3 methodology |
+| TIM-HF2 (Lancet 2018) | 30% lower all-cause death (HR 0.70, 0.50–0.96), a secondary endpoint in a German trial; benefit greatest at longer travel distances | Module 5: Remote Monitoring |
 
 ### Federal Alignment
 

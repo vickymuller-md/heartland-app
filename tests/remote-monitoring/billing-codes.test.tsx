@@ -150,11 +150,12 @@ describe('RMON-05: TIM-HF2 Evidence', () => {
     expect(TIM_HF2_EVIDENCE.outcomes).toHaveLength(3);
   });
 
-  it('outcome 1: all-cause mortality HR 0.70 with 30% reduction', () => {
+  it('outcome 1: all-cause mortality HR 0.70, labelled as the secondary endpoint', () => {
     const outcome = TIM_HF2_EVIDENCE.outcomes[0];
     expect(outcome.outcome).toContain('All-cause mortality');
+    expect(outcome.outcome).toContain('secondary endpoint');
     expect(outcome.result).toContain('HR 0.70');
-    expect(outcome.result).toContain('30%');
+    expect(outcome.result).toContain('30% lower all-cause death');
   });
 
   it('outcome 2: days lost to hospitalization 4.88% vs 6.64%', () => {
@@ -163,8 +164,9 @@ describe('RMON-05: TIM-HF2 Evidence', () => {
     expect(outcome.result).toContain('6.64%');
   });
 
-  it('outcome 3: patients farther from cardiologists benefit most', () => {
+  it('outcome 3: benefit greatest at longer travel distances (prespecified 2025 analysis)', () => {
     const outcome = TIM_HF2_EVIDENCE.outcomes[2];
-    expect(outcome.result).toContain('farther from cardiologists');
+    expect(outcome.result).toContain('longer travel distances');
+    expect(outcome.result).toContain('2025');
   });
 });

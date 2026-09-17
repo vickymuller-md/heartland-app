@@ -20,7 +20,7 @@ An 8-module clinical implementation toolkit designed for primary care providers 
 | Module | Focus |
 |-|-|
 | 1. Risk Stratification | CKM staging + HEARTLAND Risk Score (incorporates distance-to-care and social support — variables absent from MAGGIC, GWTG-HF, and SHFM) |
-| 2. GDMT Optimization | Four-pillar therapy (ARNI, beta-blocker, MRA, SGLT2i) with Generic Bridge pathway (~$15/month) ensuring no patient untreated due to cost |
+| 2. GDMT Optimization | Four-pillar therapy (ARNI, beta-blocker, MRA, SGLT2i) with Generic Bridge pathway (low-cost generics, roughly $28–36/month for the set as of the March 2025 Walmart list) so cost alone does not leave a patient untreated |
 | 3. Telephone-Based Titration | Dual-track system: Digital (app-based) and Analog (voice telephone), validated by the Hozho Trial in rural Navajo Nation |
 | 4. Discharge Transitions | Teach-back methodology, bedside medication delivery, structured 48-72h post-discharge contact |
 | 5. Remote Monitoring | Basic kit ($50-150), "Human Filter" principle preventing inappropriate ED referrals, RPM/RTM billing codes for financial sustainability |

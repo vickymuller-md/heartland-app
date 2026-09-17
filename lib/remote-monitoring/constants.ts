@@ -124,9 +124,9 @@ export const TIM_HF2_EVIDENCE: TimHf2Evidence = {
   year: 2018,
   outcomes: [
     {
-      // Source: "All-cause mortality | HR 0.70 (95% CI 0.50-0.96) -- 30% reduction"
-      outcome: 'All-cause mortality',
-      result: 'HR 0.70 (95% CI 0.50-0.96) \u2014 30% reduction',
+      // Koehler 2018: all-cause death was a secondary endpoint; the primary endpoint was days lost.
+      outcome: 'All-cause mortality (secondary endpoint)',
+      result: 'HR 0.70 (95% CI 0.50-0.96) \u2014 30% lower all-cause death',
     },
     {
       // Source: "Days lost to hospitalization | 4.88% vs 6.64%"
@@ -134,9 +134,9 @@ export const TIM_HF2_EVIDENCE: TimHf2Evidence = {
       result: '4.88% vs 6.64%',
     },
     {
-      // Source: "Key finding | Patients living farther from cardiologists benefit most"
+      // Prespecified 2025 analysis (Lancet Reg Health Eur): benefit rose with travel distance to the cardiologist.
       outcome: 'Key finding',
-      result: 'Patients living farther from cardiologists benefit most',
+      result: 'Benefit greatest at longer travel distances to the cardiologist (prespecified 2025 analysis)',
     },
   ],
 };
