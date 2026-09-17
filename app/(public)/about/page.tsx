@@ -34,11 +34,14 @@ export default function AboutPage() {
         <p>
           Heart failure affects over 6.7 million Americans and causes more than
           1 million hospitalizations annually. While urban centers benefit from
-          specialist access, rural populations face a 53% higher mortality rate,
-          exacerbated by limited cardiology access — 86% of rural counties lack
-          any cardiologist. This disparity is widening: young adults in rural
-          areas experienced a 21% increase in cardiovascular mortality from
-          2010-2022, compared to only 3% in urban areas.
+          specialist access, rural populations carry a heavier burden: in 2018,
+          heart-failure-related cardiovascular mortality was about 28% higher in
+          rural than in urban US counties (73.2 vs 57.2 per 100,000; Pierce et
+          al., PLOS ONE 2021). This is compounded by limited cardiology access
+          — 86% of rural counties lack any cardiologist. This disparity is
+          widening: young adults in rural areas experienced a 21% increase in
+          cardiovascular mortality from 2010-2022, compared to only 3% in urban
+          areas.
         </p>
         <p>
           Despite strong clinical evidence for guideline-directed medical therapy

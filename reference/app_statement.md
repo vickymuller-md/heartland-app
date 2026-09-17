@@ -18,7 +18,7 @@ A clinical implementation companion for primary care-led heart failure managemen
 ### The Problem (3 stats)
 
 - **86%** of rural U.S. counties have no practicing cardiologist — 22 million Americans live in these "cardiology deserts"
-- **53%** higher cardiovascular mortality in rural vs. urban populations — and the gap is widening
+- **~28%** higher heart-failure-related cardiovascular mortality in rural vs. urban US counties in 2018 (73.2 vs 57.2 per 100,000; Pierce et al., PLOS ONE 2021) — and the gap is widening
 - **<20%** of eligible heart failure patients receive all four recommended medication classes
 
 ### The Solution (1 paragraph)
@@ -31,7 +31,7 @@ The HEARTLAND Protocol is an eight-module clinical implementation toolkit that t
 
 ### What is the HEARTLAND Protocol?
 
-Heart failure affects over 6.7 million Americans and causes more than 1 million hospitalizations annually. While urban centers benefit from specialist access, rural populations face a 53% higher mortality rate, exacerbated by limited cardiology access — 86% of rural counties lack any cardiologist. This disparity is widening: young adults in rural areas experienced a 21% increase in cardiovascular mortality from 2010-2022, compared to only 3% in urban areas.
+Heart failure affects over 6.7 million Americans and causes more than 1 million hospitalizations annually. While urban centers benefit from specialist access, rural populations carry a heavier burden: in 2018, heart-failure-related cardiovascular mortality was about 28% higher in rural than in urban US counties (73.2 vs 57.2 per 100,000; Pierce et al., PLOS ONE 2021). This is compounded by limited cardiology access — 86% of rural counties lack any cardiologist. This disparity is widening: young adults in rural areas experienced a 21% increase in cardiovascular mortality from 2010-2022, compared to only 3% in urban areas.
 
 Despite strong clinical evidence for guideline-directed medical therapy (GDMT), fewer than 20% of eligible patients receive all four recommended medication classes simultaneously, and fewer than 1% achieve target doses across all agents. This is not a failure of evidence — it is a failure of implementation and access.
 
