@@ -179,4 +179,14 @@ describe('PatientCard', () => {
     render(<PatientCard patient={criticalPatient} />);
     expect(screen.getByText('Last vitals: No vitals recorded')).toBeInTheDocument();
   });
+
+  it('never offers a "Very High" tier, which the score engine cannot produce', () => {
+    render(<PatientList patients={[stablePatient, alertPatient, criticalPatient]} />);
+    expect(screen.queryByText(/Very High/i)).not.toBeInTheDocument();
+  });
+
+  it('renders a legacy stored tier as High, labelled as a legacy value', () => {
+    render(<PatientCard patient={{ ...stablePatient, risk_tier: 'very_high' }} />);
+    expect(screen.getByText('High (legacy value)')).toBeInTheDocument();
+  });
 });

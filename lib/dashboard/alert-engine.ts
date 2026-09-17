@@ -19,6 +19,7 @@ import {
   STATUS_PRIORITY,
   RISK_TIER_PRIORITY,
   PROACTIVE_FLAG_SEVERITY,
+  normalizeRiskTier,
 } from './constants';
 import type {
   AlertFlag,
@@ -183,8 +184,8 @@ export function sortPatients(
       }
 
       case 'risk_tier': {
-        const aRisk = a.risk_tier !== null ? (RISK_TIER_PRIORITY[a.risk_tier] ?? 99) : 99;
-        const bRisk = b.risk_tier !== null ? (RISK_TIER_PRIORITY[b.risk_tier] ?? 99) : 99;
+        const aRisk = a.risk_tier !== null ? RISK_TIER_PRIORITY[normalizeRiskTier(a.risk_tier).tier] : 99;
+        const bRisk = b.risk_tier !== null ? RISK_TIER_PRIORITY[normalizeRiskTier(b.risk_tier).tier] : 99;
         return aRisk - bRisk;
       }
 

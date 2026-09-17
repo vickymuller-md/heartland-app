@@ -3,6 +3,7 @@ import { ArrowLeft, AlertTriangle, FileText } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getPatientDetail } from '@/lib/dashboard/queries';
+import { normalizeRiskTier } from '@/lib/dashboard/constants';
 import { getPatientMessages } from '@/lib/messages/queries';
 import { getSetupStatus } from '@/lib/onboarding/queries';
 import { ALL_STEPS_COMPLETE } from '@/lib/onboarding/constants';
@@ -33,7 +34,6 @@ const TIER_DISPLAY: Record<string, { label: string; className: string }> = {
   low: { label: 'Low Risk', className: 'bg-green-100 text-green-700' },
   moderate: { label: 'Moderate Risk', className: 'bg-amber-100 text-amber-700' },
   high: { label: 'High Risk', className: 'bg-red-100 text-red-700' },
-  very_high: { label: 'Very High Risk', className: 'bg-red-200 text-red-800' },
 };
 
 /** Track display */
@@ -63,7 +63,8 @@ export default async function PatientDetailPage({
   const { patient, vitals, symptoms, adherenceSummary, educationProgress, notes, openAlerts } = detail;
   const messages = await getPatientMessages(supabase, patientId);
   const operationalView = await getPatientOperationalView(supabase, user.id, patientId);
-  const tierStyle = patient.risk_tier ? TIER_DISPLAY[patient.risk_tier] : null;
+  const tier = patient.risk_tier ? normalizeRiskTier(patient.risk_tier) : null;
+  const tierStyle = tier ? TIER_DISPLAY[tier.tier] : null;
   const trackLabel = patient.track_assignment ? TRACK_DISPLAY[patient.track_assignment] : null;
 
   // Fetch contact info for Info tab
@@ -128,7 +129,7 @@ export default async function PatientDetailPage({
                 className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${tierStyle.className}`}
                 data-testid="risk-tier-badge"
               >
-                {tierStyle.label}
+                {tier?.legacy ? `${tierStyle.label} (legacy value)` : tierStyle.label}
               </span>
             )}
             {trackLabel && (

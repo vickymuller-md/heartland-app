@@ -76,11 +76,30 @@ export const STATUS_PRIORITY: Record<PatientStatus, number> = {
 
 /** Lower number = higher priority (sorted first) */
 export const RISK_TIER_PRIORITY: Record<string, number> = {
-  very_high: 0,
   high: 0,
   moderate: 1,
   low: 2,
 };
+
+/** The only tiers lib/risk-score can produce. */
+export type RenderableRiskTier = 'low' | 'moderate' | 'high';
+
+/**
+ * Maps a stored risk tier onto a tier the UI knows how to render.
+ *
+ * The database CHECK constraint still accepts tiers the score engine no longer
+ * produces (`very_high`), so any unexpected value is shown as `high` and
+ * flagged as legacy rather than rendered unstyled or dropped.
+ */
+export function normalizeRiskTier(stored: string): {
+  tier: RenderableRiskTier;
+  legacy: boolean;
+} {
+  if (stored === 'low' || stored === 'moderate' || stored === 'high') {
+    return { tier: stored, legacy: false };
+  }
+  return { tier: 'high', legacy: true };
+}
 
 // ---------- Sort Options for UI ----------
 

@@ -15,7 +15,7 @@ import { formatDistanceToNow, parseISO } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import type { PatientWithStatus } from '@/lib/dashboard/types';
-import { STATUS_COLORS } from '@/lib/dashboard/constants';
+import { STATUS_COLORS, normalizeRiskTier } from '@/lib/dashboard/constants';
 
 interface PatientCardProps {
   patient: PatientWithStatus;
@@ -33,7 +33,6 @@ const TIER_STYLES: Record<string, { label: string; className: string }> = {
   low: { label: 'Low', className: 'bg-green-100 text-green-700' },
   moderate: { label: 'Moderate', className: 'bg-amber-100 text-amber-700' },
   high: { label: 'High', className: 'bg-red-100 text-red-700' },
-  very_high: { label: 'Very High', className: 'bg-red-200 text-red-800' },
 };
 
 function formatLastVitals(dateStr: string | null): string {
@@ -46,9 +45,8 @@ function formatLastVitals(dateStr: string | null): string {
 }
 
 export function PatientCard({ patient }: PatientCardProps) {
-  const tierStyle = patient.risk_tier
-    ? TIER_STYLES[patient.risk_tier]
-    : null;
+  const tier = patient.risk_tier ? normalizeRiskTier(patient.risk_tier) : null;
+  const tierStyle = tier ? TIER_STYLES[tier.tier] : null;
 
   return (
     <Link href={`/patients/${patient.id}`} className="block group">
@@ -80,7 +78,7 @@ export function PatientCard({ patient }: PatientCardProps) {
           <div className="flex items-center gap-2 flex-wrap">
             {tierStyle && (
               <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${tierStyle.className}`}>
-                {tierStyle.label}
+                {tier?.legacy ? `${tierStyle.label} (legacy value)` : tierStyle.label}
               </span>
             )}
             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${STATUS_COLORS[patient.status] ?? ''}`}>

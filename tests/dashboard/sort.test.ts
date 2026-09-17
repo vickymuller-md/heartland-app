@@ -73,6 +73,17 @@ describe('sortPatients', () => {
     expect(sorted.map((p) => p.id)).toEqual(['3', '4', '1', '2']);
   });
 
+  it('risk_tier sort: a legacy stored tier sorts as high, not last', () => {
+    const patients = [
+      makePatient({ id: '1', risk_tier: 'low' }),
+      makePatient({ id: '2', risk_tier: 'very_high' }),
+      makePatient({ id: '3', risk_tier: 'moderate' }),
+    ];
+
+    const sorted = sortPatients(patients, 'risk_tier');
+    expect(sorted.map((p) => p.id)).toEqual(['2', '3', '1']);
+  });
+
   it('stable sort preserves order for equal values', () => {
     const patients = [
       makePatient({ id: '1', status: 'stable' }),
