@@ -49,7 +49,7 @@ Source: `protocol_v34_candidate.Rmd` + `tables_v34.R` (September 2026). V3.4 is 
 | Rurality | No | No | No | **Yes** |
 | Primary care feasibility | Moderate | Low (hospital-designed) | Low (complex) | **High** |
 | Validation status | Validated (39,372 patients, 30 studies) | Validated (hospital registry) | Validated (multiple cohorts) | **Pragmatic heuristic (not yet validated)** |
-| Intended use | Prognostic | Prognostic | Prognostic | **Clinical decision support** |
+| Intended use | Prognostic | Prognostic | Prognostic | **Implementation support (monitoring intensity assignment)** |
 
 **IMPORTANT DISCLAIMER:** This score is a **non-validated implementation heuristic** designed to supplement — not replace — validated prognostic instruments such as the MAGGIC score. It has not been statistically validated through derivation/validation cohorts with ROC analysis or calibration testing. The instrument yields **points, not a predicted probability**: no probability of death, readmission or any other event is implied, published or derivable from a HEARTLAND score or tier, and the comparison in Table 6 describes structural differences between instruments, not relative predictive performance. Its intended use is to assign **monitoring intensity** at discharge. Formal validation using registry data linked with geographic and social determinant variables represents a planned next step.
 
