@@ -232,7 +232,7 @@ function WorkItemCard({
               {item.severity}
             </Badge>
             <Badge variant="secondary">{STATUS_LABELS[item.status]}</Badge>
-            {!item.accepted_at && (
+            {!item.accepted_at && item.accountability_source && (
               <Badge variant="outline" className="border-violet-200 bg-violet-50 text-violet-800">
                 Awaiting your acceptance
               </Badge>
@@ -406,7 +406,7 @@ function WorkItemCard({
 
       {mode === 'none' && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          {!item.accepted_at && (
+          {!item.accepted_at && item.accountability_source && (
             <Button className="min-h-11" size="sm" variant="outline" disabled={pending} onClick={accept}>
               <UserRoundCheck className="mr-1 size-3.5" /> Accept
             </Button>

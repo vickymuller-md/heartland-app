@@ -179,6 +179,15 @@ describe('work-item accountability surface', () => {
     );
   });
 
+  it('never asks for acceptance on a row created before the accountability model', () => {
+    renderQueue(workItem({ accountability_source: null }));
+    const card = screen.getByTestId('work-item-card');
+
+    expect(within(card).queryByText('Awaiting your acceptance')).not.toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: /accept/i })).not.toBeInTheDocument();
+    expect(within(card).getByText('No designated owner (legacy)')).toBeInTheDocument();
+  });
+
   it('labels a pending transfer and its addressee', () => {
     renderQueue(workItem({
       transfer_pending_to: '00000000-0000-4000-a000-000000000016',

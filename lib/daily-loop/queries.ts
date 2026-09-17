@@ -199,7 +199,10 @@ export async function getDailyLoop(
     .select('id', { count: 'exact', head: true })
     .eq('assigned_to', providerId)
     .neq('status', 'closed')
-    .is('accepted_at', null);
+    .is('accepted_at', null)
+    // Acceptance exists only for items created under the accountability model;
+    // rows from before 00041 carry no accountability_source and never await it.
+    .not('accountability_source', 'is', null);
   let awaitingOutcomeQuery = supabase
     .from('work_items')
     .select('id', { count: 'exact', head: true })
