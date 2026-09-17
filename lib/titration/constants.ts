@@ -10,7 +10,61 @@ import type {
   DualTrackDefinition,
   HozhoTrialParameter,
   TitrationStepDefinition,
+  FinerenonePotassiumBand,
 } from './types';
+
+// ==========================================================================
+// Finerenone potassium table for the heart failure indication (LVEF >=40%).
+// Distinct from the steroidal MRA rule and from the finerenone CKD/type 2
+// diabetes indication, which uses different bounds and a restart at K+ <=5.0.
+// Source: KERENDIA label Table 3 and §2.3, DailyMed SPL
+// fc726765-5d5a-4d6e-b037-b847bda9fb7c (rev. 8/2025).
+// ==========================================================================
+export const FINERENONE_POTASSIUM_BANDS: FinerenonePotassiumBand[] = [
+  {
+    range: '<5.0',
+    minInclusive: null,
+    maxExclusive: 5.0,
+    action: 'increase',
+    instruction: 'Increase toward the target dose; keep the current dose if the eGFR has fallen by more than 30% since the previous measurement',
+  },
+  {
+    range: '5.0 to <5.5',
+    minInclusive: 5.0,
+    maxExclusive: 5.5,
+    action: 'maintain',
+    instruction: 'Maintain the current dose',
+  },
+  {
+    range: '5.5 to <6.0',
+    minInclusive: 5.5,
+    maxExclusive: 6.0,
+    action: 'reduce-one-step',
+    instruction: 'Decrease one step: 40 mg to 20 mg once daily, 20 mg to 10 mg once daily; withhold if already at 10 mg once daily',
+  },
+  {
+    range: '>=6.0',
+    minInclusive: 6.0,
+    maxExclusive: null,
+    action: 'withhold',
+    instruction: 'Withhold at any dose',
+  },
+];
+
+/** Source: KERENDIA label Table 3, including the note on repeated measurements. */
+export const FINERENONE_RESTART_RULE =
+  'Restart at 10 mg once daily when serum potassium is <5.5 mEq/L; if potassium is repeatedly >=5.5 mEq/L, restart when it is <5.0 mEq/L (KERENDIA label Table 3).';
+
+/** Returns the finerenone potassium band a value falls into. */
+export function finerenonePotassiumBand(potassium: number): FinerenonePotassiumBand {
+  return (
+    FINERENONE_POTASSIUM_BANDS.find(
+      (band) =>
+        (band.minInclusive === null || potassium >= band.minInclusive) &&
+        (band.maxExclusive === null || potassium < band.maxExclusive),
+    ) ?? FINERENONE_POTASSIUM_BANDS[0]
+  );
+}
 
 // ==========================================================================
 // Renal gate thresholds — one declaration shared by the safety-gate panel
@@ -115,18 +169,20 @@ export const SAFETY_GATES: SafetyGateDefinition[] = [
         value: vitals.potassium,
         threshold: 'K+ > 5.5 mEq/L',
         status: 'blocked',
-        // Source: reference/clinical_content.md Section 3.3 row 6
-        action: 'HOLD MRA/finerenone and ARNI; urgent recheck; dietary counseling',
-        details: 'Hyperkalemia. Hold potassium-elevating medications.',
+        // Source: reference/clinical_content.md Section 3.3 row 6 (steroidal MRA
+        // and ARNI) + KERENDIA label Table 3 (finerenone)
+        action: 'HOLD steroidal MRA and ARNI; urgent recheck; dietary counseling',
+        details: `Hyperkalemia. Hold potassium-elevating medications. Finerenone follows its own table: ${finerenonePotassiumBand(vitals.potassium).instruction}.`,
       };
       if (vitals.potassium >= 5.0) return {
         parameter: 'Potassium',
         value: vitals.potassium,
         threshold: 'K+ 5.0-5.5 mEq/L',
         status: 'warning',
-        // Source: reference/clinical_content.md Section 3.3 row 5
-        action: 'Reduce MRA/finerenone dose; recheck in 1 week',
-        details: 'Borderline potassium. Reduce dose and monitor.',
+        // Source: reference/clinical_content.md Section 3.3 row 5 (steroidal MRA)
+        // + KERENDIA label Table 3 (finerenone: maintain, do not reduce)
+        action: 'Reduce steroidal MRA dose; recheck in 1 week',
+        details: `Borderline potassium. Reduce the steroidal MRA dose and monitor. Finerenone: ${finerenonePotassiumBand(vitals.potassium).instruction.toLowerCase()} (KERENDIA label Table 3).`,
       };
       return {
         parameter: 'Potassium',
@@ -246,10 +302,12 @@ export const TITRATION_DECISIONS: TitrationDecisionEntry[] = [
   { parameter: 'SBP <90 mmHg OR symptomatic hypotension', action: 'REDUCE dose or hold; consider cardiology input' },
   // Source: reference/clinical_content.md Section 3.3 row 4
   { parameter: 'HR <50 (for beta-blockers)', action: 'Reduce dose; if symptomatic, hold' },
-  // Source: reference/clinical_content.md Section 3.3 row 5
-  { parameter: 'K+ 5.0-5.5', action: 'Reduce MRA/finerenone dose; recheck in 1 week' },
-  // Source: reference/clinical_content.md Section 3.3 row 6
-  { parameter: 'K+ >5.5', action: 'HOLD MRA/finerenone and ARNI; urgent recheck; dietary counseling' },
+  // Source: reference/clinical_content.md Section 3.3 row 5 (steroidal MRA);
+  // KERENDIA label Table 3 for the finerenone clause
+  { parameter: 'K+ 5.0-5.5', action: 'Reduce steroidal MRA dose; recheck in 1 week. Finerenone: maintain the current dose' },
+  // Source: reference/clinical_content.md Section 3.3 row 6 (steroidal MRA and
+  // ARNI); KERENDIA label Table 3 for the finerenone clause
+  { parameter: 'K+ >5.5', action: 'HOLD steroidal MRA and ARNI; urgent recheck; dietary counseling. Finerenone: decrease one step, withholding if already at 10 mg, and withhold at any dose if K+ >=6.0' },
   // Source: reference/clinical_content.md Section 3.3 row 7
   { parameter: 'Cr increase >30%', action: 'HOLD ARNI/MRA; evaluate; cardiology consult' },
 ];
@@ -364,3 +422,9 @@ export const ACEI_KEYWORDS = [
   'quinapril', 'benazepril', 'fosinopril', 'perindopril',
   'trandolapril', 'moexipril',
 ];
+
+// ==========================================================================
+// Finerenone Keywords — route the non-steroidal MRA to its own titration path
+// instead of the steroidal 'MRA' class.
+// ==========================================================================
+export const FINERENONE_KEYWORDS = ['finerenone', 'kerendia'];

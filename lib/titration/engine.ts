@@ -2,7 +2,14 @@
 // Source: reference/clinical_content.md Module 3, Section 3.3
 // NO side effects, NO async, NO DOM — safe for server or client.
 
-import { SAFETY_GATES, ACEI_KEYWORDS, EGFR_GATES } from './constants';
+import {
+  SAFETY_GATES,
+  ACEI_KEYWORDS,
+  EGFR_GATES,
+  FINERENONE_KEYWORDS,
+  FINERENONE_RESTART_RULE,
+  finerenonePotassiumBand,
+} from './constants';
 import type { VitalSigns, SafetyGateResult, TitrationAction, DrugClass, DrugClassRecommendation } from './types';
 
 /**
@@ -149,6 +156,22 @@ export function getPerDrugRecommendations(
       return { drugClass, action: 'reduce' as const, reason: 'HR <50', safetyGateFailed: 'HR' };
     }
 
+    // Finerenone follows its own potassium table, not the steroidal MRA rule:
+    // it maintains the dose in the 5.0-5.4 band the protocol used to reduce,
+    // steps down (rather than stopping) in 5.5-5.9, and withholds at >=6.0.
+    if (drugClass === 'Finerenone') {
+      const band = finerenonePotassiumBand(vitals.potassium);
+      if (band.action === 'maintain') {
+        return { drugClass, action: 'hold' as const, reason: `K+ ${band.range}: ${band.instruction} (KERENDIA label Table 3)`, safetyGateFailed: 'K+' };
+      }
+      if (band.action === 'reduce-one-step') {
+        return { drugClass, action: 'reduce' as const, reason: `K+ ${band.range}: ${band.instruction}. ${FINERENONE_RESTART_RULE}`, safetyGateFailed: 'K+' };
+      }
+      if (band.action === 'withhold') {
+        return { drugClass, action: 'hold' as const, reason: `K+ ${band.range}: ${band.instruction}. ${FINERENONE_RESTART_RULE}`, safetyGateFailed: 'K+' };
+      }
+    }
+
     // K+ >5.5 holds the MRA; the ARNI initiation gate is K+ <5.5, so K+ exactly
     // 5.5 already fails it and holds the ARNI too.
     if (drugClass === 'MRA' && vitals.potassium > 5.5) {
@@ -174,7 +197,7 @@ export function getPerDrugRecommendations(
 
     if (
       vitals.egfr === undefined &&
-      (drugClass === 'MRA' || drugClass === 'SGLT2i' || drugClass === 'ARNI')
+      (drugClass === 'MRA' || drugClass === 'Finerenone' || drugClass === 'SGLT2i' || drugClass === 'ARNI')
     ) {
       return {
         drugClass,
@@ -189,6 +212,16 @@ export function getPerDrugRecommendations(
     if (vitals.egfr !== undefined && vitals.egfr !== null) {
       if (drugClass === 'MRA' && vitals.egfr < EGFR_GATES.spironolactoneMin) {
         return { drugClass, action: 'hold' as const, reason: `eGFR ${vitals.egfr} <${EGFR_GATES.spironolactoneMin}`, safetyGateFailed: 'eGFR' };
+      }
+      // Finerenone keeps its own renal threshold: the steroidal MRA floor of 30
+      // would deny it to patients the label allows at eGFR 25-29.
+      if (drugClass === 'Finerenone' && vitals.egfr < EGFR_GATES.finerenoneInitiationMin) {
+        return {
+          drugClass,
+          action: 'hold' as const,
+          reason: `eGFR ${vitals.egfr} <${EGFR_GATES.finerenoneInitiationMin}: initiation is not recommended (KERENDIA label Table 1)`,
+          safetyGateFailed: 'eGFR',
+        };
       }
       // Spironolactone keeps full daily dosing only above eGFR 50.
       if (drugClass === 'MRA' && vitals.egfr < EGFR_GATES.spironolactoneFullDoseMin) {
@@ -242,6 +275,16 @@ export function getPerDrugRecommendations(
 export function detectAceiPresence(medicationNames: string[]): boolean {
   return medicationNames.some((name) =>
     ACEI_KEYWORDS.some((kw) => name.toLowerCase().includes(kw)),
+  );
+}
+
+/**
+ * Returns true if any medication name is finerenone, which follows the KERENDIA
+ * label rather than the steroidal MRA rules.
+ */
+export function detectFinerenonePresence(medicationNames: string[]): boolean {
+  return medicationNames.some((name) =>
+    FINERENONE_KEYWORDS.some((kw) => name.toLowerCase().includes(kw)),
   );
 }
 

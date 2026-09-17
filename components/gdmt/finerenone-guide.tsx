@@ -14,6 +14,8 @@ import {
   FINERENONE_INTERACTIONS,
   FINERENONE_MONITORING,
 } from '@/lib/gdmt/constants';
+// Single source for the label potassium table, shared with the titration engine.
+import { FINERENONE_POTASSIUM_BANDS, FINERENONE_RESTART_RULE } from '@/lib/titration/constants';
 
 export function FinerenoneGuide() {
   return (
@@ -70,6 +72,32 @@ export function FinerenoneGuide() {
             ))}
           </ul>
         </div>
+      </section>
+
+      {/* Potassium adjustment table (KERENDIA label Table 3, HF indication) */}
+      <section className="space-y-2">
+        <h3 className="text-sm font-semibold">
+          Serum potassium adjustment (heart failure indication)
+        </h3>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Serum potassium (mEq/L)</TableHead>
+                <TableHead>Finerenone action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {FINERENONE_POTASSIUM_BANDS.map((band) => (
+                <TableRow key={band.range}>
+                  <TableCell className="font-medium whitespace-normal">{band.range}</TableCell>
+                  <TableCell className="whitespace-normal">{band.instruction}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        <p className="text-sm text-muted-foreground">{FINERENONE_RESTART_RULE}</p>
       </section>
 
       {/* Laboratory monitoring (label minimum + protocol schedule) */}

@@ -63,10 +63,11 @@ describe('evaluateSafetyGates', () => {
     expect(gate!.action).toBe('REDUCE dose or hold; consider cardiology input');
   });
 
-  it('returns blocked action text: "HOLD MRA/finerenone and ARNI; urgent recheck; dietary counseling" for K+ > 5.5', () => {
+  it('returns blocked action text for the steroidal MRA and ARNI when K+ > 5.5, with the finerenone step-down in the details', () => {
     const results = evaluateSafetyGates({ ...NORMAL_VITALS, potassium: 5.8 });
     const gate = results.find((r) => r.parameter === 'Potassium');
-    expect(gate!.action).toBe('HOLD MRA/finerenone and ARNI; urgent recheck; dietary counseling');
+    expect(gate!.action).toBe('HOLD steroidal MRA and ARNI; urgent recheck; dietary counseling');
+    expect(gate!.details).toMatch(/Decrease one step/i);
   });
 });
 

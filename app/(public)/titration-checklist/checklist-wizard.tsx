@@ -16,7 +16,7 @@ import { PrintLayout } from './print-layout';
 import { Button } from '@/components/ui/button';
 import { STEP_DEFINITIONS, DEFAULT_MEDICATIONS } from '@/lib/titration/constants';
 import { GDMT_CLASS_KEYWORDS } from '@/lib/dashboard/metrics-constants';
-import { evaluateSafetyGates, canProceedPastSafetyGates, getTitrationAction, getPerDrugRecommendations, detectAceiPresence, isArniBeingConsidered } from '@/lib/titration/engine';
+import { evaluateSafetyGates, canProceedPastSafetyGates, getTitrationAction, getPerDrugRecommendations, detectAceiPresence, detectFinerenonePresence, isArniBeingConsidered } from '@/lib/titration/engine';
 import { saveTitrationNote } from '@/lib/integration/actions';
 import type { TitrationNoteData } from '@/lib/integration/types';
 import type { TitrationFormData } from '@/lib/titration/schema';
@@ -124,6 +124,12 @@ export function ChecklistWizard({ clinicalIntegrationEnabled = false }: { clinic
     const classes = new Set<DrugClass>();
     for (const med of watchedMeds) {
       if (!med?.name) continue;
+      // The non-steroidal MRA follows the KERENDIA label, not the steroidal
+      // MRA rules, so it must not be folded into the 'MRA' class.
+      if (detectFinerenonePresence([med.name])) {
+        classes.add('Finerenone');
+        continue;
+      }
       const medLower = med.name.toLowerCase();
       for (const [cls, keywords] of Object.entries(GDMT_CLASS_KEYWORDS) as [DrugClass, string[]][]) {
         if (keywords.some(kw => medLower.includes(kw))) {

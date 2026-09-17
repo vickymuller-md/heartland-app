@@ -90,8 +90,8 @@ describe('TITR-07 Content matches protocol Module 3', () => {
     expect(TITRATION_DECISIONS[0].action).toBe('UPTITRATE to next dose level');
   });
 
-  it('TITRATION_DECISIONS[5] action contains "HOLD MRA/finerenone and ARNI"', () => {
-    expect(TITRATION_DECISIONS[5].action).toContain('HOLD MRA/finerenone and ARNI');
+  it('TITRATION_DECISIONS[5] action contains "HOLD steroidal MRA and ARNI"', () => {
+    expect(TITRATION_DECISIONS[5].action).toContain('HOLD steroidal MRA and ARNI');
   });
 
   it('TITRATION_DECISIONS[6] action contains "HOLD ARNI/MRA"', () => {

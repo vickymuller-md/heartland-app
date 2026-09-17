@@ -35,14 +35,17 @@ describe('TitrationDecisionTable', () => {
     expect(screen.getByText('Reduce dose; if symptomatic, hold')).toBeInTheDocument();
   });
 
-  it('row 5: K+ 5.0-5.5 -> Reduce MRA/finerenone dose; recheck in 1 week', () => {
+  it('row 5: K+ 5.0-5.5 -> reduce the steroidal MRA, maintain finerenone', () => {
     render(<TitrationDecisionTable />);
-    expect(screen.getByText('Reduce MRA/finerenone dose; recheck in 1 week')).toBeInTheDocument();
+    expect(
+      screen.getByText('Reduce steroidal MRA dose; recheck in 1 week. Finerenone: maintain the current dose'),
+    ).toBeInTheDocument();
   });
 
-  it('row 6: K+ > 5.5 -> HOLD MRA/finerenone and ARNI; urgent recheck', () => {
+  it('row 6: K+ > 5.5 -> hold the steroidal MRA and ARNI, step finerenone down', () => {
     render(<TitrationDecisionTable />);
-    expect(screen.getByText('HOLD MRA/finerenone and ARNI; urgent recheck; dietary counseling')).toBeInTheDocument();
+    expect(screen.getByText(/HOLD steroidal MRA and ARNI; urgent recheck; dietary counseling/)).toBeInTheDocument();
+    expect(screen.getByText(/withhold at any dose if K\+ >=6\.0/)).toBeInTheDocument();
   });
 
   it('row 7: Cr increase > 30% -> HOLD ARNI/MRA; evaluate; cardiology consult', () => {

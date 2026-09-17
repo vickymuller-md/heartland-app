@@ -102,9 +102,25 @@ export interface MedicationEntry {
 
 /**
  * Drug class union for per-drug-class titration recommendations.
- * Source: HEARTLAND Protocol v3.3 Module 2 GDMT quadruple therapy + loop diuretic
+ * 'MRA' is the steroidal class (spironolactone, eplerenone). Finerenone is a
+ * separate class because its FDA label sets different potassium bands, a
+ * different renal threshold and a restart rule of its own.
+ * Source: HEARTLAND Protocol v3.3 Module 2 GDMT quadruple therapy + loop
+ * diuretic; KERENDIA label Table 3.
  */
-export type DrugClass = 'ARNI' | 'Beta-blocker' | 'MRA' | 'SGLT2i' | 'Loop diuretic';
+export type DrugClass = 'ARNI' | 'Beta-blocker' | 'MRA' | 'Finerenone' | 'SGLT2i' | 'Loop diuretic';
+
+/** One band of the finerenone potassium adjustment table (label Table 3). */
+export interface FinerenonePotassiumBand {
+  /** Range as the label prints it. */
+  range: string;
+  /** Lower bound, inclusive; null when the band is open below. */
+  minInclusive: number | null;
+  /** Upper bound, exclusive; null when the band is open above. */
+  maxExclusive: number | null;
+  action: 'increase' | 'maintain' | 'reduce-one-step' | 'withhold';
+  instruction: string;
+}
 
 /**
  * Per-drug-class recommendation from the titration engine.

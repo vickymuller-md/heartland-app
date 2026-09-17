@@ -95,4 +95,13 @@ describe('GDMT-04: Finerenone vs Spironolactone Guide', () => {
     expect(screen.getByText(/4 weeks after initiation/i)).toBeInTheDocument();
     expect(screen.getByText(/1 week/i)).toBeInTheDocument();
   });
+
+  it('shows the four potassium bands and the restart rule (F5)', () => {
+    render(<FinerenoneGuide />);
+    expect(screen.getByText('<5.0')).toBeInTheDocument();
+    expect(screen.getByText('5.0 to <5.5')).toBeInTheDocument();
+    expect(screen.getByText('5.5 to <6.0')).toBeInTheDocument();
+    expect(screen.getByText('>=6.0')).toBeInTheDocument();
+    expect(screen.getByText(/Restart at 10 mg once daily/i)).toBeInTheDocument();
+  });
 });
