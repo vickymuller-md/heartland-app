@@ -25,6 +25,17 @@ function item(overrides: Partial<WorkItem>): WorkItem {
     data_quality: 'verified',
     created_at: NOW.toISOString(),
     updated_at: NOW.toISOString(),
+    accepted_at: null,
+    accepted_by: null,
+    transfer_pending_to: null,
+    transfer_offered_at: null,
+    transfer_offered_by: null,
+    transfer_recipient_name: null,
+    declined_at: null,
+    declined_reason: null,
+    accountability_source: 'designated',
+    underlying_alert_resolved_at: null,
+    outcome_code: null,
     ...overrides,
   };
 }
