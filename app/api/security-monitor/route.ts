@@ -10,26 +10,19 @@ function validCronAuthorization(header: string | null, secret: string): boolean 
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
-async function verifiedMfaUserIds(): Promise<Set<string>> {
-  const result = new Set<string>();
-  const perPage = 1000;
-
-  for (let page = 1; ; page += 1) {
-    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+// The admin user listing does not expose MFA factors, so each provider is asked
+// through the MFA admin API. Providers only: the count feeds the aggregate gate.
+async function providersWithVerifiedTotp(providerIds: string[]): Promise<number> {
+  let count = 0;
+  for (const userId of providerIds) {
+    const { data, error } = await supabaseAdmin.auth.admin.mfa.listFactors({ userId });
     if (error) throw error;
-
-    for (const user of data.users) {
-      if (
-        (user.factors ?? []).some(
-          (factor) => factor.factor_type === 'totp' && factor.status === 'verified',
-        )
-      ) {
-        result.add(user.id);
-      }
-    }
-
-    if (data.users.length < perPage) return result;
+    const verified = (data?.factors ?? []).some(
+      (factor) => factor.factor_type === 'totp' && factor.status === 'verified',
+    );
+    if (verified) count += 1;
   }
+  return count;
 }
 
 export async function GET(request: Request) {
@@ -48,9 +41,12 @@ export async function GET(request: Request) {
       .toISOString()
       .slice(0, 10);
 
-    const [providersResult, organizationsResult, reviewsResult, deliveriesResult, workResult, mfaIds] =
+    const providersResult = await supabaseAdmin.from('profiles').select('id').eq('role', 'provider');
+    if (providersResult.error) throw providersResult.error;
+    const providerIds = (providersResult.data ?? []).map((provider) => provider.id);
+
+    const [organizationsResult, reviewsResult, deliveriesResult, workResult, providersWithVerifiedMfa] =
       await Promise.all([
-        supabaseAdmin.from('profiles').select('id').eq('role', 'provider'),
         supabaseAdmin.from('organizations').select('id').eq('status', 'active'),
         supabaseAdmin
           .from('access_reviews')
@@ -65,11 +61,10 @@ export async function GET(request: Request) {
           .select('id', { count: 'exact', head: true })
           .neq('status', 'closed')
           .lt('due_at', now.toISOString()),
-        verifiedMfaUserIds(),
+        providersWithVerifiedTotp(providerIds),
       ]);
 
     const firstError = [
-      providersResult.error,
       organizationsResult.error,
       reviewsResult.error,
       deliveriesResult.error,
@@ -77,8 +72,6 @@ export async function GET(request: Request) {
     ].find(Boolean);
     if (firstError) throw firstError;
 
-    const providerIds = (providersResult.data ?? []).map((provider) => provider.id);
-    const providersWithVerifiedMfa = providerIds.filter((id) => mfaIds.has(id)).length;
     const reviewedOrganizations = new Set(
       (reviewsResult.data ?? []).map((review) => review.organization_id),
     );
