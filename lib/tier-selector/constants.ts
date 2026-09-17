@@ -267,7 +267,7 @@ export const CATEGORY_DEFINITIONS: CategoryDefinition[] = [
       1: {
         label: 'Generic Bridge',
         description:
-          'Generic Bridge pathway: prioritize generic medications to achieve ~$15/month total GDMT cost.',
+          'Generic Bridge pathway: prioritize generic medications. As of the Walmart $4/$9 generic list effective March 2025 the set runs about $28-$36/month; carvedilol is not on that list, and the set does not include an SGLT2 inhibitor. Prices change and require local verification.',
         upgradeAction:
           'Add patient assistance program (PAP) pursuit to supplement Generic Bridge.',
       },

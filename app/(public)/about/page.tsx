@@ -78,10 +78,17 @@ export default function AboutPage() {
         </ol>
         <p>
           Cross-cutting tools: a <strong>Generic Bridge calculator</strong> that
-          illustrates foundational therapy at approximately $15/month with
-          generic medications while optimal agents are pursued (prices require
-          independent verification), and a <strong>Pocket Card Library</strong>{" "}
-          with digital versions of all ten clinical reference figures.
+          illustrates foundational therapy with generic medications while
+          optimal agents are pursued, and a{" "}
+          <strong>Pocket Card Library</strong> with digital versions of all ten
+          clinical reference figures.
+        </p>
+        <p>
+          As of the Walmart $4/$9 generic list effective March 2025, the bridge
+          drugs run about $5–$9 each per month, roughly $28–$36/month
+          for the set. Carvedilol is not on that list, and the set does not
+          include an SGLT2 inhibitor. Prices change and require independent
+          verification.
         </p>
       </section>
 

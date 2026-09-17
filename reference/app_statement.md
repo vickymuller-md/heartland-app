@@ -49,7 +49,7 @@ This app translates the eight HEARTLAND Protocol modules into interactive implem
 
 4. **Remote Monitoring Track Assignment** — Assess patient capability and assign Digital (Track A) or Analog (Track B) monitoring pathways, with alert thresholds and RPM billing code reference for financial sustainability.
 
-5. **Generic Bridge Calculator** — Demonstrate how foundational heart failure therapy can be initiated at approximately $15/month using generic medications, ensuring no patient remains untreated due to cost while optimal agents are pursued.
+5. **Generic Bridge Calculator** — Demonstrate how foundational heart failure therapy can be initiated with generic medications, ensuring no patient remains untreated due to cost while optimal agents are pursued. As of the Walmart $4/$9 generic list effective March 2025, these drugs run about $5–$9 each per month, roughly $28–$36/month for the set. Carvedilol is not on that list, and the set does not include an SGLT2 inhibitor. Prices change and require independent verification.
 
 6. **Implementation Tier Selector** — Questionnaire-based assessment of facility resources, staffing, and technology to recommend Tier 1 (Minimal), Tier 2 (Standard), or Tier 3 (Advanced) implementation, with customized checklists for each tier.
 

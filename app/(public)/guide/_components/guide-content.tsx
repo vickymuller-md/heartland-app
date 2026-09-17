@@ -456,9 +456,11 @@ export function GuideContent() {
 
         <h3 className="font-semibold text-gray-900 mt-4 mb-2">Generic Bridge Program</h3>
         <p className="text-sm">
-          The Generic Bridge Calculator shows how to initiate foundational therapy for approximately <strong>$15/month</strong> using
+          The Generic Bridge Calculator shows how to initiate foundational therapy using
           generic ACEi + generic beta-blocker + generic MRA + metformin. This is critical for uninsured patients or facilities
-          without 340B access.
+          without 340B access. As of the Walmart $4/$9 generic list effective March 2025, these drugs run about <strong>$5&ndash;$9
+          each per month</strong>, roughly <strong>$28&ndash;$36/month</strong> for the set. Carvedilol is not on that list, and the
+          set does not include an SGLT2 inhibitor. Prices change and require independent verification.
         </p>
 
         <Tip>
