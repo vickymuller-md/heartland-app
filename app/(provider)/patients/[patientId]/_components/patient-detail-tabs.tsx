@@ -10,6 +10,7 @@ import type {
   AlertRow,
 } from '@/lib/dashboard/types';
 import type { ProviderMessage } from '@/lib/messages/types';
+import type { EducationTeachback } from '@/lib/education/types';
 import { MESSAGE_TEMPLATE_LABELS } from '@/lib/messages/constants';
 import { VitalsChart } from './vitals-chart';
 import { SymptomHistory } from './symptom-history';
@@ -27,6 +28,9 @@ interface PatientDetailTabsProps {
   symptoms: SymptomEntry[];
   adherenceSummary: unknown;
   educationProgress: unknown;
+  teachbacks?: EducationTeachback[];
+  canRecordTeachback?: boolean;
+  teachbackError?: string | null;
   notes: ProviderNote[];
   messages: ProviderMessage[];
   openAlerts: AlertRow[];
@@ -52,6 +56,9 @@ export function PatientDetailTabs({
   symptoms,
   adherenceSummary,
   educationProgress,
+  teachbacks,
+  canRecordTeachback,
+  teachbackError,
   notes,
   messages,
   comorbidities,
@@ -115,7 +122,13 @@ export function PatientDetailTabs({
       </TabsContent>
 
       <TabsContent value="education" className="mt-4">
-        <EducationSummary educationProgress={educationProgress} />
+        <EducationSummary
+          patientId={patientId}
+          educationProgress={educationProgress}
+          teachbacks={teachbacks}
+          canRecordTeachback={canRecordTeachback}
+          teachbackError={teachbackError}
+        />
       </TabsContent>
 
       <TabsContent value="notes" className="mt-4">

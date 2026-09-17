@@ -16,7 +16,8 @@ import { PatientTimeline } from './_components/patient-timeline';
 import { ActionCenter } from './_components/action-center';
 import { AccountabilityPanel } from './_components/accountability-panel';
 import { ProductEventTracker } from '@/components/analytics/product-event-tracker';
-import { getTeamDirectory } from '@/lib/team/queries';
+import { getTeamDirectory, hasCapabilityInAnyOrganization } from '@/lib/team/queries';
+import { getEducationTeachbackState } from '@/lib/education/queries';
 
 /**
  * Patient Detail -- Server Component
@@ -68,6 +69,14 @@ export default async function PatientDetailPage({
   const teamDirectory = await getTeamDirectory(supabase);
   const designatableMembers = teamDirectory.members.filter((member) =>
     teamDirectory.manageableOrganizationIds.includes(member.organization_id),
+  );
+  const teachbackState = await getEducationTeachbackState(supabase, patientId);
+  const canRecordTeachback = await hasCapabilityInAnyOrganization(
+    supabase,
+    'educate',
+    teamDirectory.members
+      .filter((member) => member.is_self)
+      .map((member) => member.organization_id),
   );
   const tier = patient.risk_tier ? normalizeRiskTier(patient.risk_tier) : null;
   const tierStyle = tier ? TIER_DISPLAY[tier.tier] : null;
@@ -198,6 +207,9 @@ export default async function PatientDetailPage({
           symptoms={symptoms}
           adherenceSummary={adherenceSummary}
           educationProgress={educationProgress}
+          teachbacks={teachbackState.teachbacks}
+          canRecordTeachback={canRecordTeachback}
+          teachbackError={teachbackState.error}
           notes={notes}
           messages={messages}
           openAlerts={openAlerts}

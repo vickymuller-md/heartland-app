@@ -47,3 +47,51 @@ export interface EducationProgress {
   attempts: number;
   created_at: string;
 }
+
+/**
+ * Professional teach-back verification (migration 00040).
+ *
+ * A teach-back is a separate record from the patient self-assessment in
+ * `education_progress` and the two are never collapsed: a completed module is
+ * never reported as a documented teach-back, and a teach-back is never counted
+ * as patient completion.
+ */
+export const TEACHBACK_OUTCOMES = [
+  'verified',
+  'not_verified',
+  'deferred',
+  'not_applicable',
+] as const;
+
+export type TeachbackOutcome = (typeof TEACHBACK_OUTCOMES)[number];
+
+/** Outcomes that the database refuses without a documented reason (>= 3 chars). */
+export const TEACHBACK_REASON_REQUIRED: readonly TeachbackOutcome[] = [
+  'deferred',
+  'not_applicable',
+];
+
+export const TEACHBACK_METHODS = [
+  'in_person',
+  'telephone',
+  'video',
+  'written',
+] as const;
+
+export type TeachbackMethod = (typeof TEACHBACK_METHODS)[number];
+
+/** A domain with no teach-back event is `pending`, never `verified`. */
+export type DerivedDomainState = 'pending' | TeachbackOutcome;
+
+/** One row of `get_education_teachback_state`: newest event for that domain. */
+export interface EducationTeachback {
+  domain_id: string;
+  outcome: TeachbackOutcome;
+  reason: string | null;
+  verified_by: string;
+  verified_by_name: string | null;
+  method: TeachbackMethod | null;
+  caregiver_present: boolean | null;
+  occurred_at: string;
+  event_count: number;
+}

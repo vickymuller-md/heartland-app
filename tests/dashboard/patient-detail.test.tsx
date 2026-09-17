@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { PatientDetailTabs } from '@/app/(provider)/patients/[patientId]/_components/patient-detail-tabs';
 import { SymptomHistory } from '@/app/(provider)/patients/[patientId]/_components/symptom-history';
 import { MedicationSummary } from '@/app/(provider)/patients/[patientId]/_components/medication-summary';
@@ -219,15 +219,18 @@ describe('EducationSummary', () => {
       ],
     };
 
-    render(<EducationSummary educationProgress={eduData} />);
+    render(<EducationSummary patientId="p1" educationProgress={eduData} />);
 
-    expect(screen.getByText('Daily Weight Monitoring')).toBeInTheDocument();
-    expect(screen.getByText('Warning Signs')).toBeInTheDocument();
+    // Scoped to the self-assessment list: the professional teach-back panel
+    // lists the same eight domains and the two are never merged.
+    const selfAssessment = screen.getByTestId('education-self-assessment');
+    expect(within(selfAssessment).getByText('Daily Weight Monitoring')).toBeInTheDocument();
+    expect(within(selfAssessment).getByText('Warning Signs')).toBeInTheDocument();
     expect(screen.getByText('2/4 domains (50%)')).toBeInTheDocument();
   });
 
   it('shows empty state when education not started', () => {
-    render(<EducationSummary educationProgress={null} />);
+    render(<EducationSummary patientId="p1" educationProgress={null} />);
     expect(screen.getByText('Education not started')).toBeInTheDocument();
   });
 });

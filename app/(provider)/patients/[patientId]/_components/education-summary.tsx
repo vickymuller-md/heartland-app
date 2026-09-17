@@ -11,8 +11,15 @@
 
 import { BookOpen, CheckCircle2, Circle } from 'lucide-react';
 
+import { EducationTeachback } from './education-teachback';
+import type { EducationTeachback as EducationTeachbackRecord } from '@/lib/education/types';
+
 interface EducationSummaryProps {
+  patientId: string;
   educationProgress: unknown;
+  teachbacks?: EducationTeachbackRecord[];
+  canRecordTeachback?: boolean;
+  teachbackError?: string | null;
 }
 
 interface DomainProgress {
@@ -47,14 +54,28 @@ function parseEducationProgress(data: unknown): DomainProgress[] | null {
   });
 }
 
-export function EducationSummary({ educationProgress }: EducationSummaryProps) {
+export function EducationSummary({
+  patientId,
+  educationProgress,
+  teachbacks = [],
+  canRecordTeachback = false,
+  teachbackError = null,
+}: EducationSummaryProps) {
   const domains = parseEducationProgress(educationProgress);
 
   if (!domains || domains.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <BookOpen className="h-10 w-10 text-gray-300 mb-3" />
-        <p className="text-gray-600">Education not started</p>
+      <div className="space-y-6">
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <BookOpen className="h-10 w-10 text-gray-300 mb-3" />
+          <p className="text-gray-600">Education not started</p>
+        </div>
+        <EducationTeachback
+          patientId={patientId}
+          teachbacks={teachbacks}
+          canRecord={canRecordTeachback}
+          loadError={teachbackError}
+        />
       </div>
     );
   }
@@ -64,12 +85,12 @@ export function EducationSummary({ educationProgress }: EducationSummaryProps) {
   const pct = Math.round((completedCount / totalCount) * 100);
 
   return (
-    <div className="space-y-4" data-testid="education-summary">
+    <div className="space-y-6" data-testid="education-summary">
       {/* Overall progress */}
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-gray-700">
-            Education Progress
+            Patient self-assessment
           </span>
           <span className="text-sm text-gray-600">
             {completedCount}/{totalCount} domains ({pct}%)
@@ -84,7 +105,7 @@ export function EducationSummary({ educationProgress }: EducationSummaryProps) {
       </div>
 
       {/* Domain checklist */}
-      <div className="space-y-2">
+      <div className="space-y-2" data-testid="education-self-assessment">
         {domains.map((domain) => (
           <div
             key={domain.domain}
@@ -107,6 +128,13 @@ export function EducationSummary({ educationProgress }: EducationSummaryProps) {
           </div>
         ))}
       </div>
+
+      <EducationTeachback
+        patientId={patientId}
+        teachbacks={teachbacks}
+        canRecord={canRecordTeachback}
+        loadError={teachbackError}
+      />
     </div>
   );
 }

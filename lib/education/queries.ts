@@ -6,7 +6,11 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { EducationDomain, EducationProgress } from './types';
+import type {
+  EducationDomain,
+  EducationProgress,
+  EducationTeachback,
+} from './types';
 import { EDUCATION_DOMAINS } from './constants';
 
 /**
@@ -73,4 +77,29 @@ export async function getEducationSummary(
         : 0,
     domains,
   };
+}
+
+/**
+ * Newest professional teach-back per education domain (migration 00040).
+ *
+ * Domains with no event are absent from the result: the caller derives
+ * `pending` for them and never reports them as verified. This is read through
+ * the RPC rather than an embed, so no `profiles` join reaches PostgREST.
+ */
+export async function getEducationTeachbackState(
+  supabase: SupabaseClient,
+  patientId: string
+): Promise<{ teachbacks: EducationTeachback[]; error: string | null }> {
+  const { data, error } = await supabase.rpc('get_education_teachback_state', {
+    p_patient_id: patientId,
+  });
+
+  if (error) {
+    return {
+      teachbacks: [],
+      error: 'Teach-back records could not be loaded.',
+    };
+  }
+
+  return { teachbacks: (data ?? []) as EducationTeachback[], error: null };
 }
