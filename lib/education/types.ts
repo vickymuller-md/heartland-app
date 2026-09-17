@@ -7,6 +7,20 @@
 
 export type TrackVariant = 'track_a' | 'track_b' | 'common';
 
+/** Education key derived from the stored assignment. */
+export type TrackKey = 'track_a' | 'track_b' | 'hybrid';
+
+/**
+ * Maps the stored `patients.track_assignment` ('A' | 'B' | 'hybrid' | null) to the
+ * keys the education screens use. Null defaults to Track B (RMON-06); hybrid keeps
+ * its badge and reads Track B (paper) content until a separate decision says otherwise.
+ */
+export function trackKeyFromAssignment(value: string | null | undefined): TrackKey {
+  if (value === 'A' || value === 'track_a') return 'track_a';
+  if (value === 'hybrid') return 'hybrid';
+  return 'track_b';
+}
+
 export interface EducationDomain {
   id: string;
   title: string;

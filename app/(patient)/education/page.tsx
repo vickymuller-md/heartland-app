@@ -7,6 +7,7 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
+import { trackKeyFromAssignment } from '@/lib/education/types';
 import { EDUCATION_DOMAINS } from '@/lib/education/constants';
 import { getEducationProgress } from '@/lib/education/queries';
 import { EducationModuleList } from './_components/education-module-list';
@@ -28,8 +29,8 @@ export default async function EducationPage() {
     .eq('id', user.id)
     .single();
 
-  // Default track_assignment to 'track_b' if null (per RMON-06)
-  const trackAssignment = patient?.track_assignment ?? 'track_b';
+  // Stored values are 'A' | 'B' | 'hybrid' | null; the screens use track keys (null -> Track B, RMON-06).
+  const trackAssignment = trackKeyFromAssignment(patient?.track_assignment);
   // Default facility_tier to 1 if null
   const facilityTier = patient?.facility_tier ?? 1;
 
