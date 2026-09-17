@@ -1,7 +1,6 @@
-# HEARTLAND Protocol v3.3 — Clinical Content for App Development
+# HEARTLAND Protocol v3.4 (candidate) — Clinical Content for App Development
 
-Source: protocol_v33.pdf (31 pages, March 2026). This is the authoritative source.
-PDF also available at: `heartland-app/reference/protocol_v33.pdf`
+Source: `protocol_v34_candidate.Rmd` + `tables_v34.R` (September 2026). V3.4 is a candidate, not published — the published record remains V3.3 (Zenodo 10.5281/zenodo.19101219).
 
 ---
 
@@ -44,15 +43,21 @@ PDF also available at: `heartland-app/reference/protocol_v33.pdf`
 | Characteristic | MAGGIC | GWTG-HF | SHFM | HEARTLAND |
 |-|-|-|-|-|
 | Number of variables | 13 | 7 | 24+ | **10** |
-| Outcome predicted | 1-3 year mortality | In-hospital mortality | 1-5 year survival | **Readmission risk + monitoring intensity** |
+| Outcome addressed | 1-3 year mortality | In-hospital mortality | 1-5 year survival | **Monitoring intensity assignment (not an event prediction)** |
 | Distance to care | No | No | No | **Yes** |
 | Social support | No | No | No | **Yes** |
 | Rurality | No | No | No | **Yes** |
 | Primary care feasibility | Moderate | Low (hospital-designed) | Low (complex) | **High** |
-| Validation status | Validated (39,372 pts) | Validated (hospital registry) | Validated (multiple cohorts) | **Pragmatic heuristic (not yet validated)** |
-| Intended use | Prognostic | Prognostic | Prognostic | **Implementation support** |
+| Validation status | Validated (39,372 patients, 30 studies) | Validated (hospital registry) | Validated (multiple cohorts) | **Pragmatic heuristic (not yet validated)** |
+| Intended use | Prognostic | Prognostic | Prognostic | **Clinical decision support** |
 
-**IMPORTANT DISCLAIMER:** This score is a pragmatic heuristic designed to supplement — not replace — validated prognostic instruments. It has not been statistically validated through derivation/validation cohorts with ROC analysis or calibration testing. Formal validation using registry data is a planned next step.
+**IMPORTANT DISCLAIMER:** This score is a **non-validated implementation heuristic** designed to supplement — not replace — validated prognostic instruments such as the MAGGIC score. It has not been statistically validated through derivation/validation cohorts with ROC analysis or calibration testing. The instrument yields **points, not a predicted probability**: no probability of death, readmission or any other event is implied, published or derivable from a HEARTLAND score or tier, and the comparison in Table 6 describes structural differences between instruments, not relative predictive performance. Its intended use is to assign **monitoring intensity** at discharge. Formal validation using registry data linked with geographic and social determinant variables represents a planned next step.
+
+**Key evidence supporting rural-specific variables:**
+- Rurality independently associated with higher risk of incident HF (Turecamo et al., JAMA Cardiol 2023)
+- Mean distance to cardiology care 87 miles in counties without a cardiologist vs. 16 miles with one (Kim et al., JACC 2024)
+- Perceived social isolation associated with HR 3.74 (95% CI 1.82-7.70) for HF mortality (Manemann et al., JAHA 2018)
+- Social deprivation indices predict HF readmission independent of clinical severity (Deo et al., Circ Cardiovasc Qual Outcomes 2024)
 
 ---
 
@@ -62,47 +67,74 @@ PDF also available at: `heartland-app/reference/protocol_v33.pdf`
 
 | Drug Class | Agent (Generic) | Starting Dose | Target Dose | Safety Gates |
 |-|-|-|-|-|
-| ARNI | Sacubitril/valsartan | 24/26 mg BID | 97/103 mg BID | SBP >100; K+ <5.5 |
-| Beta-blocker | Carvedilol | 3.125 mg BID | 25 mg BID (50 if >85kg) | HR >50; SBP >90 |
-| MRA | Spironolactone | 12.5-25 mg daily | 25-50 mg daily | eGFR >30; K+ <5.0 |
-| SGLT2i | Dapagliflozin or Empagliflozin | 10 mg daily | 10 mg daily (no titration) | eGFR >20 |
+| ARNI | Sacubitril/valsartan | 24/26 mg BID (Toolkit conservative start — see note below) | 97/103 mg BID (double after 2-4 weeks as tolerated) | SBP >100; K+ <5.5 (Toolkit operational gate; the ENTRESTO label sets no numeric SBP or K+ threshold). eGFR <30: start at half the usual starting dose (label §2.7) — there is no renal floor for ARNI. 36-hour washout in BOTH directions when switching to or from an ACE inhibitor |
+| Beta-blocker | Carvedilol | 3.125 mg BID | 25 mg BID (50 if >85kg) | HR >50; SBP >90 (Toolkit operational gate; no guideline sets a numeric threshold). In Tier 3 rapid-sequence flows apply the STRONG-HF triggers instead: SBP <95 mmHg; HR <55 bpm |
+| MRA (steroidal) | Spironolactone | 12.5-25 mg daily (2022 AHA/ACC/HFSA Table 14; the ALDACTONE label starts at 25 mg daily) | 25-50 mg daily | eGFR >30; K+ <5.0 (2022 AHA/ACC/HFSA, COR 1 A). eGFR 30-50: halve the dose or use 25 mg every other day (2022 AHA/ACC/HFSA p. e932; ALDACTONE label §2.2). Label indication is NYHA III-IV; guideline recommendation covers NYHA II-IV, supported by EMPHASIS-HF (eplerenone) |
+| MRA (steroidal, alternative) | Eplerenone | 25 mg daily | 50 mg daily, preferably within 4 weeks as tolerated | Label contraindications at initiation: creatinine clearance ≤30 mL/min (CrCl in mL/min, NOT eGFR indexed to body surface area) or K+ >5.5 mEq/L. Cap at 25 mg daily with a moderate CYP3A inhibitor |
+| SGLT2i | Dapagliflozin or Empagliflozin | 10 mg daily (empagliflozin: in the morning) | 10 mg daily (no titration) | Dapagliflozin: do not initiate if eGFR <25 mL/min/1.73m²; if eGFR falls below 25 during treatment, continue 10 mg daily (FARXIGA label §2.3). Empagliflozin: the label sets no eGFR floor for the HF indication (JARDIANCE label §2); the EMPEROR trials did not enrol eGFR <20. Assess renal function before initiating and as clinically indicated |
 
-### 2.2 HFpEF (LVEF >40%) — Evolving Evidence
+**Note on the ARNI starting dose (declared protocol choice).** The ENTRESTO label sets the recommended starting dose at **49/51 mg BID**, and reserves **24/26 mg BID** for three situations: the patient is not taking an ACE inhibitor or ARB (or was taking a low dose), eGFR <30 mL/min/1.73m², or Child-Pugh B hepatic impairment. The 2022 AHA/ACC/HFSA guideline permits the lower start explicitly. **HEARTLAND adopts 24/26 mg BID as a deliberately conservative default for rural and resource-limited settings, where the interval to the next in-person reassessment is longer.** This is a protocol choice, not a label instruction; facilities with reliable short-interval follow-up should start at 49/51 mg BID per label. Double the dose after 2 to 4 weeks as tolerated (label §2.2), reassessing every 1-2 weeks during titration (2022 AHA/ACC/HFSA, COR 2a).
+
+### 2.2 HFmrEF / HFpEF (LVEF >40%) — Evolving Evidence
+
+SGLT2i carry a Class IIa recommendation per the 2022 AHA/ACC/HFSA guideline (EMPEROR-Preserved, Anker et al., *NEJM* 2021; DELIVER, Solomon et al., *NEJM* 2022); ESC has graded SGLT2i Class I, Level A in HFmrEF and HFpEF since its 2023 focused update.
+
+**The LVEF boundary is stated per drug line, not once for the section:**
+- **SGLT2i** — LVEF >40%, the entry criterion of EMPEROR-Preserved and DELIVER, which **excluded** LVEF exactly 40%. Neither the FARXIGA nor the JARDIANCE label mentions ejection fraction at all for the HF indication.
+- **Finerenone** — **LVEF ≥40%**, which **includes** exactly 40%. FDA-approved indication (KERENDIA label, HF indication approved 15 July 2025; SPL revision 8/2025) and the FINEARTS-HF randomization criterion.
+- **Diagnostic phenotype labels** remain the 2022 AHA/ACC/HFSA definitions: HFrEF LVEF ≤40%, HFmrEF 41-49%, HFpEF ≥50%.
+
+A patient with an LVEF of exactly 40% is HFrEF by phenotype **and** within the finerenone label; that patient must not be denied an MRA line on the basis of a section heading.
 
 | Priority | Agent (Generic) | Dose | Evidence Context |
 |-|-|-|-|
-| 1. SGLT2i | Dapagliflozin or Empagliflozin | 10 mg daily | Class IIa per 2022 AHA/ACC/HFSA. EMPEROR-Preserved + DELIVER. |
-| 2. MRA | Finerenone OR Spironolactone | 10-20 mg / 12.5-25 mg | Finerenone: FINEARTS-HF 16% reduction CV death/HF events. Requires K+ <5.0 and eGFR ≥25. |
-| 3. GLP-1 RA | Semaglutide | Titrate to 2.4 mg weekly | STEP-HFpEF: Improved symptoms in obesity phenotype (BMI ≥30). Obesity therapy with CV benefits. |
+| 1. SGLT2i | Dapagliflozin or Empagliflozin | 10 mg daily | Class IIa per 2022 AHA/ACC/HFSA, supported by EMPEROR-Preserved and DELIVER (entry criterion LVEF >40%, excluding exactly 40%). Reduces CV death & HF hospitalization regardless of diabetes status. ESC grades this Class I, Level A since its 2023 focused update |
+| 2. MRA | Finerenone or spironolactone — no automatic preference | Finerenone: start 20 mg daily if eGFR ≥60 at initiation, target 40 mg daily; start 10 mg daily if eGFR ≥25 to <60, target 20 mg daily; initiation not recommended if eGFR <25. Spironolactone: start 12.5-25 mg daily, target 25-50 mg daily | Finerenone: FDA-labeled in adults with HF and LVEF ≥40% (July 2025 label), informed by FINEARTS-HF. FINEARTS-HF lowered the rate of total worsening HF events plus CV death by 16% (rate ratio 0.84, 95% CI 0.74-0.95); CV death alone was not reduced; more hyperkalemia. Spironolactone: established, low-cost option, but TOPCAT — the only large trial of spironolactone in LVEF ≥45% — was formally negative on its primary endpoint (HR 0.89, 95% CI 0.77-1.04; P=0.14); only HF hospitalization alone fell (HR 0.83, 0.69-0.99), and hyperkalemia doubled. Benefit in preserved EF is not demonstrated; consider in subgroups per guideline (2022 AHA/ACC/HFSA COR 2b, particularly at the lower end of the LVEF spectrum) |
+| 3. GLP-1 RA | Semaglutide | Start 0.25 mg weekly with scheduled escalation to the 2.4 mg weekly target dose | STEP-HFpEF: co-primary endpoints were symptoms and weight (KCCQ-CSS +7.8 points) in the obesity phenotype (BMI ≥30). Not a cardiovascular outcome trial. Best considered obesity therapy with CV benefits |
 | 4. Diuretics | Loop diuretics | PRN | Symptom/volume control |
 
 ### Finerenone vs. Spironolactone Decision Guide
 
+**Safety gates for finerenone initiation.** Do **not** initiate if serum potassium is >5.0 mEq/L — a potassium of exactly 5.0 is permitted by both the label and the trial — and initiation is **not recommended** if eGFR is <25 mL/min/1.73m². Since July 2025 both thresholds are **label rules** (KERENDIA, SPL revision 8/2025), not trial eligibility criteria; they must not be cited as "FINEARTS-HF inclusion criteria".
+
+**Contraindications and interactions (finerenone).** Contraindicated with concomitant **strong CYP3A4 inhibitors** (for example clarithromycin, itraconazole, ritonavir), in **adrenal insufficiency**, and in hypersensitivity to any component. **Avoid** grapefruit and grapefruit juice; **avoid** concomitant strong or moderate CYP3A4 **inducers**; **avoid** use in severe hepatic impairment (Child-Pugh C).
+
+**Monitoring schedule (finerenone).** *Label minimum (KERENDIA, revision 8/2025):* potassium and eGFR **before initiation**, **4 weeks after initiation**, and **4 weeks after every dose adjustment** — the 4-week measurement is the **titration decision point** — then periodically. *HEARTLAND schedule (more frequent, by declared protocol choice):* add a potassium and eGFR check **at 1 week** after initiation and after each dose change, per the 2022 AHA/ACC/HFSA MRA laboratory schedule ("approximately 1 week, then 4 weeks, then every 6 months") and the spironolactone label minimum. **The 1-week check is additional to the 4-week milestone; it does not replace it.** Per the label, if eGFR has fallen by more than 30% from the previous measurement the dose is **maintained, not stopped** — a different rule from the Module 3 "creatinine increase >30%" gate.
+
 | Clinical Scenario | Suggested Approach | Rationale |
 |-|-|-|
-| HFpEF with eGFR 25-60, K+ <5.0 | Consider finerenone | FINEARTS-HF population; requires eGFR ≥25 and K+ <5.0 |
-| History of hyperkalemia on MRA | Finerenone preferred (monitor K+ closely) | Lower hyperkalemia incidence in trials |
-| Significant cost barrier | Spironolactone | ~$4/month generic vs. ~$500/month |
-| HFrEF | Either acceptable | Both have supporting evidence |
-| Uncertain, guideline-adherent approach | Spironolactone | Established guideline recommendation |
+| HF with LVEF ≥40%, K+ ≤5.0, eGFR ≥60 | Finerenone at full-dose band, or spironolactone — no automatic preference | Start finerenone 20 mg daily, target 40 mg daily. Selection between agents depends on label fit, renal function, potassium, CYP3A4 interactions, access and the monitoring that can actually be delivered |
+| HF with LVEF ≥40%, K+ ≤5.0, eGFR ≥25 to <60 | Finerenone at the reduced-dose band, or spironolactone — no automatic preference | Start finerenone 10 mg daily, target 20 mg daily. This is the REDUCED-dose band, not the typical finerenone scenario |
+| History of hyperkalemia on an MRA | No automatic preference; reassess the cause and the monitoring plan before re-challenge with either agent | Finerenone is NOT lower-risk for hyperkalemia in HF: in FINEARTS-HF it roughly doubled it (K+ >5.5: HR 2.16, 95% CI 1.83-2.56; 14.3% vs 6.9%). There is no head-to-head trial of finerenone versus spironolactone in HF |
+| Significant cost barrier | Spironolactone | Verified 2026-09-17: spironolactone 25 mg from about $5.90 (cash-price program) to $12.61 (retail discount card); finerenone has no US generic and lists from about $706.80 per 30 tablets. The prior figures (~$4 vs ~$500) were both wrong. Prices change — verify locally |
+| HFrEF (LVEF <40%) | Steroidal MRA only (spironolactone or eplerenone) | Finerenone has NO completed dedicated outcome trial in HFrEF, and its HF indication is limited to LVEF ≥40%. FINALITY-HF is still recruiting and is restricted to patients intolerant of or ineligible for a steroidal MRA. Do not substitute finerenone for established steroidal MRA therapy in HFrEF |
+| Uncertain, guideline-adherent approach | Steroidal MRA per 2022 AHA/ACC/HFSA, with the TOPCAT caveat in preserved EF | MRA in HFrEF is COR 1, Level A. In LVEF ≥40% the MRA recommendation is COR 2b; TOPCAT was formally negative on its primary endpoint, so spironolactone benefit in preserved EF is not demonstrated |
 
 ### Titration Safety Gates Summary
 
-**UPTITRATE IF:** SBP ≥100, HR ≥50, K+ <5.0
-**HOLD IF:** SBP <90, HR <50, K+ >5.5, Cr ↑>30%
+**UPTITRATE IF:** SBP ≥100 and asymptomatic; HR ≥50 (beta-blockers); steroidal MRA K+ <5.0; finerenone K+ <5.0
+**HOLD IF:** SBP <90 or symptomatic hypotension; HR <50; steroidal MRA K+ >5.5; finerenone K+ ≥6.0 (≥5.5 to <6.0 = decrease one step; ≥5.0 to <5.5 = maintain, do NOT reduce); Cr ↑>30%
 
 ### 2.3 Non-Pharmacological Management
 
-**Dietary Sodium:** Target <2,000 mg/day
+**Dietary Sodium:** Individual, set by the care team and written in the patient's care plan. A commonly used target is <2,000 mg/day (some guidelines suggest <1,500 mg for symptom control). This is NOT a universal prescription: patient-facing material must point to the individual target in the care plan rather than teach a single number.
+**Fluid Intake:** Not a universal restriction. Teach recognition of fluid retention (daily weight, edema, orthopnea) first. A fluid limit applies only where the care team has written one in the care plan; FRESH-UP (n=504) found no difference in health status at 3 months with a 1,500 mL/day restriction and more thirst distress, so no fixed volume is prescribed here.
+**Patient Education:** Provide written list of high/low sodium foods; teach label reading; teach the patient where to find their OWN sodium and fluid targets in the care plan.
 **Physical Activity:** Walking 5-10 min daily, gradually increase to 30 min moderate activity most days
 **Cardiac Rehabilitation:** Class I recommendation — refer all eligible patients
 
-### 2.4 Generic Bridge (~$15/month)
+### 2.4 Generic Bridge (~$28-$36/month)
 
-1. ACE inhibitor (Lisinopril) OR ARB (Losartan) — $4/month
-2. Beta-blocker (Carvedilol generic) — $4/month
-3. MRA (Spironolactone generic) — $4/month
-4. Metformin (if diabetic/prediabetic) — $4/month
+Foundational therapy using generics, typically about $5-$9 per drug per month in cash-price programs (about $28-$36/month for the bundle; verified 2026-09-17):
+
+1. ACE inhibitor (Lisinopril) OR ARB (Losartan) — about $5-$9/month
+2. Beta-blocker (Carvedilol generic) — about $6/month; **carvedilol is not on every discount list** (it does not appear at all on the Walmart retail program list effective 03/24/2025)
+3. MRA (Spironolactone generic) — about $6-$13/month; the usual 25 mg HF starting strength is absent from the Walmart program tiers
+4. Metformin (if diabetic/prediabetic) — about $5-$9/month
+
+Prices vary by pharmacy, program and state and require local verification. The previously published figures of "$4/month per drug" and "~$15/month total" are **contradicted** by the current primary sources and have been withdrawn. **This bundle does not include an SGLT2i** — note the tension with Tier 1 guidance, which prioritizes SGLT2i plus a beta-blocker when only ≥2 classes are achievable; where the bridge cannot deliver an SGLT2i, record the gap and pursue assistance or a generic dapagliflozin rather than silently downgrading the regimen.
+
+**Branded price context:** agents without a US generic (finerenone, empagliflozin, semaglutide) carry list prices in the hundreds to over a thousand dollars per month — finerenone lists from about $706.80 per 30 tablets (verified 2026-09-17). Sacubitril/valsartan and dapagliflozin **do** now have marketed US generics (dapagliflozin since April 2026).
 
 **KEY PRINCIPLE:** Generic therapy is superior to NO therapy. Never delay treatment while waiting for paperwork.
 
@@ -112,10 +144,12 @@ PDF also available at: `heartland-app/reference/protocol_v33.pdf`
 
 ### 3.1 Hozho Trial Evidence
 
+The Hózhó Trial (JAMA Internal Medicine 2024), a stepped-wedge pragmatic trial in rural Navajo Nation, tested telephone-based GDMT optimization in an underserved population and is the evidence base this module draws on.
+
 | Parameter | Result |
 |-|-|
-| Population | 103 American Indians with HF in rural Navajo Nation |
-| Primary Outcome | 66.2% vs 13.1% GDMT class addition at 30 days |
+| Population | 103 American Indian adults with HFrEF (LVEF ≤40%) in rural Navajo Nation; stepped-wedge pragmatic trial |
+| Primary Outcome | 66.2% vs 13.1% GDMT class addition at 30 days (OR 12.99, 95% CI 6.87-24.53) |
 | Absolute Increase | 53% |
 | Telehealth Completion | 80.5% adherence to phone visits |
 | Safety | No increase in adverse events (6.6% vs 5.0%, p=0.51) |
@@ -123,10 +157,10 @@ PDF also available at: `heartland-app/reference/protocol_v33.pdf`
 
 ### 3.2 Dual-Track Execution
 
-**Track A (Digital):** Smartphone, Bluetooth devices, app-based daily entry, automated alerts, video visits
-**Track B (Analog):** Paper diary, standard devices (patient reads display), voice telephone calls, verbal report → staff enters manually
+**Track A (Digital):** Smartphone, Bluetooth devices with auto-upload, app-based daily entry, video visits and secure messaging, automated transmission to the monitoring dashboard
+**Track B (Analog):** Paper diary provided at discharge, standard devices (patient reads display), scheduled voice telephone calls, verbal report → staff enters manually
 
-Both tracks follow **identical clinical decision algorithms**. Track selection based on patient capability, not clinical need.
+Both tracks follow **identical clinical decision algorithms**. Track selection is based on patient capability and preference, not clinical need.
 
 ### 3.3 Titration Decision Algorithm
 
@@ -136,45 +170,62 @@ Both tracks follow **identical clinical decision algorithms**. Track selection b
 | SBP 90-99 mmHg AND asymptomatic | HOLD current dose; reassess in 1 week |
 | SBP <90 mmHg OR symptomatic hypotension | REDUCE dose or hold; consider cardiology input |
 | HR <50 (for beta-blockers) | Reduce dose; if symptomatic, hold |
-| K+ 5.0-5.5 | Reduce MRA/finerenone dose; recheck in 1 week |
-| K+ >5.5 | HOLD MRA/finerenone and ARNI; urgent recheck; dietary counseling |
+| K+ 5.0-5.5 — STEROIDAL MRA (spironolactone, eplerenone) | Reduce dose; recheck in 1 week |
+| K+ >5.5 — STEROIDAL MRA and ARNI | Reduce the dose or hold; urgent recheck; dietary counseling. If potassium cannot be maintained <5.5 mEq/L, DISCONTINUE the MRA (2022 AHA/ACC/HFSA, COR 3: Harm) |
+| FINERENONE, K+ <5.0 | INCREASE to the target dose band for the patient's initiating eGFR (40 mg daily if eGFR ≥60; 20 mg daily if eGFR ≥25 to <60) |
+| FINERENONE, K+ ≥5.0 to <5.5 | MAINTAIN the current dose — do NOT reduce (KERENDIA label, HF table) |
+| FINERENONE, K+ ≥5.5 to <6.0 | DECREASE one step: 40 mg to 20 mg daily; 20 mg to 10 mg daily. At 10 mg daily, withhold |
+| FINERENONE, K+ ≥6.0 | WITHHOLD at any dose |
+| FINERENONE, restart after a hold | Restart at 10 mg daily once K+ is <5.5 mEq/L. If repeated measurements are ≥5.5, restart only when K+ is <5.0. Note: these HF thresholds differ from the CKD/T2DM indication of the same drug and are not interchangeable |
 | Cr increase >30% | HOLD ARNI/MRA; evaluate; cardiology consult |
+
+**Note on the potassium rows.** Finerenone and the steroidal MRAs do **not** share a potassium rule. The finerenone bands above are the label bands for the heart failure indication; applying the steroidal-MRA rule to finerenone de-escalates therapy at 5.0-5.4 where the label says maintain, and treats 5.6 identically to 6.5. Eplerenone follows the steroidal rows, with its own label contraindications at initiation (creatinine clearance ≤30 mL/min; K+ >5.5 mEq/L).
+
+**Note on renal-function thresholds (two declared levels).** HEARTLAND operates two distinct eGFR alerting levels, and the difference is intentional. eGFR <15 mL/min/1.73m² is an **emergency threshold applied at the point of laboratory entry**, when a result first arrives. eGFR <30 mL/min/1.73m² is the threshold applied by the **daily monitoring scan**, a standing surveillance level that also matches the steroidal-MRA initiation gate in Module 2. Neither level is a titration gate by itself; titration decisions follow the per-drug renal rules in Module 2.
 
 ---
 
 ## MODULE 4: Structured Discharge Transitions
+
+**Evidence base for the bundle.** In a network meta-analysis of 53 randomized trials (12,356 patients), nurse home visits, nurse case management and disease management clinics each lowered all-cause readmission after HF hospitalization (IRR 0.65-0.80), while telephone, telemonitoring, pharmacist and education-only interventions did not significantly improve clinical outcomes (Van Spall et al., *Eur J Heart Fail* 2017). The PILL-CVD trial (Kripalani et al., *Ann Intern Med* 2012) tested a pharmacist-delivered version of medication reconciliation and bedside delivery in 851 patients and **did not significantly reduce** clinically important medication errors at 30 days (IRR 0.92, 95% CI 0.77-1.10); those components are included for workflow completeness, not as an evidence-based readmission-reduction intervention.
 
 ### 4.1 Discharge Bundle Components
 
 | Component | Timing | Tier 1 | Tier 2/3 |
 |-|-|-|-|
 | Case Management Assessment | Within 24h of admission | If available | Required |
-| Teach-Back Education | Before discharge | 3 core domains | 8 domains |
+| Teach-Back Education | Before discharge | All clinically relevant domains; condensed, print-first delivery | All clinically relevant domains; extended delivery with CHW or pharmacist reinforcement |
 | Medication Reconciliation | Before discharge | Simplified | Full with PharmD |
 | Follow-Up Scheduled | Before leaving | 14-day PCP | 7-day visit confirmed |
 
 ### 4.2 Task-Shifting Framework
 
+**Core principle:** clinical decisions remain with licensed personnel. Task shifting applies to data collection and education delivery, not clinical judgment.
+
 | Task | Optimal Executor | Alternatives | No CHW Available |
 |-|-|-|-|
-| Teach-back education | RN | LPN (RN supervise), Pharmacist | RN with extended time; video |
+| Teach-back education | RN | LPN (RN supervise), Pharmacist | RN with extended time; video education |
 | Discharge checklist | RN | MA with script, LPN | RN or provider |
 | Daily weight/BP calls | RN, Pharmacist | MA, CHW, Automated IVR | MA with script; IVR system |
 | Symptom assessment | RN | LPN → RN review | RN via phone |
 | Red-flag triage | RN/Provider | NO SUBSTITUTION | NO SUBSTITUTION |
+| Potassium/eGFR chain for MRA and finerenone | NAMED RESPONSIBLE CLINICIAN (prescriber of record) | Covering clinician named in a written coverage schedule. NO SUBSTITUTION by unlicensed staff for the decision; RN/MA may draw and chase the lab | Same; the chain has three named duties: (i) order and review the 4-week potassium/eGFR, (ii) act on K+ ≥6.0 out of hours, (iii) decide the restart after a hold |
 | Home device setup | Home Health RN | CHW, Family caregiver | Family with phone instruction |
 | Financial/PAP navigation | Social Worker | CHW, Financial navigator | SW via phone; self-service resources |
 | Dietary education | Dietitian | RN, CHW (with script) | Written materials; phone dietitian |
 
 ### 4.3 Teach-Back Core Domains
 
-**Tier 1 (3 Core Domains — Required for All):**
-- DAILY WEIGHT: Weigh same time daily; call if +3lbs/2 days or +5lbs/week
-- MEDICATIONS: Take daily even when well; never stop without calling
-- WARNING SIGNS: SOB, swelling, waking breathless → call clinic
+**Education is delivered at every implementation tier.** Resource tier determines delivery **format, sequence and support** (printed versus on-screen, CHW reinforcement, session length), never the exclusion of a clinically relevant domain. Any domain not delivered must be recorded per patient as **deferred** or **not applicable** with a written reason — not silently withheld because of the facility's tier.
 
-**Tier 2/3 (Add 5 more):**
-- What is HF, Sodium restriction, Fluid management, Detailed "when to call", Activity guidance
+**Core Domains (all tiers):**
+- DAILY WEIGHT: Weigh same time daily; call if +3 lbs/2 days or +5 lbs/week — *"When should you call about your weight?"*
+- MEDICATIONS: Take daily even when feeling well; never stop without calling — *"Why take your medicines every day?"*
+- WARNING SIGNS: SOB, swelling, waking breathless → call clinic — *"What symptoms should worry you?"*
+
+**Extended domains (offered at every tier):** what heart failure is, sodium, fluids, when to call, activity guidance.
+
+**Recording education: two distinct records, four states.** A patient completing a self-assessment is **not** the same event as teach-back verified by a professional; the two are recorded separately, and the **teach-back verified by a named professional** identifies that professional in the record. Each domain carries one of four states per patient — **pending**, **completed**, **deferred**, **not applicable** — and the last two require a written justification. Authorization to set `deferred` or `not applicable` is limited to team members holding the education authorization for that patient, and the reason and the person deciding are both stored. Completion rates are calculated over the **applicable** domain set for that patient, not over a fixed denominator.
 
 ### 4.4 Post-Discharge Contact Protocol
 
@@ -191,11 +242,13 @@ Both tracks follow **identical clinical decision algorithms**. Track selection b
 
 ### 5.1 TIM-HF2 Evidence
 
+TIM-HF2 (Koehler et al., *Lancet* 2018), with its pre-specified geospatial analysis (Koehler et al., *Lancet Reg Health Eur* 2025;54:101321): 1,538 patients in a selected German population. These results inform RPM design and are not results of the HEARTLAND bundle.
+
 | Outcome | Result |
 |-|-|
-| All-cause mortality | HR 0.70 (95% CI 0.50-0.96) — 30% reduction |
-| Days lost to hospitalization | 4.88% vs 6.64% |
-| Key finding | Patients living farther from cardiologists benefit most |
+| Days lost to unplanned CV admission or all-cause death (primary endpoint) | 4.88% vs 6.64% of days per year (ratio 0.80, 95% CI 0.65-1.00; p=0.046) |
+| All-cause mortality (secondary endpoint) | HR 0.70 (95% CI 0.50-0.96), p=0.03 — 30% relative reduction |
+| Effect by travel distance (pre-specified 2025 analysis) | 13% greater risk reduction per doubling of travel distance (2.2%-23.3%; p-interaction 0.021); effect comparable whether the cardiologist was rural or urban |
 
 ### 5.2 Red Flag Alert Criteria
 
@@ -208,18 +261,33 @@ Both tracks follow **identical clinical decision algorithms**. Track selection b
 | New/worsening dyspnea at rest | Same-day evaluation |
 | **Chest pain, syncope** | **EMERGENCY — Call 911** |
 
-### 5.3 Billing Codes (2025)
+**This table is the single source of weight-severity mapping for the whole HEARTLAND ecosystem.** Every channel — the printed patient card, the app's patient view, the provider dashboard and any interoperability profile — uses exactly these two weight rules and exactly these severities: **≥3 lbs in 2 days = call the clinic the same day**, and **≥5 lbs in 1 week = urgent evaluation within 24 hours**. No other weight rule (in particular no 2 lb / 24 h variant) is part of the protocol, and the two rules must not be inverted in severity in any channel. **Chest pain and syncope are the only findings in this table that instruct the patient to call 911**; no weight, blood-pressure or oxygen-saturation rule is a 911 instruction, and no printed card may present them as one.
 
-| Code | Description | Approximate Reimbursement |
+**Renal-function alerting.** See Module 3.3: eGFR <15 mL/min/1.73m² is the emergency threshold applied when a laboratory result is entered; eGFR <30 mL/min/1.73m² is the threshold applied by the daily monitoring scan.
+
+### 5.3 Billing Codes (CY2026)
+
+| Code | Description | National Non-Facility Payment, CY2026 PFS |
 |-|-|-|
-| 99453 | RPM initial setup | $19-21 |
-| 99454 | RPM monthly device (≥16 days data) | $48-55 |
-| 99457 | RPM first 20 min management | $48-52 |
-| 99458 | RPM additional 20 min | $38-42 |
-| 98975-98981 | RTM codes (similar structure) | Similar range |
-| G0511 | RHC/FQHC Comprehensive Care Management | Consolidated |
+| 99453 | RPM setup and patient education — ONE-TIME, not monthly | $21.71 |
+| 99445 | RPM device supply, 2-15 days of data in 30 days (NEW in CY2026) | $52.11 |
+| 99454 | RPM device supply, 16-30 days of data in 30 days (descriptor REVISED for CY2026) | $52.11 |
+| 99470 | RPM treatment management, first 10 min (NEW in CY2026) | $26.05 |
+| 99457 | RPM treatment management, first 20 min | $51.77 |
+| 99458 | RPM treatment management, each additional 20 min | $41.42 |
+| 98984-98986 / 98976-98980 / 98979 | RTM family, expanded in CY2026 (device supply and management, same 2-15 / 16-30 day and 10 / 20 minute structure) | $26.39-$52.11 |
+| 98978 and 98986 | RTM device supply (CBT) | Status C — NOT paid under the PFS |
 
-**Revenue Potential:** $150-200/month per high-risk patient with full capture.
+**Source and date:** national non-facility amounts computed from the CMS CY2026 Physician Fee Schedule Relative Value File (released 30 June 2026) as non-facility total RVU × the CY2026 conversion factor of $33.40 (non-qualifying APM); the qualifying-APM factor is $33.57. Verified 2026-09-17. Amounts are national and unadjusted for locality; confirm current rates before billing.
+
+**Code composition rules (CY2026 final rule).** The 2-15 day device-supply codes (99445, 98984-98986) and the 16-30 day codes (99454, 98976-98978) are **alternatives, not additive**. The first-10-minute codes (99470, 98979) and the first-20-minute codes (99457, 98980) are likewise **alternatives, not additive**. **G0511 and G0512 no longer exist in the CY2026 PFS** and must not be billed; RHC and FQHC care-management billing moved to individual codes plus the Advanced Primary Care Management codes G0556, G0557 and G0558.
+
+**Revenue potential — facility revenue, with its assumptions stated.** These are revenue to the billing facility, not patient savings and not a clinical outcome; 99453 is excluded because it is a one-time setup:
+- Base case, 99454 + 99457 (≥16 days of device data and 20 minutes of management): **$103.88/month**
+- With 20 additional minutes, + 99458: **$145.30/month**
+- With 40 additional minutes, + 2 × 99458: **$186.72/month**
+
+The previously published "$150-200/month" is reachable **only** with ≥16 days of device data **and** 40-60 minutes of billed management every month. Facilities should plan against the base case.
 
 ### Track Assignment Form (Table 4)
 
@@ -234,6 +302,7 @@ Both tracks follow **identical clinical decision algorithms**. Track selection b
 | Track Assignment | Track A (Digital) / Track B (Analog) / Hybrid |
 | Implementation Tier | Tier 1 / Tier 2 / Tier 3 |
 | Equipment Provided | Blood pressure (BP) cuff / Scale / Paper diary |
+| Signature and Date | [Text field] |
 
 ---
 
@@ -241,24 +310,24 @@ Both tracks follow **identical clinical decision algorithms**. Track selection b
 
 ### Comorbidity Quick Reference (Table 3)
 
-| Comorbidity | Key Considerations | What to Do |
-|-|-|-|
-| Atrial Fibrillation | Rate vs rhythm | Rate control, anticoagulation |
-| Obstructive Sleep Apnea | Prevalent in HFpEF | Screen (STOP-BANG), CPAP |
-| Iron Deficiency | Worsens symptoms | Check ferritin/TSAT, IV iron |
-| Diabetes | SGLT2i is dual therapy | SGLT2i, metformin, GLP-1 RA |
-| CKD | Limits dosing, hyperkalemia | Adjust doses, monitor K+, finerenone |
-| COPD | Beta-blocker concerns overstated | Cardioselective BB (metoprolol) |
-| Depression | Affects adherence | Screen PHQ-9, SSRIs safe |
-| Hypertension | GDMT treats both | GDMT lowers BP, adjust others |
+| Comorbidity | Key Considerations | What to Do | What to Avoid |
+|-|-|-|-|
+| Atrial Fibrillation | Rate vs rhythm | Rate control, anticoagulation | Stopping anticoagulation |
+| Obstructive Sleep Apnea | Prevalent in HFpEF | Screen (STOP-BANG), CPAP | Assuming "just HF" |
+| Iron Deficiency | Worsens symptoms | Check ferritin/TSAT, IV iron | Oral iron |
+| Diabetes | SGLT2i is dual therapy | SGLT2i, metformin, GLP-1 RA | Thiazolidinediones |
+| CKD | Limits dosing, hyperkalemia | Adjust doses, monitor potassium; finerenone per the heart failure indication (LVEF ≥40%), not the CKD-with-type-2-diabetes indication (the two have different target doses, potassium bands and restart thresholds) | Avoiding GDMT |
+| COPD | Beta-blocker concerns overstated | Cardioselective BB (metoprolol succinate; metoprolol tartrate has no heart failure evidence) | Withholding BB |
+| Depression | Affects adherence | Screen (PHQ-9), SSRIs | Tricyclic antidepressants (TCAs) |
+| Hypertension | GDMT treats both | GDMT lowers BP, adjust others | Adding medications before GDMT optimization |
 
 ### 6.2 Advanced HF Referral Criteria
 
-**Refer for advanced therapies if:**
+**Refer for advanced therapies evaluation if:**
 - LVEF ≤35% despite ≥3 months of optimal GDMT
 - ≥2 HF hospitalizations in past 12 months
 - Need for continuous or frequent IV inotropes
-- Peak VO2 <14 mL/kg/min on CPET
+- Peak VO2 <14 mL/kg/min on CPET (if available)
 - Persistent NYHA Class IIIb-IV symptoms
 - Considering LVAD or transplant listing
 
@@ -267,6 +336,10 @@ Both tracks follow **identical clinical decision algorithms**. Track selection b
 - LBBB with QRS ≥150 ms (CRT candidate)
 - QRS 130-149 ms (possible CRT candidate)
 - Primary prevention ICD consideration
+
+**Special referrals:**
+- Suspected cardiac amyloidosis (HFpEF + LVH + age >65 + carpal tunnel/neuropathy) — needs PYP scan, cardiology
+- Palliative care/hospice discussion when refractory symptoms, recurrent hospitalizations with declining trajectory, or patient/family goals shift toward comfort
 
 ---
 
@@ -285,8 +358,8 @@ Both tracks follow **identical clinical decision algorithms**. Track selection b
 
 - GDMT titration per Module 3 algorithm when hemodynamically stable
 - Diuretic adjustments for mild volume overload
-- Finerenone initiation for HFpEF (if comfortable, with monitoring plan)
-- Routine lab monitoring (BMP q1-2 weeks during titration, then quarterly)
+- Finerenone initiation in HF with LVEF ≥40% (per current label), provided the prescriber accepts the named responsibility for the potassium chain described in Module 4.2 — ordering and reviewing the 4-week potassium and eGFR, acting on K+ ≥6.0 out of hours, and deciding the restart after a hold
+- Routine lab monitoring (BMP q1-2 weeks during titration, then quarterly), plus the drug-specific milestones: potassium at 1 week for a steroidal MRA, and potassium with eGFR at 1 week and again at 4 weeks for finerenone, the 4-week result being the titration decision point
 - Vaccinations (influenza, pneumococcal, COVID-19)
 - Depression/anxiety screening and treatment
 - Cardiac rehabilitation referral
@@ -322,15 +395,21 @@ Candidates: NYHA I-II, stable GDMT ≥4 weeks, willing to participate.
 | Component | Tier 1 (Minimal) | Tier 2 (Standard) | Tier 3 (Advanced) |
 |-|-|-|-|
 | Risk Stratification | Score at discharge | Full CKM + Score | Full CKM + Score |
-| GDMT | ≥2 classes, prioritize SGLT2i + BB | Target all classes in 14 days | Rapid sequence per STRONG-HF |
-| Monitoring | Track B (Analog) | Dual-track (A/B) | Track A with automated alerts |
-| Discharge Education | Condensed teach-back (3 domains) | Full teach-back (8 domains) | Full + CHW reinforcement |
-| Follow-up | 48-72h call, 14-day visit | 48h call, 7-day visit, weekly ×4 | 48h call, 7-day visit, weekly ×4+ |
-| Staffing | RN/MA + physician (MD) | RN champion, MA, PharmD | RN coordinator, PharmD, CHW |
-| CHW | Alternative/Family | High-risk only | Integrated team member |
-| Financial | Generic Bridge | PAP pursuit + Generic Bridge | Full navigation + 340B + PAP |
+| GDMT | ≥2 classes, prioritize SGLT2i + BB | Target all classes in 14 days | Rapid-sequence initiation |
+| Monitoring | Track B (Analog) | Dual-track (A/B) | Track A primary + RPM |
+| Discharge Education | Teach-back, all 8 domains (condensed format) | Teach-back, all 8 domains | Teach-back, all 8 domains, CHW-reinforced |
+| Follow-up | 48-72 hour call, 14-day visit | 48-hour call, 7-day visit, weekly ×4 | 48-hour call, 7-day visit, frequent |
+| Staffing | RN/MA + physician (MD) | RN champion, MA, PharmD | Full team (RN, PharmD, social worker, CHW) |
+| CHW | Alternative/Family | High-risk only | Full integration |
+| Financial | Generic Bridge | PAP pursuit + Generic Bridge | PAP pursuit + Generic Bridge |
+
+**Principle:** tier governs the **format and level of support** with which care is delivered, never whether a clinically indicated element is offered at all. A Tier 1 facility achieving consistent 48-hour phone calls and ≥2 GDMT classes is delivering evidence-based care within its resource constraints.
+
+**Tier 3 rapid up-titration:** STRONG-HF (Mebazaa et al., *Lancet* 2022) showed that intensive, early optimization within two weeks of discharge reduces the composite of HF rehospitalization and all-cause death; post-hospitalization initiation strategies (DeVore et al., *Circulation* 2020) support this approach. It requires close monitoring and adequate staffing.
 
 ### 8.3 Value-Based Payment Preparation (ASM 2027)
+
+CMS has announced the Ambulatory Specialty Model (ASM) as a mandatory value-based payment program for heart failure, with implementation anticipated in 2027.
 
 - Register for CMS Innovation Center updates
 - Establish baseline quality metrics
@@ -345,32 +424,36 @@ Candidates: NYHA I-II, stable GDMT ≥4 weeks, willing to participate.
 
 | Trial | Year | Key Finding | Context |
 |-|-|-|-|
-| EMPEROR-Preserved | 2021 | Empagliflozin reduces CV death/HF hospitalization in HFpEF (LVEF >40%) | Class IIa per 2022 AHA/ACC/HFSA |
-| DELIVER | 2022 | Dapagliflozin confirms SGLT2i benefit across broad HFpEF | Class IIa |
-| FINEARTS-HF | 2024 | Finerenone 16% reduction CV death/HF events in HFmrEF/HFpEF | Emerging evidence; guideline integration ongoing |
-| STEP-HFpEF | 2023 | Semaglutide improved symptoms in obese HFpEF | Obesity therapy with HF benefits |
-| Hozho Trial | 2024 | 53% increase GDMT via telephone in rural population | Validates low-tech approach |
-| STRONG-HF | 2022 | Rapid GDMT titration safe and effective | Tier 3 methodology |
-| TIM-HF2 | 2018 | 30% mortality reduction with remote monitoring | Foundation for RPM |
+| EMPEROR-Preserved | 2021 | Empagliflozin reduces CV death/HF hospitalization in HFpEF (LVEF >40%) | Class IIa per 2022 AHA/ACC/HFSA guideline |
+| DELIVER | 2022 | Dapagliflozin confirms SGLT2i benefit across broad HFpEF population | Class IIa per 2022 AHA/ACC/HFSA guideline |
+| FINEARTS-HF | 2024 | Finerenone lowered the rate of total worsening HF events plus CV death by 16% (rate ratio 0.84, 0.74-0.95) in HF with LVEF ≥40%; CV death alone was not reduced; more hyperkalemia | FDA-labeled for HF with LVEF ≥40% since July 2025; US guideline integration ongoing |
+| STEP-HFpEF | 2023 | Semaglutide improved symptoms and weight (co-primary endpoints) in obese HFpEF | Symptom and weight trial, not a CV outcome trial |
+| Hozhó Trial | 2024 | Phone-based GDMT titration with a home BP cuff raised the proportion with a new GDMT class at 30 days from 13.1% to 66.2% (53 percentage points) in 103 adults with HFrEF in rural Navajo Nation | Stepped-wedge pragmatic trial; informs Module 3 analog track |
+| STRONG-HF | 2022 | Rapid GDMT up-titration with close follow-up lowered 180-day HF readmission or all-cause death; more non-serious adverse events (41% vs 29%), with similar serious and fatal events | Tier 3 methodology |
+| TIM-HF2 | 2018 | 30% lower all-cause death (HR 0.70, 95% CI 0.50-0.96), a secondary endpoint; primary endpoint (days lost to unplanned CV admission or death) 4.88% vs 6.64%, ratio 0.80 (0.65-1.00) | Selected German population; informs RPM design |
 
 ## APPENDIX B: Manufacturer Assistance Programs
 
+*Program details change frequently. Verify current availability before applying. All statuses below verified 2026-09-17.*
+
+**Two different instruments, often confused.** A **patient assistance program (PAP)** supplies the medicine free to uninsured or low-income patients, typically with a federal poverty level (FPL) ceiling. A **copay savings card** reduces out-of-pocket cost only for patients with **commercial** insurance and is explicitly **unavailable to beneficiaries of Medicare, Medicaid, TRICARE, VA/DOD or any state pharmaceutical assistance program**. In a rural population with high Medicare penetration this distinction decides whether a program is usable at all.
+
 | Medication | Manufacturer | Resource |
 |-|-|-|
-| Sacubitril/valsartan | Novartis | Patient assistance program available |
-| Finerenone | Bayer | Savings program available |
-| Empagliflozin | Lilly/BI | Patient assistance available |
-| Dapagliflozin | AstraZeneca | Patient assistance available |
-| Semaglutide | Novo Nordisk | Patient assistance available |
+| Sacubitril/valsartan | Novartis | NO manufacturer PAP coverage confirmed (verified 2026-09-17): not on the Novartis Patient Assistance Foundation medicine list and the brand sites redirect to a generic product index. A marketed US generic now exists — pursue the generic, not assistance |
+| Finerenone | Bayer | COPAY SAVINGS CARD (commercial insurance only; government-program beneficiaries ineligible; annual cap). A separate Bayer US Patient Assistance Foundation PAP is reported at ≤300% FPL for uninsured patients but could not be verified at source (manufacturer pages returned HTTP 403) — confirm directly before relying on it |
+| Empagliflozin | Lilly/BI | PAP (BI Cares). Income ceiling NOT verified — do not quote one. The Jardiance copay savings card is a COMMERCIAL-ONLY card and the version currently served still shows an expiration of 31 December 2024 |
+| Dapagliflozin | AstraZeneca | PAP (AZ&Me) — CLOSED TO NEW PATIENTS since 1 May 2026; patients enrolled by 31 December 2026 continue, last order 15 December 2026, no exceptions. Eligibility while it applied: ≤300% FPL. A marketed US generic dapagliflozin exists since April 2026 |
+| Semaglutide | Novo Nordisk | PAP (Novo Nordisk) — ≤200% FPL for Ozempic in uninsured patients; Medicare Part D beneficiaries with drug coverage became ineligible in 2026. Wegovy is NOT listed on the PAP pages; do not assert PAP coverage for Wegovy |
 
-Additional: NeedyMeds.org, RxAssist.org, 340B pricing for eligible facilities (FQHC, CAH).
+Additional: NeedyMeds.org, RxAssist.org, 340B pricing for eligible facilities (FQHC, CAH, certain hospitals).
 
 ---
 
 ## LIMITATIONS AND SCOPE
 
-1. **No prospective validation.** Expected outcomes are extrapolated from source trials that tested individual interventions, not the integrated bundle.
-2. **Risk score not statistically calibrated.** Pragmatic heuristic, not regression-based. Formal validation is a planned next step.
-3. **Narrative review methodology.** Not a systematic review with predefined search strategies.
-4. **Clinical judgment remains paramount.** This protocol does not substitute for clinical judgment.
-5. **Population-specific adaptations may be necessary.** Designed for rural US settings; other populations may require modifications.
+1. **No prospective validation.** The protocol has not been tested in a prospective clinical trial or pilot implementation study. Expected outcomes are extrapolated from source trials that tested individual interventions, not the integrated bundle.
+2. **Risk score not statistically calibrated.** Pragmatic heuristic; no derivation/validation cohort testing, ROC analysis or calibration assessment. Variable weights reflect clinical reasoning informed by published evidence, not regression coefficients.
+3. **Narrative review methodology.** Targeted narrative review, not a systematic review with predefined search strategies, inclusion/exclusion criteria or risk-of-bias assessment.
+4. **Clinical judgment remains paramount.** The protocol provides a structured framework but does not substitute for clinical judgment.
+5. **Population-specific adaptations may be necessary.** Designed for rural and resource-limited US settings; other populations may require modifications for local infrastructure, cultural factors and regulatory environments.
