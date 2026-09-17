@@ -89,4 +89,14 @@ describe('COMORBIDITY_DATA CKD renal rules (COMR-03)', () => {
     expect(sglt2i).toMatch(/empagliflozin/i);
     expect(sglt2i).not.toMatch(/minimum eGFR 20/i);
   });
+
+  // F10: keep the 1-2 week recheck and add the 4-week label milestone, each
+  // with its source (KERENDIA §2.3; 2022 AHA/ACC/HFSA p. e932).
+  it('monitoring: keeps the 1-2 week recheck and names the 4-week finerenone lab', () => {
+    const monitoring = lineStartingWith('Monitor BMP');
+    expect(monitoring).toMatch(/1-2 weeks/);
+    expect(monitoring).toMatch(/4 weeks/);
+    expect(monitoring).toMatch(/KERENDIA/);
+    expect(monitoring).toMatch(/2022 AHA\/ACC\/HFSA/);
+  });
 });

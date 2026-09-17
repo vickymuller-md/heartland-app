@@ -63,7 +63,7 @@ export const COMORBIDITY_DATA: ComorbidityDetail[] = [
       'MRA therapy: apply agent-specific current labeling/guidelines; finerenone is not automatically preferred by eGFR alone. Spironolactone at eGFR 30-50: half the dose or 25 mg every other day (ALDACTONE label 2.2; 2022 AHA/ACC/HFSA p. e932). Eplerenone: contraindicated if creatinine clearance <=30 mL/min or K+ >5.5 mEq/L at initiation (INSPRA label 4)',
       'SGLT2i: dapagliflozin — do not initiate if eGFR <25, may continue 10 mg daily if eGFR falls below it (FARXIGA label 2.3); empagliflozin — no eGFR floor for the HF indication (JARDIANCE label 2)',
       'Beta-blocker: no dose adjustment needed for CKD',
-      'Monitor BMP 1-2 weeks after any GDMT change',
+      'Monitor BMP 1-2 weeks after any GDMT change (first milestone of the 2022 AHA/ACC/HFSA MRA schedule: ~1 week, then 4 weeks, then every 6 months). On finerenone, also measure K+ and eGFR 4 weeks after initiation and 4 weeks after each dose change — the 4-week lab is the titration decision point (KERENDIA label 2.3); the 1-week check adds to it and does not replace it',
     ],
   },
   {
