@@ -13,6 +13,24 @@ import type {
 } from './types';
 
 // ==========================================================================
+// Renal gate thresholds — one declaration shared by the safety-gate panel
+// (SAFETY_GATES below) and the per-drug engine (lib/titration/engine.ts).
+// Every entry reads "requires eGFR >= MIN", so every comparison is
+// `egfr < MIN` and a value exactly equal to MIN passes.
+// Source: ACC/AHA 2022 HF Guidelines (MRA); FDA labels per agent.
+// ==========================================================================
+export const EGFR_GATES = {
+  /** Spironolactone/eplerenone: 2022 AHA/ACC/HFSA COR 1 A (eGFR >30, K+ <5.0). */
+  spironolactoneMin: 30,
+  /** Finerenone: KERENDIA label Table 1 / §5.2 — initiation not recommended below 25. */
+  finerenoneInitiationMin: 25,
+  /** SGLT2i: EMPEROR trial enrolment floor carried by the protocol. */
+  sglt2iMin: 20,
+  /** ARNI: protocol operational floor. */
+  arniMin: 20,
+} as const;
+
+// ==========================================================================
 // Safety Gates (Protocol Module 3, Section 3.3 + ACC/AHA 2022)
 // 5 gate evaluators: SBP, HR, K+, Cr, eGFR
 // Source: reference/clinical_content.md Section 3.3, ACC/AHA 2022 HF Guidelines (eGFR)
@@ -135,10 +153,9 @@ export const SAFETY_GATES: SafetyGateDefinition[] = [
     id: 'egfr',
     parameter: 'eGFR (mL/min)',
     evaluate: (vitals: VitalSigns): SafetyGateResult => {
-      // Named constants for clinical thresholds (ACC/AHA 2022 HF Guidelines)
-      const eGFR_SGLT2I_THRESHOLD = 20;
-      const eGFR_FINERENONE_THRESHOLD = 25;
-      const eGFR_MRA_THRESHOLD = 30;
+      const eGFR_SGLT2I_THRESHOLD = EGFR_GATES.sglt2iMin;
+      const eGFR_FINERENONE_THRESHOLD = EGFR_GATES.finerenoneInitiationMin;
+      const eGFR_MRA_THRESHOLD = EGFR_GATES.spironolactoneMin;
 
       if (vitals.egfr === undefined) {
         return {
@@ -318,17 +335,6 @@ export const DEFAULT_MEDICATIONS = [
   { name: 'SGLT2i (Dapagliflozin/Empagliflozin)', currentDose: '' },
   { name: 'Loop diuretic (Furosemide)', currentDose: '' },
 ];
-
-// ==========================================================================
-// Per-Drug eGFR Thresholds for Titration Safety Gates
-// Source: ACC/AHA 2022 HF Guidelines, reference/clinical_content.md Module 2
-// ==========================================================================
-export const EGFR_THRESHOLDS: Record<string, { min: number; operator: 'gt' | 'gte'; label: string }> = {
-  MRA:        { min: 30, operator: 'gt',  label: 'eGFR >30' },
-  SGLT2i:     { min: 20, operator: 'gt',  label: 'eGFR >20' },
-  finerenone: { min: 25, operator: 'gte', label: 'eGFR >=25' },
-  ARNI:       { min: 20, operator: 'gt',  label: 'eGFR >20 (use cautiously <30)' },
-};
 
 // ==========================================================================
 // ACEi Drug Keywords for Washout Detection

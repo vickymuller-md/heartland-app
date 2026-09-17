@@ -2,7 +2,7 @@
 // Source: reference/clinical_content.md Module 3, Section 3.3
 // NO side effects, NO async, NO DOM — safe for server or client.
 
-import { SAFETY_GATES, ACEI_KEYWORDS } from './constants';
+import { SAFETY_GATES, ACEI_KEYWORDS, EGFR_GATES } from './constants';
 import type { VitalSigns, SafetyGateResult, TitrationAction, DrugClass, DrugClassRecommendation } from './types';
 
 /**
@@ -180,16 +180,17 @@ export function getPerDrugRecommendations(
       };
     }
 
-    // eGFR per-drug thresholds
+    // eGFR per-drug thresholds. Each gate reads "requires eGFR >= MIN", so the
+    // comparison is always `<` and the value exactly equal to MIN passes.
     if (vitals.egfr !== undefined && vitals.egfr !== null) {
-      if (drugClass === 'MRA' && vitals.egfr <= 30) {
-        return { drugClass, action: 'hold' as const, reason: `eGFR ${vitals.egfr} <=30`, safetyGateFailed: 'eGFR' };
+      if (drugClass === 'MRA' && vitals.egfr < EGFR_GATES.spironolactoneMin) {
+        return { drugClass, action: 'hold' as const, reason: `eGFR ${vitals.egfr} <${EGFR_GATES.spironolactoneMin}`, safetyGateFailed: 'eGFR' };
       }
-      if (drugClass === 'SGLT2i' && vitals.egfr <= 20) {
-        return { drugClass, action: 'hold' as const, reason: `eGFR ${vitals.egfr} <=20`, safetyGateFailed: 'eGFR' };
+      if (drugClass === 'SGLT2i' && vitals.egfr < EGFR_GATES.sglt2iMin) {
+        return { drugClass, action: 'hold' as const, reason: `eGFR ${vitals.egfr} <${EGFR_GATES.sglt2iMin}`, safetyGateFailed: 'eGFR' };
       }
-      if (drugClass === 'ARNI' && vitals.egfr <= 20) {
-        return { drugClass, action: 'hold' as const, reason: `eGFR ${vitals.egfr} <=20`, safetyGateFailed: 'eGFR' };
+      if (drugClass === 'ARNI' && vitals.egfr < EGFR_GATES.arniMin) {
+        return { drugClass, action: 'hold' as const, reason: `eGFR ${vitals.egfr} <${EGFR_GATES.arniMin}`, safetyGateFailed: 'eGFR' };
       }
     }
 
