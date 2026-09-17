@@ -14,7 +14,9 @@ import { getPatientOperationalView } from '@/lib/patient/operational';
 import { PatientBrief } from './_components/patient-brief';
 import { PatientTimeline } from './_components/patient-timeline';
 import { ActionCenter } from './_components/action-center';
+import { AccountabilityPanel } from './_components/accountability-panel';
 import { ProductEventTracker } from '@/components/analytics/product-event-tracker';
+import { getTeamDirectory } from '@/lib/team/queries';
 
 /**
  * Patient Detail -- Server Component
@@ -63,6 +65,10 @@ export default async function PatientDetailPage({
   const { patient, vitals, symptoms, adherenceSummary, educationProgress, notes, openAlerts } = detail;
   const messages = await getPatientMessages(supabase, patientId);
   const operationalView = await getPatientOperationalView(supabase, user.id, patientId);
+  const teamDirectory = await getTeamDirectory(supabase);
+  const designatableMembers = teamDirectory.members.filter((member) =>
+    teamDirectory.manageableOrganizationIds.includes(member.organization_id),
+  );
   const tier = patient.risk_tier ? normalizeRiskTier(patient.risk_tier) : null;
   const tierStyle = tier ? TIER_DISPLAY[tier.tier] : null;
   const trackLabel = patient.track_assignment ? TRACK_DISPLAY[patient.track_assignment] : null;
@@ -180,6 +186,7 @@ export default async function PatientDetailPage({
         </div>
       )}
       <PatientBrief brief={operationalView.brief} />
+      <AccountabilityPanel patientId={patientId} members={designatableMembers} />
       <ActionCenter patientId={patientId} />
       <PatientTimeline events={operationalView.timeline} />
 
