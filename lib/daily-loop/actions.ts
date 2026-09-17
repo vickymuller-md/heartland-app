@@ -4,12 +4,20 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { authorize, authorizeProviderForPatient } from '@/lib/auth/authorization';
 import { trackProductEvent } from '@/lib/product-analytics/actions';
+import { MANAGER_OUTCOME_CODE, PROVIDER_OUTCOME_CODES } from './types';
+
+/**
+ * Outcome codes a human may choose. `followup_completed`, `followup_skipped` and
+ * `outcome_not_recorded` are written by the database only and are never offered here.
+ */
+const outcomeCodeSchema = z.enum([...PROVIDER_OUTCOME_CODES, MANAGER_OUTCOME_CODE]);
 
 const transitionSchema = z.object({
   workItemId: z.uuid(),
   patientId: z.uuid(),
   status: z.enum(['reviewed', 'actioned', 'awaiting', 'closed']),
   outcome: z.string().trim().min(3).max(1000).optional(),
+  outcomeCode: outcomeCodeSchema.optional(),
   snoozeReason: z.string().trim().min(3).max(500).optional(),
   dueAt: z.iso.datetime().optional(),
 }).superRefine((value, context) => {
@@ -40,9 +48,27 @@ export async function transitionWorkItem(
   const auth = await authorize('provider');
   if (!auth.authorized) return { success: false, error: auth.error };
 
+  if (parsed.data.status === 'closed' && !parsed.data.outcomeCode) {
+    // Items created under the single-accountable model require a documented outcome code.
+    // Items created before it (`accountability_source` NULL) still close with text only.
+    const { data: item, error: itemError } = await auth.supabase
+      .from('work_items')
+      .select('accountability_source')
+      .eq('id', parsed.data.workItemId)
+      .eq('patient_id', parsed.data.patientId)
+      .maybeSingle();
+    if (itemError || !item) {
+      return { success: false, error: 'Unable to update this work item' };
+    }
+    if (item.accountability_source) {
+      return { success: false, error: 'Choose a documented outcome code to close this item' };
+    }
+  }
+
   const update: Record<string, string | null> = { status: parsed.data.status };
   if (parsed.data.status === 'closed' || parsed.data.status === 'actioned') {
     update.outcome = parsed.data.outcome ?? null;
+    if (parsed.data.outcomeCode) update.outcome_code = parsed.data.outcomeCode;
   }
   if (parsed.data.status === 'awaiting') {
     update.snooze_reason = parsed.data.snoozeReason ?? null;
@@ -154,26 +180,168 @@ export async function createManualWorkItem(
 
 const assignmentSchema = z.object({
   workItemId: z.uuid(),
+  patientId: z.uuid(),
   assigneeId: z.uuid(),
+  note: z.string().trim().min(3).max(500).optional(),
 });
 
+function revalidateWorkSurfaces(patientId: string): void {
+  revalidatePath('/dashboard');
+  revalidatePath('/team');
+  revalidatePath(`/patients/${patientId}`);
+}
+
+/**
+ * Offers the item to another team member. Accountability stays with the current owner
+ * until the addressee accepts, so this never writes `assigned_to` directly.
+ */
 export async function assignWorkItem(input: z.infer<typeof assignmentSchema>): Promise<{ success: boolean; error?: string }> {
   const parsed = assignmentSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: 'Invalid assignment' };
   const auth = await authorize('provider');
   if (!auth.authorized) return { success: false, error: auth.error };
 
-  const { data, error } = await auth.supabase
-    .from('work_items')
-    .update({ assigned_to: parsed.data.assigneeId })
-    .eq('id', parsed.data.workItemId)
-    .select('id, patient_id');
-  if (error || !data?.length) return { success: false, error: 'Work could not be reassigned.' };
+  const { error } = await auth.supabase.rpc('offer_work_item_transfer', {
+    p_work_item_id: parsed.data.workItemId,
+    p_to: parsed.data.assigneeId,
+    p_note: parsed.data.note ?? null,
+  });
+  if (error) return { success: false, error: 'This transfer could not be offered.' };
 
   await trackProductEvent({ eventName: 'work_item_reassigned', area: 'team' });
-  revalidatePath('/dashboard');
-  revalidatePath('/team');
-  revalidatePath(`/patients/${data[0].patient_id}`);
+  revalidateWorkSurfaces(parsed.data.patientId);
+  return { success: true };
+}
+
+const reassignmentSchema = z.object({
+  workItemId: z.uuid(),
+  patientId: z.uuid(),
+  assigneeId: z.uuid(),
+  reason: z.string().trim().min(3).max(500),
+});
+
+/**
+ * Forced reassignment by a team manager. Recorded as `manager_reassigned`: moving work
+ * is not the same as accepting it, so the previous acceptance is cleared by the database.
+ */
+export async function reassignWorkItem(
+  input: z.infer<typeof reassignmentSchema>,
+): Promise<{ success: boolean; error?: string }> {
+  const parsed = reassignmentSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: 'Document why this work is being reassigned.' };
+  const auth = await authorize('provider');
+  if (!auth.authorized) return { success: false, error: auth.error };
+
+  const { error } = await auth.supabase.rpc('reassign_work_item', {
+    p_work_item_id: parsed.data.workItemId,
+    p_to: parsed.data.assigneeId,
+    p_reason: parsed.data.reason,
+  });
+  if (error) return { success: false, error: 'Work could not be reassigned.' };
+
+  await trackProductEvent({ eventName: 'work_item_reassigned', area: 'team' });
+  revalidateWorkSurfaces(parsed.data.patientId);
+  return { success: true };
+}
+
+const workItemAcceptanceSchema = z.object({
+  workItemId: z.uuid(),
+  patientId: z.uuid(),
+});
+
+/** The accountable provider takes the item. Acceptance is never inferred. */
+export async function acceptWorkItem(
+  input: z.infer<typeof workItemAcceptanceSchema>,
+): Promise<{ success: boolean; error?: string }> {
+  const parsed = workItemAcceptanceSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: 'Invalid work item' };
+  const auth = await authorize('provider');
+  if (!auth.authorized) return { success: false, error: auth.error };
+
+  const { error } = await auth.supabase.rpc('accept_work_item', {
+    p_work_item_id: parsed.data.workItemId,
+  });
+  if (error) return { success: false, error: 'This item could not be accepted.' };
+
+  revalidateWorkSurfaces(parsed.data.patientId);
+  return { success: true };
+}
+
+/** Only the addressee of a pending transfer can accept it. */
+export async function acceptTransfer(
+  input: z.infer<typeof workItemAcceptanceSchema>,
+): Promise<{ success: boolean; error?: string }> {
+  const parsed = workItemAcceptanceSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: 'Invalid work item' };
+  const auth = await authorize('provider');
+  if (!auth.authorized) return { success: false, error: auth.error };
+
+  const { error } = await auth.supabase.rpc('accept_work_item_transfer', {
+    p_work_item_id: parsed.data.workItemId,
+  });
+  if (error) return { success: false, error: 'This transfer could not be accepted.' };
+
+  revalidateWorkSurfaces(parsed.data.patientId);
+  return { success: true };
+}
+
+const declineTransferSchema = z.object({
+  workItemId: z.uuid(),
+  patientId: z.uuid(),
+  reason: z.string().trim().min(3).max(500),
+});
+
+/** Declining returns the item to the previous accountable provider, with a reason on record. */
+export async function declineTransfer(
+  input: z.infer<typeof declineTransferSchema>,
+): Promise<{ success: boolean; error?: string }> {
+  const parsed = declineTransferSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: 'Declining a transfer requires a reason.' };
+  const auth = await authorize('provider');
+  if (!auth.authorized) return { success: false, error: auth.error };
+
+  const { error } = await auth.supabase.rpc('decline_work_item_transfer', {
+    p_work_item_id: parsed.data.workItemId,
+    p_reason: parsed.data.reason,
+  });
+  if (error) return { success: false, error: 'This transfer could not be declined.' };
+
+  revalidateWorkSurfaces(parsed.data.patientId);
+  return { success: true };
+}
+
+const designationSchema = z.object({
+  organizationId: z.uuid(),
+  patientId: z.uuid(),
+  accountableId: z.uuid(),
+  note: z.string().trim().min(3).max(500).optional(),
+});
+
+/**
+ * Team manager designates the single accountable provider for a patient. New work for that
+ * patient is assigned to the designated member; work already open is offered, never moved,
+ * so `p_offer_open_items` stays false and delegation remains a per-item decision.
+ */
+export async function designatePatientAccountable(
+  input: z.infer<typeof designationSchema>,
+): Promise<{ success: boolean; error?: string }> {
+  const parsed = designationSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: 'Invalid designation' };
+  const auth = await authorize('provider');
+  if (!auth.authorized) return { success: false, error: auth.error };
+
+  const { error } = await auth.supabase.rpc('designate_patient_accountable', {
+    p_organization_id: parsed.data.organizationId,
+    p_patient_id: parsed.data.patientId,
+    p_accountable_id: parsed.data.accountableId,
+    p_note: parsed.data.note ?? null,
+    p_offer_open_items: false,
+  });
+  if (error) {
+    return { success: false, error: 'The accountable provider could not be designated.' };
+  }
+
+  revalidateWorkSurfaces(parsed.data.patientId);
   return { success: true };
 }
 
