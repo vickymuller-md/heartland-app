@@ -155,6 +155,20 @@ describe('eGFR 30 boundary — ARNI half dose (ENTRESTO label §2.7)', () => {
   });
 });
 
+describe('classes with no renal gate are never held for eGFR', () => {
+  it.each([20, 25, 30])('eGFR %i does not hold the beta-blocker', (egfr) => {
+    expect(actionFor('Beta-blocker', egfr)).toBe('uptitrate');
+  });
+
+  it.each([20, 25, 30])('eGFR %i does not hold the loop diuretic', (egfr) => {
+    expect(actionFor('Loop diuretic', egfr)).toBe('uptitrate');
+  });
+
+  it('eGFR 18 does not hold the beta-blocker either (no renal dose adjustment in CKD)', () => {
+    expect(actionFor('Beta-blocker', 18)).toBe('uptitrate');
+  });
+});
+
 describe('the safety-gate panel and the per-drug engine agree at the same eGFR', () => {
   it.each([20, 25, 30])(
     'eGFR %i: the panel blocks the MRA only when the per-drug engine holds it',
