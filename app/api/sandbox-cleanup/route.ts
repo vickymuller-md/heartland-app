@@ -27,11 +27,31 @@ export async function GET(request: Request) {
 
   let deleted = 0;
   let failed = 0;
+  const failures: Array<{ id: string; stage: 'purge' | 'delete'; code: string | null }> = [];
   for (const profile of expired ?? []) {
+    // Laboratory receipts and attempts are bound to the acting profile with
+    // ON DELETE RESTRICT; the audited service-role erasure must run first.
+    const { error: purgeError } = await supabaseAdmin.rpc('purge_expired_tester_provenance', {
+      p_actor_id: profile.id,
+    });
+    if (purgeError) {
+      failed += 1;
+      failures.push({ id: profile.id, stage: 'purge', code: purgeError.code ?? null });
+      continue;
+    }
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(profile.id);
-    if (deleteError) failed += 1;
-    else deleted += 1;
+    if (deleteError) {
+      failed += 1;
+      failures.push({ id: profile.id, stage: 'delete', code: deleteError.code ?? null });
+    } else {
+      deleted += 1;
+    }
   }
 
-  return NextResponse.json({ expired: expired?.length ?? 0, deleted, failed });
+  // A failed erasure is an operator item; a non-2xx status keeps the cron run
+  // visible as failed instead of a silent success.
+  return NextResponse.json(
+    { expired: expired?.length ?? 0, deleted, failed, failures },
+    { status: failed > 0 ? 500 : 200 },
+  );
 }
