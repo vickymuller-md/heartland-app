@@ -15,6 +15,10 @@
     {
       "path": "/api/sandbox-cleanup",
       "schedule": "30 9 * * *"
+    },
+    {
+      "path": "/api/lab-alert-drain",
+      "schedule": "15 8 * * *"
     }
   ]
 }
