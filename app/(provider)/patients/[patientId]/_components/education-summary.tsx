@@ -47,7 +47,7 @@ function parseEducationProgress(data: unknown): DomainProgress[] | null {
     const domain = item as Record<string, unknown>;
     return {
       domain: String(domain.domain ?? domain.id ?? ''),
-      label: String(domain.label ?? domain.name ?? domain.domain ?? ''),
+      label: String(domain.label ?? domain.name ?? domain.title ?? domain.domain ?? domain.id ?? ''),
       completed: Boolean(domain.completed ?? domain.complete ?? false),
       completed_at: domain.completed_at ? String(domain.completed_at) : undefined,
     };
