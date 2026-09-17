@@ -472,7 +472,7 @@ export function GuideContent() {
       <Section id="titration" title="Telephone Titration Checklist" icon={Phone}>
         <p>
           The Titration Checklist is a <strong>5-step guided workflow</strong> for phone-based medication adjustment,
-          based on the Hozho Trial methodology (which achieved 53% GDMT optimization via telephone).
+          based on the Hozho Trial methodology, in which phone-based titration raised 30-day GDMT class addition from 13.1% to 66.2%.
         </p>
 
         <h3 className="font-semibold text-gray-900 mt-4 mb-2">Before the Call</h3>

@@ -166,21 +166,26 @@ export default function AboutPage() {
               <tr>
                 <td className="px-3 py-2">Hozho Trial (JAMA IM 2024)</td>
                 <td className="px-3 py-2">
-                  53% GDMT increase via telephone in rural population
+                  Phone-based titration with a home BP cuff raised GDMT class
+                  addition at 30 days from 13.1% to 66.2% (rural Navajo Nation,
+                  n = 103)
                 </td>
                 <td className="px-3 py-2">Module 3: Telephone Titration</td>
               </tr>
               <tr>
                 <td className="px-3 py-2">STRONG-HF (Lancet 2022)</td>
                 <td className="px-3 py-2">
-                  Rapid GDMT up-titration safe and effective
+                  Rapid GDMT up-titration effective, with more non-serious
+                  adverse events
                 </td>
                 <td className="px-3 py-2">Module 8: Tier 3 methodology</td>
               </tr>
               <tr>
                 <td className="px-3 py-2">TIM-HF2 (Lancet 2018)</td>
                 <td className="px-3 py-2">
-                  30% mortality reduction with remote monitoring
+                  30% lower all-cause death (HR 0.70, 0.50–0.96), a secondary
+                  endpoint in a German trial; benefit greatest at longer travel
+                  distances
                 </td>
                 <td className="px-3 py-2">Module 5: Remote Monitoring</td>
               </tr>

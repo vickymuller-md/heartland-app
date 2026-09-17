@@ -40,6 +40,11 @@ describe('About Page (ABOUT-01)', () => {
     ).toBeInTheDocument();
     const matches = screen.getAllByText(/Hozho Trial/);
     expect(matches.length).toBeGreaterThanOrEqual(1);
+    // Trial findings are stated as published (H01 adjudication, 2026-09-16).
+    expect(screen.getByText(/from 13\.1% to 66\.2%/)).toBeInTheDocument();
+    expect(screen.getByText(/HR 0\.70, 0\.50–0\.96\), a secondary endpoint/)).toBeInTheDocument();
+    expect(screen.getByText(/with more non-serious adverse events/)).toBeInTheDocument();
+    expect(screen.queryByText(/53% GDMT increase/)).toBeNull();
   });
 
   it('renders "Federal Alignment" section with 4 programs', () => {
