@@ -99,10 +99,28 @@ describe('RMON-04: RPM Billing Codes', () => {
     expect(code!.verification).toContain('base-code');
   });
 
-  it('includes RTM codes 98975-98981', () => {
-    const code = BILLING_CODES.find((c) => c.code === '98975-98981');
+  it('includes the RTM code family 98975-98986 and flags the unpaid codes', () => {
+    const code = BILLING_CODES.find((c) => c.code === '98975-98986');
     expect(code).toBeDefined();
     expect(code!.verification).toContain('Do not substitute');
+    expect(code!.verification).toContain('98978 and 98986 carry no physician fee schedule payment');
+  });
+
+  it('includes the CY2026 codes 99445 and 99470 as non-additive alternatives', () => {
+    const twoToFifteen = BILLING_CODES.find((c) => c.code === '99445');
+    expect(twoToFifteen).toBeDefined();
+    expect(twoToFifteen!.description).toContain('2-15 days');
+    expect(twoToFifteen!.verification).toContain('Not additive with 99454');
+
+    const firstTenMinutes = BILLING_CODES.find((c) => c.code === '99470');
+    expect(firstTenMinutes).toBeDefined();
+    expect(firstTenMinutes!.description).toContain('first 10 minutes');
+    expect(firstTenMinutes!.verification).toContain('Not additive with 99457');
+  });
+
+  it('describes 99453 as one-time and 99454 as 16-30 days', () => {
+    expect(BILLING_CODES.find((c) => c.code === '99453')!.description).toContain('one-time, not monthly');
+    expect(BILLING_CODES.find((c) => c.code === '99454')!.description).toContain('16-30 days');
   });
 
   it('every billing code has code, description, and a verification warning', () => {

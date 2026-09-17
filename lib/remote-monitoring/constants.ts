@@ -64,32 +64,51 @@ export const RED_FLAG_ALERTS: RedFlagAlert[] = [
 // Billing code navigation — verify current CMS descriptors, payer rules, and
 // device/data requirements before use. Self-entered app data does not itself
 // establish RPM eligibility.
+//
+// Descriptors follow the CMS CY2026 Physician Fee Schedule, which added the
+// 2-15 day and first-10-minute codes and revised 99454 to 16-30 days. No
+// payment amount is carried here by design.
 // ==========================================================================
 export const BILLING_CODES: BillingCode[] = [
   {
     code: '99453',
-    description: 'RPM initial setup',
+    description: 'RPM initial setup and patient education (one-time, not monthly)',
     verification: 'Confirm device, setup, episode, consent, and payer requirements.',
   },
   {
+    code: '99445',
+    description: 'RPM device supply and data transmission, 2-15 days in 30 days (added in CY2026)',
+    verification:
+      'Confirm current monitoring-day, connected-device, and transmission rules. Not additive with 99454: bill one or the other.',
+  },
+  {
     code: '99454',
-    description: 'RPM device supply and data transmission',
-    verification: 'Confirm current monitoring-day, connected-device, and transmission rules.',
+    description: 'RPM device supply and data transmission, 16-30 days in 30 days',
+    verification:
+      'Confirm current monitoring-day, connected-device, and transmission rules. Not additive with 99445: bill one or the other.',
+  },
+  {
+    code: '99470',
+    description: 'RPM treatment management, first 10 minutes (added in CY2026)',
+    verification:
+      'Confirm interactive communication, time, personnel, supervision, and payer rules. Not additive with 99457: bill one or the other.',
   },
   {
     code: '99457',
-    description: 'RPM first 20 min management',
-    verification: 'Confirm interactive communication, time, personnel, supervision, and payer rules.',
+    description: 'RPM treatment management, first 20 minutes',
+    verification:
+      'Confirm interactive communication, time, personnel, supervision, and payer rules. Not additive with 99470: bill one or the other.',
   },
   {
     code: '99458',
-    description: 'RPM additional 20 min',
+    description: 'RPM treatment management, each additional 20 minutes',
     verification: 'Confirm incremental time and all base-code requirements.',
   },
   {
-    code: '98975-98981',
-    description: 'Remote therapeutic monitoring code family',
-    verification: 'Do not substitute RTM for RPM; verify modality, data, and payer policy.',
+    code: '98975-98986',
+    description: 'Remote therapeutic monitoring code family (expanded in CY2026)',
+    verification:
+      'Do not substitute RTM for RPM; verify modality, data, and payer policy. 98978 and 98986 carry no physician fee schedule payment.',
   },
 ];
 

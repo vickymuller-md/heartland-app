@@ -541,10 +541,12 @@ export function GuideContent() {
 
         <h3 className="font-semibold text-gray-900 mt-6 mb-2">Remote Monitoring Billing Navigation</h3>
         <p className="text-sm">
-          Codes 99453, 99454, 99457, 99458, and the 98975&ndash;98981 family may be relevant only after independent verification of the current code descriptor, modality, connected-device and automatic-transmission rules, monitoring days, time, communication, supervision, consent, documentation, and payer policy.
+          Codes 99453, 99445, 99454, 99470, 99457, 99458, and the 98975&ndash;98986 family may be relevant only after independent verification of the current code descriptor, modality, connected-device and automatic-transmission rules, monitoring days, time, communication, supervision, consent, documentation, and payer policy. Descriptors follow the CMS CY 2026 Physician Fee Schedule.
         </p>
         <ul className="list-disc list-inside text-sm space-y-1 ml-4 mt-2">
           <li>Manual or patient-entered HEARTLAND records do not prove qualifying automatic device transmission.</li>
+          <li>99453 is a one-time setup code, not a monthly one. The 2&ndash;15 day code (99445) and the 16&ndash;30 day code (99454) are alternatives, not additive; so are the first-10-minute code (99470) and the first-20-minute code (99457).</li>
+          <li>Monthly revenue estimates published elsewhere assume at least 16 device-transmission days plus 40&ndash;60 minutes of billed management every month; a base month is one device-supply code plus one management code.</li>
           <li>No amount, eligibility status, or reimbursement outcome is represented by this app.</li>
           <li><a className="underline" href="https://www.cms.gov/medicare/payment/fee-schedules/physician/federal-regulation-notices/cms-1832-f" target="_blank" rel="noreferrer">Verify the CMS CY 2026 Physician Fee Schedule</a> and payer-specific policy.</li>
         </ul>
