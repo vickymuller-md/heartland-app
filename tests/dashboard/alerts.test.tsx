@@ -146,6 +146,45 @@ describe('AlertInbox', () => {
 });
 
 // ==========================================================================
+// Migration 00041: accountable provider and outcome-required marker
+// ==========================================================================
+
+describe('AlertInbox accountability markers (00041)', () => {
+  const accountableAlert: AlertRow = {
+    ...mockAlerts[0],
+    id: 'alert-4',
+    accountable_provider_id: 'provider-9',
+    accountable_provider_name: 'Dana Reyes, NP',
+    outcome_required: false,
+  };
+
+  it('shows the accountable provider when the work item names one', () => {
+    render(<AlertInbox alerts={[accountableAlert]} statusFilter="open" />);
+    expect(screen.getByTestId('alert-accountable')).toHaveTextContent(
+      'Accountable: Dana Reyes, NP'
+    );
+  });
+
+  it('shows the outcome-required marker when the alert is resolved but the item is open', () => {
+    render(
+      <AlertInbox
+        alerts={[{ ...accountableAlert, status: 'resolved', outcome_required: true }]}
+        statusFilter="resolved"
+      />
+    );
+    expect(screen.getByTestId('alert-outcome-required')).toHaveTextContent(
+      'Outcome required'
+    );
+  });
+
+  it('renders no markers for an alert without accountability data', () => {
+    render(<AlertInbox alerts={[mockAlerts[0]]} statusFilter="open" />);
+    expect(screen.queryByTestId('alert-accountable')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('alert-outcome-required')).not.toBeInTheDocument();
+  });
+});
+
+// ==========================================================================
 // DASH-08: Realtime alerts provider contract
 // ==========================================================================
 

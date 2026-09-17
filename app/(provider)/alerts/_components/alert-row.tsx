@@ -62,6 +62,34 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+/**
+ * Accountability markers from the derived work item (migration 00041).
+ * Renders nothing when the alert has no accountable provider and no pending outcome.
+ */
+function AccountabilityMarkers({ alert }: { alert: AlertRow }) {
+  if (!alert.accountable_provider_name && !alert.outcome_required) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      {alert.accountable_provider_name && (
+        <span
+          className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-800"
+          data-testid="alert-accountable"
+        >
+          Accountable: {alert.accountable_provider_name}
+        </span>
+      )}
+      {alert.outcome_required && (
+        <span
+          className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-900"
+          data-testid="alert-outcome-required"
+        >
+          Outcome required
+        </span>
+      )}
+    </div>
+  );
+}
+
 function ActionButtons({
   alert,
   isPending,
@@ -118,6 +146,7 @@ function ResolutionControl({ isPending, onResolve }: { isPending: boolean; onRes
   return (
     <form className="min-w-56 space-y-2" onSubmit={(event) => { event.preventDefault(); onResolve(note); }}>
       <label className="block text-left text-xs font-semibold">Resolution outcome<textarea value={note} onChange={(event) => setNote(event.target.value)} required minLength={3} maxLength={1000} rows={2} className="mt-1 w-full rounded-md border p-2 text-sm font-normal" /></label>
+      <p className="text-left text-xs text-slate-600">Resolving the alert does not close the work item; it stays in the Daily Loop until an outcome is documented.</p>
       <div className="flex gap-2"><Button className="min-h-11" size="sm" type="submit" disabled={isPending}>{isPending ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}Confirm</Button><Button className="min-h-11" size="sm" type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button></div>
     </form>
   );
@@ -168,6 +197,7 @@ export function AlertRowComponent({ alert, layout }: AlertRowComponentProps) {
             Coalesced signal · {alert.occurrence_count} observations since {formatDistanceToNow(new Date(alert.first_seen_at ?? alert.created_at), { addSuffix: true })}
           </p>
         )}
+        <AccountabilityMarkers alert={alert} />
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <StatusBadge status={alert.status} />
@@ -208,6 +238,7 @@ export function AlertRowComponent({ alert, layout }: AlertRowComponentProps) {
       </TableCell>
       <TableCell>
         <StatusBadge status={alert.status} />
+        <AccountabilityMarkers alert={alert} />
       </TableCell>
       <TableCell className="text-right">
         <ActionButtons

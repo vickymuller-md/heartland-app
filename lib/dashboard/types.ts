@@ -61,6 +61,18 @@ export interface AlertRow {
   occurrence_count?: number;
   first_seen_at?: string;
   last_seen_at?: string;
+  /** Accountable provider on the derived work item (migration 00041); null when none. */
+  accountable_provider_id?: string | null;
+  accountable_provider_name?: string | null;
+  /** The alert was resolved while its work item is still open awaiting an outcome. */
+  outcome_required?: boolean;
+}
+
+/** Work-item accountability derived for one alert (migration 00041, design O4 §5.3). */
+export interface AlertAccountability {
+  accountable_provider_id: string | null;
+  accountable_provider_name: string | null;
+  outcome_required: boolean;
 }
 
 /** Provider note attached to a patient record (DASH-09) */

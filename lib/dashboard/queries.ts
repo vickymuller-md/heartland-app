@@ -20,12 +20,85 @@ import type {
   AlertFlag,
   AlertSeverity,
   AlertStatus,
+  AlertAccountability,
   ProviderNote,
   PatientDetailData,
   VitalsChartPoint,
   SymptomEntry,
   SortKey,
 } from './types';
+
+/** Work item row backing the alert accountability indicators. */
+interface AlertWorkItemRow {
+  source_id: string;
+  assigned_to: string | null;
+  status: string;
+  accountability_source: string | null;
+  underlying_alert_resolved_at: string | null;
+  assignee: unknown;
+}
+
+/**
+ * Pure function -- exported for unit testing.
+ * Reduce the work items derived from alerts into one indicator per alert.
+ *
+ * An accountable provider is reported only when the item names one under the
+ * accountability model (`accountability_source` set); legacy fan-out duplicates
+ * created before migration 00041 leave it null. An outcome is required when the
+ * underlying alert was resolved and the item is still open (design O4 §5.3).
+ */
+export function joinAlertAccountability(
+  rows: AlertWorkItemRow[]
+): Map<string, AlertAccountability> {
+  const byAlert = new Map<string, AlertAccountability>();
+
+  for (const row of rows) {
+    const current = byAlert.get(row.source_id) ?? {
+      accountable_provider_id: null,
+      accountable_provider_name: null,
+      outcome_required: false,
+    };
+
+    if (row.accountability_source && row.assigned_to && !current.accountable_provider_id) {
+      current.accountable_provider_id = row.assigned_to;
+      current.accountable_provider_name = extractFullName(row.assignee) ?? 'Unknown';
+    }
+
+    if (row.underlying_alert_resolved_at && row.status !== 'closed') {
+      current.outcome_required = true;
+    }
+
+    byAlert.set(row.source_id, current);
+  }
+
+  return byAlert;
+}
+
+/**
+ * Fetch accountability indicators for a batch of alerts.
+ *
+ * `work_items.source_id` is a polymorphic uuid with no foreign key, so the alert
+ * query cannot embed it: this is a second query joined in JS. The profiles embed
+ * carries an explicit FK hint (PGRST201 rule).
+ */
+export async function getAlertAccountability(
+  supabase: SupabaseClient,
+  alertIds: string[]
+): Promise<Map<string, AlertAccountability>> {
+  if (alertIds.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from('work_items')
+    .select(
+      'source_id, assigned_to, status, accountability_source, underlying_alert_resolved_at, assignee:profiles!work_items_assigned_to_fkey(full_name)'
+    )
+    .eq('source_type', 'alert')
+    .in('source_id', alertIds);
+
+  if (error) throw error;
+
+  return joinAlertAccountability((data ?? []) as AlertWorkItemRow[]);
+}
 
 /**
  * Get all linked patients for a provider with computed status.
@@ -205,6 +278,11 @@ export async function getPatientDetail(
     .in('status', ['open', 'acknowledged'])
     .order('created_at', { ascending: false });
 
+  const alertAccountability = await getAlertAccountability(
+    supabase,
+    (openAlerts ?? []).map((a) => a.id)
+  );
+
   return {
     patient: {
       id: patient.id,
@@ -227,6 +305,9 @@ export async function getPatientDetail(
     openAlerts: (openAlerts ?? []).map((a) => ({
       ...a,
       patient_name: patientFullName,
+      accountable_provider_id: alertAccountability.get(a.id)?.accountable_provider_id ?? null,
+      accountable_provider_name: alertAccountability.get(a.id)?.accountable_provider_name ?? null,
+      outcome_required: alertAccountability.get(a.id)?.outcome_required ?? false,
     })) as AlertRow[],
   };
 }
@@ -269,7 +350,13 @@ export async function getAlerts(
   const { data, error, count } = await query;
   if (error) throw error;
 
+  const accountability = await getAlertAccountability(
+    supabase,
+    (data ?? []).map((row) => row.id)
+  );
+
   const alerts = (data ?? []).map((row) => {
+    const owner = accountability.get(row.id);
     return {
       id: row.id,
       patient_id: row.patient_id,
@@ -286,6 +373,9 @@ export async function getAlerts(
       occurrence_count: row.occurrence_count,
       first_seen_at: row.first_seen_at,
       last_seen_at: row.last_seen_at,
+      accountable_provider_id: owner?.accountable_provider_id ?? null,
+      accountable_provider_name: owner?.accountable_provider_name ?? null,
+      outcome_required: owner?.outcome_required ?? false,
     };
   });
   return { alerts, total: count ?? 0 };
