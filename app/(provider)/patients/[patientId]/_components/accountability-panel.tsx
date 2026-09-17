@@ -10,12 +10,20 @@ import type { TeamMember } from '@/lib/team/types';
  * Team-manager control: names the single provider accountable for this patient.
  * Only members of organizations this user manages are offered.
  */
+export interface CurrentDesignation {
+  organizationId: string;
+  accountableId: string;
+  accountableName: string | null;
+}
+
 export function AccountabilityPanel({
   patientId,
   members,
+  current = null,
 }: {
   patientId: string;
   members: TeamMember[];
+  current?: CurrentDesignation | null;
 }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -24,6 +32,7 @@ export function AccountabilityPanel({
   if (members.length === 0) return null;
 
   const showOrganization = new Set(members.map((member) => member.organization_id)).size > 1;
+  const currentValue = current ? `${current.organizationId}:${current.accountableId}` : '';
 
   const save = (value: string) => {
     const [organizationId, accountableId] = value.split(':');
@@ -58,6 +67,11 @@ export function AccountabilityPanel({
         New work for this patient is assigned to this provider. Work already open stays with its
         current provider until a transfer is accepted.
       </p>
+      <p className="mt-2 text-sm text-slate-800" data-testid="accountability-current">
+        {current
+          ? `Currently designated: ${current.accountableName ?? 'a provider outside your team list'}`
+          : 'No accountable provider designated yet.'}
+      </p>
       <form
         className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
         onSubmit={(event) => {
@@ -70,7 +84,7 @@ export function AccountabilityPanel({
           <select
             name="accountable"
             required
-            defaultValue=""
+            defaultValue={currentValue}
             className="mt-1 min-h-11 w-full rounded-md border bg-white px-3"
           >
             <option value="" disabled>Choose a provider</option>

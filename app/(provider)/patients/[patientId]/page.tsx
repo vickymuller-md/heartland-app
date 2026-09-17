@@ -70,6 +70,28 @@ export default async function PatientDetailPage({
   const designatableMembers = teamDirectory.members.filter((member) =>
     teamDirectory.manageableOrganizationIds.includes(member.organization_id),
   );
+  // Current designation, readable by any active member of the organization (00041 RLS).
+  const { data: designationRows } = designatableMembers.length
+    ? await supabase
+        .from('patient_accountability')
+        .select('organization_id, accountable_id')
+        .eq('patient_id', patientId)
+        .is('revoked_at', null)
+        .in('organization_id', teamDirectory.manageableOrganizationIds)
+        .limit(1)
+    : { data: null };
+  const currentDesignation = designationRows?.[0]
+    ? {
+        organizationId: designationRows[0].organization_id as string,
+        accountableId: designationRows[0].accountable_id as string,
+        accountableName:
+          designatableMembers.find(
+            (member) =>
+              member.organization_id === designationRows[0].organization_id &&
+              member.member_id === designationRows[0].accountable_id,
+          )?.member_name ?? null,
+      }
+    : null;
   const teachbackState = await getEducationTeachbackState(supabase, patientId);
   const canRecordTeachback = await hasCapabilityInAnyOrganization(
     supabase,
@@ -195,7 +217,7 @@ export default async function PatientDetailPage({
         </div>
       )}
       <PatientBrief brief={operationalView.brief} />
-      <AccountabilityPanel patientId={patientId} members={designatableMembers} />
+      <AccountabilityPanel patientId={patientId} members={designatableMembers} current={currentDesignation} />
       <ActionCenter patientId={patientId} />
       <PatientTimeline events={operationalView.timeline} />
 
