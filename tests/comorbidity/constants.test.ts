@@ -76,4 +76,11 @@ describe('COMORBIDITY_DATA CKD renal rules (COMR-03)', () => {
     expect(arni).toMatch(/half/i);
     expect(arni).not.toMatch(/hold if eGFR <20/i);
   });
+
+  it('SGLT2i: per agent and per moment, with no minimum eGFR 20 (FARXIGA §2.3, JARDIANCE §2)', () => {
+    const sglt2i = lineStartingWith('SGLT2i');
+    expect(sglt2i).toMatch(/dapagliflozin/i);
+    expect(sglt2i).toMatch(/empagliflozin/i);
+    expect(sglt2i).not.toMatch(/minimum eGFR 20/i);
+  });
 });

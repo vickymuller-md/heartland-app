@@ -190,8 +190,15 @@ export function getPerDrugRecommendations(
       if (drugClass === 'MRA' && vitals.egfr < EGFR_GATES.spironolactoneMin) {
         return { drugClass, action: 'hold' as const, reason: `eGFR ${vitals.egfr} <${EGFR_GATES.spironolactoneMin}`, safetyGateFailed: 'eGFR' };
       }
-      if (drugClass === 'SGLT2i' && vitals.egfr < EGFR_GATES.sglt2iMin) {
-        return { drugClass, action: 'hold' as const, reason: `eGFR ${vitals.egfr} <${EGFR_GATES.sglt2iMin}`, safetyGateFailed: 'eGFR' };
+      // SGLT2i: the restriction is on dapagliflozin initiation, not on the
+      // class and not on continuation; empagliflozin has no HF eGFR floor.
+      if (drugClass === 'SGLT2i' && vitals.egfr < EGFR_GATES.dapagliflozinInitiationMin) {
+        return {
+          drugClass,
+          action: 'hold' as const,
+          reason: `eGFR ${vitals.egfr} <${EGFR_GATES.dapagliflozinInitiationMin}: do not initiate dapagliflozin (FARXIGA 2.3); established 10 mg may continue; empagliflozin has no HF eGFR floor (JARDIANCE 2)`,
+          safetyGateFailed: 'eGFR',
+        };
       }
       // ARNI has no renal floor: below this eGFR the label halves the dose.
       if (drugClass === 'ARNI' && vitals.egfr < EGFR_GATES.arniHalfDoseMin) {

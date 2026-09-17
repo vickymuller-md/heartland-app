@@ -1,5 +1,17 @@
 import type { Medication, FinerenoneScenario, SafetyGateRule, GenericBridgeItem } from './types';
 
+/**
+ * SGLT2i renal rules, stated per agent and per moment.
+ * Neither US label carries a class-wide "eGFR >20" floor: that number is the
+ * EMPEROR programme enrolment floor, not a labeled threshold.
+ * Source: FARXIGA label §2.3 (DailyMed SPL 72ad22ae-efe6-4cd6-a302-98aaee423d69);
+ * JARDIANCE label §2 (DailyMed SPL faf3dd6a-9cd0-39c2-0d2e-232cb3f67565).
+ */
+export const SGLT2I_RENAL_GATES = [
+  'Dapagliflozin: do not initiate if eGFR <25; may continue 10 mg daily if eGFR later falls below 25 (FARXIGA label 2.3)',
+  'Empagliflozin: no eGFR floor for the HF indication (JARDIANCE label 2); EMPEROR trials did not enrol eGFR <20',
+];
+
 // Source: reference/clinical_content.md Section 2.1
 export const HFREF_MEDICATIONS: Medication[] = [
   {
@@ -38,7 +50,7 @@ export const HFREF_MEDICATIONS: Medication[] = [
     agent: 'Dapagliflozin or Empagliflozin',
     startingDose: '10 mg daily',
     targetDose: '10 mg daily (no titration)',
-    safetyGates: ['eGFR >20'],
+    safetyGates: SGLT2I_RENAL_GATES,
     evidenceLevel: 'established',
   },
 ];
@@ -51,7 +63,7 @@ export const HFPEF_MEDICATIONS: Medication[] = [
     agent: 'Dapagliflozin or Empagliflozin',
     startingDose: '10 mg daily',
     targetDose: '10 mg daily',
-    safetyGates: [],
+    safetyGates: SGLT2I_RENAL_GATES,
     evidenceLevel: 'established',
     evidenceContext: 'Class IIa per 2022 AHA/ACC/HFSA. EMPEROR-Preserved + DELIVER.',
     priority: 1,

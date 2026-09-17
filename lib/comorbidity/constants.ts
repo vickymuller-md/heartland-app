@@ -61,7 +61,7 @@ export const COMORBIDITY_DATA: ComorbidityDetail[] = [
     gdmtInteractions: [
       'ARNI: start at half the usual dose if eGFR <30 (ENTRESTO label 2.7); no renal floor — down-titrate or interrupt for a clinically significant fall in renal function',
       'MRA therapy: apply agent-specific current labeling/guidelines; finerenone is not automatically preferred by eGFR alone',
-      'SGLT2i: minimum eGFR 20 for HF indication (not glycemic control)',
+      'SGLT2i: dapagliflozin — do not initiate if eGFR <25, may continue 10 mg daily if eGFR falls below it (FARXIGA label 2.3); empagliflozin — no eGFR floor for the HF indication (JARDIANCE label 2)',
       'Beta-blocker: no dose adjustment needed for CKD',
       'Monitor BMP 1-2 weeks after any GDMT change',
     ],

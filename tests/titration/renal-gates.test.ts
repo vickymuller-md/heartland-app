@@ -35,12 +35,16 @@ describe('EGFR_GATES is the single declaration of every renal threshold', () => 
   it('exposes one minimum per rule, all with "requires eGFR >= MIN" semantics', () => {
     expect(EGFR_GATES.spironolactoneMin).toBe(30);
     expect(EGFR_GATES.finerenoneInitiationMin).toBe(25);
-    expect(EGFR_GATES.sglt2iMin).toBe(20);
+    expect(EGFR_GATES.dapagliflozinInitiationMin).toBe(25);
     expect(EGFR_GATES.arniHalfDoseMin).toBe(30);
   });
 
   it('declares no renal floor for ARNI — the label has none', () => {
     expect(EGFR_GATES).not.toHaveProperty('arniMin');
+  });
+
+  it('declares no single SGLT2i floor — the rule is per agent and per moment', () => {
+    expect(EGFR_GATES).not.toHaveProperty('sglt2iMin');
   });
 });
 
@@ -73,19 +77,30 @@ describe('eGFR 25 boundary — finerenone initiation threshold on the panel', ()
   });
 });
 
-describe('eGFR 20 boundary — SGLT2i and ARNI', () => {
-  it('eGFR 19 holds SGLT2i', () => {
-    expect(actionFor('SGLT2i', 19)).toBe('hold');
+describe('eGFR 25 boundary — SGLT2i (dapagliflozin initiation)', () => {
+  it('eGFR 24 flags SGLT2i and names the initiation rule, not a floor', () => {
+    const rec = getPerDrugRecommendations({ ...NORMAL_VITALS, egfr: 24 }, ['SGLT2i'])[0];
+    expect(rec.action).toBe('hold');
+    expect(rec.reason).toMatch(/dapagliflozin/i);
+    expect(rec.reason).toMatch(/continue/i);
   });
 
-  it('eGFR exactly 20 does not hold SGLT2i (gate requires eGFR >= 20)', () => {
-    expect(actionFor('SGLT2i', 20)).not.toBe('hold');
+  it('eGFR exactly 25 does not flag SGLT2i (initiation requires eGFR >= 25)', () => {
+    expect(actionFor('SGLT2i', 25)).not.toBe('hold');
   });
 
-  it('eGFR 21 does not hold SGLT2i', () => {
-    expect(actionFor('SGLT2i', 21)).not.toBe('hold');
+  it('eGFR 26 does not flag SGLT2i', () => {
+    expect(actionFor('SGLT2i', 26)).not.toBe('hold');
   });
 
+  it('eGFR 20 flags the dapagliflozin initiation rule, replacing the old eGFR >20 floor', () => {
+    const rec = getPerDrugRecommendations({ ...NORMAL_VITALS, egfr: 20 }, ['SGLT2i'])[0];
+    expect(rec.action).toBe('hold');
+    expect(rec.reason).not.toMatch(/<20/);
+  });
+});
+
+describe('eGFR 20 boundary — ARNI', () => {
   it('eGFR 19 does not hold ARNI — ENTRESTO sets no renal floor', () => {
     expect(actionFor('ARNI', 19)).not.toBe('hold');
   });

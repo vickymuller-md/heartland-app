@@ -7,6 +7,7 @@ import {
   GENERIC_BRIDGE_ITEMS,
   GENERIC_BRIDGE_PRINCIPLE,
   NON_PHARMACOLOGICAL,
+  SGLT2I_RENAL_GATES,
 } from '@/lib/gdmt/constants';
 import { EVIDENCE_LEVEL_CONFIG } from '@/lib/gdmt/evidence-levels';
 
@@ -100,7 +101,20 @@ describe('GDMT-09: Content Matches Protocol', () => {
       expect(sglt2i!.agent).toBe('Dapagliflozin or Empagliflozin');
       expect(sglt2i!.startingDose).toBe('10 mg daily');
       expect(sglt2i!.targetDose).toBe('10 mg daily (no titration)');
-      expect(sglt2i!.safetyGates).toEqual(['eGFR >20']);
+      expect(sglt2i!.safetyGates).toEqual(SGLT2I_RENAL_GATES);
+    });
+
+    it('SGLT2i renal gates are per agent and per moment, with no eGFR >20 floor', () => {
+      expect(SGLT2I_RENAL_GATES).toHaveLength(2);
+      expect(SGLT2I_RENAL_GATES[0]).toMatch(/^Dapagliflozin: do not initiate if eGFR <25/);
+      expect(SGLT2I_RENAL_GATES[0]).toMatch(/may continue 10 mg/);
+      expect(SGLT2I_RENAL_GATES[1]).toMatch(/^Empagliflozin: no eGFR floor/);
+      expect(SGLT2I_RENAL_GATES.join(' ')).not.toMatch(/eGFR >20/);
+    });
+
+    it('the HFpEF SGLT2i card carries the same renal gates as the HFrEF card', () => {
+      const hfpefSglt2i = HFPEF_MEDICATIONS.find((m) => m.id === 'sglt2i-hfpef');
+      expect(hfpefSglt2i!.safetyGates).toEqual(SGLT2I_RENAL_GATES);
     });
   });
 

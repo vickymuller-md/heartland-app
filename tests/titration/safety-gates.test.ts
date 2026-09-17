@@ -138,19 +138,20 @@ describe('eGFR safety gate (SAFE-03)', () => {
     expect(gate!.action).toBe('Enter eGFR for complete renal check');
   });
 
-  it('returns "blocked" with HOLD SGLT2i + MRA + finerenone when eGFR < 20', () => {
+  it('does not hold the SGLT2i as a class when eGFR < 20; it names the per-agent rule', () => {
     const results = evaluateSafetyGates({ ...NORMAL_VITALS, egfr: 18 });
     const gate = results.find((r) => r.parameter === 'eGFR (mL/min)');
     expect(gate!.status).toBe('blocked');
-    expect(gate!.action).toMatch(/HOLD SGLT2i/);
-    expect(gate!.action).toMatch(/hold MRA and finerenone/);
+    expect(gate!.action).not.toMatch(/HOLD SGLT2i/);
+    expect(gate!.details).toMatch(/dapagliflozin/i);
+    expect(gate!.details).toMatch(/empagliflozin/i);
   });
 
-  it('returns "blocked" with HOLD finerenone + MRA when eGFR 20-24', () => {
+  it('returns "blocked" with no finerenone initiation + HOLD MRA when eGFR 20-24', () => {
     const results = evaluateSafetyGates({ ...NORMAL_VITALS, egfr: 22 });
     const gate = results.find((r) => r.parameter === 'eGFR (mL/min)');
     expect(gate!.status).toBe('blocked');
-    expect(gate!.action).toMatch(/HOLD finerenone/);
+    expect(gate!.action).toMatch(/Do not initiate finerenone/);
     expect(gate!.action).toMatch(/hold MRA/);
   });
 

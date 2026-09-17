@@ -41,7 +41,9 @@ describe('GDMT-02: HFrEF Pathway', () => {
     expect(screen.getByText('SBP >90')).toBeInTheDocument();
     expect(screen.getByText('eGFR >30')).toBeInTheDocument();
     expect(screen.getByText('K+ <5.0')).toBeInTheDocument();
-    expect(screen.getByText('eGFR >20')).toBeInTheDocument();
+    expect(screen.getByText(/Dapagliflozin: do not initiate if eGFR <25/)).toBeInTheDocument();
+    expect(screen.getByText(/Empagliflozin: no eGFR floor/)).toBeInTheDocument();
+    expect(screen.queryByText('eGFR >20')).not.toBeInTheDocument();
   });
 
   it('all 4 cards show "Established" evidence label', () => {

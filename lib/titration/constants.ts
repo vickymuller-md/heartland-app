@@ -24,8 +24,13 @@ export const EGFR_GATES = {
   spironolactoneMin: 30,
   /** Finerenone: KERENDIA label Table 1 / §5.2 — initiation not recommended below 25. */
   finerenoneInitiationMin: 25,
-  /** SGLT2i: EMPEROR trial enrolment floor carried by the protocol. */
-  sglt2iMin: 20,
+  /**
+   * Dapagliflozin: FARXIGA §2.3 — initiation not recommended below this eGFR,
+   * but 10 mg once daily may continue if the eGFR later falls below it.
+   * Empagliflozin has no eGFR floor for the HF indication (JARDIANCE §2), so
+   * there is no single "SGLT2i" threshold.
+   */
+  dapagliflozinInitiationMin: 25,
   /**
    * ARNI: ENTRESTO §2.7 sets no renal floor. Below this eGFR the label halves
    * the starting dose; suspension is driven by a clinically significant fall
@@ -157,9 +162,12 @@ export const SAFETY_GATES: SafetyGateDefinition[] = [
     id: 'egfr',
     parameter: 'eGFR (mL/min)',
     evaluate: (vitals: VitalSigns): SafetyGateResult => {
-      const eGFR_SGLT2I_THRESHOLD = EGFR_GATES.sglt2iMin;
       const eGFR_FINERENONE_THRESHOLD = EGFR_GATES.finerenoneInitiationMin;
       const eGFR_MRA_THRESHOLD = EGFR_GATES.spironolactoneMin;
+      // SGLT2i: FARXIGA §2.3 (dapagliflozin) restricts initiation, not
+      // continuation; JARDIANCE §2 (empagliflozin) has no HF eGFR floor.
+      const SGLT2I_RENAL_NOTE =
+        'Dapagliflozin: do not initiate below eGFR 25; 10 mg once daily may continue if eGFR falls below it (FARXIGA 2.3). Empagliflozin: no eGFR floor for the HF indication (JARDIANCE 2).';
 
       if (vitals.egfr === undefined) {
         return {
@@ -172,25 +180,14 @@ export const SAFETY_GATES: SafetyGateDefinition[] = [
         };
       }
 
-      if (vitals.egfr < eGFR_SGLT2I_THRESHOLD) {
-        return {
-          parameter: 'eGFR (mL/min)',
-          value: vitals.egfr,
-          threshold: `eGFR < ${eGFR_SGLT2I_THRESHOLD} mL/min`,
-          status: 'blocked',
-          action: 'HOLD SGLT2i; hold MRA and finerenone',
-          details: 'eGFR below SGLT2i threshold per ACC/AHA 2022 HF guidelines. All renal-sensitive agents contraindicated.',
-        };
-      }
-
       if (vitals.egfr < eGFR_FINERENONE_THRESHOLD) {
         return {
           parameter: 'eGFR (mL/min)',
           value: vitals.egfr,
           threshold: `eGFR < ${eGFR_FINERENONE_THRESHOLD} mL/min`,
           status: 'blocked',
-          action: 'HOLD finerenone; hold MRA (spironolactone)',
-          details: 'eGFR is below the current finerenone initiation threshold; verify the current FDA label and agent-specific guidance.',
+          action: 'Do not initiate finerenone; hold MRA (spironolactone)',
+          details: `eGFR is below the finerenone initiation threshold (KERENDIA Table 1) and below the MRA threshold of the ACC/AHA 2022 HF guidelines. ${SGLT2I_RENAL_NOTE}`,
         };
       }
 
@@ -201,7 +198,7 @@ export const SAFETY_GATES: SafetyGateDefinition[] = [
           threshold: `eGFR < ${eGFR_MRA_THRESHOLD} mL/min`,
           status: 'blocked',
           action: 'HOLD MRA (spironolactone)',
-          details: 'eGFR below MRA threshold per ACC/AHA 2022 HF guidelines.',
+          details: `eGFR below MRA threshold per ACC/AHA 2022 HF guidelines. ${SGLT2I_RENAL_NOTE}`,
         };
       }
 
