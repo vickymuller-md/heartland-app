@@ -1454,7 +1454,12 @@ test.describe('conversation integrity', () => {
         await expect(area.getByRole('log')).toHaveAttribute('lang', `${locale}-US`);
         await expect(area.getByTestId('sandbox-ai-result')).toBeVisible();
         await resumeBlockedEnding(page, area);
-        expect(await page.evaluate((id) => JSON.parse(localStorage.getItem('heartland_synthetic_sandbox_v2')!).patientCheckIns.filter((value: string) => value === `${id}-symptoms`).length, patientId)).toBe(1);
+        // The sandbox persists after the ending resumes; poll instead of reading storage once.
+        await expect.poll(() => page.evaluate((id) => {
+          const raw = localStorage.getItem('heartland_synthetic_sandbox_v2');
+          if (!raw) return -1;
+          return JSON.parse(raw).patientCheckIns.filter((value: string) => value === `${id}-symptoms`).length;
+        }, patientId)).toBe(1);
       });
     }
   }
