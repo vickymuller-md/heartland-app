@@ -80,8 +80,10 @@ export const HFPEF_MEDICATIONS: Medication[] = [
     id: 'mra-hfpef',
     drugClass: 'MRA',
     agent: 'Finerenone (LVEF >=40 indication) or guideline-selected spironolactone',
-    startingDose: '10-20 mg / 12.5-25 mg',
-    targetDose: '10-20 mg / 12.5-25 mg',
+    // KERENDIA label 2.3 and Table 1: the dose depends on the eGFR at
+    // initiation, and 10-20 mg is the starting range, not the target.
+    startingDose: 'Finerenone 20 mg daily (eGFR >=60) or 10 mg daily (eGFR 25 to <60) / Spironolactone 12.5-25 mg daily',
+    targetDose: 'Finerenone 40 mg daily (eGFR >=60 at initiation) or 20 mg daily (eGFR 25 to <60) / Spironolactone 25-50 mg daily',
     safetyGates: ['K+ <5.0', 'eGFR >=25'],
     evidenceLevel: 'established',
     evidenceContext: 'Finerenone: FDA-labeled in adults with HF and LVEF >=40% (July 2025 label), informed by FINEARTS-HF. Apply the current label, including potassium and eGFR monitoring.',
@@ -110,6 +112,83 @@ export const HFPEF_MEDICATIONS: Medication[] = [
     priority: 4,
   },
 ];
+
+/**
+ * Finerenone dosing for the heart failure indication (LVEF >=40%).
+ * The dose depends on the eGFR at initiation; the 4-week lab is the titration
+ * decision point. The CKD/type 2 diabetes indication has a different target
+ * dose and different potassium rules -- do not mix them.
+ * Source: KERENDIA label §2.3 and Table 1, DailyMed SPL
+ * fc726765-5d5a-4d6e-b037-b847bda9fb7c (rev. 8/2025).
+ */
+export const FINERENONE_DOSING: {
+  indication: string;
+  bands: {
+    label: string;
+    minEgfr: number;
+    maxEgfr: number | null;
+    startingDose: string;
+    targetDose: string;
+  }[];
+  notRecommendedBelowEgfr: number;
+  belowThresholdAction: string;
+  titrationRule: string;
+} = {
+  indication: 'Heart failure with LVEF >=40% (KERENDIA label 1)',
+  bands: [
+    {
+      label: 'eGFR >=60 at initiation',
+      minEgfr: 60,
+      maxEgfr: null,
+      startingDose: '20 mg once daily',
+      targetDose: '40 mg once daily',
+    },
+    {
+      label: 'eGFR 25 to <60 at initiation',
+      minEgfr: 25,
+      maxEgfr: 60,
+      startingDose: '10 mg once daily',
+      targetDose: '20 mg once daily',
+    },
+  ],
+  notRecommendedBelowEgfr: 25,
+  belowThresholdAction: 'eGFR <25: initiation is not recommended (KERENDIA label Table 1 and 5.2)',
+  titrationRule: 'Increase toward the target dose at the 4-week lab if serum potassium is <5.0 mEq/L; if the eGFR has fallen by more than 30% from the previous measurement, keep the current dose.',
+};
+
+/**
+ * Finerenone contraindications.
+ * Source: KERENDIA label §4 (verbatim list), DailyMed SPL
+ * fc726765-5d5a-4d6e-b037-b847bda9fb7c.
+ */
+export const FINERENONE_CONTRAINDICATIONS = [
+  'Hypersensitivity to any component of the product',
+  'Concomitant treatment with strong CYP3A4 inhibitors (for example clarithromycin, itraconazole, ritonavir)',
+  'Adrenal insufficiency',
+];
+
+/**
+ * Finerenone interactions and use in hepatic impairment.
+ * Source: KERENDIA label §7.1 (grapefruit, CYP3A4 inducers) and §8.6 (Child-Pugh C).
+ */
+export const FINERENONE_INTERACTIONS = [
+  'Avoid grapefruit and grapefruit juice (KERENDIA label 7.1)',
+  'Avoid concomitant strong or moderate CYP3A4 inducers (KERENDIA label 7.1)',
+  'Avoid use in severe hepatic impairment, Child-Pugh C (KERENDIA label 8.6)',
+];
+
+/**
+ * Finerenone laboratory monitoring: the label minimum and the protocol's own,
+ * more frequent schedule, each with its own source.
+ * Source: KERENDIA label §2.1, §2.3 and §5.1; 2022 AHA/ACC/HFSA p. e932;
+ * ALDACTONE label §5.1.
+ */
+export const FINERENONE_MONITORING = {
+  labelMinimum:
+    'Label minimum (KERENDIA 2.1, 2.3, 5.1): serum potassium and eGFR before initiation, 4 weeks after initiation and 4 weeks after each dose adjustment -- the 4-week lab is the titration decision point -- then periodically; more frequent monitoring may be necessary in patients at risk of hyperkalemia.',
+  protocolAddition:
+    'HEARTLAND schedule (protocol choice, more frequent): add a potassium and eGFR check 1 week after initiation and after each dose change. Source: the first milestone of the 2022 AHA/ACC/HFSA MRA schedule ("approximately 1 week, then 4 weeks, then every 6 months", p. e932) and the ALDACTONE label 5.1 minimum. The 1-week check is additional to the 4-week label milestone and does not replace it.',
+};
 
 /**
  * Eplerenone — the steroidal MRA the toolkit did not list.

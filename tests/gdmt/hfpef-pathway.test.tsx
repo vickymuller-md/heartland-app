@@ -69,4 +69,30 @@ describe('GDMT-04: Finerenone vs Spironolactone Guide', () => {
     expect(screen.getByText(/~\$4\/month generic vs/)).toBeInTheDocument();
     expect(screen.getByText('Verify current label and heart-failure guideline')).toBeInTheDocument();
   });
+
+  // ========================================================================
+  // F4, F12, F10 — dose, contraindications and monitoring on the guide
+  // Source: KERENDIA label, DailyMed SPL fc726765-5d5a-4d6e-b037-b847bda9fb7c
+  // ========================================================================
+  it('shows both dose bands, including the 40 mg target the guide used to omit', () => {
+    render(<FinerenoneGuide />);
+    // 20 mg is the starting dose above eGFR 60 and the target dose below it
+    expect(screen.getAllByText('20 mg once daily')).toHaveLength(2);
+    expect(screen.getByText('40 mg once daily')).toBeInTheDocument();
+    expect(screen.getByText('10 mg once daily')).toBeInTheDocument();
+  });
+
+  it('shows the contraindications and interactions', () => {
+    render(<FinerenoneGuide />);
+    expect(screen.getByText(/strong CYP3A4 inhibitors/i)).toBeInTheDocument();
+    expect(screen.getByText(/adrenal insufficiency/i)).toBeInTheDocument();
+    expect(screen.getByText(/grapefruit/i)).toBeInTheDocument();
+    expect(screen.getByText(/Child-Pugh C/i)).toBeInTheDocument();
+  });
+
+  it('shows the 4-week label milestone next to the 1-week protocol recheck', () => {
+    render(<FinerenoneGuide />);
+    expect(screen.getByText(/4 weeks after initiation/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 week/i)).toBeInTheDocument();
+  });
 });

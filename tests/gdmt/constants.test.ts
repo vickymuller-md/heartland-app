@@ -9,6 +9,10 @@ import {
   NON_PHARMACOLOGICAL,
   SGLT2I_RENAL_GATES,
   EPLERENONE_GUIDE,
+  FINERENONE_DOSING,
+  FINERENONE_CONTRAINDICATIONS,
+  FINERENONE_INTERACTIONS,
+  FINERENONE_MONITORING,
 } from '@/lib/gdmt/constants';
 import { EVIDENCE_LEVEL_CONFIG } from '@/lib/gdmt/evidence-levels';
 
@@ -175,6 +179,85 @@ describe('GDMT-09: Content Matches Protocol', () => {
   describe('Finerenone Decision Guide (Section 2.2)', () => {
     it('FINERENONE_SCENARIOS contains exactly 5 clinical scenarios', () => {
       expect(FINERENONE_SCENARIOS).toHaveLength(5);
+    });
+
+    // F3: no automatic MRA preference in LVEF >=40%. FINEARTS-HF increased
+    // hyperkalemia (HR 2.16 for K+ >5.5, JAMA Cardiol 2025) and there is no
+    // head-to-head trial against spironolactone in heart failure.
+    it('states no automatic preference and never claims lower hyperkalemia', () => {
+      const joined = FINERENONE_SCENARIOS.map((s) => `${s.suggestedApproach} ${s.rationale}`).join(' ');
+      expect(joined).toMatch(/No automatic preference/i);
+      expect(joined).not.toMatch(/finerenone preferred/i);
+      expect(joined).not.toMatch(/lower hyperkalemia/i);
+      expect(joined).not.toMatch(/either acceptable/i);
+    });
+  });
+
+  // ========================================================================
+  // Finerenone dose, contraindications and monitoring (F4, F12, F10)
+  // Source: KERENDIA label, DailyMed SPL fc726765-5d5a-4d6e-b037-b847bda9fb7c
+  // (rev. 8/2025), sections 1, 2.1, 2.3, 4, 5.1, 7.1, 8.6 and Table 1
+  // ========================================================================
+  describe('Finerenone dosing (F4)', () => {
+    it('has two initiation bands split at eGFR 60, with distinct starting and target doses', () => {
+      expect(FINERENONE_DOSING.bands).toHaveLength(2);
+      const [full, reduced] = FINERENONE_DOSING.bands;
+
+      expect(full.minEgfr).toBe(60);
+      expect(full.maxEgfr).toBeNull();
+      expect(full.startingDose).toBe('20 mg once daily');
+      expect(full.targetDose).toBe('40 mg once daily');
+
+      expect(reduced.minEgfr).toBe(25);
+      expect(reduced.maxEgfr).toBe(60);
+      expect(reduced.startingDose).toBe('10 mg once daily');
+      expect(reduced.targetDose).toBe('20 mg once daily');
+    });
+
+    it('never prints the starting dose as the target dose', () => {
+      for (const band of FINERENONE_DOSING.bands) {
+        expect(band.startingDose).not.toBe(band.targetDose);
+      }
+    });
+
+    it('does not recommend initiation below eGFR 25', () => {
+      expect(FINERENONE_DOSING.notRecommendedBelowEgfr).toBe(25);
+      expect(FINERENONE_DOSING.belowThresholdAction).toMatch(/not recommended/i);
+    });
+
+    it('the LVEF >=40% MRA card carries the banded doses, not a single 10-20 mg range', () => {
+      const mra = HFPEF_MEDICATIONS.find((m) => m.id === 'mra-hfpef');
+      expect(mra!.startingDose).not.toBe(mra!.targetDose);
+      expect(mra!.targetDose).toMatch(/40 mg/);
+    });
+  });
+
+  describe('Finerenone contraindications and interactions (F12)', () => {
+    it('lists strong CYP3A4 inhibitors and adrenal insufficiency as contraindications', () => {
+      const joined = FINERENONE_CONTRAINDICATIONS.join(' ');
+      expect(joined).toMatch(/strong CYP3A4 inhibitors/i);
+      expect(joined).toMatch(/adrenal insufficiency/i);
+    });
+
+    it('lists grapefruit, CYP3A4 inducers and Child-Pugh C among the interactions', () => {
+      const joined = FINERENONE_INTERACTIONS.join(' ');
+      expect(joined).toMatch(/grapefruit/i);
+      expect(joined).toMatch(/inducers/i);
+      expect(joined).toMatch(/Child-Pugh C/i);
+    });
+  });
+
+  describe('Finerenone monitoring (F10)', () => {
+    it('keeps the 1-week recheck and adds the 4-week label milestone, each with its source', () => {
+      expect(FINERENONE_MONITORING.labelMinimum).toMatch(/4 weeks/);
+      expect(FINERENONE_MONITORING.labelMinimum).toMatch(/KERENDIA/);
+      expect(FINERENONE_MONITORING.protocolAddition).toMatch(/1 week/);
+      expect(FINERENONE_MONITORING.protocolAddition).toMatch(/2022 AHA\/ACC\/HFSA/);
+      expect(FINERENONE_MONITORING.protocolAddition).toMatch(/does not replace/i);
+    });
+
+    it('does not attribute the 1-week recheck to FINEARTS-HF', () => {
+      expect(FINERENONE_MONITORING.protocolAddition).not.toMatch(/FINEARTS/);
     });
   });
 
