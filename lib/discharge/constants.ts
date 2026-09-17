@@ -135,12 +135,12 @@ export const TEACH_BACK_DOMAINS: TeachBackDomain[] = [
   {
     id: 'sodium_restriction',
     title: 'Sodium Restriction',
-    description: 'Limit sodium intake to reduce fluid retention and manage symptoms',
+    description: 'Limit sodium; the individual target is set by the care team and written in the care plan',
   },
   {
     id: 'fluid_management',
-    title: 'Fluid Management',
-    description: 'Monitor fluid intake and output to prevent volume overload',
+    title: 'Recognizing Fluid Retention',
+    description: 'Spot weight gain, swelling and orthopnea; a drinking limit applies only if the care plan sets one',
   },
   {
     id: 'when_to_call',
@@ -150,6 +150,6 @@ export const TEACH_BACK_DOMAINS: TeachBackDomain[] = [
   {
     id: 'activity_guidance',
     title: 'Activity Guidance',
-    description: 'Safe exercise and activity levels during recovery',
+    description: 'Activity for stable HF patients: precautions, gradual progression and cardiac rehab referral',
   },
 ];

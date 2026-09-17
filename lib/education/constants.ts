@@ -125,13 +125,13 @@ export const EDUCATION_DOMAINS: EducationDomain[] = [
       text: 'What does heart failure mean?',
       options: [
         'Your heart has completely stopped working',
-        'Your heart is not pumping as well as it should',
+        'Your heart does not move blood as well as it should -- either because it is weak or because it is stiff',
         'You need a heart transplant right away',
         'Your heart beats too fast',
       ],
       correctIndex: 1,
       explanation:
-        'Heart failure means your heart is not pumping as well as it should. It does not mean your heart has stopped. With proper treatment and monitoring, you can manage this condition effectively.',
+        'Heart failure means your heart does not move blood as well as it should. For some people the heart muscle is too weak to pump well (HFrEF); for others it is stiff and cannot fill properly (HFpEF). It does not mean your heart has stopped. With proper treatment and monitoring, you can manage this condition effectively.',
     },
   },
   {
@@ -140,7 +140,7 @@ export const EDUCATION_DOMAINS: EducationDomain[] = [
     icon: 'UtensilsCrossed',
     content: {
       common: [
-        'Eating too much sodium (salt) causes your body to hold extra fluid, which makes your heart work harder. Your target is less than 2,000 milligrams (mg) of sodium per day.',
+        'Eating too much sodium (salt) causes your body to hold extra fluid, which makes your heart work harder. Most people with heart failure are advised to limit sodium. Your own target is set by your care team and written in your care plan -- a commonly used target is less than 2,000 milligrams (mg) per day.',
         'Read food labels carefully. Look for the sodium content per serving. Many processed and canned foods have very high sodium -- canned soups, deli meats, frozen meals, and snack foods are common sources.',
         'Use herbs, spices, lemon juice, or vinegar to flavor your food instead of salt. Cooking at home gives you more control over how much sodium you eat.',
       ],
@@ -152,46 +152,46 @@ export const EDUCATION_DOMAINS: EducationDomain[] = [
       ],
     },
     question: {
-      text: 'How much sodium should you have each day?',
+      text: 'Where do you find your own daily sodium target?',
       options: [
-        'As much as you want, sodium does not matter',
-        'Less than 5,000 mg per day',
-        'Less than 2,000 mg per day',
-        'You should eat no sodium at all',
+        'In my care plan, set by my care team',
+        'It is the same number for everyone with heart failure',
+        'On the front of any food package',
+        'Sodium does not need a target',
       ],
-      correctIndex: 2,
+      correctIndex: 0,
       explanation:
-        'Your daily sodium target is less than 2,000 mg. Reading food labels and cooking at home are the best ways to control your sodium intake.',
+        'Your sodium target is individual and is written in your care plan by your care team. A target of less than 2,000 mg per day is commonly used, but ask your care team what applies to you. Reading food labels and cooking at home are the best ways to control your sodium intake.',
     },
   },
   {
     id: 'fluid_management',
-    title: 'Fluid Management',
+    title: 'Recognizing Fluid Retention',
     icon: 'Droplets',
     content: {
       common: [
-        'When your heart is not pumping well, too much fluid can build up in your body. Your doctor may ask you to limit how much you drink each day, typically 1.5 to 2 liters (about 6 to 8 cups).',
-        'All liquids count toward your daily limit -- water, coffee, tea, juice, soup, and even ice. Popsicles and gelatin also count because they melt into liquid.',
-        'Weighing yourself daily is the best way to track fluid retention. Sudden weight gain is often a sign of fluid buildup, even before you feel swollen.',
+        'When your heart is not pumping well, extra fluid can build up in your body. The signs to watch for are a sudden gain in weight, swelling in your ankles, feet or belly, and needing more pillows or waking up short of breath at night.',
+        'Weighing yourself daily is the best way to catch fluid retention early. Sudden weight gain is often the first sign, before you feel swollen.',
+        'Some people are asked to limit how much they drink. This is not advice for everyone. Follow the limit written in your care plan, if you have one, and ask your care team whether a limit applies to you.',
       ],
       track_a: [
-        'The HEARTLAND app tracks your weight daily and alerts you to sudden changes that may indicate fluid retention. Use it alongside your fluid tracking to stay within your limit.',
+        'The HEARTLAND app tracks your weight daily and alerts you to sudden changes that may indicate fluid retention.',
       ],
       track_b: [
-        'Keep a written log of your fluid intake in your paper diary. Use a measuring cup to know how much you are drinking. Call your clinic if you notice increased swelling or rapid weight gain.',
+        'Write your weight and any swelling in your paper diary each day. Call your clinic if you notice increased swelling or rapid weight gain.',
       ],
     },
     question: {
-      text: 'Why is it important to limit fluids?',
+      text: 'How do you know if you should limit fluids?',
       options: [
-        'Drinking less helps you lose weight faster',
-        'Too much fluid makes your heart work harder',
-        'Fluids interfere with your medications',
-        'You only need to limit fluids in summer',
+        'Everyone with heart failure has to limit fluids',
+        'Only if my care team wrote a limit in my care plan',
+        'Only when the weather is hot',
+        'Only if I already have swelling',
       ],
       correctIndex: 1,
       explanation:
-        'Too much fluid makes your heart work harder because it has to pump a larger volume of blood. Limiting fluids helps reduce the workload on your heart and prevents fluid buildup.',
+        'A fluid limit is not advice for everyone with heart failure. Follow the limit your care team wrote in your care plan, and ask them if you are not sure whether one applies to you. Whether or not you have a limit, daily weights and watching for swelling tell you when fluid is building up.',
     },
   },
   {
@@ -230,9 +230,10 @@ export const EDUCATION_DOMAINS: EducationDomain[] = [
     icon: 'Footprints',
     content: {
       common: [
-        'Regular physical activity helps your heart get stronger over time. Start slowly with 5 to 10 minutes of walking per day, and gradually increase to 30 minutes on most days.',
+        'Regular physical activity is recommended for people whose heart failure is stable. Ask your care team whether you are stable enough to start, and follow the plan they write for you.',
+        'Once your care team agrees, start slowly with 5 to 10 minutes of walking per day, and gradually increase to 30 minutes on most days.',
         'If your doctor recommends cardiac rehabilitation, attend all sessions. Cardiac rehab provides supervised exercise and education specifically designed for people with heart conditions.',
-        'Rest when you feel tired, and avoid heavy lifting or straining. It is normal to feel slightly short of breath during exercise, but stop and rest if you feel dizzy, have chest pain, or become very short of breath.',
+        'Precautions: rest when you feel tired, and avoid heavy lifting or straining. It is normal to feel slightly short of breath during exercise, but stop and rest if you feel dizzy, have chest pain, or become very short of breath. Do not start or increase activity while your symptoms are getting worse.',
       ],
       track_a: [
         'Use the HEARTLAND app to record your daily activity alongside your vitals. Tracking your exercise helps your doctor understand your overall progress and adjust your care plan.',
@@ -242,16 +243,16 @@ export const EDUCATION_DOMAINS: EducationDomain[] = [
       ],
     },
     question: {
-      text: 'How much walking should you start with?',
+      text: 'Before you start or increase walking, what should you do?',
       options: [
-        '30 minutes right away',
-        '5 to 10 minutes per day',
-        '1 hour per day',
-        'You should not exercise with heart failure',
+        'Start at 30 minutes right away',
+        'Check with my care team that my heart failure is stable, then build up from the 5 to 10 minutes they plan with me',
+        'Wait until I have no symptoms at all',
+        'Nothing -- exercise is unsafe with heart failure',
       ],
       correctIndex: 1,
       explanation:
-        'Start with 5 to 10 minutes of walking per day and gradually increase. Starting slowly helps your heart adapt safely. Most people with heart failure benefit from regular, gentle exercise.',
+        'Regular activity is recommended once your heart failure is stable, so check with your care team first. From there, start with the 5 to 10 minutes a day they plan with you and build up gradually. Stop and rest if you feel dizzy, have chest pain, or become very short of breath.',
     },
   },
 ];

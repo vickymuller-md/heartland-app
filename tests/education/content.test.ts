@@ -96,3 +96,46 @@ describe('EDUCATION_DOMAINS', () => {
   });
 });
 
+describe('Clinical wording boundaries', () => {
+  const byId = (id: string) => EDUCATION_DOMAINS.find((d) => d.id === id)!;
+
+  it('sodium content points at the care plan instead of a universal target', () => {
+    const domain = byId('sodium_restriction');
+    const text = domain.content.common.join(' ');
+    expect(text).toMatch(/care plan/i);
+    expect(text).toMatch(/commonly used target/i);
+  });
+
+  it('the sodium quiz answer is the care plan, not a number', () => {
+    const { options, correctIndex } = byId('sodium_restriction').question;
+    expect(options[correctIndex]).toMatch(/care plan/i);
+    expect(options[correctIndex]).not.toMatch(/\d{3,}\s*mg/i);
+  });
+
+  it('fluid content states a limit only when the care plan sets one', () => {
+    const domain = byId('fluid_management');
+    const text = domain.content.common.join(' ');
+    expect(text).toMatch(/not advice for everyone/i);
+    expect(text).toMatch(/care plan/i);
+    expect(text).not.toMatch(/1\.5|2 liters|6 to 8 cups/i);
+  });
+
+  it('the fluid quiz answer is conditional on the care plan', () => {
+    const { options, correctIndex } = byId('fluid_management').question;
+    expect(options[correctIndex]).toMatch(/only if my care team wrote a limit/i);
+  });
+
+  it('the what_is_hf answer covers both HFrEF and HFpEF', () => {
+    const { options, correctIndex, explanation } = byId('what_is_hf').question;
+    expect(options[correctIndex]).toMatch(/weak/i);
+    expect(options[correctIndex]).toMatch(/stiff/i);
+    expect(explanation).toMatch(/HFpEF/);
+  });
+
+  it('activity content keeps the stability qualifier and the precautions', () => {
+    const text = byId('activity_guidance').content.common.join(' ');
+    expect(text).toMatch(/stable/i);
+    expect(text).toMatch(/precautions/i);
+    expect(text).toMatch(/cardiac rehabilitation/i);
+  });
+});
