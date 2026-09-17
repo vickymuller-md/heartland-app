@@ -184,11 +184,11 @@ export const COMPARISON_TABLE_DATA: Array<{
     heartland: '10',
   },
   {
-    characteristic: 'Outcome predicted',
+    characteristic: 'Outcome addressed',
     maggic: '1-3 year mortality',
     gwtgHf: 'In-hospital mortality',
     shfm: '1-5 year survival',
-    heartland: 'Readmission risk + monitoring intensity',
+    heartland: 'Monitoring intensity assignment (not an event prediction)',
   },
   {
     characteristic: 'Distance to care',

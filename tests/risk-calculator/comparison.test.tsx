@@ -56,6 +56,26 @@ describe('ComparisonTable (RISK-04)', () => {
     expect(cells[4].textContent).toBe('Yes');
   });
 
+  it('describes the HEARTLAND outcome as a monitoring assignment, not a prediction', () => {
+    render(<ComparisonTable />);
+    expect(screen.getByText('Outcome addressed')).toBeInTheDocument();
+    expect(screen.queryByText('Outcome predicted')).not.toBeInTheDocument();
+    const row = screen.getByText('Outcome addressed').closest('tr')!;
+    expect(row.querySelectorAll('td')[4].textContent).toBe(
+      'Monitoring intensity assignment (not an event prediction)'
+    );
+  });
+
+  it('caps the comparison with the non-validated heuristic caveat', () => {
+    render(<ComparisonTable />);
+    expect(
+      screen.getByText(/pragmatic heuristic that has not been validated/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/structural differences, not relative predictive performance/i)
+    ).toBeInTheDocument();
+  });
+
   it('shows validation status as "Pragmatic heuristic" for HEARTLAND', () => {
     render(<ComparisonTable />);
     expect(

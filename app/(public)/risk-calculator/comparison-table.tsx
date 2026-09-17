@@ -62,8 +62,11 @@ export function ComparisonTable() {
       </div>
 
       <p className="mt-2 text-xs text-muted-foreground">
-        The HEARTLAND framework uniquely incorporates geographic and social
-        determinants that are absent from traditional prognostic scores.
+        The HEARTLAND framework incorporates geographic and social determinants
+        that are absent from traditional prognostic scores. It is a pragmatic
+        heuristic that has not been validated, so it is not a direct competitor
+        to mortality-prognostic scores. The comparison above describes
+        structural differences, not relative predictive performance.
       </p>
     </div>
   );
