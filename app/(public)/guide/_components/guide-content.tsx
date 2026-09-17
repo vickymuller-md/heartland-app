@@ -822,7 +822,7 @@ export function GuideContent() {
               <tr><td className="py-1.5 pr-4">48-72h Post-Discharge Contact</td><td className="py-1.5 pr-4">&ge;70%</td><td className="py-1.5 pr-4">&ge;85%</td><td className="py-1.5">&ge;95%</td></tr>
               <tr><td className="py-1.5 pr-4">7-Day Follow-up Attendance</td><td className="py-1.5 pr-4">&ge;60%</td><td className="py-1.5 pr-4">&ge;75%</td><td className="py-1.5">&ge;90%</td></tr>
               <tr><td className="py-1.5 pr-4">30-Day Readmission Rate</td><td className="py-1.5 pr-4">Improvement</td><td className="py-1.5 pr-4">&le;20%</td><td className="py-1.5">&le;15%</td></tr>
-              <tr><td className="py-1.5 pr-4">Teach-Back Documentation</td><td className="py-1.5 pr-4">&ge;70%</td><td className="py-1.5 pr-4">&ge;85%</td><td className="py-1.5">&ge;95%</td></tr>
+              <tr><td className="py-1.5 pr-4">Teach-Back Documentation</td><td className="py-1.5" colSpan={3}>Documented teach-back for every offered domain, with completion tracked per patient; no fixed percentage target is set by the protocol.</td></tr>
             </tbody>
           </table>
         </div>
