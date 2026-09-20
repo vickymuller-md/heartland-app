@@ -145,30 +145,56 @@ function ResolutionControl({ isPending, onResolve }: { isPending: boolean; onRes
   if (!open) return <Button className="min-h-11" size="sm" variant="outline" onClick={() => setOpen(true)} disabled={isPending} data-testid="resolve-btn">Resolve</Button>;
   return (
     <form className="min-w-56 space-y-2" onSubmit={(event) => { event.preventDefault(); onResolve(note); }}>
-      <label className="block text-left text-xs font-semibold">Resolution outcome<textarea value={note} onChange={(event) => setNote(event.target.value)} required minLength={3} maxLength={1000} rows={2} className="mt-1 w-full rounded-md border p-2 text-sm font-normal" /></label>
+      <label className="block text-left text-xs font-semibold">Resolution outcome<textarea value={note} onChange={(event) => setNote(event.target.value)} disabled={isPending} required minLength={3} maxLength={1000} rows={2} className="mt-1 w-full rounded-md border p-2 text-sm font-normal" /></label>
       <p className="text-left text-xs text-slate-600">Resolving the alert does not close the work item; it stays in the Daily Loop until an outcome is documented.</p>
-      <div className="flex gap-2"><Button className="min-h-11" size="sm" type="submit" disabled={isPending}>{isPending ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}Confirm</Button><Button className="min-h-11" size="sm" type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button></div>
+      <div className="flex gap-2"><Button className="min-h-11" size="sm" type="submit" disabled={isPending}>{isPending ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}Confirm</Button><Button className="min-h-11" size="sm" type="button" variant="ghost" disabled={isPending} onClick={() => setOpen(false)}>Cancel</Button></div>
     </form>
   );
 }
 
 export function AlertRowComponent({ alert, layout }: AlertRowComponentProps) {
   const [isPending, startTransition] = useTransition();
+  const [feedback, setFeedback] = useState<{ error: boolean; message: string } | null>(null);
   const router = useRouter();
 
-  const handleAcknowledge = () => {
+  const runAction = (
+    action: () => Promise<{ success: boolean; error?: string }>,
+    successMessage: string,
+    errorMessage: string,
+  ) => {
+    setFeedback(null);
     startTransition(async () => {
-      await acknowledgeAlert(alert.id);
+      let result;
+      try {
+        result = await action();
+      } catch {
+        // A lost response does not prove the server rejected the update.
+        setFeedback({ error: true, message: 'The update could not be confirmed. Refresh the list before trying again.' });
+        return;
+      }
+      if (!result.success) {
+        setFeedback({ error: true, message: result.error || errorMessage });
+        return;
+      }
+      setFeedback({ error: false, message: successMessage });
       router.refresh();
     });
   };
 
-  const handleResolve = (resolutionNote: string) => {
-    startTransition(async () => {
-      await resolveAlert({ alertId: alert.id, resolutionNote });
-      router.refresh();
-    });
-  };
+  const handleAcknowledge = () => runAction(
+    () => acknowledgeAlert(alert.id), 'Acknowledgement saved.', 'Unable to acknowledge alert.',
+  );
+
+  const handleResolve = (resolutionNote: string) => runAction(
+    () => resolveAlert({ alertId: alert.id, resolutionNote }), 'Resolution saved.', 'Unable to resolve alert.',
+  );
+
+  const actionFeedback = feedback && (
+    <div role={feedback.error ? 'alert' : 'status'} className={`space-y-2 rounded-md p-3 text-left text-sm ${feedback.error ? 'bg-red-50 text-red-900' : 'bg-blue-50 text-blue-900'}`}>
+      <p>{feedback.message}</p>
+      <Button size="sm" variant="outline" onClick={() => router.refresh()} disabled={isPending}>Refresh list</Button>
+    </div>
+  );
 
   const timeAgo = formatDistanceToNow(new Date(alert.created_at), {
     addSuffix: true,
@@ -210,6 +236,7 @@ export function AlertRowComponent({ alert, layout }: AlertRowComponentProps) {
             onResolve={handleResolve}
           />
         </div>
+        {actionFeedback}
       </div>
     );
   }
@@ -247,6 +274,7 @@ export function AlertRowComponent({ alert, layout }: AlertRowComponentProps) {
           onAcknowledge={handleAcknowledge}
           onResolve={handleResolve}
         />
+        {actionFeedback}
       </TableCell>
     </TableRow>
   );

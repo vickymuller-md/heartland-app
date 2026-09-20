@@ -325,12 +325,13 @@ export async function getAlerts(
   const limit = Math.min(Math.max(pagination.limit ?? 25, 1), 50);
   const offset = Math.max(pagination.offset ?? 0, 0);
   // Get linked patient IDs
-  const { data: links } = await supabase
+  const { data: links, error: linkError } = await supabase
     .from('provider_patient_links')
     .select('patient_id')
     .eq('provider_id', providerId)
     .eq('status', 'active');
 
+  if (linkError) throw linkError;
   if (!links || links.length === 0) return { alerts: [], total: 0 };
   const patientIds = links.map((l) => l.patient_id);
 
