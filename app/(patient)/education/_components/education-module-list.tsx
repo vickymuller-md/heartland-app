@@ -23,6 +23,8 @@ import type { EducationDomain, EducationProgress } from '@/lib/education/types';
 import { TeachBackCard } from './teach-back-card';
 
 interface EducationModuleListProps {
+  actorId: string;
+  contentVersion: string;
   domains: EducationDomain[];
   trackAssignment: string;
   progress: EducationProgress[];
@@ -41,6 +43,8 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
 };
 
 export function EducationModuleList({
+  actorId,
+  contentVersion,
   domains,
   trackAssignment,
   progress,
@@ -58,6 +62,8 @@ export function EducationModuleList({
   if (activeDomain) {
     return (
       <TeachBackCard
+        actorId={actorId}
+        contentVersion={contentVersion}
         domain={activeDomain}
         trackAssignment={trackAssignment}
         progress={progressMap.get(activeDomain.id)}

@@ -48,6 +48,42 @@ export interface EducationProgress {
   created_at: string;
 }
 
+/** Bounded latest self-assessment receipt, never a professional verification. */
+export interface EducationResponseContext {
+  actorId: string;
+  domainId: string;
+  contentVersion: string;
+  revision: number;
+  attempts: number;
+  completed: boolean;
+  lastResponse: null | {
+    requestId: string;
+    baseRevision: number;
+    selectedOption: number;
+    contentVersion: string;
+    correct: boolean;
+  };
+}
+
+export interface EducationResponseInput {
+  actorId: string;
+  domainId: string;
+  contentVersion: string;
+  requestId: string;
+  expectedRevision: number;
+  selectedOption: number;
+}
+
+export type EducationContextResult =
+  | { status: 'ready'; context: EducationResponseContext }
+  | { status: 'error'; error: string };
+
+export type EducationResponseResult =
+  | { status: 'saved'; context: EducationResponseContext }
+  | { status: 'absent' }
+  | { status: 'conflict'; error: string }
+  | { status: 'unconfirmed'; error: string };
+
 /**
  * Professional teach-back verification (migration 00040).
  *

@@ -13,6 +13,7 @@ import { getEducationProgress } from '@/lib/education/queries';
 import { EducationModuleList } from './_components/education-module-list';
 import { TrackBadge } from './_components/track-badge';
 import { redirect } from 'next/navigation';
+import { createHash } from 'node:crypto';
 
 export default async function EducationPage() {
   const supabase = await createClient();
@@ -34,6 +35,10 @@ export default async function EducationPage() {
 
   // Every domain is available at every facility tier, including an unknown tier.
   const availableDomains = EDUCATION_DOMAINS;
+  // Bind the rendered questions to the exact version, including long-lived tabs.
+  const contentVersion = createHash('sha256').update(JSON.stringify(
+    availableDomains.map(({ id, question }) => ({ id, question })),
+  )).digest('hex');
 
   // Fetch education progress
   const progress = await getEducationProgress(supabase, user.id);
@@ -43,6 +48,9 @@ export default async function EducationPage() {
       <h1 className="mb-2 text-2xl font-bold text-gray-900">Learn</h1>
       <TrackBadge trackAssignment={trackAssignment} />
       <EducationModuleList
+        actorId={user.id}
+        contentVersion={contentVersion}
+        key={user.id}
         domains={availableDomains}
         trackAssignment={trackAssignment}
         progress={progress}

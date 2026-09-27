@@ -1,249 +1,181 @@
-/**
- * Teach-Back Education Tests
- * Requirements: EDUC-01, EDUC-03, EDUC-05
- *
- * Verifies: teach-back card renders content, question, result steps.
- * Correct answer shows success. Incorrect answer shows retry option.
- */
-
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EDUCATION_DOMAINS } from '@/lib/education/constants';
+import type { EducationResponseInput, EducationResponseContext, EducationResponseResult } from '@/lib/education/types';
 
-// Mock server actions
+const { read, submit, recover } = vi.hoisted(() => ({ read: vi.fn(), submit: vi.fn(), recover: vi.fn() }));
 vi.mock('@/lib/education/actions', () => ({
-  completeModule: vi.fn(async () => ({ success: true })),
-  incrementAttempts: vi.fn(async () => ({ success: true })),
-  resetModule: vi.fn(async () => ({ success: true })),
+  readEducationContext: read, submitEducationResponse: submit, recoverEducationResponse: recover,
 }));
-
 import { TeachBackCard } from '@/app/(patient)/education/_components/teach-back-card';
 
-const mockOnClose = vi.fn();
-const dailyWeight = EDUCATION_DOMAINS[0]; // daily_weight domain
+const actorId = '58000000-0000-4000-8000-000000000001';
+const otherActor = '58000000-0000-4000-8000-000000000002';
+const contentVersion = '0e09e605951318ccbfdd93a53cd2c87e67645c46d859ac022ed4bcb7b32ca03a';
+const domain = EDUCATION_DOMAINS[0];
+const close = vi.fn();
+const context: EducationResponseContext = { actorId, domainId: domain.id, contentVersion, revision: 0, attempts: 0, completed: false, lastResponse: null };
+const props = { actorId, contentVersion, domain, trackAssignment: 'track_b', progress: undefined, onClose: close };
+function receipt(input: EducationResponseInput): EducationResponseResult {
+  const correct = input.selectedOption === EDUCATION_DOMAINS.find((item) => item.id === input.domainId)!.question.correctIndex;
+  return { status: 'saved', context: {
+    ...context, actorId: input.actorId, domainId: input.domainId, revision: input.expectedRevision + 1,
+    attempts: 1, completed: correct,
+    lastResponse: { requestId: input.requestId, baseRevision: input.expectedRevision, selectedOption: input.selectedOption, contentVersion, correct },
+  } };
+}
+async function openQuestion() {
+  fireEvent.click(screen.getByRole('button', { name: /I've Read This/i }));
+  await waitFor(() => expect(screen.getByRole('button', { name: domain.question.options[0] })).toBeEnabled());
+}
+async function answer(index = domain.question.correctIndex) {
+  await openQuestion();
+  fireEvent.click(screen.getByRole('button', { name: domain.question.options[index] }));
+  fireEvent.click(screen.getByRole('button', { name: 'Check Answer' }));
+}
+beforeEach(() => {
+  vi.resetAllMocks();
+  read.mockImplementation(async (id: string, domainId: string) => ({ status: 'ready', context: { ...context, actorId: id, domainId } }));
+  submit.mockImplementation(async (input: EducationResponseInput) => receipt(input));
+  recover.mockResolvedValue({ status: 'absent' });
+});
 
-describe('TeachBackCard', () => {
-  beforeEach(() => {
-    mockOnClose.mockClear();
+describe('patient education self-assessment', () => {
+  it.each(EDUCATION_DOMAINS)('offers the content and question for $id, without a tier restriction', (item) => {
+    expect(item).not.toHaveProperty('tier');
+    expect(item.question.options).toHaveLength(4);
+    render(<TeachBackCard {...props} domain={item} />);
+    expect(screen.getByText(item.content.common[0])).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /I've Read This/i })).toBeInTheDocument();
   });
-
-  describe('Core Domains (EDUC-01)', () => {
-    it('daily_weight domain has title, content, and question', () => {
-      expect(dailyWeight.title).toBe('Daily Weight Monitoring');
-      expect(dailyWeight.content.common.length).toBeGreaterThan(0);
-      expect(dailyWeight.question.text).toBeTruthy();
-    });
-
-    it('medications domain has title, content, and question', () => {
-      const meds = EDUCATION_DOMAINS.find((d) => d.id === 'medications')!;
-      expect(meds.title).toBe('Taking Your Heart Medications');
-      expect(meds.content.common.length).toBeGreaterThan(0);
-      expect(meds.question.text).toBeTruthy();
-    });
-
-    it('warning_signs domain has title, content, and question', () => {
-      const ws = EDUCATION_DOMAINS.find((d) => d.id === 'warning_signs')!;
-      expect(ws.title).toBe('Warning Signs to Watch For');
-      expect(ws.content.common.length).toBeGreaterThan(0);
-      expect(ws.question.text).toBeTruthy();
-    });
-
-    it('no domain carries a facility-tier marker', () => {
-      EDUCATION_DOMAINS.forEach((d) => expect(d).not.toHaveProperty('tier'));
-    });
+  it.each(['track_a', 'track_b'] as const)('renders %s content', (track) => {
+    render(<TeachBackCard {...props} trackAssignment={track} />);
+    expect(screen.getByText(domain.content[track][0])).toBeInTheDocument();
   });
-
-  describe('Teach-Back Flow (EDUC-03)', () => {
-    it('initially shows content paragraphs', () => {
-      render(
-        <TeachBackCard
-          domain={dailyWeight}
-          trackAssignment="track_b"
-          progress={undefined}
-          onClose={mockOnClose}
-        />
-      );
-
-      // Should show first common paragraph
-      expect(
-        screen.getByText(/Weighing yourself every day/i)
-      ).toBeInTheDocument();
-      // Should show "I've Read This" button
-      expect(
-        screen.getByRole('button', { name: /I've Read This/i })
-      ).toBeInTheDocument();
-    });
-
-    it('after reading content, user sees verification question', () => {
-      render(
-        <TeachBackCard
-          domain={dailyWeight}
-          trackAssignment="track_b"
-          progress={undefined}
-          onClose={mockOnClose}
-        />
-      );
-
-      fireEvent.click(
-        screen.getByRole('button', { name: /I've Read This/i })
-      );
-
-      // Should show question text
-      expect(
-        screen.getByText(dailyWeight.question.text)
-      ).toBeInTheDocument();
-    });
-
-    it('question shows multiple choice options', () => {
-      render(
-        <TeachBackCard
-          domain={dailyWeight}
-          trackAssignment="track_b"
-          progress={undefined}
-          onClose={mockOnClose}
-        />
-      );
-
-      fireEvent.click(
-        screen.getByRole('button', { name: /I've Read This/i })
-      );
-
-      // All options should be visible
-      dailyWeight.question.options.forEach((option) => {
-        expect(screen.getByText(option)).toBeInTheDocument();
-      });
-    });
-
-    it('selecting correct answer shows success with explanation', async () => {
-      render(
-        <TeachBackCard
-          domain={dailyWeight}
-          trackAssignment="track_b"
-          progress={undefined}
-          onClose={mockOnClose}
-        />
-      );
-
-      // Navigate to question
-      fireEvent.click(
-        screen.getByRole('button', { name: /I've Read This/i })
-      );
-
-      // Select correct answer
-      const correctOption =
-        dailyWeight.question.options[dailyWeight.question.correctIndex];
-      fireEvent.click(screen.getByText(correctOption));
-
-      // Submit answer
-      fireEvent.click(
-        screen.getByRole('button', { name: /Check Answer/i })
-      );
-
-      // Should show success
-      await waitFor(() => {
-        expect(screen.getByText(/Correct!/i)).toBeInTheDocument();
-      });
-      expect(
-        screen.getByText(dailyWeight.question.explanation)
-      ).toBeInTheDocument();
-    });
-
-    it('selecting incorrect answer shows explanation and allows retry', async () => {
-      render(
-        <TeachBackCard
-          domain={dailyWeight}
-          trackAssignment="track_b"
-          progress={undefined}
-          onClose={mockOnClose}
-        />
-      );
-
-      // Navigate to question
-      fireEvent.click(
-        screen.getByRole('button', { name: /I've Read This/i })
-      );
-
-      // Select an incorrect answer (pick one that is NOT correctIndex)
-      const wrongIndex =
-        dailyWeight.question.correctIndex === 0 ? 1 : 0;
-      fireEvent.click(
-        screen.getByText(dailyWeight.question.options[wrongIndex])
-      );
-
-      // Submit answer
-      fireEvent.click(
-        screen.getByRole('button', { name: /Check Answer/i })
-      );
-
-      // Should show "Not quite" message
-      await waitFor(() => {
-        expect(
-          screen.getByText(/Not quite/i)
-        ).toBeInTheDocument();
-      });
-
-      // Should have "Try Again" button
-      expect(
-        screen.getByRole('button', { name: /Try Again/i })
-      ).toBeInTheDocument();
-    });
+  it('loads context with the fixed page identity before enabling an answer', async () => {
+    render(<TeachBackCard {...props} />);
+    await openQuestion();
+    expect(read).toHaveBeenCalledExactlyOnceWith(actorId, domain.id);
+    expect(screen.getByText(domain.question.text)).toBeInTheDocument();
+    for (const option of domain.question.options) expect(screen.getByRole('button', { name: option })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Check Answer' })).toBeDisabled();
+    expect(submit).not.toHaveBeenCalled();
   });
-
-  describe('Track Content (EDUC-04)', () => {
-    it('Track B content is shown when trackAssignment is track_b', () => {
-      render(
-        <TeachBackCard
-          domain={dailyWeight}
-          trackAssignment="track_b"
-          progress={undefined}
-          onClose={mockOnClose}
-        />
-      );
-
-      // Track B content should be visible
-      expect(
-        screen.getByText(/paper diary/i)
-      ).toBeInTheDocument();
-    });
-
-    it('Track A content is shown when trackAssignment is track_a', () => {
-      render(
-        <TeachBackCard
-          domain={dailyWeight}
-          trackAssignment="track_a"
-          progress={undefined}
-          onClose={mockOnClose}
-        />
-      );
-
-      // Track A content should mention the app
-      expect(
-        screen.getByText(/HEARTLAND app/i)
-      ).toBeInTheDocument();
-    });
+  it('separates correct feedback from confirmed persistence', async () => {
+    let resolve!: (result: EducationResponseResult) => void;
+    submit.mockReturnValue(new Promise((done) => { resolve = done; }));
+    render(<TeachBackCard {...props} />);
+    await answer();
+    expect(screen.getByText('Correct!')).toBeInTheDocument();
+    expect(screen.queryByText(/Answer and progress saved/)).not.toBeInTheDocument();
+    expect(screen.getByText(/save is not confirmed/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Check saved progress' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Back to Modules', exact: true })).toBeDisabled();
+    await act(async () => resolve(receipt(submit.mock.calls[0][0])));
+    expect(screen.getByText(/Answer and progress saved/)).toBeInTheDocument();
+    expect(screen.getByText(domain.question.explanation)).toBeInTheDocument();
   });
-
-  describe('Completed State', () => {
-    it('already completed modules show result state on open', () => {
-      render(
-        <TeachBackCard
-          domain={dailyWeight}
-          trackAssignment="track_b"
-          progress={{
-            id: '1',
-            patient_id: 'p1',
-            domain_id: 'daily_weight',
-            completed: true,
-            completed_at: '2026-01-01T00:00:00Z',
-            attempts: 1,
-            created_at: '2026-01-01T00:00:00Z',
-          }}
-          onClose={mockOnClose}
-        />
-      );
-
-      // Should show correct result directly
-      expect(screen.getByText(/Correct!/i)).toBeInTheDocument();
-    });
+  it('saves an incorrect attempt before permitting a new attempt', async () => {
+    render(<TeachBackCard {...props} />);
+    await answer(0);
+    expect(await screen.findByRole('button', { name: 'Try Again' })).toBeInTheDocument();
+    expect(screen.getByText(/Not quite/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+    expect(screen.getByRole('button', { name: /I've Read This/ })).toBeInTheDocument();
+    expect(submit).toHaveBeenCalledTimes(1);
+  });
+  it.each(['error', 'throw', 'malformed'])('handles a %s on context loading without accepting an answer', async (kind) => {
+    if (kind === 'throw') read.mockRejectedValue(new Error('offline'));
+    else read.mockResolvedValue(kind === 'error' ? { status: 'error', error: 'Session changed' } : {});
+    render(<TeachBackCard {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: /I've Read This/ }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Check Answer' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Reload current progress' })).toBeInTheDocument();
+    expect(submit).not.toHaveBeenCalled();
+  });
+  it.each(['error', 'throw', 'malformed'])('never claims saved progress on a %s from submission', async (kind) => {
+    if (kind === 'throw') submit.mockRejectedValue(new Error('response lost'));
+    else submit.mockResolvedValue(kind === 'error' ? { status: 'unconfirmed', error: 'Not confirmed' } : { status: 'saved' });
+    render(<TeachBackCard {...props} />);
+    await answer();
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByText(/Answer and progress saved/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try Again' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retry saving this answer' })).not.toBeInTheDocument();
+  });
+  it('recovers a lost response without resubmitting', async () => {
+    submit.mockRejectedValue(new Error('lost response'));
+    recover.mockImplementation(async (input: EducationResponseInput) => receipt(input));
+    render(<TeachBackCard {...props} />);
+    await answer();
+    await screen.findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Check saved progress' }));
+    expect(await screen.findByText(/Answer and progress saved/)).toBeInTheDocument();
+    expect(recover).toHaveBeenCalledWith(submit.mock.calls[0][0]);
+    expect(submit).toHaveBeenCalledTimes(1);
+  });
+  it('does not label old questions with a newly installed version', async () => {
+    read.mockResolvedValue({ status: 'ready', context: { ...context, contentVersion: 'b'.repeat(64) } });
+    render(<TeachBackCard {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: /I've Read This/ }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('question version changed');
+    expect(screen.getByRole('button', { name: 'Check Answer' })).toBeDisabled();
+    expect(submit).not.toHaveBeenCalled();
+  });
+  it('retries only after absence is read, retaining UUID, option, actor and revision', async () => {
+    submit.mockRejectedValueOnce(new Error('lost'));
+    render(<TeachBackCard {...props} />);
+    await answer();
+    await screen.findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Check saved progress' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry saving this answer' }));
+    expect(await screen.findByText(/Answer and progress saved/)).toBeInTheDocument();
+    expect(submit).toHaveBeenCalledTimes(2);
+    expect(submit.mock.calls[0][0]).toEqual(submit.mock.calls[1][0]);
+    expect(submit.mock.calls[0][0].requestId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+  it('stops a synchronous double click and never changes the captured answer', async () => {
+    let resolve!: (result: EducationResponseResult) => void;
+    submit.mockReturnValue(new Promise((done) => { resolve = done; }));
+    render(<TeachBackCard {...props} />);
+    await openQuestion();
+    fireEvent.click(screen.getByRole('button', { name: domain.question.options[1] }));
+    const check = screen.getByRole('button', { name: 'Check Answer' });
+    act(() => { check.click(); check.click(); });
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(submit.mock.calls[0][0].selectedOption).toBe(1);
+    await act(async () => resolve(receipt(submit.mock.calls[0][0])));
+  });
+  it('does not offer retry or automatic rebase after a conflict', async () => {
+    submit.mockResolvedValue({ status: 'conflict', error: 'Reopen this module' });
+    render(<TeachBackCard {...props} />);
+    await answer();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Reopen this module');
+    expect(screen.queryByRole('button', { name: 'Check saved progress' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Retry/ })).not.toBeInTheDocument();
+    expect(submit).toHaveBeenCalledTimes(1);
+  });
+  it('does not label old completion as a new correct answer or professional verification', () => {
+    render(<TeachBackCard {...props} progress={{
+      id: 'legacy', patient_id: actorId, domain_id: domain.id, completed: true,
+      completed_at: '2026-01-01T00:00:00Z', attempts: 2, created_at: '2026-01-01T00:00:00Z',
+    }} />);
+    expect(screen.getByText(/completion was previously saved/)).toBeInTheDocument();
+    expect(screen.queryByText('Correct!')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Answer and progress saved/)).not.toBeInTheDocument();
+    expect(submit).not.toHaveBeenCalled();
+  });
+  it.each(['actor', 'domain', 'version', 'unmount'])('discards a late response after %s change', async (change) => {
+    let resolve!: (result: EducationResponseResult) => void;
+    submit.mockReturnValue(new Promise((done) => { resolve = done; }));
+    const view = render(<TeachBackCard {...props} />);
+    await answer();
+    const pendingInput = submit.mock.calls[0][0];
+    if (change === 'unmount') view.unmount();
+    else view.rerender(<TeachBackCard {...props} actorId={change === 'actor' ? otherActor : actorId} domain={change === 'domain' ? EDUCATION_DOMAINS[1] : domain} contentVersion={change === 'version' ? 'b'.repeat(64) : contentVersion} />);
+    await act(async () => resolve(receipt(pendingInput)));
+    expect(screen.queryByText(/Answer and progress saved/)).not.toBeInTheDocument();
+    expect(submit).toHaveBeenCalledTimes(1);
   });
 });

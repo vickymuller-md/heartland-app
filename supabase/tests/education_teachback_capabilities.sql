@@ -496,7 +496,8 @@ SELECT throws_ok(
   'a teach-back cannot be deleted, even by the owner');
 
 -- ---------------------------------------------------------------------------
--- J. education_progress is untouched by this migration
+-- J. Professional records remain separate from the receipted self-assessment.
+-- 00056 preserves the row shape but replaces the old raw-write grants/policies.
 -- ---------------------------------------------------------------------------
 SELECT is(
   (SELECT array_agg(column_name::text ORDER BY column_name) FROM information_schema.columns
@@ -511,29 +512,31 @@ SELECT is(
 SELECT is(
   (SELECT array_agg(policyname::text ORDER BY policyname) FROM pg_policies
    WHERE schemaname = 'public' AND tablename = 'education_progress'),
-  ARRAY['patients_insert_own_education_progress', 'patients_read_own_education_progress',
-        'patients_update_own_education_progress', 'providers_read_linked_education_progress'],
-  'education_progress keeps exactly its 00025 policies');
+  ARRAY['patients_read_own_education_progress', 'providers_read_linked_education_progress'],
+  'education_progress preserves scoped SELECT policies after 00056');
 SELECT is(
   (SELECT array_agg(tgname::text ORDER BY tgname) FROM pg_trigger
    WHERE tgrelid = 'public.education_progress'::regclass AND NOT tgisinternal),
   ARRAY['audit_row_change'],
   'education_progress keeps only its 00025 audit trigger');
-SELECT ok(has_column_privilege('authenticated', 'public.education_progress', 'completed', 'UPDATE'),
-  'the patient self-assessment write path is intact');
+SELECT ok(NOT has_any_column_privilege('authenticated', 'public.education_progress', 'INSERT,UPDATE'),
+  'self-assessment raw writes, including column grants, are revoked by 00056');
 SELECT ok(NOT has_table_privilege('authenticated', 'public.education_progress', 'DELETE'),
   'education_progress still grants no delete');
 
--- The two records stay independent: the patient still writes its own completion.
+-- A known self-assessment domain is submitted through the patient RPC, not a
+-- privileged fixture INSERT. Professional verification keeps its own domain IDs.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claims', '{"sub":"40000000-0000-4000-8000-000000000d01","role":"authenticated"}', true);
 SELECT lives_ok(
-  $q$INSERT INTO public.education_progress (patient_id, domain_id, completed, completed_at, attempts)
-     VALUES ('40000000-0000-4000-8000-000000000d01', 'sodium', true, now(), 1)$q$,
-  'the patient still records its own self-assessment');
+  $q$SELECT public.submit_education_response(
+     '40000000-0000-4000-8000-000000000d01', 'sodium_restriction',
+     '40000000-0000-4000-8000-00000000ed01', 0, 0,
+     '0e09e605951318ccbfdd93a53cd2c87e67645c46d859ac022ed4bcb7b32ca03a')$q$,
+  'the patient records its own self-assessment through the atomic RPC');
 RESET ROLE;
 SELECT is((SELECT completed FROM public.education_progress
-  WHERE patient_id = '40000000-0000-4000-8000-000000000d01' AND domain_id = 'sodium'), true,
+  WHERE patient_id = '40000000-0000-4000-8000-000000000d01' AND domain_id = 'sodium_restriction'), true,
   'the self-assessment says completed');
 SELECT is((SELECT outcome FROM public.get_education_teachback_state('40000000-0000-4000-8000-000000000d01')
   WHERE domain_id = 'sodium'), 'not_applicable',
