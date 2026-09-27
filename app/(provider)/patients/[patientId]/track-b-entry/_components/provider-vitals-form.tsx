@@ -9,65 +9,40 @@
  * Follows existing patient vitals form patterns (48px tap targets, 16px+ fonts).
  */
 
-import { useActionState, useState } from 'react';
-import { submitVitalsAsProvider } from '@/lib/vitals/actions';
+import { useState } from 'react';
+import Link from 'next/link';
+import { useVitalsSubmission } from '@/lib/vitals/use-submission';
+import { PendingVitalsSubmissions } from '@/lib/vitals/pending-submissions';
+import { VitalsSubmissionStatus } from '@/lib/vitals/submission-status';
 import { SYMPTOM_SEVERITY } from '@/lib/vitals/constants';
-import type { VitalsActionState } from '@/lib/vitals/types';
-import { AlertTriangle, CheckCircle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 interface ProviderVitalsFormProps {
   patientId: string;
 }
 
 export default function ProviderVitalsForm({ patientId }: ProviderVitalsFormProps) {
-  const [state, formAction, isPending] = useActionState<VitalsActionState | null, FormData>(
-    submitVitalsAsProvider,
-    null
-  );
+  const { state, ready, busy: isPending, submit, recover, startNew, cancel } = useVitalsSubmission(patientId);
   const [weightUnit, setWeightUnit] = useState<'lbs' | 'kg'>('lbs');
   const [recordedDate, setRecordedDate] = useState(new Date().toISOString().split('T')[0]);
 
-  // Success state
-  if (state?.success) {
-    return (
-      <div className="space-y-4">
-        <div className="rounded-lg border-2 border-green-300 bg-green-50 p-6 text-center">
-          <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
-          <h2 className="text-xl font-bold text-green-800 mb-2">Vitals Saved Successfully</h2>
-          <p className="text-base text-green-700">
-            The diary entry has been recorded for this patient.
-          </p>
-        </div>
-
-        {state.redFlags && state.redFlags.length > 0 && (
-          <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-4" role="alert">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="h-5 w-5 text-amber-700" />
-              <h3 className="font-semibold text-amber-800">Red Flags Detected</h3>
-            </div>
-            <ul className="space-y-1 text-sm text-amber-800">
-              {state.redFlags.map((flag) => (
-                <li key={flag.id}>
-                  <span className="font-medium">{flag.message}</span> &mdash; {flag.action}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          className="w-full min-h-[48px] text-base font-semibold bg-blue-600 text-white rounded-lg py-3"
-        >
-          Enter Another Reading
-        </button>
-      </div>
-    );
+  if (state.saved) {
+    return <><PendingVitalsSubmissions patientId={patientId} key={patientId} refreshKey={state.requestId} /><VitalsSubmissionStatus state={state} busy={isPending} onRetry={() => void recover()} onNew={() => void startNew()}>
+      {!!state.redFlags?.length && <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-4" role="alert">
+        <h3 className="font-semibold text-amber-800"><AlertTriangle className="mr-2 inline h-5 w-5" />Red Flags Detected</h3>
+        <ul className="mt-2 space-y-1 text-sm text-amber-800">
+          {state.redFlags.map((flag) => <li key={flag.id}><strong>{flag.message}</strong> — {flag.action}</li>)}
+        </ul>
+      </div>}
+    </VitalsSubmissionStatus></>;
   }
 
-  return (
-    <form action={formAction} className="space-y-8">
+  return (<>
+    <PendingVitalsSubmissions patientId={patientId} key={patientId} refreshKey={state.requestId} />
+    {state.activeBatchId && <Link className="block min-h-[48px] underline" href={`/patients/${patientId}/track-b-entry?mode=batch`}>Recover Active Batch</Link>}
+    {state.submissionStatus === 'prepared' && <button type="button" disabled={isPending} onClick={() => void cancel()}
+      className="min-h-[48px] underline">Cancel Unsaved Entry to Switch Modes</button>}
+    <form onSubmit={(event) => { event.preventDefault(); void submit(new FormData(event.currentTarget)); }} className="space-y-8">
       {/* Hidden fields */}
       <input type="hidden" name="patientId" value={patientId} />
       <input type="hidden" name="weightUnit" value={weightUnit} />
@@ -76,7 +51,8 @@ export default function ProviderVitalsForm({ patientId }: ProviderVitalsFormProp
       {/* General error */}
       {state?.error && (
         <div className="rounded-lg border-2 border-red-300 bg-red-50 p-4">
-          <p className="text-base text-red-700">{state.error}</p>
+          <p role="alert" className="text-base text-red-700">{state.error}</p>
+          <button type="button" disabled={isPending} onClick={() => void recover()} className="mt-2 min-h-[48px] underline">Check Saved Record</button>
         </div>
       )}
 
@@ -347,11 +323,11 @@ export default function ProviderVitalsForm({ patientId }: ProviderVitalsFormProp
       {/* Submit */}
       <button
         type="submit"
-        disabled={isPending}
+        disabled={isPending || !ready}
         className="w-full min-h-[48px] text-base font-semibold bg-blue-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed py-3"
       >
         {isPending ? 'Saving...' : 'Save Vitals for Patient'}
       </button>
     </form>
-  );
+  </>);
 }

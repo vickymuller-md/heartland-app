@@ -5,6 +5,9 @@ import { z } from 'zod';
 import { authorize, authorizeProviderForPatient } from '@/lib/auth/authorization';
 import { trackProductEvent } from '@/lib/product-analytics/actions';
 import { MANAGER_OUTCOME_CODE, PROVIDER_OUTCOME_CODES } from './types';
+import { OWNERSHIP_WRITE_UNCONFIRMED } from './ownership-context';
+import { reassignmentSchema, reassignmentReceiptSchema, reassignmentStateSchema, receiptMatches, sameReassignment, REASSIGNMENT_UNKNOWN,
+  type ReassignmentInput, type ReassignmentResult } from './reassignment';
 
 /**
  * Outcome codes a human may choose. `followup_completed`, `followup_skipped` and
@@ -198,50 +201,72 @@ function revalidateWorkSurfaces(patientId: string): void {
 export async function assignWorkItem(input: z.infer<typeof assignmentSchema>): Promise<{ success: boolean; error?: string }> {
   const parsed = assignmentSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: 'Invalid assignment' };
-  const auth = await authorize('provider');
-  if (!auth.authorized) return { success: false, error: auth.error };
+  try {
+    const auth = await authorize('provider');
+    if (!auth.authorized) return { success: false, error: OWNERSHIP_WRITE_UNCONFIRMED };
 
-  const { error } = await auth.supabase.rpc('offer_work_item_transfer', {
-    p_work_item_id: parsed.data.workItemId,
-    p_to: parsed.data.assigneeId,
-    p_note: parsed.data.note ?? null,
-  });
-  if (error) return { success: false, error: 'This transfer could not be offered.' };
+    const { data, error } = await auth.supabase.rpc('offer_work_item_transfer', {
+      p_work_item_id: parsed.data.workItemId,
+      p_to: parsed.data.assigneeId,
+      p_note: parsed.data.note ?? null,
+    });
+    if (error || data !== null) return { success: false, error: OWNERSHIP_WRITE_UNCONFIRMED };
 
-  await trackProductEvent({ eventName: 'work_item_reassigned', area: 'team' });
-  revalidateWorkSurfaces(parsed.data.patientId);
-  return { success: true };
+    await trackProductEvent({ eventName: 'work_item_reassigned', area: 'team' });
+    revalidateWorkSurfaces(parsed.data.patientId);
+    return { success: true };
+  } catch { return { success: false, error: OWNERSHIP_WRITE_UNCONFIRMED }; }
 }
-
-const reassignmentSchema = z.object({
-  workItemId: z.uuid(),
-  patientId: z.uuid(),
-  assigneeId: z.uuid(),
-  reason: z.string().trim().min(3).max(500),
-});
 
 /**
  * Forced reassignment by a team manager. Recorded as `manager_reassigned`: moving work
  * is not the same as accepting it, so the previous acceptance is cleared by the database.
  */
 export async function reassignWorkItem(
-  input: z.infer<typeof reassignmentSchema>,
-): Promise<{ success: boolean; error?: string }> {
+  input: ReassignmentInput,
+): Promise<ReassignmentResult> {
   const parsed = reassignmentSchema.safeParse(input);
-  if (!parsed.success) return { success: false, error: 'Document why this work is being reassigned.' };
-  const auth = await authorize('provider');
-  if (!auth.authorized) return { success: false, error: auth.error };
-
-  const { error } = await auth.supabase.rpc('reassign_work_item', {
-    p_work_item_id: parsed.data.workItemId,
-    p_to: parsed.data.assigneeId,
-    p_reason: parsed.data.reason,
-  });
-  if (error) return { success: false, error: 'Work could not be reassigned.' };
-
-  await trackProductEvent({ eventName: 'work_item_reassigned', area: 'team' });
-  revalidateWorkSurfaces(parsed.data.patientId);
-  return { success: true };
+  if (!parsed.success) return { success: false, status: 'rejected', error: 'Document the reason and refresh the current ownership before reassigning.' };
+  try {
+    const auth = await authorize('provider');
+    if (!auth.authorized) return { success: false, status: 'unknown', error: REASSIGNMENT_UNKNOWN };
+    const request = parsed.data;
+    const args = {
+      p_request_id: request.requestId, p_work_item_id: request.workItemId,
+      p_expected_assignee: request.expectedAssignee, p_expected_revision: request.expectedRevision,
+      p_to: request.assigneeId, p_reason: request.reason,
+    };
+    // This RPC commits before the apply call. Browser state is not the recovery record.
+    const preparation = await auth.supabase.rpc('prepare_work_reassignment', args);
+    const prepared = reassignmentStateSchema.safeParse(preparation.data);
+    if (preparation.error || !prepared.success || prepared.data.request.workItemId !== request.workItemId
+      || prepared.data.request.patientId !== request.patientId) {
+      return { success: false, status: preparation.error?.code === '40001' ? 'rejected' : 'unknown', error: REASSIGNMENT_UNKNOWN };
+    }
+    const recovery = prepared.data;
+    if (!sameReassignment(recovery.request, request)) return { success: false, status: 'rejected', recovery,
+      error: 'A previous request for this item is still unresolved. Review that saved request before creating another.' };
+    if (recovery.state === 'cancelled') return { success: false, status: 'rejected', recovery, error: 'This request was cancelled without applying a reassignment.' };
+    if (recovery.receipt) return { success: true, receipt: recovery.receipt, recovery };
+    let response;
+    try {
+      response = await auth.supabase.rpc('reassign_work_item_recoverable', args);
+    } catch {
+      return { success: false, status: 'unknown', error: REASSIGNMENT_UNKNOWN, recovery };
+    }
+    const { data, error } = response;
+    if (error?.code === '40001') return { success: false, status: 'rejected', recovery,
+      error: 'Ownership changed before application. Review or cancel the saved request; its details cannot be changed.' };
+    const receipt = reassignmentReceiptSchema.safeParse(data);
+    if (error || !receipt.success || !receiptMatches(receipt.data, request)) {
+      return { success: false, status: 'unknown', error: REASSIGNMENT_UNKNOWN, recovery };
+    }
+    // The atomic event is the authoritative audit; replay must not emit duplicate telemetry.
+    // Explicit refresh follows the visible receipt so a rerender cannot hide confirmation.
+    return { success: true, receipt: receipt.data, recovery: { ...recovery, state: 'applied', receipt: receipt.data } };
+  } catch {
+    return { success: false, status: 'unknown', error: REASSIGNMENT_UNKNOWN };
+  }
 }
 
 const workItemAcceptanceSchema = z.object({
@@ -327,22 +352,24 @@ export async function designatePatientAccountable(
 ): Promise<{ success: boolean; error?: string }> {
   const parsed = designationSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: 'Invalid designation' };
-  const auth = await authorize('provider');
-  if (!auth.authorized) return { success: false, error: auth.error };
+  try {
+    const auth = await authorize('provider');
+    if (!auth.authorized) return { success: false, error: OWNERSHIP_WRITE_UNCONFIRMED };
 
-  const { error } = await auth.supabase.rpc('designate_patient_accountable', {
-    p_organization_id: parsed.data.organizationId,
-    p_patient_id: parsed.data.patientId,
-    p_accountable_id: parsed.data.accountableId,
-    p_note: parsed.data.note ?? null,
-    p_offer_open_items: false,
-  });
-  if (error) {
-    return { success: false, error: 'The accountable provider could not be designated.' };
-  }
+    const { data, error } = await auth.supabase.rpc('designate_patient_accountable', {
+      p_organization_id: parsed.data.organizationId,
+      p_patient_id: parsed.data.patientId,
+      p_accountable_id: parsed.data.accountableId,
+      p_note: parsed.data.note ?? null,
+      p_offer_open_items: false,
+    });
+    if (error || !z.uuid().safeParse(data).success) {
+      return { success: false, error: OWNERSHIP_WRITE_UNCONFIRMED };
+    }
 
-  revalidateWorkSurfaces(parsed.data.patientId);
-  return { success: true };
+    revalidateWorkSurfaces(parsed.data.patientId);
+    return { success: true };
+  } catch { return { success: false, error: OWNERSHIP_WRITE_UNCONFIRMED }; }
 }
 
 const savedViewSchema = z.object({

@@ -107,21 +107,28 @@ describe('transfer offers replace the direct assigned_to update', () => {
     });
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe('This transfer could not be offered.');
+    expect(result.error).toContain('Confirmation is unavailable');
   });
 });
 
 describe('forced reassignment by a manager', () => {
-  it('calls reassign_work_item with the documented reason', async () => {
-    const result = await reassignWorkItem({
+  it('calls the recoverable RPC with the observed revision and request identity', async () => {
+    const receipt = { request_id: ORGANIZATION_ID, event_id: ACTOR_ID, work_item_id: WORK_ITEM_ID,
+      recorded_assignee: ASSIGNEE_ID, recorded_revision: '1', recorded_at: '2026-09-24T12:00:00Z', acceptance_recorded: false };
+    const request = {
+      requestId: ORGANIZATION_ID, expectedAssignee: ACTOR_ID, expectedRevision: '0',
       workItemId: WORK_ITEM_ID,
       patientId: PATIENT_ID,
       assigneeId: ASSIGNEE_ID,
       reason: 'Owner on unplanned leave',
-    });
+    };
+    mockRpc.mockResolvedValueOnce({ data: { state: 'prepared', request, receipt: null }, error: null })
+      .mockResolvedValueOnce({ data: receipt, error: null });
+    const result = await reassignWorkItem(request);
 
-    expect(result).toEqual({ success: true });
-    expect(mockRpc).toHaveBeenCalledWith('reassign_work_item', {
+    expect(result).toMatchObject({ success: true, receipt });
+    expect(mockRpc).toHaveBeenCalledWith('reassign_work_item_recoverable', {
+      p_request_id: ORGANIZATION_ID, p_expected_assignee: ACTOR_ID, p_expected_revision: '0',
       p_work_item_id: WORK_ITEM_ID,
       p_to: ASSIGNEE_ID,
       p_reason: 'Owner on unplanned leave',
@@ -130,6 +137,7 @@ describe('forced reassignment by a manager', () => {
 
   it('refuses a reassignment without a reason', async () => {
     const result = await reassignWorkItem({
+      requestId: ORGANIZATION_ID, expectedAssignee: ACTOR_ID, expectedRevision: '0',
       workItemId: WORK_ITEM_ID,
       patientId: PATIENT_ID,
       assigneeId: ASSIGNEE_ID,
@@ -263,6 +271,7 @@ describe('acceptance and decline', () => {
 
 describe('manager designation', () => {
   it('designates the accountable provider without moving open work', async () => {
+    mockRpc.mockResolvedValueOnce({ data: ORGANIZATION_ID, error: null });
     const result = await designatePatientAccountable({
       organizationId: ORGANIZATION_ID,
       patientId: PATIENT_ID,
@@ -289,7 +298,7 @@ describe('manager designation', () => {
     });
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe('The accountable provider could not be designated.');
+    expect(result.error).toContain('Confirmation is unavailable');
   });
 
   it('refuses an unauthenticated caller', async () => {
@@ -301,7 +310,8 @@ describe('manager designation', () => {
       accountableId: ASSIGNEE_ID,
     });
 
-    expect(result).toEqual({ success: false, error: 'MFA required' });
+    expect(result).toMatchObject({ success: false });
+    expect(result.error).toContain('Confirmation is unavailable');
     expect(mockRpc).not.toHaveBeenCalled();
   });
 });

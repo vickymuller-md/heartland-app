@@ -41,8 +41,8 @@ SELECT is(
    FROM information_schema.column_privileges
    WHERE table_schema = 'public' AND table_name = 'work_items'
      AND grantee = 'authenticated' AND privilege_type = 'UPDATE'),
-  ARRAY['assigned_to', 'due_at', 'outcome', 'outcome_code', 'snooze_reason', 'status'],
-  'work_items grants UPDATE on exactly six columns');
+  ARRAY['due_at', 'outcome', 'outcome_code', 'snooze_reason', 'status'],
+  'work_items grants UPDATE on exactly five non-ownership columns');
 SELECT ok(NOT has_column_privilege('authenticated', 'public.work_items', 'accepted_at', 'UPDATE'),
   'acceptance cannot be written by a client directly');
 SELECT ok(NOT has_column_privilege('authenticated', 'public.work_items', 'transfer_pending_to', 'UPDATE'),
@@ -191,6 +191,11 @@ INSERT INTO public.organization_memberships(id, organization_id, user_id, role, 
  ('41000000-0000-4000-8000-000000001105', '41000000-0000-4000-8000-0000000000aa', '41000000-0000-4000-8000-000000000a05', 'clinician', 'active', now(), '41000000-0000-4000-8000-000000000a01'),
  ('41000000-0000-4000-8000-000000001201', '41000000-0000-4000-8000-0000000000bb', '41000000-0000-4000-8000-000000000b01', 'owner', 'active', now(), '41000000-0000-4000-8000-000000000b01');
 
+-- Synthetic monitoring authority for explicit ownership commands, rolled back.
+INSERT INTO public.member_authorizations(membership_id,capability,granted_by)
+ SELECT id,'monitor','41000000-0000-4000-8000-000000000a01'
+ FROM public.organization_memberships WHERE organization_id IN(
+ '41000000-0000-4000-8000-0000000000aa','41000000-0000-4000-8000-0000000000bb') AND status='active';
 INSERT INTO public.organization_patient_assignments(organization_id, patient_id, assigned_by) VALUES
  ('41000000-0000-4000-8000-0000000000aa', '41000000-0000-4000-8000-000000000d01', '41000000-0000-4000-8000-000000000a01'),
  ('41000000-0000-4000-8000-0000000000aa', '41000000-0000-4000-8000-000000000d02', '41000000-0000-4000-8000-000000000a01'),
@@ -223,6 +228,10 @@ INSERT INTO public.provider_patient_links(provider_id, patient_id, status, linke
 -- ---------------------------------------------------------------------------
 -- C. Designation and resolution
 -- ---------------------------------------------------------------------------
+-- Additional P1 participants are explicitly linked, never linked implicitly by designation.
+INSERT INTO public.provider_patient_links(provider_id,patient_id,status,linked_at) VALUES
+ ('41000000-0000-4000-8000-000000000a02','41000000-0000-4000-8000-000000000d01','active',now()),
+ ('41000000-0000-4000-8000-000000000a05','41000000-0000-4000-8000-000000000d01','active',now());
 -- A clinician is not a manager.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claims', '{"sub":"41000000-0000-4000-8000-000000000a03","role":"authenticated","aal":"aal2"}', true);
@@ -253,18 +262,18 @@ SELECT set_config('request.jwt.claims', '{"sub":"41000000-0000-4000-8000-0000000
 SELECT throws_ok(
   $q$SELECT public.designate_patient_accountable('41000000-0000-4000-8000-0000000000aa',
       '41000000-0000-4000-8000-000000000d01', '41000000-0000-4000-8000-000000000c01')$q$,
-  '22023', NULL, 'the accountable member must belong to the organization');
+  '42501', NULL, 'the accountable member must belong to the organization');
 SELECT lives_ok(
   $q$SELECT public.designate_patient_accountable('41000000-0000-4000-8000-0000000000aa',
       '41000000-0000-4000-8000-000000000d01', '41000000-0000-4000-8000-000000000a03',
       'Primary nurse for this patient')$q$,
   'a manager designates the accountable member');
--- The PHI boundary: designating an unlinked member creates the link in the same transaction.
-SELECT lives_ok(
+-- Designation cannot create patient access for either caller or target.
+SELECT throws_ok(
   $q$SELECT public.designate_patient_accountable('41000000-0000-4000-8000-0000000000aa',
       '41000000-0000-4000-8000-000000000d06', '41000000-0000-4000-8000-000000000a05',
       'Covering the unassigned patient')$q$,
-  'a manager designates a member who was not linked yet');
+  '42501', 'Work ownership operation not authorized', 'designation cannot implicitly link an unassigned patient');
 
 RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.patient_accountability
@@ -273,8 +282,8 @@ SELECT is((SELECT count(*)::int FROM public.patient_accountability
   'exactly one active designation exists for the patient');
 SELECT is((SELECT count(*)::int FROM public.provider_patient_links
   WHERE provider_id = '41000000-0000-4000-8000-000000000a05'
-    AND patient_id = '41000000-0000-4000-8000-000000000d06' AND status = 'active'), 1,
-  'the designation created the missing provider-patient link');
+    AND patient_id = '41000000-0000-4000-8000-000000000d06' AND status = 'active'), 0,
+  'the failed designation did not create a provider-patient link');
 SELECT throws_ok(
   $q$INSERT INTO public.patient_accountability (organization_id, patient_id, accountable_id, designated_by)
      VALUES ('41000000-0000-4000-8000-0000000000aa', '41000000-0000-4000-8000-000000000d01',
@@ -326,6 +335,12 @@ SELECT is((SELECT resolved.accountable_id FROM public.resolve_accountable_provid
   '41000000-0000-4000-8000-000000000a03'::uuid, 'outside the window the designated member answers again');
 
 -- A designation without an active patient link does not answer for the patient.
+-- Establish this historical condition explicitly; the RPC no longer creates links.
+INSERT INTO public.provider_patient_links(provider_id,patient_id,status,linked_at)
+ VALUES('41000000-0000-4000-8000-000000000a05','41000000-0000-4000-8000-000000000d06','active',now());
+INSERT INTO public.patient_accountability(organization_id,patient_id,accountable_id,designated_by)
+ VALUES('41000000-0000-4000-8000-0000000000aa','41000000-0000-4000-8000-000000000d06',
+ '41000000-0000-4000-8000-000000000a05','41000000-0000-4000-8000-000000000a01');
 UPDATE public.provider_patient_links SET status = 'revoked'
 WHERE provider_id = '41000000-0000-4000-8000-000000000a05'
   AND patient_id = '41000000-0000-4000-8000-000000000d06';
@@ -514,7 +529,7 @@ SELECT set_config('request.jwt.claims', '{"sub":"41000000-0000-4000-8000-0000000
 SELECT throws_ok(
   $q$SELECT public.offer_work_item_transfer((SELECT id FROM pa_items WHERE label = 'covered'),
       '41000000-0000-4000-8000-000000000c01')$q$,
-  'P0001', 'transfer target must be an active team member',
+  '42501', 'Work ownership operation not authorized',
   'work cannot be offered to somebody outside the team');
 SELECT throws_ok(
   $q$SELECT public.offer_work_item_transfer((SELECT id FROM pa_items WHERE label = 'covered'),
@@ -624,23 +639,32 @@ SELECT is((SELECT count(*)::int FROM public.notification_deliveries
   WHERE work_item_id = (SELECT id FROM pa_items WHERE label = 'covered') AND state = 'superseded'), 1,
   'the previous owner delivery is superseded');
 
--- Forced reassignment by a manager: labelled, and it never inherits the acceptance.
+-- Forced reassignment uses explicit identity plus the observed ownership revision.
+CREATE TEMP TABLE pa_repair_observed AS SELECT id,assigned_to,ownership_revision
+ FROM public.work_items WHERE id=(SELECT id FROM pa_items WHERE label='covered');
+GRANT SELECT ON pa_repair_observed TO authenticated;
+CREATE FUNCTION pg_temp.repair_covered(p_reason text) RETURNS jsonb LANGUAGE sql AS $$
+ SELECT public.prepare_work_reassignment('41000000-0000-4000-8000-00000000f001',item.id,
+ item.assigned_to,item.ownership_revision,'41000000-0000-4000-8000-000000000a05',p_reason)
+ FROM pa_repair_observed AS item;
+ SELECT public.reassign_work_item_recoverable('41000000-0000-4000-8000-00000000f001',item.id,
+ item.assigned_to,item.ownership_revision,'41000000-0000-4000-8000-000000000a05',p_reason)
+ FROM pa_repair_observed AS item
+$$;
+-- Labelled, recoverable, and never inherits the acceptance.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claims', '{"sub":"41000000-0000-4000-8000-000000000a04","role":"authenticated","aal":"aal2"}', true);
 SELECT throws_ok(
-  $q$SELECT public.reassign_work_item((SELECT id FROM pa_items WHERE label = 'covered'),
-      '41000000-0000-4000-8000-000000000a05', 'Rebalancing the queue')$q$,
+  $q$SELECT pg_temp.repair_covered('Rebalancing the queue')$q$,
   '42501', NULL, 'only a manager reassigns work by force');
 RESET ROLE;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claims', '{"sub":"41000000-0000-4000-8000-000000000a02","role":"authenticated","aal":"aal2"}', true);
 SELECT throws_ok(
-  $q$SELECT public.reassign_work_item((SELECT id FROM pa_items WHERE label = 'covered'),
-      '41000000-0000-4000-8000-000000000a05', 'no')$q$,
+  $q$SELECT pg_temp.repair_covered('no')$q$,
   '22023', NULL, 'a forced reassignment requires a reason');
 SELECT lives_ok(
-  $q$SELECT public.reassign_work_item((SELECT id FROM pa_items WHERE label = 'covered'),
-      '41000000-0000-4000-8000-000000000a05', 'Designated nurse is on leave')$q$,
+  $q$SELECT pg_temp.repair_covered('Designated nurse is on leave')$q$,
   'a manager reassigns the item by force');
 RESET ROLE;
 SELECT is((SELECT accountability_source FROM public.work_items WHERE id = (SELECT id FROM pa_items WHERE label = 'covered')),
@@ -657,6 +681,8 @@ SELECT is((SELECT count(*)::int FROM public.work_item_events
 -- ---------------------------------------------------------------------------
 -- Suspending a member revokes their designations, cancels their offers, clears the acceptance
 -- and records why, without moving the work.
+INSERT INTO public.provider_patient_links(provider_id,patient_id,status,linked_at)
+ VALUES('41000000-0000-4000-8000-000000000a04','41000000-0000-4000-8000-000000000d02','active',now());
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claims', '{"sub":"41000000-0000-4000-8000-000000000a01","role":"authenticated","aal":"aal2"}', true);
 SELECT lives_ok(
@@ -690,12 +716,14 @@ SELECT ok((SELECT count(*)::int FROM public.patient_accountability
   WHERE accountable_id = '41000000-0000-4000-8000-000000000a04') > 0,
   'the revoked designation is kept as history');
 
--- The manager sees the gap: legacy items, unaccepted items, and patients who left.
+-- 00049 scopes the legacy gap RPC: an authorized linked manager sees legacy and
+-- unaccepted work, but removed patients are aggregate-only in the new projection.
+-- Monitoring authority above is a rolled-back fixture, not a production bootstrap.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claims', '{"sub":"41000000-0000-4000-8000-000000000a01","role":"authenticated","aal":"aal2"}', true);
-SELECT ok((SELECT count(*)::int FROM public.get_unowned_work('41000000-0000-4000-8000-0000000000aa')
-  WHERE reason_code = 'legacy_fan_out') >= 2,
-  'the labelled fan-out items appear in the accountability gap');
+SELECT is((SELECT count(*)::int FROM public.get_unowned_work('41000000-0000-4000-8000-0000000000aa')
+  WHERE reason_code = 'legacy_fan_out'), 0,
+  'unlinked fan-out patients are no longer identifiable in the manager report');
 SELECT ok((SELECT count(*)::int FROM public.get_unowned_work('41000000-0000-4000-8000-0000000000aa')
   WHERE reason_code = 'unaccepted') >= 1,
   'items nobody accepted appear in the accountability gap');
@@ -707,8 +735,8 @@ WHERE organization_id = '41000000-0000-4000-8000-0000000000aa'
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claims', '{"sub":"41000000-0000-4000-8000-000000000a01","role":"authenticated","aal":"aal2"}', true);
 SELECT is((SELECT count(*)::int FROM public.get_unowned_work('41000000-0000-4000-8000-0000000000aa')
-  WHERE reason_code = 'patient_unassigned'), 1,
-  'an item whose patient left the organization is listed for the manager');
+  WHERE reason_code = 'patient_unassigned'), 0,
+  'removed patients are no longer identifiable in the legacy manager report');
 SELECT is((SELECT count(*)::int FROM public.work_items
   WHERE patient_id = '41000000-0000-4000-8000-000000000d04'
     AND organization_id = '41000000-0000-4000-8000-0000000000aa'), 0,
@@ -792,6 +820,13 @@ SELECT throws_ok(
   'P0001', 'closed work items cannot be reopened', 'a closed item does not reopen');
 
 -- The grace period: during it, a closing without a code is stamped and audited.
+-- Assert the real deadline before replacing the helper only inside this rolled-back
+-- transaction. Both branches must remain testable after the deployment grace has ended.
+SELECT is(public.work_item_outcome_grace_until(), timestamptz '2026-09-24 00:00:00+00',
+  'the deployment grace deadline remains unchanged');
+CREATE OR REPLACE FUNCTION public.work_item_outcome_grace_until()
+RETURNS timestamptz LANGUAGE sql STABLE SET search_path = ''
+AS $$ SELECT pg_catalog.now() + interval '1 day' $$;
 INSERT INTO pa_items(label, id)
 SELECT 'fanout_a', id FROM public.work_items
 WHERE source_id = '41000000-0000-4000-8000-000000009004'
@@ -801,7 +836,7 @@ SELECT 'fanout_b', id FROM public.work_items
 WHERE source_id = '41000000-0000-4000-8000-000000009004'
   AND assigned_to = '41000000-0000-4000-8000-000000000a04';
 SELECT ok((SELECT public.work_item_outcome_grace_until() > now()),
-  'the rehearsal runs inside the deploy grace period');
+  'the synthetic fixture exercises the unexpired grace branch');
 SELECT lives_ok(
   $q$UPDATE public.work_items SET status = 'closed', outcome = 'Closed by the previous client'
      WHERE id = (SELECT id FROM pa_items WHERE label = 'fanout_a')$q$,
@@ -817,7 +852,9 @@ SELECT is((SELECT count(*)::int FROM public.work_item_events
 RESET ROLE;
 CREATE OR REPLACE FUNCTION public.work_item_outcome_grace_until()
 RETURNS timestamptz LANGUAGE sql STABLE SET search_path = ''
-AS $$ SELECT timestamptz '2020-01-01 00:00:00+00' $$;
+AS $$ SELECT pg_catalog.now() - interval '1 day' $$;
+SELECT ok((SELECT public.work_item_outcome_grace_until() < now()),
+  'the synthetic fixture exercises the expired grace branch');
 SELECT set_config('request.jwt.claims', '{"sub":"41000000-0000-4000-8000-000000000a01","role":"authenticated","aal":"aal2"}', true);
 SELECT throws_ok(
   $q$UPDATE public.work_items SET status = 'closed', outcome = 'Closed by the previous client'
@@ -881,19 +918,19 @@ SELECT 'owner_9005', id FROM public.work_items
 WHERE source_id = '41000000-0000-4000-8000-000000009005'
   AND accountability_source = 'org_owner';
 
--- A forced reassignment of a legacy row does not promote it, so it never collides with the
--- unique index of the new model.
+-- Forced repair cannot prepare adoption or consolidation of a legacy row.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claims', '{"sub":"41000000-0000-4000-8000-000000000a01","role":"authenticated","aal":"aal2"}', true);
-SELECT lives_ok(
-  $q$SELECT public.reassign_work_item((SELECT id FROM pa_items WHERE label = 'legacy_a'),
-      '41000000-0000-4000-8000-000000000a02', 'Consolidating the legacy duplicates')$q$,
-  'a legacy duplicate can be reassigned by a manager');
+SELECT throws_ok(
+ $q$SELECT public.prepare_work_reassignment('41000000-0000-4000-8000-00000000f002',item.id,
+ item.assigned_to,item.ownership_revision,'41000000-0000-4000-8000-000000000a01','Consolidating legacy duplicates')
+ FROM public.work_items AS item WHERE item.id=(SELECT id FROM pa_items WHERE label='legacy_a')$q$,
+ '22023','This work is not eligible for reassignment','legacy forced adoption rejected');
 RESET ROLE;
-SELECT is((SELECT accountability_source FROM public.work_items WHERE id = (SELECT id FROM pa_items WHERE label = 'legacy_a')),
-  NULL, 'reassigning a pre-00041 row never promotes its accountability label');
-SELECT is((SELECT assigned_to FROM public.work_items WHERE id = (SELECT id FROM pa_items WHERE label = 'legacy_a')),
-  '41000000-0000-4000-8000-000000000a02'::uuid, 'the forced reassignment moved the legacy item');
+SELECT is((SELECT accountability_source FROM public.work_items WHERE id=(SELECT id FROM pa_items WHERE label='legacy_a')),
+ NULL,'legacy accountability label remains untouched');
+SELECT is((SELECT assigned_to FROM public.work_items WHERE id=(SELECT id FROM pa_items WHERE label='legacy_a')),
+ '41000000-0000-4000-8000-000000000a03'::uuid,'legacy owner remains untouched');
 
 -- The old closing rule still applies to the old collection: text only, no code required.
 SELECT set_config('request.jwt.claims', '{"sub":"41000000-0000-4000-8000-000000000a05","role":"authenticated","aal":"aal2"}', true);
@@ -904,21 +941,26 @@ SELECT lives_ok(
 SELECT is((SELECT outcome_code FROM public.work_items WHERE id = (SELECT id FROM pa_items WHERE label = 'legacy_b')),
   NULL, 'closing a pre-00041 item stamps no outcome code');
 
--- Designating an accountable member converts the open legacy rows into offers, never possession.
+-- Bulk offers are disabled; each transfer requires an individually reviewed command.
+SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claims', '{"sub":"41000000-0000-4000-8000-000000000a01","role":"authenticated","aal":"aal2"}', true);
-SELECT lives_ok(
-  $q$SELECT public.designate_patient_accountable('41000000-0000-4000-8000-0000000000aa',
-      '41000000-0000-4000-8000-000000000d03', '41000000-0000-4000-8000-000000000a03',
-      'Taking over the legacy queue', true)$q$,
-  'designating with p_offer_open_items offers the open items');
-SELECT is((SELECT count(*)::int FROM public.work_items
-  WHERE source_id = '41000000-0000-4000-8000-000000009005'
-    AND transfer_pending_to = '41000000-0000-4000-8000-000000000a03'), 2,
-  'the two open items of that alert became offers to the new accountable member');
-SELECT is((SELECT count(*)::int FROM public.work_items
-  WHERE source_id = '41000000-0000-4000-8000-000000009005'
-    AND assigned_to = '41000000-0000-4000-8000-000000000a03'), 0,
-  'no item changed owner by itself: a designation produces offers, never possession');
+SELECT throws_ok(
+ $q$SELECT public.designate_patient_accountable('41000000-0000-4000-8000-0000000000aa',
+ '41000000-0000-4000-8000-000000000d03','41000000-0000-4000-8000-000000000a03','Review legacy queue',true)$q$,
+ '0A000','Bulk transfer offers require individual review','bulk implicit offers rejected');
+SELECT is((SELECT count(*)::int FROM public.work_items WHERE source_id='41000000-0000-4000-8000-000000009005'
+ AND transfer_pending_to IS NOT NULL),0,'bulk rejection left no transfer offers');
+SELECT is((SELECT count(*)::int FROM public.work_items WHERE source_id='41000000-0000-4000-8000-000000009005'
+ AND assigned_to='41000000-0000-4000-8000-000000000a03'),1,'legacy ownership was not moved by designation');
+
+-- Individual legacy transfer is preserved without promotion or merging.
+SELECT lives_ok($q$SELECT public.offer_work_item_transfer((SELECT id FROM pa_items WHERE label='legacy_a'),
+ '41000000-0000-4000-8000-000000000a01','Individually reviewed legacy handover')$q$,'manager offers legacy item individually');
+SELECT lives_ok($q$SELECT public.accept_work_item_transfer((SELECT id FROM pa_items WHERE label='legacy_a'))$q$,'manager as recipient explicitly accepts legacy offer');
+SELECT lives_ok($q$SELECT public.offer_work_item_transfer((SELECT id FROM pa_items WHERE label='legacy_a'),
+ '41000000-0000-4000-8000-000000000a03','Individually reviewed return handover')$q$,'legacy item individually offered back');
+SELECT lives_ok($q$SELECT public.offer_work_item_transfer((SELECT id FROM pa_items WHERE label='owner_9005'),
+ '41000000-0000-4000-8000-000000000a03','Individually reviewed new-model handover')$q$,'new-model item individually offered');
 
 -- Both offers can be accepted by the same member without colliding in the unique index,
 -- because a legacy row is never promoted into the single-accountable model.
@@ -973,8 +1015,8 @@ SELECT is((SELECT alert.occurrence_count FROM public.alerts AS alert
   WHERE alert.patient_id = '41000000-0000-4000-8000-000000000d01'
     AND alert.flags = ARRAY['sodium_high']), 2,
   'the coalesced alert counted both observations');
--- coalesce_patient_alert sets last_seen_at = now(), the transaction timestamp, so inside one
--- transaction the refresh trigger sees no change. Moving last_seen_at explicitly exercises it.
+-- Preserve this legacy timestamp-only refresh check. The separate coalesced_alert_refresh
+-- suite covers occurrence/flag changes without advancing the transaction timestamp.
 UPDATE public.alerts AS alert
 SET last_seen_at = alert.last_seen_at + interval '1 minute'
 WHERE alert.patient_id = '41000000-0000-4000-8000-000000000d01'

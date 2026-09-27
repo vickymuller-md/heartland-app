@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { randomUUID } from 'node:crypto';
 import Link from 'next/link';
 import { Users } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
@@ -100,6 +101,7 @@ export default async function ProviderDashboard({
           <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">Operational workspace</p>
           <h1 className="text-3xl font-bold tracking-tight text-gray-950">Daily Loop</h1>
           <p className="mt-1 text-sm text-gray-600">Priority, action, owner, deadline, and outcome in one queue.</p>
+          <Link href="/team/reassignment-requests" prefetch={false} className="mt-2 inline-flex min-h-11 items-center text-sm text-blue-700 underline">My pending reassignment requests</Link>
         </div>
       </div>
 
@@ -116,7 +118,7 @@ export default async function ProviderDashboard({
       )}
 
       {teamDirectory.error && (
-        <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{teamDirectory.error} Delegation is unavailable.</div>
+        <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{teamDirectory.error} Team administration status is unavailable. Transfer eligibility is checked separately when requested.</div>
       )}
 
       {pendingTransfers.error ? (
@@ -131,13 +133,13 @@ export default async function ProviderDashboard({
         </div>
       ) : (
         <DailyLoop
+          scopeKey={`${user.id}:${randomUUID()}`}
           sections={dailyLoop.sections}
           metrics={dailyLoop.metrics}
           pagination={dailyLoop.pagination}
           page={page}
           queryString={queueParams.toString()}
           timeZone={dailyLoop.timeZone}
-          teamMembers={teamDirectory.members}
           manageableOrganizationIds={teamDirectory.manageableOrganizationIds}
         />
       )}

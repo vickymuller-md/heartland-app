@@ -30,7 +30,7 @@ export interface SymptomsRow {
   edema: SymptomSeverity;
   orthopnea: boolean;
   fatigue: SymptomSeverity;
-  red_flag: boolean;
+  red_flag: boolean | null;
 }
 
 /** Red flag detection result */
@@ -74,6 +74,14 @@ export interface VitalsDataPoint {
 
 /** Server Action return state */
 export interface VitalsActionState {
+  errorKind?: 'access' | 'unavailable';
+  requestId?: string;
+  symptomsId?: string;
+  submissionStatus?: 'prepared' | 'committed' | 'acknowledged' | 'cancelled' | 'batched';
+  activeBatchId?: string;
+  saved?: boolean;
+  evaluationStatus?: 'pending' | 'failed' | 'complete';
+  alertRecorded?: boolean;
   success?: boolean;
   vitals?: VitalsRow;
   redFlags?: RedFlag[];
@@ -83,6 +91,7 @@ export interface VitalsActionState {
 
 /** Result for a single row in a batch vitals submission */
 export interface BatchRowResult {
+  receipt?: VitalsActionState;
   /** 0-indexed row position in the batch (0 = oldest day) */
   rowIndex: number;
   /** ISO date string (YYYY-MM-DD) for this entry */
@@ -99,6 +108,11 @@ export interface BatchRowResult {
 
 /** Server Action return state for submitBatchVitalsAsProvider */
 export interface BatchVitalsActionState {
+  batchId?: string;
+  submissionStatus?: 'prepared' | 'committed' | 'acknowledged' | 'cancelled';
+  saved?: boolean;
+  errorKind?: 'access' | 'unavailable';
+  activeIndividual?: boolean;
   /** Per-row results array (length = number of non-skipped rows attempted) */
   results?: BatchRowResult[];
   /** True if at least one row triggered a red flag */

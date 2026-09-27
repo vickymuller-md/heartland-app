@@ -1,132 +1,59 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useRef } from "react";
 import { UnitToggle } from "./unit-toggle";
 import { SymptomForm } from "./symptom-form";
 import { vitalsSchema } from "@/lib/vitals/schema";
-import { submitVitals } from "@/lib/vitals/actions";
+import { useVitalsSubmission } from "@/lib/vitals/use-submission";
+import { PendingVitalsSubmissions } from '@/lib/vitals/pending-submissions';
+import { VitalsSubmissionStatus } from "@/lib/vitals/submission-status";
 import { useIsOnline } from "@/lib/offline/hooks";
-import type { RedFlag } from "@/lib/vitals/types";
 import { RedFlagAlert } from "./red-flag-alert";
 
-/**
- * Combined vitals + symptoms entry form.
- *
- * Clinical values stay in the form until the authenticated server action
- * confirms persistence. The app intentionally refuses offline submission.
- * 1. Client-side Zod validation
- * 2. Submit through the authenticated Server Action
- * 3. Show success only after the database confirms the write
- *
- * Elderly-optimized: 48px tap targets, 16px+ fonts, single-column layout.
- * Red flags are evaluated server-side with recent patient history.
- */
 export function VitalsEntryForm({ providerPhone }: { providerPhone?: string | null } = {}) {
-  const [errors, setErrors] = useState<Record<string, string[]> | null>(null);
-  const [generalError, setGeneralError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [immediateFlags, setImmediateFlags] = useState<RedFlag[]>([]);
+  const { state, ready, busy: submitting, submit, recover, startNew } = useVitalsSubmission();
+  const [localErrors, setErrors] = useState<Record<string, string[]> | null>(null);
+  const [localError, setGeneralError] = useState<string | null>(null);
+  const errors = localErrors ?? state.errors;
+  const generalError = localError ?? state.error;
   const isOnline = useIsOnline();
   const formRef = useRef<HTMLFormElement>(null);
 
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      setSubmitting(true);
-      setErrors(null);
-      setGeneralError(null);
-
-      try {
-        if (!isOnline) {
-          setGeneralError(
-            "You are offline. Reconnect before submitting; this clinical data has not been saved."
-          );
-          return;
-        }
-
-        const formData = new FormData(e.currentTarget);
-        const raw = Object.fromEntries(formData.entries());
-
-        // Client-side Zod validation (same schema, run on client)
-        const result = vitalsSchema.safeParse(raw);
-
-        if (!result.success) {
-          const fieldErrors: Record<string, string[]> = {};
-          for (const issue of result.error.issues) {
-            const key = issue.path[0] as string;
-            if (!fieldErrors[key]) fieldErrors[key] = [];
-            fieldErrors[key].push(issue.message);
-          }
-          setErrors(fieldErrors);
-          return;
-        }
-
-        const response = await submitVitals(null, formData);
-        if (response.errors) {
-          setErrors(response.errors);
-          return;
-        }
-        if (!response.success) {
-          setGeneralError(
-            response.error === "Not authenticated"
-              ? "Your session expired. Sign in again before submitting."
-              : "Something went wrong saving your check-in. Please try again."
-          );
-          return;
-        }
-
-        setImmediateFlags(response.redFlags ?? []);
-        setSuccess(true);
-      } catch {
-        setGeneralError("Something went wrong saving your vitals. Please try again.");
-      } finally {
-        setSubmitting(false);
-      }
-    },
-    [isOnline]
-  );
-
-  // Success state
-  if (success) {
-    return (
-      <div className="space-y-4">
-        {/* SAFE-01: Show red flag alerts immediately if any flags triggered */}
-        {immediateFlags.length > 0 && (
-          <RedFlagAlert flags={immediateFlags} providerPhone={providerPhone} />
-        )}
-
-        <div className="rounded-lg border-2 border-green-300 bg-green-50 p-6 text-center">
-          <h2 className="text-xl font-bold text-green-800 mb-2">
-            Check-in Complete
-          </h2>
-          <p className="text-base text-green-700">
-            Your vitals and symptoms have been recorded. Keep up the good work!
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              setSuccess(false);
-              setImmediateFlags([]);
-              setErrors(null);
-              setGeneralError(null);
-              formRef.current?.reset();
-            }}
-            className="mt-4 min-h-[48px] px-6 py-3 text-lg font-semibold bg-green-600 text-white rounded-lg"
-          >
-            Log Another Entry
-          </button>
-        </div>
-      </div>
-    );
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setErrors(null);
+    setGeneralError(null);
+    if (!isOnline) {
+      setGeneralError("You are offline. Reconnect before submitting; this clinical data has not been saved.");
+      return;
+    }
+    const formData = new FormData(e.currentTarget);
+    const parsed = vitalsSchema.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) {
+      setErrors(parsed.error.flatten().fieldErrors);
+      return;
+    }
+    await submit(formData);
   }
 
-  return (
+  if (state.saved) {
+    return <><PendingVitalsSubmissions refreshKey={state.requestId} /><VitalsSubmissionStatus state={state} busy={submitting} onRetry={() => void recover()} onNew={() => {
+      setErrors(null);
+      setGeneralError(null);
+      void startNew();
+    }}>
+      {!!state.redFlags?.length && <RedFlagAlert flags={state.redFlags} providerPhone={providerPhone} />}
+    </VitalsSubmissionStatus></>;
+  }
+
+  return (<>
+    <PendingVitalsSubmissions refreshKey={state.requestId} />
     <form ref={formRef} onSubmit={handleSubmit} className="space-y-8">
       {/* General error */}
       {generalError && (
         <div className="rounded-lg border-2 border-red-300 bg-red-50 p-4">
-          <p className="text-base text-red-700">{generalError}</p>
+          <p role="alert" className="text-base text-red-700">{generalError}</p>
+          <button type="button" disabled={submitting || !isOnline} onClick={() => { setGeneralError(null); void recover(); }} className="mt-2 min-h-[48px] underline">Check Saved Record</button>
         </div>
       )}
 
@@ -265,11 +192,11 @@ export function VitalsEntryForm({ providerPhone }: { providerPhone?: string | nu
       {/* Submit */}
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || !ready}
         className="w-full min-h-[48px] text-lg font-semibold bg-blue-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed py-3"
       >
         {submitting ? "Saving..." : "Submit Daily Check-in"}
       </button>
     </form>
-  );
+  </>);
 }

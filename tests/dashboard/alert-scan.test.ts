@@ -7,6 +7,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+const { mockDrain } = vi.hoisted(() => ({ mockDrain: vi.fn() }));
+vi.mock('@/lib/dashboard/scan-runner', () => ({ drainAlertScan: mockDrain }));
 
 // Mock server-only (throws in non-server context)
 vi.mock('server-only', () => ({}));
@@ -132,6 +134,7 @@ describe('Alert Scan Route - Authorization', () => {
   beforeEach(() => {
     vi.unstubAllEnvs();
     mockFrom.mockReset();
+    mockDrain.mockReset();
   });
 
   it('returns 401 when Authorization header is missing', async () => {
@@ -158,20 +161,12 @@ describe('Alert Scan Route - Authorization', () => {
     expect(response.status).toBe(401);
   });
 
-  it('returns 200 with scanned=0 when no active links exist', async () => {
+  it('returns 200 only after the durable runner confirms no unresolved work', async () => {
     vi.stubEnv('CRON_SECRET', 'test-secret-123');
-
-    // Mock provider_patient_links returning empty
-    mockFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({
-            data: [],
-            error: null,
-          }),
-        }),
-      }),
-    });
+    vi.stubEnv('ALERT_SCAN_RECOVERY_ENABLED', 'true');
+    mockDrain.mockResolvedValue({ complete: true, receipts_visited: 0, processing_errors: 0,
+      budget_exhausted: false, status: { patients: 0, capture_pending: 0, capture_blocked: 0,
+        rules_pending: 0, rules_blocked: 0, routing_exceptions: 0, rules_complete: 0 } });
 
     const { GET } = await import('@/app/api/alert-scan/route');
     const request = new Request('http://localhost:3000/api/alert-scan', {
@@ -181,7 +176,28 @@ describe('Alert Scan Route - Authorization', () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.scanned).toBe(0);
-    expect(body.alerts_created).toBe(0);
+    expect(body.complete).toBe(true);
+    expect(body.receipts_visited).toBe(0);
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+  it('fails visibly while cutover is not enabled, with no legacy fallback', async () => {
+    vi.stubEnv('CRON_SECRET', 'test-secret-123');
+    const { GET } = await import('@/app/api/alert-scan/route');
+    const response = await GET(new Request('http://localhost/api/alert-scan', { headers: { Authorization: 'Bearer test-secret-123' } }));
+    expect(response.status).toBe(503); expect(mockDrain).not.toHaveBeenCalled(); expect(mockFrom).not.toHaveBeenCalled();
+  });
+  it('returns503 on unresolved processing without exposing source errors', async () => {
+    vi.stubEnv('CRON_SECRET', 'test-secret-123'); vi.stubEnv('ALERT_SCAN_RECOVERY_ENABLED', 'true');
+    mockDrain.mockResolvedValue({ complete: false, receipts_visited: 1, processing_errors: 1, status: null });
+    const { GET } = await import('@/app/api/alert-scan/route');
+    expect((await GET(new Request('http://localhost/api/alert-scan', { headers: { Authorization: 'Bearer test-secret-123' } }))).status).toBe(503);
+    mockDrain.mockRejectedValue(new Error('Synthetic private source details must not be returned'));
+    const response = await GET(new Request('http://localhost/api/alert-scan', { headers: { Authorization: 'Bearer test-secret-123' } }));
+    expect(response.status).toBe(503); expect(await response.text()).not.toContain('Synthetic private');
+  });
+  it('returns503 with no service work if CRON_SECRET is missing', async () => {
+    const { GET } = await import('@/app/api/alert-scan/route');
+    expect((await GET(new Request('http://localhost/api/alert-scan'))).status).toBe(503);
+    expect(mockDrain).not.toHaveBeenCalled();
   });
 });

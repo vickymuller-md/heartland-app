@@ -1,7 +1,9 @@
 /**
  * HEARTLAND Alert Evaluation Edge Function
  *
- * Triggered by a DB webhook (pg_net) on vitals INSERT.
+ * Legacy vitals-webhook entry point; hosted webhook activation is verified separately.
+ * Both LEGACY_ALERT_EVAL_ENABLED and LEGACY_ALERT_TRANSPORT_ENABLED default OFF.
+ * Explicit compatibility rehearsal only; never an automatic rollback/fallback sender.
  * Evaluates vitals against HEARTLAND Protocol Module 5 Section 5.2
  * red flag thresholds, writes alerts, and sends push/email notifications
  * for critical-severity alerts.
@@ -17,8 +19,14 @@
  * Requirements: DASH-05, DASH-06, DASH-07
  */
 
-import { createClient } from 'npm:@supabase/supabase-js@2'
-import { buildPushPayload } from 'jsr:@negrel/webpush'
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2'
+// Request construction only: our transport owns fetch, its deadline and response handling.
+// @deno-types="npm:@types/web-push@3.6.4"
+import webpush from 'npm:web-push@3.6.7'
+import {
+  sendEmailAlert, sendWebPush, shouldUseEmailFallback,
+  type TransportDependencies, type TransportResult,
+} from '../_shared/notification-transport.ts'
 
 // ---------- Types ----------
 
@@ -64,21 +72,18 @@ const CRITICAL_FLAGS: AlertFlag[] = [
   'symptom_red_flag',
 ]
 
-const FLAG_LABELS: Record<AlertFlag, string> = {
-  weight_gain_3lb_2d: 'Weight gain \u22653 lbs in 2 days',
-  weight_gain_5lb_7d: 'Weight gain \u22655 lbs in 1 week',
-  sbp_low: 'SBP < 90 mmHg',
-  spo2_low: 'SpO2 < 92%',
-  symptom_red_flag: 'Red flag symptom reported',
-  dyspnea_severe: 'Severe dyspnea at rest',
-}
-
 const MS_PER_DAY = 86_400_000
 
 // ---------- Main Handler ----------
 
 Deno.serve(async (req) => {
   try {
+    // Fail closed before parsing a historical payload or creating any database client.
+    if (Deno.env.get('LEGACY_ALERT_EVAL_ENABLED') !== 'true') {
+      return new Response(JSON.stringify({ error: 'Legacy alert evaluation is disabled', code: 'legacy_evaluation_disabled' }), {
+        status: 503, headers: { 'Content-Type': 'application/json' },
+      })
+    }
     const payload: WebhookPayload = await req.json()
     const vitals = payload.record
 
@@ -191,22 +196,17 @@ Deno.serve(async (req) => {
     const alert = coalesced?.[0]
 
     if (error) {
-      console.error('Failed to insert alert:', error.message)
-      return new Response(JSON.stringify({ error: error.message }), {
+      console.error('alert-eval', 'alert_persistence_failed')
+      return new Response(JSON.stringify({ error: 'Alert could not be recorded' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
       })
     }
 
     // ---------- Send notifications for critical severity only ----------
-    if (severity === 'critical' && alert?.created) {
-      await sendProviderNotifications(
-        supabase,
-        vitals.patient_id,
-        normalizedFlags,
-        alert.alert_id
-      )
-    }
+    const notifications = severity === 'critical' && alert?.created
+      ? await sendProviderNotifications(supabase, vitals.patient_id)
+      : undefined
 
     return new Response(
       JSON.stringify({
@@ -215,13 +215,15 @@ Deno.serve(async (req) => {
         created: alert?.created ?? false,
         flags: normalizedFlags,
         severity,
+        // Diagnostic counts only, not a durable delivery receipt or a reading/care claim.
+        notifications,
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     )
-  } catch (err) {
-    console.error('alert-eval error:', err)
+  } catch {
+    console.error('alert-eval', 'evaluation_failed')
     return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : 'Unknown error' }),
+      JSON.stringify({ error: 'Alert evaluation failed' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }
@@ -229,156 +231,96 @@ Deno.serve(async (req) => {
 
 // ---------- Notification Helpers ----------
 
+type NotificationSummary = Record<TransportResult['state'], number>
+
 async function sendProviderNotifications(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   patientId: string,
-  flags: AlertFlag[],
-  alertId: string
-): Promise<void> {
+): Promise<NotificationSummary> {
+  const summary: NotificationSummary = { accepted: 0, rejected: 0, unknown: 0, not_attempted: 0 }
+  const report = (result: TransportResult | {
+    channel: 'routing'; state: 'not_attempted'; code: string
+  }) => {
+    summary[result.state]++
+    // Never log provider/patient ids, addresses, endpoints, credentials or exception bodies.
+    if (result.state === 'accepted') console.info('notification_delivery', result)
+    else console.warn('notification_delivery', result)
+  }
+  // Evaluation-only compatibility mode must not even look up recipients/destinations.
+  // This local guard does not establish hosted cutover or cross-runtime exclusion.
+  if (Deno.env.get('LEGACY_ALERT_TRANSPORT_ENABLED') !== 'true') {
+    report({ channel: 'routing', state: 'not_attempted', code: 'legacy_transport_disabled' })
+    return summary
+  }
+  const config = {
+    vapidPublicKey: Deno.env.get('VAPID_PUBLIC_KEY'),
+    vapidPrivateKey: Deno.env.get('VAPID_PRIVATE_KEY'),
+    resendApiKey: Deno.env.get('RESEND_API_KEY'),
+    appUrl: Deno.env.get('APP_URL'),
+  }
+  const deps: TransportDependencies = {
+    fetch,
+    buildPushRequest: (subscription, payload, options) => {
+      const request = webpush.generateRequestDetails(subscription, payload, options)
+      return {
+        endpoint: request.endpoint,
+        headers: request.headers,
+        body: new Uint8Array(request.body),
+      }
+    },
+  }
+
   try {
-    // Find linked providers
-    const { data: links } = await supabase
+    // Preserve the existing active-link recipient policy; accountability routing is a later contract.
+    const { data: links, error: linksError } = await supabase
       .from('provider_patient_links')
       .select('provider_id')
       .eq('patient_id', patientId)
       .eq('status', 'active')
 
-    if (!links || links.length === 0) return
-
-    // Get patient name
-    const { data: patient } = await supabase
-      .from('profiles')
-      .select('full_name')
-      .eq('id', patientId)
-      .single()
-
-    const patientName = patient?.full_name || 'A patient'
-    const flagLabels = flags.map((f) => FLAG_LABELS[f] || f).join(', ')
+    if (linksError) {
+      report({ channel: 'routing', state: 'not_attempted', code: 'provider_lookup_failed' })
+      return summary
+    }
+    if (!links?.length) {
+      report({ channel: 'routing', state: 'not_attempted', code: 'no_linked_provider' })
+      return summary
+    }
 
     for (const link of links) {
-      // Try push notification first
-      const { data: subs } = await supabase
+      // A lookup failure is not an empty subscription list and cannot authorize fallback.
+      const { data: subs, error: subsError } = await supabase
         .from('push_subscriptions')
         .select('endpoint, keys')
         .eq('user_id', link.provider_id)
-
-      if (subs && subs.length > 0) {
-        // Send web push via VAPID
-        await sendWebPush(subs, patientName, flagLabels, alertId)
-      } else {
-        // Email fallback (DASH-07)
-        const { data: provider } = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('id', link.provider_id)
-          .single()
-
-        if (provider?.email) {
-          await sendEmailAlert(provider.email, patientName, flagLabels, alertId)
-        }
-      }
-    }
-  } catch (err) {
-    // Notification failures should not break the alert pipeline
-    console.error('Notification error:', err)
-  }
-}
-
-async function sendWebPush(
-  subscriptions: Array<{ endpoint: string; keys: Record<string, string> }>,
-  patientName: string,
-  flagLabels: string,
-  alertId: string
-): Promise<void> {
-  const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY')
-  const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY')
-
-  if (!vapidPublicKey || !vapidPrivateKey) {
-    console.error('VAPID keys not set, skipping push notifications')
-    return
-  }
-
-  const payload = JSON.stringify({
-    title: 'HEARTLAND Alert',
-    body: `CRITICAL: ${patientName} - ${flagLabels}`,
-    data: { alertId, url: '/alerts' },
-  })
-
-  for (const sub of subscriptions) {
-    try {
-      const pushSub = {
-        endpoint: sub.endpoint,
-        keys: sub.keys as { p256dh: string; auth: string },
+      if (subsError) {
+        report({ channel: 'routing', state: 'not_attempted', code: 'subscription_lookup_failed' })
+        continue
       }
 
-      const message = await buildPushPayload(
-        {
-          endpoint: pushSub.endpoint,
-          keys: pushSub.keys,
-        },
-        {
-          vapidKeys: {
-            publicKey: vapidPublicKey,
-            privateKey: vapidPrivateKey,
-          },
-          subject: 'mailto:alerts@heartlandprotocol.org',
-          ttl: 86400,
-          urgency: 'high',
-        },
-        payload
-      )
+      const results: TransportResult[] = []
+      for (const sub of subs ?? []) {
+        const result = await sendWebPush(sub, config, deps)
+        results.push(result)
+        report(result)
+      }
 
-      await fetch(message.endpoint, {
-        method: 'POST',
-        headers: message.headers,
-        body: message.body,
-      })
-    } catch (err) {
-      console.error('Push notification failed for endpoint:', sub.endpoint, err)
+      // A partial acceptance or uncertain POST must not silently trigger a second channel.
+      if (!shouldUseEmailFallback(results)) continue
+      const { data: provider, error: providerError } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', link.provider_id)
+        .single()
+      if (providerError) {
+        report({ channel: 'routing', state: 'not_attempted', code: 'email_lookup_failed' })
+        continue
+      }
+      report(await sendEmailAlert(provider?.email, config, deps))
     }
+  } catch {
+    // Preserve already recorded successes. An unexpected lookup failure must not break persistence.
+    report({ channel: 'routing', state: 'not_attempted', code: 'routing_failed' })
   }
-}
-
-async function sendEmailAlert(
-  providerEmail: string,
-  patientName: string,
-  flagLabels: string,
-  alertId: string
-): Promise<void> {
-  const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
-  if (!RESEND_API_KEY) {
-    console.error('RESEND_API_KEY not set, skipping email fallback')
-    return
-  }
-
-  const appUrl = Deno.env.get('APP_URL') || 'https://app.heartlandprotocol.org'
-
-  try {
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: 'HEARTLAND Alerts <alerts@heartlandprotocol.org>',
-        to: [providerEmail],
-        subject: `CRITICAL ALERT: ${patientName}`,
-        html: `
-          <h2>HEARTLAND Protocol - Critical Patient Alert</h2>
-          <p><strong>Patient:</strong> ${patientName}</p>
-          <p><strong>Alert:</strong> ${flagLabels}</p>
-          <p><strong>Action Required:</strong> Review patient vitals and respond.</p>
-          <p><a href="${appUrl}/alerts">View Alert in Dashboard</a></p>
-          <hr>
-          <p style="color: #666; font-size: 12px;">
-            This is an automated alert from the HEARTLAND Protocol implementation-support resource.
-            It does not replace source-record review, clinical judgment, or institutional policy.
-          </p>
-        `,
-      }),
-    })
-  } catch (err) {
-    console.error('Email send failed:', err)
-  }
+  return summary
 }

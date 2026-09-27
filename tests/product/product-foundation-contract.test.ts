@@ -14,6 +14,8 @@ const scaleMigration = fs.readFileSync(
   path.resolve(__dirname, '../../supabase/migrations/00028_scale_sandbox_and_adoption.sql'),
   'utf8',
 );
+const receiptActions = fs.readFileSync(path.resolve(__dirname, '../../lib/vitals/submission-actions.ts'), 'utf8');
+const receiptMigration = fs.readFileSync(path.resolve(__dirname, '../../supabase/migrations/00045_vitals_evaluation_recovery.sql'), 'utf8');
 
 describe('Daily Loop database contract', () => {
   it('enables RLS and restricts work to an owning linked provider', () => {
@@ -49,16 +51,21 @@ describe('Privacy-safe adoption telemetry', () => {
 });
 
 describe('Immediate alert persistence contract', () => {
-  it('persists mapped red flags after patient, provider, and batch submissions', () => {
-    expect(vitalsActions).toContain('persistImmediateAlert');
-    expect(vitalsActions.match(/await persistImmediateAlert\(/g)).toHaveLength(3);
-    expect(vitalsActions).toContain(".rpc('coalesce_patient_alert'");
+  it('routes every capture channel through durable evaluation', () => {
+    expect(vitalsActions).not.toContain('persistImmediateAlert');
+    expect(vitalsActions).toContain('return submitCapturedVitals(previous, formData)');
+    expect(vitalsActions).toContain('return submitCapturedProviderVitals(previous, formData)');
+    expect(vitalsActions).toContain('return submitCapturedVitalsBatch(previous, formData)');
+    expect(receiptActions).toContain("rpc('finalize_vitals_submission_evaluation'");
+    expect(receiptMigration).toContain('public.coalesce_patient_alert');
+    expect(vitalsActions).not.toContain(".from('vitals').insert");
     expect(vitalsActions).not.toContain(".from('alerts').insert");
   });
 
-  it('fails visibly when alert delivery cannot be confirmed', () => {
-    expect(vitalsActions).toContain('alert delivery could not be confirmed');
-    expect(vitalsActions).toContain('operational alert delivery was not confirmed');
+  it('distinguishes saved observations from unconfirmed evaluation', () => {
+    const receiptState = fs.readFileSync(path.resolve(__dirname, '../../lib/vitals/submission-receipt.ts'), 'utf8');
+    expect(receiptState).toContain('Your record is saved. Evaluation is not confirmed');
+    expect(receiptState).toContain('receipt.rule_version === expected');
   });
 });
 

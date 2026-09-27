@@ -1,109 +1,24 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { UserRoundCheck } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { designatePatientAccountable } from '@/lib/daily-loop/actions';
-import type { TeamMember } from '@/lib/team/types';
+import { useState } from 'react';
+import { OwnershipSelector } from '@/components/ownership-selector';
 
-/**
- * Team-manager control: names the single provider accountable for this patient.
- * Only members of organizations this user manages are offered.
- */
-export interface CurrentDesignation {
-  organizationId: string;
-  accountableId: string;
-  accountableName: string | null;
+type Props = { patientId: string; scopeKey: string; organizations: { id: string; name: string }[] };
+export function AccountabilityPanel(props: Props) {
+  return <PanelState key={`${props.scopeKey}:${props.patientId}`} {...props} />;
 }
-
-export function AccountabilityPanel({
-  patientId,
-  members,
-  current = null,
-}: {
-  patientId: string;
-  members: TeamMember[];
-  current?: CurrentDesignation | null;
-}) {
-  const [pending, startTransition] = useTransition();
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  if (members.length === 0) return null;
-
-  const showOrganization = new Set(members.map((member) => member.organization_id)).size > 1;
-  const currentValue = current ? `${current.organizationId}:${current.accountableId}` : '';
-
-  const save = (value: string) => {
-    const [organizationId, accountableId] = value.split(':');
-    if (!organizationId || !accountableId) {
-      setError('Choose a provider.');
-      return;
-    }
-    setError(null);
-    setMessage(null);
-    startTransition(async () => {
-      const result = await designatePatientAccountable({
-        organizationId,
-        patientId,
-        accountableId,
-      });
-      if (!result.success) setError(result.error ?? 'The accountable provider could not be designated.');
-      else setMessage('Accountable provider saved.');
-    });
-  };
-
-  return (
-    <section
-      className="rounded-2xl border bg-white p-5"
-      aria-labelledby="accountability-heading"
-      data-testid="accountability-panel"
-    >
-      <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Team management</p>
-      <h2 id="accountability-heading" className="text-lg font-bold text-slate-950">
-        Accountable provider for this patient
-      </h2>
-      <p className="mt-1 text-sm text-slate-600">
-        New work for this patient is assigned to this provider. Work already open stays with its
-        current provider until a transfer is accepted.
-      </p>
-      <p className="mt-2 text-sm text-slate-800" data-testid="accountability-current">
-        {current
-          ? `Currently designated: ${current.accountableName ?? 'a provider outside your team list'}`
-          : 'No accountable provider designated yet.'}
-      </p>
-      <form
-        className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
-        onSubmit={(event) => {
-          event.preventDefault();
-          save(String(new FormData(event.currentTarget).get('accountable') ?? ''));
-        }}
-      >
-        <label className="flex-1 text-sm font-medium text-slate-800">
-          Accountable provider
-          <select
-            name="accountable"
-            required
-            defaultValue={currentValue}
-            className="mt-1 min-h-11 w-full rounded-md border bg-white px-3"
-          >
-            <option value="" disabled>Choose a provider</option>
-            {members.map((member) => (
-              <option
-                key={`${member.organization_id}:${member.member_id}`}
-                value={`${member.organization_id}:${member.member_id}`}
-              >
-                {showOrganization ? `${member.member_name} — ${member.organization_name}` : member.member_name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <Button type="submit" className="min-h-11" disabled={pending}>
-          <UserRoundCheck className="mr-2 size-4" /> {pending ? 'Saving…' : 'Save'}
-        </Button>
-      </form>
-      {error && <p role="alert" className="mt-2 text-sm text-red-700">{error}</p>}
-      {message && <p role="status" className="mt-2 text-sm text-emerald-700">{message}</p>}
-    </section>
-  );
+function PanelState({ patientId, organizations, scopeKey }: Props) {
+  const [organization, setOrganization] = useState(organizations[0]?.id ?? '');
+  if (!organizations.length) return null;
+  return <section className="rounded-2xl border bg-white p-5" aria-labelledby="accountability-heading" data-testid="accountability-panel">
+    <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Team management</p>
+    <h2 id="accountability-heading" className="text-lg font-bold text-slate-950">Accountable provider for this patient</h2>
+    <p className="mt-1 text-sm text-slate-600">Designation applies to future work in the selected organization. Existing work stays with its current owner until a separately reviewed transfer is accepted or an authorized reassignment is recorded.</p>
+    <label className="mt-3 block text-sm font-medium">Designation organization
+      <select value={organization} onChange={(event) => setOrganization(event.target.value)} className="mt-1 min-h-11 w-full rounded-md border bg-white px-3">
+        {organizations.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
+      </select>
+    </label>
+    <OwnershipSelector scopeKey={scopeKey} kind="designation" organizationId={organization} patientId={patientId} />
+  </section>;
 }

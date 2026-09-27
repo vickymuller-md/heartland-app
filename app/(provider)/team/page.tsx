@@ -18,6 +18,8 @@ export default async function TeamOperationsPage() {
         <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">Governed operations</p>
         <h1 className="text-3xl font-bold tracking-tight text-slate-950">Team &amp; access</h1>
         <p className="mt-1 text-sm text-slate-600">Membership, workload, delivery evidence, operating targets, and monthly access review.</p>
+        <Link href="/team/exceptions" className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-blue-700 underline">Review operational exceptions</Link>
+        <Link href="/team/reassignment-requests" prefetch={false} className="ml-4 inline-flex min-h-11 items-center text-sm font-semibold text-blue-700 underline">My pending reassignment requests</Link>
       </div>
 
       {operations.error ? (

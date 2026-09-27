@@ -56,8 +56,8 @@ SELECT ok(
   'clients cannot forge access review counts'
 );
 SELECT ok(
-  has_column_privilege('authenticated', 'public.work_items', 'assigned_to', 'UPDATE'),
-  'governed work assignment column is available through RLS'
+  NOT has_column_privilege('authenticated', 'public.work_items', 'assigned_to', 'UPDATE'),
+  'ownership writes require the recoverable RPC'
 );
 SELECT ok(
   NOT has_function_privilege(

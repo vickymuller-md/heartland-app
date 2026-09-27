@@ -114,9 +114,9 @@ export default async function TrackBEntryPage({ params, searchParams }: TrackBEn
 
         {/* Conditional form rendering */}
         {isBatch ? (
-          <BatchEntryGrid patientId={patientId} />
+          <BatchEntryGrid key={patientId} patientId={patientId} />
         ) : (
-          <ProviderVitalsForm patientId={patientId} />
+          <ProviderVitalsForm key={patientId} patientId={patientId} />
         )}
       </div>
     </div>

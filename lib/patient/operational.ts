@@ -23,7 +23,7 @@ export interface OperationalBrief {
     edema: number | null;
     orthopnea: boolean | null;
     fatigue: number | null;
-    redFlag: boolean;
+    redFlag: boolean | null;
   } | null;
   latestLabs: {
     collectedAt: string;
@@ -160,7 +160,7 @@ export async function getPatientOperationalView(
       id: `symptom-${symptom.id}`,
       occurredAt: symptom.recorded_at,
       type: 'symptoms' as const,
-      title: symptom.red_flag ? 'Symptoms recorded · flagged' : 'Symptoms recorded',
+      title: symptom.red_flag ? 'Symptoms recorded · flagged' : symptom.red_flag === null ? 'Symptoms recorded · evaluation pending' : 'Symptoms recorded',
       detail: `Dyspnea ${symptom.dyspnea ?? '—'} · Edema ${symptom.edema ?? '—'} · Fatigue ${symptom.fatigue ?? '—'}`,
     })),
     ...(labsResult.data ?? []).map((lab) => ({

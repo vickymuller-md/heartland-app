@@ -5,14 +5,16 @@
  * Requirement: TRKB-06
  *
  * Provider transcribes 7 days of paper diary readings in a single table submission.
- * Uses useActionState with submitBatchVitalsAsProvider Server Action.
+ * Recovers the durable server batch before enabling another capture.
  * Rows pre-populated with last 7 calendar dates (oldest first).
  */
 
-import { useActionState, useState } from 'react';
+import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { subDays, format } from 'date-fns';
-import { submitBatchVitalsAsProvider } from '@/lib/vitals/actions';
-import type { BatchVitalsActionState, BatchRowResult } from '@/lib/vitals/types';
+import { useVitalsBatch } from '@/lib/vitals/use-batch-submission';
+import { PendingVitalsSubmissions } from '@/lib/vitals/pending-submissions';
+import type { BatchRowResult } from '@/lib/vitals/types';
 import { AlertTriangle, CheckCircle, Minus } from 'lucide-react';
 
 interface BatchEntryGridProps {
@@ -27,24 +29,38 @@ const DYSPNEA_OPTIONS = [
 ] as const;
 
 export default function BatchEntryGrid({ patientId }: BatchEntryGridProps) {
-  const [state, formAction, isPending] = useActionState<BatchVitalsActionState | null, FormData>(
-    submitBatchVitalsAsProvider,
-    null
-  );
+  const { state, ready, busy: isPending, entryDate, entryGeneration, submit, recover, startNew, cancel } = useVitalsBatch(patientId);
   const [weightUnit, setWeightUnit] = useState<'lbs' | 'kg'>('lbs');
 
   // Generate last 7 dates (oldest first)
-  const today = new Date();
-  const dates = Array.from({ length: 7 }, (_, i) => subDays(today, 6 - i));
+  const dates = useMemo(() => Array.from({ length: 7 }, (_, i) => subDays(entryDate, 6 - i)), [entryDate]);
 
   return (
     <div className="space-y-6">
+      <PendingVitalsSubmissions key={patientId} patientId={patientId} refreshKey={state.batchId} />
+      {state.error && <div role="alert" className="rounded-lg border-2 border-amber-300 bg-amber-50 p-4">
+        <p>{state.error}</p>
+        <button type="button" disabled={isPending} onClick={() => void recover()} className="min-h-[48px] underline">Check Saved Batch</button>
+      </div>}
+      {state.activeIndividual && <Link className="block min-h-[48px] underline" href={`/patients/${patientId}/track-b-entry?mode=single`}>Recover Active Individual Entry</Link>}
+      {!ready && !state.error && <p role="status">Checking for a saved batch...</p>}
+      {state.submissionStatus === 'prepared' && <button type="button" disabled={isPending} onClick={() => void cancel()}
+        className="min-h-[48px] underline">Cancel Unsaved Batch to Switch Modes</button>}
+      {state.saved && <section aria-label="Saved batch status" className="rounded-lg border-2 border-blue-300 bg-blue-50 p-4 space-y-3">
+        <h2 className="text-xl font-semibold">Batch Saved — Review Each Evaluation</h2>
+        <p>These measurements are saved. Do not enter them again. Saved does not mean your care team has received, read or acted on them.</p>
+        <p>Unfinished evaluations remain in Pending Evaluations after you acknowledge this batch.</p>
+        <button type="button" disabled={isPending} onClick={() => void recover()} className="block min-h-[48px] underline">Retry Batch Evaluations</button>
+        <button type="button" disabled={isPending} onClick={() => void startNew()} className="min-h-[48px] rounded-lg bg-blue-600 p-3 font-semibold text-white">Acknowledge Saved Batch and Start Another</button>
+      </section>}
+      {!state.saved && <>
       {/* Weight unit toggle */}
       <div className="flex items-center gap-3">
         <span className="text-sm font-medium text-gray-700">Weight unit:</span>
         <div className="flex rounded-lg border overflow-hidden">
           <button
             type="button"
+            disabled={isPending || !ready}
             onClick={() => setWeightUnit('lbs')}
             className={`px-3 py-1.5 text-sm font-medium transition-colors ${
               weightUnit === 'lbs'
@@ -56,6 +72,7 @@ export default function BatchEntryGrid({ patientId }: BatchEntryGridProps) {
           </button>
           <button
             type="button"
+            disabled={isPending || !ready}
             onClick={() => setWeightUnit('kg')}
             className={`px-3 py-1.5 text-sm font-medium transition-colors ${
               weightUnit === 'kg'
@@ -68,9 +85,9 @@ export default function BatchEntryGrid({ patientId }: BatchEntryGridProps) {
         </div>
       </div>
 
-      <form action={formAction}>
+      <form key={entryGeneration} onSubmit={(event) => { event.preventDefault(); void submit(new FormData(event.currentTarget)); }}>
         <input type="hidden" name="patientId" value={patientId} />
-
+        <fieldset disabled={isPending || !ready}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
@@ -158,21 +175,16 @@ export default function BatchEntryGrid({ patientId }: BatchEntryGridProps) {
           </table>
         </div>
 
-        {/* General error */}
-        {state?.error && (
-          <div className="mt-4 rounded-lg border-2 border-red-300 bg-red-50 p-4">
-            <p className="text-base text-red-700">{state.error}</p>
-          </div>
-        )}
-
         <button
           type="submit"
-          disabled={isPending}
+          disabled={isPending || !ready}
           className="mt-4 w-full min-h-[48px] text-base font-semibold bg-blue-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed py-3"
         >
           {isPending ? 'Saving...' : 'Save 7-Day Batch'}
         </button>
+        </fieldset>
       </form>
+      </>}
 
       {/* Post-submit results summary */}
       {state?.results && <BatchResultSummary results={state.results} />}
@@ -190,6 +202,8 @@ function BatchResultSummary({ results }: { results: BatchRowResult[] }) {
           className={`flex items-start gap-2 p-3 rounded-lg border ${
             row.skipped
               ? 'bg-gray-50 border-gray-200'
+              : row.receipt?.saved && !row.success
+              ? 'bg-amber-50 border-amber-300'
               : row.success
               ? row.redFlags.length > 0
                 ? 'bg-amber-50 border-amber-300'
@@ -216,10 +230,14 @@ function BatchResultSummary({ results }: { results: BatchRowResult[] }) {
               {row.success && row.redFlags.length > 0 && (
                 <span className="text-sm text-amber-700">Saved with alerts</span>
               )}
+              {row.receipt?.saved && !row.success && <span className="text-sm text-amber-800">Saved — Evaluation Pending</span>}
               {!row.success && !row.skipped && (
                 <span className="text-sm text-red-700">{row.error ?? 'Error'}</span>
               )}
             </div>
+            {row.receipt?.vitals && <p className="mt-1 text-base">
+              {row.receipt.vitals.weight_lbs} lbs; BP {row.receipt.vitals.sbp}/{row.receipt.vitals.dbp}; HR {row.receipt.vitals.heart_rate}; SpO2 {row.receipt.vitals.spo2 ?? 'not recorded'}
+            </p>}
 
             {/* Red flag details */}
             {row.redFlags.length > 0 && (

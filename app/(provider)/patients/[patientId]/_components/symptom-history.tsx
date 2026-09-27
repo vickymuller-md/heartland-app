@@ -68,7 +68,7 @@ export function SymptomHistory({ symptoms }: SymptomHistoryProps) {
           <div
             key={entry.id}
             className={`rounded-lg border p-4 ${
-              entry.red_flag ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white'
+              entry.red_flag ? 'border-red-200 bg-red-50' : entry.red_flag === null ? 'border-amber-300 bg-amber-50' : 'border-gray-200 bg-white'
             }`}
           >
             {/* Header */}
@@ -83,6 +83,7 @@ export function SymptomHistory({ symptoms }: SymptomHistoryProps) {
                   Red Flag
                 </Badge>
               )}
+              {entry.red_flag === null && <Badge variant="outline">Evaluation pending</Badge>}
             </div>
 
             {/* Severity grid */}

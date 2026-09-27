@@ -19,13 +19,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   acceptWorkItem,
-  assignWorkItem,
   bulkReviewWorkItems,
-  reassignWorkItem,
   transitionWorkItem,
   type WorkItemTransitionInput,
 } from '@/lib/daily-loop/actions';
-import type { TeamMember } from '@/lib/team/types';
+import { WorkReassignment } from '@/components/work-reassignment';
+import { OwnershipSelector } from '@/components/ownership-selector';
 import {
   MANAGER_OUTCOME_CODE,
   OUTCOME_CODE_LABELS,
@@ -99,20 +98,20 @@ function MetricStrip({ metrics }: { metrics: DailyLoopMetrics }) {
 }
 
 function WorkItemCard({
+  scopeKey,
   item,
-  teamMembers,
   canManage,
   selected,
   onSelectionChange,
 }: {
+  scopeKey: string;
   item: WorkItem;
-  teamMembers: TeamMember[];
   canManage: boolean;
   selected: boolean;
   onSelectionChange: (selected: boolean) => void;
 }) {
   const [pending, startTransition] = useTransition();
-  const [mode, setMode] = useState<'none' | 'actioned' | 'awaiting' | 'closed' | 'reassign'>('none');
+  const [mode, setMode] = useState<'none' | 'actioned' | 'awaiting' | 'closed'>('none');
   const [error, setError] = useState<string | null>(null);
 
   const dueLabel = item.due_at
@@ -121,10 +120,6 @@ function WorkItemCard({
   const freshLabel = item.freshness_at
     ? formatDistanceToNow(new Date(item.freshness_at), { addSuffix: true })
     : 'Unknown freshness';
-  const assignableMembers = teamMembers.filter(
-    (member) => member.organization_id === item.organization_id,
-  );
-  const transferTargets = assignableMembers.filter((member) => member.member_id !== item.assigned_to);
   // Items created before the single-accountable model still close with outcome text only.
   const requiresOutcomeCode = item.accountability_source !== null;
   const isLegacyAccountability =
@@ -146,32 +141,6 @@ function WorkItemCard({
         ...extra,
       });
       if (!result.success) setError(result.error ?? 'Unable to update work');
-      else setMode('none');
-    });
-  };
-
-  const offerTransfer = (assigneeId: string) => {
-    setError(null);
-    startTransition(async () => {
-      const result = await assignWorkItem({
-        workItemId: item.id,
-        patientId: item.patient_id,
-        assigneeId,
-      });
-      if (!result.success) setError(result.error ?? 'Unable to offer this transfer');
-    });
-  };
-
-  const reassign = (assigneeId: string, reason: string) => {
-    setError(null);
-    startTransition(async () => {
-      const result = await reassignWorkItem({
-        workItemId: item.id,
-        patientId: item.patient_id,
-        assigneeId,
-        reason,
-      });
-      if (!result.success) setError(result.error ?? 'Unable to reassign work');
       else setMode('none');
     });
   };
@@ -372,38 +341,6 @@ function WorkItemCard({
         </form>
       )}
 
-      {mode === 'reassign' && (
-        <form
-          className="mt-3 grid gap-3 rounded-lg border border-slate-300 bg-slate-50 p-3 sm:grid-cols-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const form = new FormData(event.currentTarget);
-            reassign(String(form.get('assigneeId')), String(form.get('reason')));
-          }}
-        >
-          <label className="text-sm font-medium text-slate-800">
-            Reassign to
-            <select name="assigneeId" required defaultValue="" className="mt-1 min-h-11 w-full rounded-md border bg-white px-3">
-              <option value="" disabled>Choose a team member</option>
-              {transferTargets.map((member) => (
-                <option key={member.member_id} value={member.member_id}>{member.member_name}</option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm font-medium text-slate-800">
-            Why is this being reassigned?
-            <input name="reason" required minLength={3} maxLength={500} className="mt-1 min-h-11 w-full rounded-md border bg-white px-3" />
-          </label>
-          <p className="text-xs text-slate-600 sm:col-span-2">
-            Reassigning moves the work without acceptance. The new provider still has to accept it.
-          </p>
-          <div className="flex gap-2 sm:col-span-2">
-            <Button type="submit" className="min-h-11" disabled={pending}>Reassign item</Button>
-            <Button type="button" className="min-h-11" variant="ghost" onClick={() => setMode('none')}>Cancel</Button>
-          </div>
-        </form>
-      )}
-
       {mode === 'none' && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {!item.accepted_at && item.accountability_source && (
@@ -428,49 +365,25 @@ function WorkItemCard({
             {pending ? <Loader2 className="mr-1 size-3.5 animate-spin" /> : <CheckCircle2 className="mr-1 size-3.5" />}
             Close
           </Button>
-          {transferTargets.length > 0 && (
-            <div className="ml-auto flex flex-wrap items-center gap-2">
-              <label className="inline-flex items-center gap-2 text-xs font-medium text-slate-700">
-                <UserRoundCheck className="size-4" /> Offer transfer
-                <select
-                  aria-label={`Offer ${item.title} to another team member`}
-                  value=""
-                  disabled={pending}
-                  onChange={(event) => {
-                    if (event.target.value) offerTransfer(event.target.value);
-                  }}
-                  className="min-h-11 rounded-md border bg-white px-2"
-                >
-                  <option value="">Choose a member</option>
-                  {transferTargets.map((member) => (
-                    <option key={member.member_id} value={member.member_id}>{member.member_name}</option>
-                  ))}
-                </select>
-              </label>
-              {canManage && (
-                <Button className="min-h-11" size="sm" variant="ghost" disabled={pending} onClick={() => setMode('reassign')}>
-                  Reassign
-                </Button>
-              )}
-            </div>
-          )}
         </div>
       )}
+      {mode === 'none' && <OwnershipSelector scopeKey={scopeKey} kind="offer" workItemId={item.id} />}
+      {mode === 'none' && canManage && !isLegacyAccountability && <WorkReassignment scopeKey={scopeKey} workItemId={item.id} />}
     </article>
   );
 }
 
 function DailyLoopSection({
+  scopeKey,
   sectionKey,
   items,
-  teamMembers,
   manageableOrganizationIds,
   selectedIds,
   onSelectionChange,
 }: {
+  scopeKey: string;
   sectionKey: keyof DailyLoopSections;
   items: WorkItem[];
-  teamMembers: TeamMember[];
   manageableOrganizationIds: string[];
   selectedIds: Set<string>;
   onSelectionChange: (itemId: string, selected: boolean) => void;
@@ -495,9 +408,9 @@ function DailyLoopSection({
       ) : (
         <div className="space-y-3">{items.map((item) => (
           <WorkItemCard
+            scopeKey={scopeKey}
             key={item.id}
             item={item}
-            teamMembers={teamMembers}
             canManage={manageableOrganizationIds.includes(item.organization_id)}
             selected={selectedIds.has(item.id)}
             onSelectionChange={(selected) => onSelectionChange(item.id, selected)}
@@ -509,22 +422,22 @@ function DailyLoopSection({
 }
 
 export function DailyLoop({
+  scopeKey,
   sections,
   metrics,
   pagination,
   page,
   queryString,
   timeZone,
-  teamMembers = [],
   manageableOrganizationIds = [],
 }: {
+  scopeKey: string;
   sections: DailyLoopSections;
   metrics: DailyLoopMetrics;
   pagination: DailyLoopResult['pagination'];
   page: number;
   queryString: string;
   timeZone: string;
-  teamMembers?: TeamMember[];
   manageableOrganizationIds?: string[];
 }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -595,10 +508,10 @@ export function DailyLoop({
       <div className="grid gap-5 xl:grid-cols-2">
         {(Object.keys(SECTION_CONFIG) as Array<keyof DailyLoopSections>).map((key) => (
           <DailyLoopSection
+            scopeKey={scopeKey}
             key={key}
             sectionKey={key}
             items={sections[key]}
-            teamMembers={teamMembers}
             manageableOrganizationIds={manageableOrganizationIds}
             selectedIds={selectedIds}
             onSelectionChange={setSelected}

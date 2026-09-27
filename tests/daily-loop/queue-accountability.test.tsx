@@ -5,11 +5,14 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DailyLoop } from '@/app/(provider)/dashboard/_components/daily-loop';
 import { PendingTransfers } from '@/app/(provider)/dashboard/_components/pending-transfers';
 import type { DailyLoopMetrics, PendingTransfer, WorkItem } from '@/lib/daily-loop/types';
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+const { loadTransfer } = vi.hoisted(() => ({ loadTransfer: vi.fn() }));
+vi.mock('@/lib/daily-loop/ownership-context-actions', () => ({ loadTransferContext: loadTransfer, loadDesignationContext: vi.fn() }));
 
 const {
   mockAcceptTransfer,
@@ -93,18 +96,20 @@ function workItem(overrides: Partial<WorkItem> = {}): WorkItem {
   };
 }
 
-function renderQueue(item: WorkItem) {
-  return render(
+function queue(item: WorkItem, scopeKey = 'actor:snapshot1') {
+  return (
     <DailyLoop
+      scopeKey={scopeKey}
       sections={{ now: [item], today: [], week: [], watching: [] }}
       metrics={METRICS}
       pagination={{ total: 1, limit: 20, offset: 0, hasNext: false, hasPrevious: false }}
       page={1}
       queryString=""
       timeZone="America/Chicago"
-    />,
+    />
   );
 }
+function renderQueue(item: WorkItem) { return render(queue(item)); }
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -249,38 +254,56 @@ describe('work-item accountability surface', () => {
 
   it('offers a transfer to a colleague instead of writing the assignment', async () => {
     const colleagueId = '00000000-0000-4000-a000-000000000017';
+    loadTransfer.mockResolvedValue({ data: { work_item_id: WORK_ITEM_ID, patient_id: PATIENT_ID,
+      current_assignee: PROVIDER_ID, current_revision: '0', eligible: true, pending_recipient: null,
+      targets: [{ id: colleagueId, name: 'Dr Colleague' }], next_cursor: null }, error: null });
     render(
       <DailyLoop
+      scopeKey="actor:snapshot1"
         sections={{ now: [workItem()], today: [], week: [], watching: [] }}
         metrics={METRICS}
         pagination={{ total: 1, limit: 20, offset: 0, hasNext: false, hasPrevious: false }}
         page={1}
         queryString=""
         timeZone="America/Chicago"
-        teamMembers={[
-          {
-            organization_id: ORGANIZATION_ID,
-            organization_name: 'Rural Clinic',
-            member_id: colleagueId,
-            member_name: 'Dr Colleague',
-            member_role: 'clinician',
-            is_default: true,
-            is_self: false,
-          },
-        ]}
         manageableOrganizationIds={[ORGANIZATION_ID]}
       />,
     );
 
+    await userEvent.click(screen.getByRole('button', { name: 'Review eligible transfer recipients' }));
     await userEvent.selectOptions(
-      screen.getByLabelText('Offer Review patient alert to another team member'),
+      await screen.findByLabelText('Transfer recipient'),
       colleagueId,
     );
+    expect(mockAssignWorkItem).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm transfer offer' }));
 
     expect(mockAssignWorkItem).toHaveBeenCalledWith({
       workItemId: WORK_ITEM_ID,
       patientId: PATIENT_ID,
       assigneeId: colleagueId,
     });
+  });
+
+  it('discards a late offer confirmation after a new server snapshot of the same item', async () => {
+    const colleagueId = '00000000-0000-4000-a000-000000000017';
+    let finish!: (value: { success: boolean }) => void;
+    mockAssignWorkItem.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    loadTransfer.mockResolvedValue({ data: { work_item_id: WORK_ITEM_ID, patient_id: PATIENT_ID,
+      current_assignee: PROVIDER_ID, current_revision: '0', eligible: true, pending_recipient: null,
+      targets: [{ id: colleagueId, name: 'Dr Previous Candidate' }], next_cursor: null }, error: null });
+    const view = renderQueue(workItem());
+    await userEvent.click(screen.getByRole('button', { name: 'Review eligible transfer recipients' }));
+    await userEvent.selectOptions(await screen.findByLabelText('Transfer recipient'), colleagueId);
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm transfer offer' }));
+    expect(mockAssignWorkItem).toHaveBeenCalledTimes(1);
+    view.rerender(queue(workItem(), 'actor:snapshot2'));
+    await act(async () => { finish({ success: true }); });
+    expect(screen.queryByText(/Transfer offer recorded/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Dr Previous Candidate')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Transfer recipient')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Review eligible transfer recipients' })).toBeEnabled();
+    expect(mockAssignWorkItem).toHaveBeenCalledTimes(1);
+    expect(loadTransfer).toHaveBeenCalledTimes(1);
   });
 });

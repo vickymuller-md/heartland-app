@@ -55,7 +55,8 @@ export function parseBatchFormData(formData: FormData): Record<string, FormDataE
  * Returns true when all measurement fields are blank -- row should be skipped server-side.
  */
 export function isBlankRow(row: Record<string, FormDataEntryValue | null>): boolean {
-  return ['weight', 'sbp', 'dbp', 'heartRate'].every(
-    (field) => !row[field] || row[field] === ''
-  );
+  const empty = (value: FormDataEntryValue | null | undefined) =>
+    value === null || value === undefined || value === '';
+  return ['weight', 'sbp', 'dbp', 'heartRate', 'spo2'].every((field) => empty(row[field]))
+    && (empty(row.dyspnea) || row.dyspnea === '0');
 }

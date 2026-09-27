@@ -34,7 +34,8 @@ export function evaluateRedFlags(
     edema: number;
     orthopnea: boolean;
     fatigue: number;
-  }
+  },
+  evaluatedAt?: Date,
 ): RedFlag[] {
   const flags: RedFlag[] = [];
 
@@ -52,7 +53,9 @@ export function evaluateRedFlags(
 
     if (!scaleMalfunction) {
       // 1. Weight gain >= 3 lbs in 2 days (warning)
-      const twoDayCutoff = subDays(new Date(), RED_FLAG_CRITERIA.weight_gain_3lb_2d.windowDays);
+      const twoDayCutoff = evaluatedAt
+        ? new Date(evaluatedAt.getTime() - RED_FLAG_CRITERIA.weight_gain_3lb_2d.windowDays * 86_400_000)
+        : subDays(new Date(), RED_FLAG_CRITERIA.weight_gain_3lb_2d.windowDays);
       const twoDayEntries = recentHistory.filter((v) =>
         isAfter(new Date(v.recorded_at), twoDayCutoff)
       );
@@ -65,7 +68,9 @@ export function evaluateRedFlags(
       }
 
       // 2. Weight gain >= 5 lbs in 7 days (critical)
-      const sevenDayCutoff = subDays(new Date(), RED_FLAG_CRITERIA.weight_gain_5lb_7d.windowDays);
+      const sevenDayCutoff = evaluatedAt
+        ? new Date(evaluatedAt.getTime() - RED_FLAG_CRITERIA.weight_gain_5lb_7d.windowDays * 86_400_000)
+        : subDays(new Date(), RED_FLAG_CRITERIA.weight_gain_5lb_7d.windowDays);
       const sevenDayEntries = recentHistory.filter((v) =>
         isAfter(new Date(v.recorded_at), sevenDayCutoff)
       );

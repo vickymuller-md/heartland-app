@@ -4,7 +4,7 @@
  * SAFE-01: Offline red flag evaluation
  */
 
-import { render, screen, within, waitFor } from '@testing-library/react';
+import { act, render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -36,8 +36,16 @@ const localStorageMock = (() => {
 Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 
 // Mock the server action
-vi.mock('@/lib/vitals/actions', () => ({
-  submitVitals: mockSubmitVitals,
+vi.mock('@/lib/vitals/submission-actions', () => ({
+  recoverVitalsSubmission: vi.fn().mockResolvedValue({}),
+  listPendingVitalsSubmissions: vi.fn().mockResolvedValue({ total: 0, receipts: [] }),
+  prepareVitalsSubmission: vi.fn().mockResolvedValue({ requestId: '45000000-0000-4000-8000-000000000021', submissionStatus: 'prepared' }),
+  acknowledgeVitalsSubmission: vi.fn().mockResolvedValue({ submissionStatus: 'acknowledged' }),
+  submitCapturedProviderVitals: vi.fn(),
+  submitCapturedVitals: async (...args: unknown[]) => {
+    const result = await mockSubmitVitals(...args);
+    return result.success ? { ...result, saved: true, evaluationStatus: 'complete' } : result;
+  },
 }));
 
 // Mock useIsOnline
@@ -55,8 +63,8 @@ import { VitalsEntryForm } from '@/app/(patient)/today/_components/vitals-form';
 
 describe('VitalsEntryForm', () => {
   describe('vitals fields', () => {
-    it('renders weight input with unit toggle (lbs/kg)', () => {
-      render(<VitalsEntryForm />);
+    it('renders weight input with unit toggle (lbs/kg)', async () => {
+      await act(async () => { render(<VitalsEntryForm />); });
 
       const weightInput = screen.getByLabelText(/weight/i);
       expect(weightInput).toBeInTheDocument();
@@ -67,8 +75,8 @@ describe('VitalsEntryForm', () => {
       expect(screen.getByText('kg')).toBeInTheDocument();
     });
 
-    it('renders systolic BP, diastolic BP, and heart rate number inputs', () => {
-      render(<VitalsEntryForm />);
+    it('renders systolic BP, diastolic BP, and heart rate number inputs', async () => {
+      await act(async () => { render(<VitalsEntryForm />); });
 
       const sbpInput = screen.getByLabelText(/systolic/i);
       expect(sbpInput).toBeInTheDocument();
@@ -83,16 +91,16 @@ describe('VitalsEntryForm', () => {
       expect(hrInput.getAttribute('type')).toBe('number');
     });
 
-    it('renders SpO2 input marked as optional', () => {
-      render(<VitalsEntryForm />);
+    it('renders SpO2 input marked as optional', async () => {
+      await act(async () => { render(<VitalsEntryForm />); });
 
       const spo2Label = screen.getByText(/spo2/i).closest('label');
       expect(spo2Label).toBeInTheDocument();
       expect(spo2Label?.textContent).toMatch(/optional/i);
     });
 
-    it('all number inputs have min-h-[48px] and text-lg (VITL-08)', () => {
-      render(<VitalsEntryForm />);
+    it('all number inputs have min-h-[48px] and text-lg (VITL-08)', async () => {
+      await act(async () => { render(<VitalsEntryForm />); });
 
       const numberInputs = screen.getAllByRole('spinbutton');
       numberInputs.forEach((input) => {
@@ -101,8 +109,8 @@ describe('VitalsEntryForm', () => {
       });
     });
 
-    it('all labels are visible (not placeholder-only) with text-lg font', () => {
-      render(<VitalsEntryForm />);
+    it('all labels are visible (not placeholder-only) with text-lg font', async () => {
+      await act(async () => { render(<VitalsEntryForm />); });
 
       // Check that visible labels exist for all vitals fields
       const labels = [
@@ -128,8 +136,8 @@ describe('VitalsEntryForm', () => {
   });
 
   describe('symptom checklist', () => {
-    it('renders 4 symptom items: dyspnea, edema, orthopnea, fatigue', () => {
-      render(<VitalsEntryForm />);
+    it('renders 4 symptom items: dyspnea, edema, orthopnea, fatigue', async () => {
+      await act(async () => { render(<VitalsEntryForm />); });
 
       expect(screen.getByText(/shortness of breath/i)).toBeInTheDocument();
       expect(screen.getByText(/swelling/i)).toBeInTheDocument();
@@ -137,8 +145,8 @@ describe('VitalsEntryForm', () => {
       expect(screen.getByText(/tiredness/i)).toBeInTheDocument();
     });
 
-    it('dyspnea, edema, fatigue each have 4 severity options: none/mild/moderate/severe', () => {
-      render(<VitalsEntryForm />);
+    it('dyspnea, edema, fatigue each have 4 severity options: none/mild/moderate/severe', async () => {
+      await act(async () => { render(<VitalsEntryForm />); });
 
       // Each severity symptom should have 4 radio options
       const radioGroups = screen.getAllByRole('radiogroup');
@@ -150,8 +158,8 @@ describe('VitalsEntryForm', () => {
       expect(noneRadios.length).toBeGreaterThanOrEqual(3);
     });
 
-    it('orthopnea is a yes/no toggle (boolean)', () => {
-      render(<VitalsEntryForm />);
+    it('orthopnea is a yes/no toggle (boolean)', async () => {
+      await act(async () => { render(<VitalsEntryForm />); });
 
       // Find the orthopnea section
       const orthopneaLabel = screen.getByText(/trouble breathing lying down/i);
@@ -165,8 +173,8 @@ describe('VitalsEntryForm', () => {
       expect(noOption).toBeInTheDocument();
     });
 
-    it('severity options show descriptive labels', () => {
-      render(<VitalsEntryForm />);
+    it('severity options show descriptive labels', async () => {
+      await act(async () => { render(<VitalsEntryForm />); });
 
       // Descriptions from SYMPTOM_SEVERITY constant
       expect(screen.getAllByText(/noticeable but not limiting/i).length).toBeGreaterThanOrEqual(1);
@@ -176,8 +184,8 @@ describe('VitalsEntryForm', () => {
   });
 
   describe('submission', () => {
-    it('submit button is full-width with min-h-[48px] and text-lg', () => {
-      render(<VitalsEntryForm />);
+    it('submit button is full-width with min-h-[48px] and text-lg', async () => {
+      await act(async () => { render(<VitalsEntryForm />); });
 
       const submitButton = screen.getByRole('button', {
         name: /submit daily check-in/i,
@@ -190,8 +198,8 @@ describe('VitalsEntryForm', () => {
   });
 
   describe('elderly UX (VITL-08)', () => {
-    it('form uses single-column layout (no side-by-side fields on mobile)', () => {
-      render(<VitalsEntryForm />);
+    it('form uses single-column layout (no side-by-side fields on mobile)', async () => {
+      await act(async () => { render(<VitalsEntryForm />); });
 
       // The form should use space-y layout (single-column stacking)
       const form = screen.getByRole('button', { name: /submit/i }).closest(
@@ -200,8 +208,8 @@ describe('VitalsEntryForm', () => {
       expect(form?.className).toContain('space-y');
     });
 
-    it("sections are visually grouped with clear headers: 'Vitals' and 'How Are You Feeling?'", () => {
-      render(<VitalsEntryForm />);
+    it("sections are visually grouped with clear headers: 'Vitals' and 'How Are You Feeling?'", async () => {
+      await act(async () => { render(<VitalsEntryForm />); });
 
       expect(screen.getByText('Vitals')).toBeInTheDocument();
       expect(screen.getByText('How Are You Feeling?')).toBeInTheDocument();
@@ -225,7 +233,7 @@ describe('VitalsEntryForm', () => {
 
     it('submits through the authenticated Server Action', async () => {
       const user = userEvent.setup();
-      render(<VitalsEntryForm />);
+      await act(async () => { render(<VitalsEntryForm />); });
 
       await fillAndSubmitForm(user);
 
@@ -243,7 +251,7 @@ describe('VitalsEntryForm', () => {
       });
 
       const user = userEvent.setup();
-      render(<VitalsEntryForm />);
+      await act(async () => { render(<VitalsEntryForm />); });
 
       await fillAndSubmitForm(user, { sbp: '70' });
 
@@ -255,12 +263,12 @@ describe('VitalsEntryForm', () => {
 
     it('shows success only after the server confirms persistence', async () => {
       const user = userEvent.setup();
-      render(<VitalsEntryForm />);
+      await act(async () => { render(<VitalsEntryForm />); });
 
       await fillAndSubmitForm(user);
 
       await waitFor(() => {
-        expect(screen.getByText(/check-in complete/i)).toBeInTheDocument();
+        expect(screen.getByText(/vitals and symptoms saved/i)).toBeInTheDocument();
       });
       // No alert should render
       expect(screen.queryByRole('alert')).toBeNull();
@@ -269,13 +277,13 @@ describe('VitalsEntryForm', () => {
     it('refuses offline submission and does not claim the data was saved', async () => {
       mockUseIsOnline.mockReturnValue(false);
       const user = userEvent.setup();
-      render(<VitalsEntryForm />);
+      await act(async () => { render(<VitalsEntryForm />); });
 
       await fillAndSubmitForm(user);
 
       expect(await screen.findByText(/clinical data has not been saved/i)).toBeInTheDocument();
       expect(mockSubmitVitals).not.toHaveBeenCalled();
-      expect(screen.queryByText(/check-in complete/i)).toBeNull();
+      expect(screen.queryByText(/vitals and symptoms saved/i)).toBeNull();
     });
   });
 });

@@ -119,7 +119,7 @@ export interface SymptomEntry {
   edema: number;
   orthopnea: number;
   fatigue: number;
-  red_flag: boolean;
+  red_flag: boolean | null;
 }
 
 // ---------- Alert Engine Input Types ----------
@@ -146,7 +146,7 @@ export interface RecentSymptomInput {
   edema: 0 | 1 | 2 | 3;
   orthopnea: boolean;
   fatigue: 0 | 1 | 2 | 3;
-  red_flag: boolean;
+  red_flag: boolean | null;
 }
 
 /** Existing alert subset for deduplication check */

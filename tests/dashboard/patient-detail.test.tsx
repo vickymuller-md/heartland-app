@@ -151,6 +151,11 @@ describe('PatientDetailTabs', () => {
 // ==========================================================================
 
 describe('SymptomHistory', () => {
+  it('distinguishes unevaluated symptoms from an evaluated unflagged entry', () => {
+    render(<SymptomHistory symptoms={[{ ...mockSymptoms[0], red_flag: null }]} />);
+    expect(screen.getByText('Evaluation pending')).toBeInTheDocument();
+    expect(screen.queryByText('Red Flag')).not.toBeInTheDocument();
+  });
   it('displays symptom history with severity badges', () => {
     render(<SymptomHistory symptoms={mockSymptoms} />);
 
