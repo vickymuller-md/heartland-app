@@ -63,21 +63,33 @@ describe("landing evidence walkthrough", () => {
 
   it("keeps release, simulation and local candidate labels outside disclosures", () => {
     render(<AutomationEvidence />);
-    for (const label of ["Published release · v1.9.0", "Synthetic walkthrough · No clinical care", "Local candidate · Not deployed"]) {
+    for (const label of ["Published release · v1.9.0", "Synthetic walkthrough · No clinical care", "Recorded deployment checkpoint · 19 September 2026", "Local candidate · Not deployed"]) {
       const element = screen.getByText(label);
       expect(element).toBeVisible();
       expect(element.closest("details")).toBeNull();
     }
   });
 
-  it("does not turn the candidate into a public laboratory action", () => {
+  it("separates the recorded checkpoint from undeployed work without operational controls", () => {
     render(<AutomationEvidence />);
     const candidate = screen.getByTestId("local-candidate");
     expect(candidate).toHaveTextContent("Laboratory submission recovery");
-    expect(candidate).toHaveTextContent("not available in the public sandbox");
+    expect(candidate).toHaveTextContent("not a public exam-submission service");
     expect(candidate).toHaveTextContent("Not recorded");
     expect(candidate).toHaveTextContent("Acknowledgment is not clinical review");
-    expect(candidate.querySelector("a, button, form, input")).toBeNull();
+    expect(candidate.querySelector("a, button, form, input, audio, video, iframe")).toBeNull();
+    const recorded = screen.getByTestId("recorded-checkpoint");
+    const local = screen.getByTestId("unreleased-work");
+    expect(recorded).toHaveTextContent("Recorded deployment checkpoint · 19 September 2026");
+    expect(recorded).toHaveTextContent("Laboratory submission recovery");
+    expect(recorded).not.toHaveTextContent("Local candidate");
+    expect(local).toHaveTextContent("Local candidate · Not deployed");
+    expect(local).not.toHaveTextContent("Recorded deployment checkpoint");
+    for (const label of ["new transport remains inactive", "Toolkit V3.4 candidate", "12 synthetic training scenarios", "58 prerecorded clips", "preserving text simulation", "does not certify that service or remove existing public audio URLs"]) {
+      expect(local).toHaveTextContent(label);
+    }
+    expect(candidate).toHaveTextContent("not a live service-status check");
+    expect(candidate).toHaveTextContent("Still open: the complete order-to-contact cycle");
   });
 
   it("preserves all nine capability groups and the synthetic sandbox destination", () => {

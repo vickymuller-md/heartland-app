@@ -154,7 +154,7 @@ export function AutomationEvidence() {
           <h3 className="mt-3 text-2xl font-semibold text-cool">One answer, five visible handoffs.</h3>
           <p className="mt-4 max-w-3xl text-base leading-relaxed text-cool/80">
             Open each step to follow a fixed fictional example. This explanation does not run AI,
-            save a patient record or contact anyone. It is not the laboratory recovery candidate below.
+            save a patient record or contact anyone. The dated implementation states below are separate from this illustration.
           </p>
           <ol className="mt-8 space-y-3">
             {FLOW_STEPS.map((step) => (
@@ -179,7 +179,7 @@ export function AutomationEvidence() {
         <div className="mt-14">
           <p className="text-sm font-semibold text-signal">Published release · {APP_VERSION}</p>
           <h3 className="mt-3 text-2xl font-semibold text-cool">Choose what to explore.</h3>
-          <p className="mt-3 max-w-3xl text-base leading-relaxed text-cool/80">These capabilities belong to the published App baseline. Public interactions are synthetic; AI availability is bounded by capacity and safety controls.</p>
+          <p className="mt-3 max-w-3xl text-base leading-relaxed text-cool/80">These capabilities describe the archived App baseline, not a guarantee that every mode is currently enabled. Public interactions are synthetic; capacity and safety controls apply. See the separate audio hold and implementation states below.</p>
         </div>
         <div data-testid="published-capabilities" className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {CAPABILITIES.map((capability) => (
@@ -216,16 +216,29 @@ export function AutomationEvidence() {
           </Link>
         </div>
         <aside data-testid="local-candidate" aria-labelledby="lab-candidate-title" className="mt-10 rounded-3xl border-2 border-dashed border-cool/40 bg-terminal p-6 md:p-8">
-          <p className="text-sm font-semibold text-cool">Local candidate · Not deployed</p>
-          <h3 id="lab-candidate-title" className="mt-3 text-2xl font-semibold text-cool">Laboratory submission recovery</h3>
-          <p className="mt-4 max-w-3xl text-base leading-relaxed text-cool/80">Implemented and tested locally; not available in the public sandbox or hosted workspace. Hosted integration and coordinated rollout remain pending.</p>
-          <dl className="mt-6 grid gap-6 text-base leading-relaxed md:grid-cols-2">
-            <div><dt className="font-semibold text-cool">Keep the collection time</dt><dd className="mt-2 text-cool/80">Reports retain the recorded collection time. Patient-summary printouts label a missing classification “Not recorded”; CSV leaves it blank. Neither export assumes “Normal”.</dd></div>
-            <div><dt className="font-semibold text-cool">Separate save from evaluation</dt><dd className="mt-2 text-cool/80">A saved-result receipt and pending alert evaluation are distinct states. Retrying evaluation does not insert another exam.</dd></div>
-            <div><dt className="font-semibold text-cool">Return without resending</dt><dd className="mt-2 text-cool/80">A prepared submission can be checked after leaving the page. Recovery reads its saved receipt; it does not retransmit the exam or recreate unsaved values.</dd></div>
-            <div><dt className="font-semibold text-cool">Acknowledge or cancel explicitly</dt><dd className="mt-2 text-cool/80">Acknowledgment is not clinical review. Protected cancellation rejects a late submission; it does not erase a saved result.</dd></div>
-          </dl>
-          <p className="mt-6 border-t border-grid pt-5 text-base leading-relaxed text-cool/80">Earlier submissions without a prepared attempt still need their exact known identifier. Revised English/Spanish scripts are also local; matching audio review is pending.</p>
+          <p className="text-sm font-semibold text-cool">Implementation status · Reviewed 24 September 2026</p>
+          <h3 id="lab-candidate-title" className="mt-3 text-2xl font-semibold text-cool">What is recorded, what is local, what is still open.</h3>
+          <p className="mt-4 max-w-3xl text-base leading-relaxed text-cool/80">An archive, a deployment record and a local candidate are different kinds of evidence. This dated summary is not a live service-status check or authorization for patient care.</p>
+          <div data-testid="recorded-checkpoint" className="mt-6 rounded-2xl border border-grid bg-panel p-5">
+            <p className="text-sm font-semibold text-signal">Recorded deployment checkpoint · 19 September 2026</p>
+            <h4 className="mt-3 text-xl font-semibold text-cool">Laboratory submission recovery</h4>
+            <dl className="mt-4 grid gap-5 text-base leading-relaxed md:grid-cols-2">
+              <div><dt className="font-semibold text-cool">Collection and reports</dt><dd className="mt-2 text-cool/80">The controlled workspace keeps collection time. Patient-summary printouts label a missing classification “Not recorded”; CSV leaves it blank. Neither export assumes “Normal”.</dd></div>
+              <div><dt className="font-semibold text-cool">Save, evaluate, then recover</dt><dd className="mt-2 text-cool/80">A saved result and pending evaluation are distinct. A prepared attempt supports recovery without resending the exam. Acknowledgment is not clinical review; cancellation does not erase a saved result.</dd></div>
+            </dl>
+            <p className="mt-4 text-base leading-relaxed text-cool/80">These are registered-workspace controls, not a public exam-submission service. Earlier submissions without a prepared attempt need their exact known identifier. This checkpoint does not create a new software archive.</p>
+          </div>
+          <div data-testid="unreleased-work" className="mt-6 rounded-2xl border border-dashed border-cool/40 p-5">
+            <p className="text-sm font-semibold text-[#b4372d]">Local candidate · Not deployed</p>
+            <h4 className="mt-3 text-xl font-semibold text-cool">Recovery, ownership and visible pending work</h4>
+            <dl className="mt-4 grid gap-5 text-base leading-relaxed md:grid-cols-2">
+              <div><dt className="font-semibold text-cool">Recover the saved observation</dt><dd className="mt-2 text-cool/80">Local tests cover individual and batch vital/symptom submissions, evaluation recovery and periodic-scan receipts. A retry must not duplicate an observation or hide a pending evaluation.</dd></div>
+              <div><dt className="font-semibold text-cool">Show who can act</dt><dd className="mt-2 text-cool/80">Organization-scoped owner selection, recoverable reassignment requests and restricted exception views make unresolved work visible. A captured notification intent is not a sent message; the new transport remains inactive.</dd></div>
+              <div><dt className="font-semibold text-cool">Rehearse without the App</dt><dd className="mt-2 text-cool/80">Toolkit V3.4 candidate work includes offline readiness worksheets, handoff/contact logs and 12 synthetic training scenarios. Prepared material is not evidence of completed training or clinical adoption.</dd></div>
+              <div><dt className="font-semibold text-cool">Keep unverified audio on hold</dt><dd className="mt-2 text-cool/80">58 prerecorded clips await source-to-sound and language review. The local candidate blocks their playback in three sandbox consumers while preserving text simulation. This hold is separate from optional live voice; it does not certify that service or remove existing public audio URLs.</dd></div>
+            </dl>
+          </div>
+          <p className="mt-6 border-t border-grid pt-5 text-base leading-relaxed text-cool/80">Still open: the complete order-to-contact cycle, durable notification delivery and human contingency, authenticated integration tests, competent clinical/language approvals and coordinated release. No completed clinical cycle, new public release or validated outcome is announced here.</p>
         </aside>
       </div>
     </section>
