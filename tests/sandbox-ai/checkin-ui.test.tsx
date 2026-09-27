@@ -7,6 +7,8 @@ import { SandboxPatientView } from '@/app/(sandbox)/sandbox/_components/sandbox-
 import { trackProductEvent } from '@/lib/product-analytics/actions';
 import { createInitialState, finalizeCheckIn } from '@/lib/sandbox-ai/engine';
 import type { CallLocale, CheckInTurnResponse } from '@/lib/sandbox-ai/types';
+import { callPromptsFor } from '@/lib/sandbox-ai/call-prompts';
+import { staticAudioPlaybackPolicy } from '@/lib/sandbox-ai/static-audio-policy';
 
 vi.mock('@/lib/product-analytics/actions', () => ({
   trackProductEvent: vi.fn().mockResolvedValue(undefined),
@@ -80,6 +82,79 @@ const COMPLETE_STABLE_ANSWERS = {
   'Energy vs normal': '0',
   'All medicines taken': 'yes',
 };
+
+describe('SandboxAiCheckIn — static audio quarantine', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it.each(['en', 'es'] as const)('explains the %s pause and blocks fixed clips even after voice opt-in without replacement synthesis', async (locale) => {
+    const prompts = callPromptsFor('daily_checkin', locale);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({
+        state: createInitialState(james.id, 'daily_checkin', locale),
+        assistantMessages: [prompts.q1_safety.text],
+        speech: [{ kind: 'clip', clipId: 'q1_safety' }],
+        done: false, disposition: null, redFlags: [],
+      }),
+    }));
+    render(<SandboxAiCheckIn patient={james} onComplete={vi.fn()} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByTestId(`checkin-locale-${locale}`));
+    expect(staticAudioPlaybackPolicy(locale).canPlay).toBe(false);
+    expect(screen.getByTestId('checkin-static-audio-notice')).toHaveTextContent(staticAudioPlaybackPolicy(locale).message);
+    expect(screen.getByTestId('checkin-static-audio-notice')).toHaveAttribute('lang', locale);
+    expect(screen.getByTestId('checkin-voice-toggle')).toHaveAttribute('aria-pressed', 'false');
+    expect(fetch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('checkin-voice-toggle'));
+    expect(screen.getByTestId('checkin-voice-toggle')).toHaveAttribute('aria-pressed', 'true');
+    await act(async () => { sendAnswer(); });
+    expect(screen.getByRole('log')).toHaveTextContent(prompts.q1_safety.text);
+    expect(screen.getByTestId('checkin-audio')).not.toHaveAttribute('src');
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe('/api/sandbox-ai/checkin');
+    expect(JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string).wantSpeech).toBe(true);
+  });
+
+  it.each([false, true])('keeps runtime audio controlled by the existing voice opt-in (%s)', async (voiceOn) => {
+    const turn = completedTurn();
+    const onComplete = vi.fn();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({
+        ...turn,
+        speech: [{ kind: 'audio', mp3Base64: 'QUJD' }, { kind: 'clip', clipId: 'routine' }],
+      }),
+    }));
+    render(<SandboxAiCheckIn patient={james} onComplete={onComplete} onClose={vi.fn()} />);
+    if (voiceOn) fireEvent.click(screen.getByTestId('checkin-voice-toggle'));
+    await act(async () => { sendAnswer(); });
+    const audio = screen.getByTestId('checkin-audio');
+    if (voiceOn) {
+      expect(audio).toHaveAttribute('src', 'data:audio/mpeg;base64,QUJD');
+      Object.defineProperty(audio, 'ended', { configurable: true, value: true });
+      fireEvent.ended(audio);
+    } else {
+      expect(audio).not.toHaveAttribute('src');
+    }
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(voiceOn ? 1 : 0);
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('sandbox-ai-result')).toHaveTextContent('Routine');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string).wantSpeech).toBe(voiceOn);
+  });
+
+  it('keeps fallback completion available while audio is paused and voice is opted in', async () => {
+    const onComplete = vi.fn();
+    render(<SandboxAiCheckIn patient={james} onComplete={onComplete} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByTestId('checkin-voice-toggle'));
+    await reachFallbackForm();
+    submitForm({ ...COMPLETE_STABLE_ANSWERS, 'Weight this morning': '188' });
+    expect(screen.getByTestId('sandbox-ai-result')).toHaveTextContent('Routine');
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('checkin-static-audio-notice')).toBeInTheDocument();
+    expect(screen.getByTestId('checkin-audio')).not.toHaveAttribute('src');
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe('SandboxAiCheckIn — deterministic fallback form', () => {
   const onComplete = vi.fn();

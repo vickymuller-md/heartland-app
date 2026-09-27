@@ -7,6 +7,7 @@ import { getPublicDisseminationContext } from '@/lib/product-analytics/public-co
 import { callPromptsFor } from '@/lib/sandbox-ai/call-prompts';
 import { createInitialState, emptyExtraction, finalizeCheckIn } from '@/lib/sandbox-ai/engine';
 import { emergencyMessageFor, fallbackNoticeFor, introMessagesFor } from '@/lib/sandbox-ai/script';
+import { staticAudioPlaybackPolicy } from '@/lib/sandbox-ai/static-audio-policy';
 import type { CallLocale, CheckInDisposition, CheckInExtraction, CheckInState, CheckInTurnResponse } from '@/lib/sandbox-ai/types';
 import type { SandboxPatient } from '@/lib/sandbox/types';
 import type { RedFlag, SymptomSeverity } from '@/lib/vitals/types';
@@ -49,6 +50,7 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
   onClose: () => void;
 }) {
   const [locale, setLocale] = useState<CallLocale>('en');
+  const staticAudio = staticAudioPlaybackPolicy(locale);
   const [messages, setMessages] = useState<ChatMessage[]>(
     introMessagesFor('en').map((text) => ({ role: 'assistant', text })),
   );
@@ -180,7 +182,7 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
         for (const item of turn.speech ?? []) {
           if (item?.kind === 'clip') {
             const clip = prompts[item.clipId];
-            if (clip) enqueue(clip.audioSrc);
+            if (clip && staticAudio.canPlay) enqueue(clip.audioSrc);
           } else if (item?.kind === 'audio') {
             enqueue(`data:audio/mpeg;base64,${item.mp3Base64}`);
           }
@@ -308,6 +310,12 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
           <button type="button" onClick={closeCheckIn} aria-label="Close check-in" className="flex size-11 items-center justify-center rounded-full text-blue-900 hover:bg-blue-100"><X className="size-4" /></button>
         </div>
       </div>
+
+      {!staticAudio.canPlay && (
+        <p className="m-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950" data-testid="checkin-static-audio-notice" lang={locale} role="status">
+          {staticAudio.message}
+        </p>
+      )}
 
       {needsTap && voiceOn && (
         <div className="px-3 pt-2">

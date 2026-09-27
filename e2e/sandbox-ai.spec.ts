@@ -5,6 +5,7 @@ import { OUTREACH_TRANSCRIPTS, SIMULATED_CALL_SCENARIOS } from '../lib/sandbox-a
 import { applyDeterministicAnswer, createInitialState, emptyExtraction } from '../lib/sandbox-ai/engine';
 import { scriptFor } from '../lib/sandbox-ai/call-scripts';
 import { callPromptsFor, fillerPromptsFor, QUICK_ANSWERS, quickAnswerLabel } from '../lib/sandbox-ai/call-prompts';
+import { staticAudioPlaybackPolicy } from '../lib/sandbox-ai/static-audio-policy';
 import type { CheckInExtraction, CheckInState, CheckInTurnResponse, ScriptId } from '../lib/sandbox-ai/types';
 
 async function assertAreaReflow(area: import('@playwright/test').Locator, width: number) {
@@ -231,14 +232,17 @@ test.describe('sandbox navigation shell', () => {
         await page.getByTestId('sandbox-nav-outreach').click();
         const area = page.getByTestId('sandbox-outreach');
         const card = page.getByTestId('outreach-call-call-maria-redflag');
-        const audio = page.getByTestId('outreach-audio-call-maria-redflag').locator('audio');
-        await expect(audio).toHaveAttribute('controls', '');
-        await expect(audio).toHaveAttribute('preload', 'none');
-        await expect(audio).toHaveAttribute('src', OUTREACH_TRANSCRIPTS.find((item) => item.id === 'call-maria-redflag')!.audioSrc!);
-        await audio.focus();
-        await expect(audio).toBeFocused();
-        await testInfo.attach('native-player', { body: await audio.locator('..').screenshot(), contentType: 'image/png' });
-        await card.getByRole('button', { name: 'View transcript', exact: true }).click();
+        const audioNotice = card.getByTestId('outreach-audio-paused-call-maria-redflag');
+        await expect(audioNotice).toHaveText(staticAudioPlaybackPolicy('en').message);
+        await expect(audioNotice).toHaveAttribute('lang', 'en');
+        await expect(area.locator('audio')).toHaveCount(0);
+        await testInfo.attach('static-audio-paused', { body: await audioNotice.screenshot(), contentType: 'image/png' });
+        const viewTranscript = card.getByRole('button', { name: 'View transcript', exact: true });
+        await viewTranscript.focus();
+        await expect(viewTranscript).toBeFocused();
+        await page.keyboard.press('Enter');
+        await expect(card.getByLabel('Transcript of the simulated call with Maria Santos')).toBeVisible();
+        await testInfo.attach('current-transcript-fallback', { body: await card.screenshot(), contentType: 'image/png' });
         await expect(card).toContainText('Structured data captured by the AI layer');
         await assertAreaReflow(area, width);
         await card.getByRole('button', { name: 'Draft SBAR handoff' }).click();
@@ -721,8 +725,9 @@ test('the simulated live call completes on the deterministic chip path', async (
 });
 
 test('pre-generated call audio is served to anonymous visitors, not redirected to login', async ({ request }) => {
-  // Regression guard: the session proxy must treat .mp3 under public/ as a
-  // static asset — a redirect here silently mutes every call and player.
+  // Historical files remain public intentionally; playback quarantine is a
+  // consumer policy, not deletion, access revocation, or clinical approval.
+  // The session proxy must still treat .mp3 under public/ as a static asset.
   for (const asset of ['/outreach-audio/prompts/daily_checkin/en/intro.mp3', '/outreach-audio/call-maria-redflag.mp3']) {
     const response = await request.get(asset, { maxRedirects: 0 });
     expect(response.status(), asset).toBe(200);
@@ -751,7 +756,7 @@ test('the titration follow-up call completes on chips and the registered gates d
   await expect(result).toContainText('registered titration safety gates, never by the AI');
 });
 
-test('the live call speaks Spanish end to end on the deterministic chip path', async ({ page }) => {
+test('the live call retains the Spanish transcript on the deterministic chip path', async ({ page }) => {
   await page.goto('/sandbox');
   await page.getByTestId('sandbox-nav-patient-view').click();
   await page.getByTestId('open-live-call').click();
@@ -1153,10 +1158,12 @@ test('outreach demonstrates simulated calls, transcripts, extraction, and the SB
   const maria = page.getByTestId('outreach-call-call-maria-redflag');
   await expect(maria).toContainText('Escalated to human review');
   await expect(maria).toContainText('Rule: weight_gain_5lb_7d');
-  await expect(page.getByTestId('outreach-audio-call-maria-redflag')).toContainText('no real call is placed');
+  await expect(page.getByTestId('outreach-audio-paused-call-maria-redflag')).toHaveText(staticAudioPlaybackPolicy('en').message);
+  await expect(page.getByTestId('sandbox-outreach').locator('audio')).toHaveCount(0);
   await expect(page.getByTestId('outreach-call-call-robert-noanswer')).toContainText('No answer · human follow-up');
 
   await maria.getByRole('button', { name: /View transcript/ }).click();
+  await expect(maria).toContainText('Synthetic demo: no real calls, notifications, appointments, or deliveries.');
   await expect(maria).toContainText('179 and a half');
   await expect(maria).toContainText('Structured data captured by the AI layer');
 
@@ -1360,7 +1367,9 @@ test.describe('conversation integrity', () => {
         state.ended = false;
         const serial = ++state.serial;
         probe.plays.push(state.src);
-        const final = /\/(routine|escalated|emergency)\.mp3$/.test(state.src) || state.src.endsWith(ending);
+        // Only the explicit runtime-data fixture exercises autoplay recovery;
+        // historical static clips must never reach play() under quarantine.
+        const final = state.src === `data:audio/mpeg;base64,${ending}`;
         if (final && probe.blockFinal > 0) {
           probe.blockFinal -= 1; probe.blocked += 1;
           return Promise.reject(new DOMException('Synthetic autoplay rejection', 'NotAllowedError'));
@@ -1388,14 +1397,16 @@ test.describe('conversation integrity', () => {
   });
 
   test.afterEach(async ({ page }) => {
-    expect((await conversationMedia(page)).recognitions, 'no microphone was enabled').toBe(0);
+    const media = await conversationMedia(page);
+    expect(media.recognitions, 'no microphone was enabled').toBe(0);
+    expect(media.plays.filter((src) => src.includes('/outreach-audio/')), 'historical recordings never play under quarantine').toEqual([]);
     expect(conversationPageErrors.get(page), 'conversation flow has no uncaught browser exception').toEqual([]);
   });
 
   for (const patientId of ['demo-maria', 'demo-james']) {
     for (const locale of ['en', 'es'] as const) {
       for (const scriptId of ['daily_checkin', 'titration_followup'] as const) {
-        test(`live ${patientId} ${scriptId} ${locale}: current rules, filler and recoverable closing audio`, async ({ page }) => {
+        test(`live ${patientId} ${scriptId} ${locale}: current rules, text filler and quarantined static audio`, async ({ page }) => {
           await page.route('**/api/sandbox-ai/checkin', async (route) => {
             const body = route.request().postDataJSON() as { state: CheckInState; wantSpeech: boolean };
             expect(body.state).toMatchObject({ patientId, scriptId, locale });
@@ -1405,6 +1416,9 @@ test.describe('conversation integrity', () => {
           });
           const area = await openConversation(page, patientId, 'live-call', scriptId);
           await area.getByTestId(`call-locale-${locale}`).click();
+          const audioNotice = area.getByTestId('live-call-static-audio-notice');
+          await expect(audioNotice).toHaveText(staticAudioPlaybackPolicy(locale).message);
+          await expect(audioNotice).toHaveAttribute('lang', locale);
           await area.getByTestId('answer-call').click();
           const input = area.getByLabel('Say something in your own words');
           await input.fill('Synthetic answer to the first safety question.');
@@ -1412,16 +1426,21 @@ test.describe('conversation integrity', () => {
           const first = conversationTurn(createInitialState(patientId, scriptId, locale));
           await expect(area.getByRole('log')).toHaveAttribute('lang', `${locale}-US`);
           await expect(area.getByRole('log')).toContainText(callPromptsFor(scriptId, locale)[first.state.phase].text);
-          await expect.poll(async () => (await conversationMedia(page)).plays.some((src) => fillerPromptsFor(locale).some((filler) => filler.audioSrc === src))).toBe(true);
+          const transcript = (await area.getByRole('log').textContent()) ?? '';
+          expect(fillerPromptsFor(locale).some((filler) => transcript.includes(filler.text)), 'current filler remains available as text').toBe(true);
           const finished = await finishStructuredCall(area, first.state);
           const receipt = area.getByTestId('live-call-decision-receipt');
           await expect(receipt).toContainText(`· ${finished.disposition}`);
           for (const flag of finished.redFlags) await expect(receipt).toContainText(flag.id);
           await expect(receipt).toContainText('Typed answer + Quick answer / structured entry');
-          await resumeBlockedEnding(page, area);
+          await expect(area.getByRole('button', { name: 'Play assistant audio', exact: true })).toHaveCount(0);
+          expect((await conversationMedia(page)).plays).toEqual([]);
+          expect((await conversationMedia(page)).blocked).toBe(0);
           const key = `${patientId}-${scriptId === 'daily_checkin' ? 'call' : 'titration-call'}`;
-          const completed = await page.evaluate(() => JSON.parse(localStorage.getItem('heartland_synthetic_sandbox_v2')!).patientCheckIns as string[]);
-          expect(completed.filter((entry) => entry === key)).toHaveLength(1);
+          await expect.poll(() => page.evaluate((completedKey) => {
+            const raw = localStorage.getItem('heartland_synthetic_sandbox_v2');
+            return raw ? JSON.parse(raw).patientCheckIns.filter((entry: string) => entry === completedKey).length : 0;
+          }, key)).toBe(1);
           await area.getByRole('button', { name: 'End simulated call' }).click();
           await expect(area).toHaveCount(0);
           expect(await page.evaluate((entry) => JSON.parse(localStorage.getItem('heartland_synthetic_sandbox_v2')!).patientCheckIns.includes(entry), key)).toBe(true);
@@ -1440,6 +1459,8 @@ test.describe('conversation integrity', () => {
         });
         const area = await openConversation(page, patientId, 'checkin');
         await area.getByTestId(`checkin-locale-${locale}`).click();
+        await expect(area.getByTestId('checkin-static-audio-notice')).toHaveText(staticAudioPlaybackPolicy(locale).message);
+        await expect(area.getByTestId('checkin-static-audio-notice')).toHaveAttribute('lang', locale);
         await area.getByRole('button', { name: 'Turn assistant voice on' }).click();
         let state = createInitialState(patientId, 'daily_checkin', locale);
         while (state.phase !== 'complete') {
@@ -1547,7 +1568,9 @@ test.describe('conversation integrity', () => {
           await expect(input).toHaveCount(0);
           await finishStructuredCall(area, createInitialState('demo-james'));
           await expect(area.getByTestId('live-call-result')).toContainText('Routine');
-          await resumeBlockedEnding(page, area);
+          await expect(area.getByTestId('live-call-static-audio-notice')).toHaveText(staticAudioPlaybackPolicy('en').message);
+          await expect(area.getByRole('button', { name: 'Play assistant audio', exact: true })).toHaveCount(0);
+          expect((await conversationMedia(page)).plays).toEqual([]);
         } else {
           await expect(area.getByTestId('sandbox-ai-form')).toBeVisible();
           await fillRequiredFallbackAnswers(page);

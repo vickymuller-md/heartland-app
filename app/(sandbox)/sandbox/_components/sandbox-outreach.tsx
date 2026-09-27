@@ -7,6 +7,7 @@ import { getPublicDisseminationContext } from '@/lib/product-analytics/public-co
 import { requestAssist } from '@/lib/sandbox-ai/assist-client';
 import { OUTREACH_TRANSCRIPTS, type SimulatedCallTranscript } from '@/lib/sandbox-ai/fixtures';
 import { draftSbarFromCheckIn } from '@/lib/sandbox-ai/sbar';
+import { staticAudioPlaybackPolicy } from '@/lib/sandbox-ai/static-audio-policy';
 import type { CheckInExtraction } from '@/lib/sandbox-ai/types';
 import { SANDBOX_PATIENTS } from '@/lib/sandbox/fixtures';
 import type { AiOutreachRun, SandboxPatient } from '@/lib/sandbox/types';
@@ -214,6 +215,7 @@ function SbarDraft({ patient, extraction }: { patient: SandboxPatient; extractio
 function CallCard({ transcript }: { transcript: SimulatedCallTranscript }) {
   const [expanded, setExpanded] = useState(false);
   const [showSbar, setShowSbar] = useState(false);
+  const staticAudio = staticAudioPlaybackPolicy();
   const patient = transcript.patientId
     ? SANDBOX_PATIENTS.find((entry) => entry.id === transcript.patientId) ?? null
     : null;
@@ -237,7 +239,12 @@ function CallCard({ transcript }: { transcript: SimulatedCallTranscript }) {
       )}
       {transcript.note && <p className="mt-3 rounded-lg bg-slate-50 p-3 text-xs leading-5 text-slate-700">{transcript.note}</p>}
 
-      {transcript.audioSrc && (
+      {transcript.audioSrc && !staticAudio.canPlay && (
+        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950" data-testid={`outreach-audio-paused-${transcript.id}`} lang="en">
+          {staticAudio.message}
+        </p>
+      )}
+      {transcript.audioSrc && staticAudio.canPlay && (
         <div className="mt-3 rounded-lg bg-slate-50 p-3" data-testid={`outreach-audio-${transcript.id}`}>
           <audio
             controls

@@ -9,6 +9,23 @@ import { callPromptsFor, fillerPromptsFor } from '@/lib/sandbox-ai/call-prompts'
 import { applyDeterministicAnswer, createInitialState } from '@/lib/sandbox-ai/engine';
 import type { CheckInTurnResponse } from '@/lib/sandbox-ai/types';
 import { useAssistantAudioQueue } from '@/app/(sandbox)/sandbox/_components/use-assistant-audio-queue';
+import { staticAudioPlaybackPolicy } from '@/lib/sandbox-ai/static-audio-policy';
+
+// Only the pre-existing media lifecycle groups opt into an approved-audio
+// fixture. All other tests, including quarantine integration, use real policy.
+const audioPolicyFixture = vi.hoisted(() => ({ approved: false }));
+vi.mock('@/lib/sandbox-ai/static-audio-policy', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/sandbox-ai/static-audio-policy')>();
+  return {
+    ...actual,
+    staticAudioPlaybackPolicy: (locale: 'en' | 'es' = 'en') => {
+      const policy = actual.staticAudioPlaybackPolicy(locale);
+      return audioPolicyFixture.approved ? { ...policy, canPlay: true } : policy;
+    },
+  };
+});
+
+beforeEach(() => { audioPolicyFixture.approved = false; });
 
 vi.mock('@/lib/product-analytics/actions', () => ({
   trackProductEvent: vi.fn().mockResolvedValue(undefined),
@@ -140,6 +157,7 @@ describe('SandboxLiveCall — conversation integrity regressions', () => {
   const onClose = vi.fn();
 
   beforeEach(() => {
+    audioPolicyFixture.approved = true;
     vi.clearAllMocks();
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
     vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
@@ -536,6 +554,7 @@ describe('SandboxLiveCall — hands-free voice mode', () => {
   const onClose = vi.fn();
 
   beforeEach(() => {
+    audioPolicyFixture.approved = true;
     vi.clearAllMocks();
     FakeSpeechRecognition.instances = [];
     vi.stubGlobal('SpeechRecognition', FakeSpeechRecognition);
@@ -658,6 +677,7 @@ describe('SandboxLiveCall — locales and scripts (deterministic paths)', () => 
   const onClose = vi.fn();
 
   beforeEach(() => {
+    audioPolicyFixture.approved = true;
     vi.clearAllMocks();
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
   });
@@ -755,6 +775,135 @@ describe('SandboxLiveCall — locales and scripts (deterministic paths)', () => 
 
     await act(async () => { releaseSpeech?.(); });
     await waitFor(() => expect(input).not.toBeDisabled());
+  });
+});
+
+describe('SandboxLiveCall — static audio quarantine', () => {
+  const onComplete = vi.fn();
+  const onClose = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    FakeSpeechRecognition.instances = [];
+    vi.stubGlobal('SpeechRecognition', FakeSpeechRecognition);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ fallback: true }), {
+      headers: { 'Content-Type': 'application/json' },
+    })));
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
+    vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined);
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    ['daily_checkin', 'en'], ['daily_checkin', 'es'],
+    ['titration_followup', 'en'], ['titration_followup', 'es'],
+  ] as const)('keeps %s/%s prompts and emergency text usable without static playback or replacement synthesis', (scriptId, locale) => {
+    expect(staticAudioPlaybackPolicy(locale).canPlay).toBe(false);
+    render(<SandboxLiveCall patient={maria} scriptId={scriptId} onComplete={onComplete} onClose={onClose} />);
+    fireEvent.click(screen.getByTestId(`call-locale-${locale}`));
+    expect(screen.getByTestId('live-call-static-audio-notice')).toHaveTextContent(staticAudioPlaybackPolicy(locale).message);
+    expect(screen.getByTestId('live-call-static-audio-notice')).toHaveAttribute('lang', locale);
+    fireEvent.click(screen.getByTestId('answer-call'));
+    expect(screen.getByRole('log')).toHaveTextContent(callPromptsFor(scriptId, locale).intro.text);
+    chip(locale === 'es' ? 'Sí — dolor de pecho o desmayo' : 'Yes — chest pain or fainting');
+    expect(screen.getByTestId('live-call-result')).toHaveTextContent('Emergency pathway demonstrated');
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(audioElement()).not.toHaveAttribute('src');
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(FakeSpeechRecognition.instances).toHaveLength(0);
+  });
+
+  it.each(['en', 'es'] as const)('keeps the %s filler as text and falls back without any extra synthesis request', async (locale) => {
+    render(<SandboxLiveCall patient={maria} onComplete={onComplete} onClose={onClose} />);
+    fireEvent.click(screen.getByTestId(`call-locale-${locale}`));
+    fireEvent.click(screen.getByTestId('answer-call'));
+    await act(async () => { typeAnswer(); });
+    expect(screen.getByRole('log')).toHaveTextContent(fillerPromptsFor(locale)[0].text);
+    expect(screen.queryByLabelText('Say something in your own words')).not.toBeInTheDocument();
+    chip(locale === 'es' ? 'No, nada de eso' : 'No, nothing like that');
+    expect(screen.getByRole('log')).toHaveTextContent(callPromptsFor('daily_checkin', locale).q2_weight.text);
+    expect(audioElement()).not.toHaveAttribute('src');
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe('/api/sandbox-ai/checkin');
+  });
+
+  it.each(['en', 'es'] as const)('keeps %s microphone input opt-in when static audio is paused', (locale) => {
+    render(<SandboxLiveCall patient={maria} onComplete={onComplete} onClose={onClose} />);
+    fireEvent.click(screen.getByTestId(`call-locale-${locale}`));
+    expect(FakeSpeechRecognition.instances).toHaveLength(0);
+    enableMicrophone();
+    expect(FakeSpeechRecognition.instances).toHaveLength(0);
+    fireEvent.click(screen.getByTestId('answer-call'));
+    expect(latestRecognition().started).toBe(true);
+    expect(latestRecognition().lang).toBe(locale === 'es' ? 'es-US' : 'en-US');
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'End simulated call' }));
+    expect(latestRecognition().started).toBe(false);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves existing runtime speech while blocking a static clip in the same response', async () => {
+    const turn = applyDeterministicAnswer(createInitialState(maria.id), { chestPainOrSyncope: false });
+    vi.mocked(fetch).mockResolvedValue(jsonTurn({
+      ...turn,
+      assistantMessages: ['A synthetic dynamic reply.', callPromptsFor('daily_checkin', 'en').q2_weight.text],
+      speech: [{ kind: 'audio', mp3Base64: 'QUJD' }, { kind: 'clip', clipId: 'q2_weight' }],
+    }));
+    render(<SandboxLiveCall patient={maria} onComplete={onComplete} onClose={onClose} />);
+    fireEvent.click(screen.getByTestId('answer-call'));
+    await act(async () => { typeAnswer(); });
+    expect(audioElement().getAttribute('src')).toBe('data:audio/mpeg;base64,QUJD');
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1);
+    finishAudio(audioElement());
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('log')).toHaveTextContent('A synthetic dynamic reply.');
+    expect(screen.getByRole('log')).toHaveTextContent(callPromptsFor('daily_checkin', 'en').q2_weight.text);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks fixed clips resolved by the second NDJSON phase while retaining pending text', async () => {
+    const encoder = new TextEncoder();
+    const pending = deferred<ReadableStreamReadResult<Uint8Array>>();
+    const turn = applyDeterministicAnswer(createInitialState(maria.id), { chestPainOrSyncope: false });
+    const prompt = callPromptsFor('daily_checkin', 'en').q2_weight;
+    const reader = {
+      read: vi.fn()
+        .mockResolvedValueOnce({ done: false, value: encoder.encode(`${JSON.stringify({
+          ...turn, assistantMessages: [prompt.text], speech: [{ kind: 'pending' }],
+        })}\n`) })
+        .mockImplementationOnce(() => pending.promise)
+        .mockResolvedValue({ done: true, value: undefined }),
+      cancel: vi.fn().mockResolvedValue(undefined),
+      releaseLock: vi.fn(),
+    };
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true, status: 200, headers: new Headers({ 'content-type': 'application/x-ndjson' }),
+      body: { getReader: () => reader },
+    } as unknown as Response);
+    render(<SandboxLiveCall patient={maria} onComplete={onComplete} onClose={onClose} />);
+    fireEvent.click(screen.getByTestId('answer-call'));
+    await act(async () => { typeAnswer(); });
+    expect(screen.getByRole('log')).toHaveTextContent(prompt.text);
+    expect(screen.getByTestId('live-call-voice-status')).toHaveTextContent('Microphone off');
+    expect(audioElement()).not.toHaveAttribute('src');
+    await act(async () => {
+      pending.resolve({ done: false, value: encoder.encode(`${JSON.stringify({ speech: [{ kind: 'clip', clipId: 'q2_weight' }] })}\n`) });
+    });
+    expect(audioElement()).not.toHaveAttribute('src');
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+    expect(screen.getByRole('log')).toHaveTextContent(prompt.text);
+    expect(screen.getByLabelText('Weight (lbs)')).toBeEnabled();
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });
 

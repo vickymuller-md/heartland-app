@@ -4,6 +4,21 @@ import { OUTREACH_TRANSCRIPTS, type SimulatedCallTranscript } from '@/lib/sandbo
 import { SandboxOutreach } from '@/app/(sandbox)/sandbox/_components/sandbox-outreach';
 import { trackProductEvent } from '@/lib/product-analytics/actions';
 import { emptyExtraction } from '@/lib/sandbox-ai/engine';
+import { staticAudioPlaybackPolicy } from '@/lib/sandbox-ai/static-audio-policy';
+
+// Retain the historical player test as an explicit approved-audio fixture;
+// quarantine integration below delegates to the real default policy.
+const audioPolicyFixture = vi.hoisted(() => ({ approved: false }));
+vi.mock('@/lib/sandbox-ai/static-audio-policy', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/sandbox-ai/static-audio-policy')>();
+  return {
+    ...actual,
+    staticAudioPlaybackPolicy: (locale: 'en' | 'es' = 'en') => {
+      const policy = actual.staticAudioPlaybackPolicy(locale);
+      return audioPolicyFixture.approved ? { ...policy, canPlay: true } : policy;
+    },
+  };
+});
 
 vi.mock('@/lib/product-analytics/actions', () => ({
   trackProductEvent: vi.fn().mockResolvedValue(undefined),
@@ -28,6 +43,7 @@ describe('SandboxOutreach', () => {
   const onLiveCall = vi.fn();
 
   beforeEach(() => {
+    audioPolicyFixture.approved = false;
     vi.clearAllMocks();
   });
 
@@ -55,7 +71,8 @@ describe('SandboxOutreach', () => {
     expect(within(robert).getByText('No answer · human follow-up')).toBeInTheDocument();
   });
 
-  it('offers pre-generated synthetic audio on scripted calls, labeled as simulation', () => {
+  it('offers synthetic audio only under an explicit approved-audio policy fixture', () => {
+    audioPolicyFixture.approved = true;
     render(<SandboxOutreach liveCalls={[LIVE_TRANSCRIPT]} runs={[]} onLiveCall={onLiveCall} />);
 
     const audioBlock = screen.getByTestId('outreach-audio-call-maria-redflag');
@@ -63,6 +80,22 @@ describe('SandboxOutreach', () => {
     expect(audioBlock.textContent).toContain('no real call is placed');
     // Live simulations are text-only: no audio block is rendered for them.
     expect(screen.queryByTestId(`outreach-audio-${LIVE_TRANSCRIPT.id}`)).toBeNull();
+  });
+
+  it('static audio quarantine removes every historical player, explains the pause and keeps transcripts without synthesis', () => {
+    vi.stubGlobal('fetch', vi.fn());
+    expect(staticAudioPlaybackPolicy().canPlay).toBe(false);
+    const { container } = render(<SandboxOutreach liveCalls={[LIVE_TRANSCRIPT]} runs={[]} onLiveCall={onLiveCall} />);
+    expect(container.querySelectorAll('audio')).toHaveLength(0);
+    for (const transcript of OUTREACH_TRANSCRIPTS) {
+      const card = within(screen.getByTestId(`outreach-call-${transcript.id}`));
+      expect(card.getByTestId(`outreach-audio-paused-${transcript.id}`)).toHaveTextContent(staticAudioPlaybackPolicy().message);
+      expect(card.queryByTestId(`outreach-audio-${transcript.id}`)).not.toBeInTheDocument();
+      fireEvent.click(card.getByRole('button', { name: /View transcript/ }));
+      expect(card.getByLabelText(`Transcript of the simulated call with ${transcript.patientName}`)).toHaveTextContent(transcript.turns[0].text);
+    }
+    expect(screen.queryByTestId(`outreach-audio-paused-${LIVE_TRANSCRIPT.id}`)).not.toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('expands a transcript to show the turns and the structured extraction', () => {

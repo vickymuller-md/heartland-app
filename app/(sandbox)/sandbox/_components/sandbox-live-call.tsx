@@ -6,6 +6,7 @@ import { trackProductEvent, type ProductEventInput } from '@/lib/product-analyti
 import { getPublicDisseminationContext } from '@/lib/product-analytics/public-context';
 import { callPromptsFor, fillerPromptsFor, quickAnswerLabel, QUICK_ANSWERS } from '@/lib/sandbox-ai/call-prompts';
 import { applyDeterministicAnswer, createInitialState } from '@/lib/sandbox-ai/engine';
+import { staticAudioPlaybackPolicy } from '@/lib/sandbox-ai/static-audio-policy';
 import type { CallLocale, CheckInDisposition, CheckInExtraction, CheckInState, CheckInTurnResponse, ScriptId, ScriptQuestionId, SpeechItem } from '@/lib/sandbox-ai/types';
 import type { SandboxPatient } from '@/lib/sandbox/types';
 import type { RedFlag } from '@/lib/vitals/types';
@@ -202,6 +203,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
   }
 
   const prompts = callPromptsFor(scriptId, locale);
+  const staticAudio = staticAudioPlaybackPolicy(locale);
   const copy = SCRIPT_COPY[scriptId];
 
   useEffect(() => {
@@ -219,11 +221,11 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
     setLines((current) => [...current, { speaker, text }]);
   }
 
-  /** Transcript line + pre-generated clip for one fixed spoken prompt. */
+  /** Always show current text; fixed recordings require the playback policy. */
   function enqueueClip(promptId: string, textOverride?: string) {
     const clip = prompts[promptId];
     addLine('assistant', textOverride ?? clip?.text ?? '');
-    if (clip) enqueueAudio(clip.audioSrc);
+    if (clip && staticAudio.canPlay) enqueueAudio(clip.audioSrc);
   }
 
   function chooseLocale(next: CallLocale) {
@@ -456,12 +458,12 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
     recordAnswerMode(source === 'voice' ? 'Voice answer' : 'Typed answer');
     setBusy(true);
     addLine('you', message);
-    // Conversational filler covers the model+synthesis latency (clip audio 1:1).
+    // Current filler text remains available while historical recordings pause.
     const fillers = fillerPromptsFor(locale);
     const filler = fillers[Math.floor(Math.random() * fillers.length)];
     if (filler) {
       addLine('assistant', filler.text);
-      enqueueAudio(filler.audioSrc);
+      if (staticAudio.canPlay) enqueueAudio(filler.audioSrc);
     }
     const previousPhase = callState.phase;
     try {
@@ -662,6 +664,11 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
     <section ref={panelRef} tabIndex={-1} className="min-w-0 rounded-xl border border-emerald-200 bg-white [overflow-wrap:anywhere] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 [&_button]:h-auto [&_button]:min-h-11 [&_button]:min-w-11 [&_button]:max-w-full [&_button]:whitespace-normal" data-testid="sandbox-live-call" aria-label="Simulated incoming call">
       {/* Hidden element that plays the assistant's clips and synthesized lines. */}
       <audio ref={audioRef} data-testid="live-call-audio" />
+      {!staticAudio.canPlay && (
+        <p className="m-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950" data-testid="live-call-static-audio-notice" lang={locale} role="status">
+          {staticAudio.message}
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-t-xl bg-emerald-50 px-3 py-2">
         <p className="min-w-0 text-xs font-bold text-emerald-950">
@@ -689,7 +696,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
           <span className="mx-auto flex size-14 animate-pulse items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><Phone className="size-6" /></span>
           <p className="text-sm font-bold text-slate-950">{copy.calling}</p>
           <p className="text-xs leading-5 text-slate-600">
-            {copy.note} The assistant speaks out loud
+            {copy.note} Follow the transcript
             {voiceSupported ? ' — answer by talking, typing, or tapping' : ''}; preset clinical rules decide the outcome.
           </p>
           {voiceSupported && (
@@ -738,7 +745,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
               <p key={index} className={line.speaker === 'assistant'
                 ? 'mr-6 rounded-lg rounded-bl-none bg-slate-100 p-2.5 text-xs leading-5 text-slate-900'
                 : 'ml-6 rounded-lg rounded-br-none bg-emerald-600 p-2.5 text-xs leading-5 text-white'}>
-                <span className="block text-[0.625rem] font-semibold uppercase tracking-wide opacity-70">{line.speaker === 'assistant' ? 'Assistant (voice)' : 'You'}</span>
+                <span className="block text-[0.625rem] font-semibold uppercase tracking-wide opacity-70">{line.speaker === 'assistant' ? 'Assistant' : 'You'}</span>
                 {line.text}
               </p>
             ))}
