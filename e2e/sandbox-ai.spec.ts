@@ -1537,7 +1537,11 @@ test.describe('conversation integrity', () => {
         // cancellation must keep it out of the new consumer and parent state.
         await held!.fulfill({ json: { ...oldTurn, speech: [{ kind: 'audio', mp3Base64: ENDING_AUDIO }] } });
         await expect(next.getByTestId(surface === 'live-call' ? 'live-call-result' : 'sandbox-ai-result')).toHaveCount(0);
-        expect(await page.evaluate(() => JSON.parse(localStorage.getItem('heartland_synthetic_sandbox_v2')!).patientCheckIns)).toEqual([]);
+        // Wait for the persistence effect; absence is not evidence of an empty history.
+        await expect.poll(() => page.evaluate(() => {
+          const stored = localStorage.getItem('heartland_synthetic_sandbox_v2');
+          return stored ? JSON.parse(stored).patientCheckIns : null;
+        })).toEqual([]);
         expect((await conversationMedia(page)).plays.some((src) => src.endsWith(ENDING_AUDIO))).toBe(false);
         if (surface === 'live-call') await expect(next.getByTestId('answer-call')).toBeEnabled();
         else await expect(next.getByLabel('Type your check-in answer')).toBeEnabled();

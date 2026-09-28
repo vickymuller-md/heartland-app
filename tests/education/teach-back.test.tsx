@@ -90,7 +90,8 @@ describe('patient education self-assessment', () => {
     render(<TeachBackCard {...props} />);
     fireEvent.click(screen.getByRole('button', { name: /I've Read This/ }));
     expect(await screen.findByRole('alert')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Check Answer' })).toBeDisabled();
+    // Error visibility can precede the transition's final pending=false render.
+    expect(await screen.findByRole('button', { name: 'Check Answer' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Reload current progress' })).toBeInTheDocument();
     expect(submit).not.toHaveBeenCalled();
   });
