@@ -404,8 +404,8 @@ export async function resolveAlert(
 
 /**
  * Mute a specific alert type for a patient (ALRT-07).
- * Provider will not receive new alerts of this type for this patient.
- * Uses UPSERT to handle re-muting idempotently.
+ * Source evaluation remains active; only this recipient's notification preference
+ * changes. The RPC serializes even a first mute with a notification start.
  */
 export async function muteAlertType(
   patientId: string,
@@ -422,17 +422,9 @@ export async function muteAlertType(
     return { success: false, error: 'This alert type cannot be muted for patient safety.' };
   }
 
-  const { error } = await auth.supabase
-    .from('alert_preferences')
-    .upsert(
-      {
-        provider_id: auth.user.id,
-        patient_id: patientId,
-        alert_type: alertType,
-        muted: true,
-      },
-      { onConflict: 'provider_id,patient_id,alert_type' }
-    );
+  const { error } = await auth.supabase.rpc('set_alert_notification_preference', {
+    p_patient_id: patientId, p_alert_type: alertType, p_muted: true,
+  });
 
   if (error) return { success: false, error: 'Unable to update alert preference' };
 
@@ -454,17 +446,9 @@ export async function unmuteAlertType(
   const auth = await authorizeProviderForPatient(patientId);
   if (!auth.authorized) return { success: false, error: auth.error };
 
-  const { error } = await auth.supabase
-    .from('alert_preferences')
-    .upsert(
-      {
-        provider_id: auth.user.id,
-        patient_id: patientId,
-        alert_type: alertType,
-        muted: false,
-      },
-      { onConflict: 'provider_id,patient_id,alert_type' }
-    );
+  const { error } = await auth.supabase.rpc('set_alert_notification_preference', {
+    p_patient_id: patientId, p_alert_type: alertType, p_muted: false,
+  });
 
   if (error) return { success: false, error: 'Unable to update alert preference' };
 

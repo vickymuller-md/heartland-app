@@ -65,6 +65,18 @@ describe('operational exceptions presentation', () => {
     expect(screen.getByRole('alert').textContent).toBe(EXCEPTION_LOAD_ERROR);
     expect(screen.queryByText(/No exceptions are visible/)).toBeNull();
   });
+  it('shows actual transport uncertainty and block reasons without send or retry controls', () => {
+    render(<ExceptionPanel snapshotId="transport" organizations={organizations} initial={success({ ...empty, items: [
+      { ...item, key: 'notification:accepted', category: 'notification', state: 'accepted', reasons: ['critical_created', 'transport_accepted'] },
+      { ...item, key: 'notification:unknown', category: 'notification', state: 'unknown', reasons: ['critical_created', 'transport_unknown', 'dispatch_worker_lost_confirmation'] },
+      { ...item, key: 'notification:blocked', category: 'notification', state: 'blocked', reasons: ['critical_created', 'transport_blocked', 'dispatch_configuration'] },
+    ] })} />);
+    expect(screen.getByText('The service accepted the request; delivery and reading are not confirmed')).toBeTruthy();
+    expect(screen.getByText('The transport outcome is uncertain; automatic resend is blocked')).toBeTruthy();
+    expect(screen.getByText('Transport configuration requires technical review')).toBeTruthy();
+    expect(screen.queryByText(/Unsent intent only/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /retry|send|acknowledge|resolve/i })).toBeNull();
+  });
   it('does not turn an unavailable read into a zero count or empty success', () => {
     render(<ExceptionPanel snapshotId="snapshot-1" organizations={organizations} initial={{ data: null, error: EXCEPTION_LOAD_ERROR }} />);
     expect(screen.getByRole('alert').textContent).toContain('unavailable');

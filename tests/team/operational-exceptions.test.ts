@@ -67,6 +67,30 @@ describe('scoped operational exception reads', () => {
     rpc.mockResolvedValue({ data, error: null });
     expect((await getOperationalExceptions(client, { organizationId: org })).data).toEqual(data);
   });
+  it.each(['pending', 'sending', 'accepted', 'unknown'])('accepts persisted %s without implying delivery', async (state) => {
+    const data = { ...empty, items: [{ ...notification, state, reasons: ['critical_created', `transport_${state}`] }] };
+    rpc.mockResolvedValue({ data, error: null });
+    expect((await getOperationalExceptions(client, { organizationId: org })).data).toEqual(data);
+  });
+  it.each(Object.keys(EXCEPTION_REASONS).filter((key) => key.startsWith('dispatch_')))
+    ('preserves typed dispatch reason %s', async (code) => {
+      const state = code === 'dispatch_worker_lost_confirmation' ? 'unknown' : 'blocked';
+      const data = { ...empty, items: [{ ...notification, state, reasons: ['critical_created', `transport_${state}`, code] }] };
+      rpc.mockResolvedValue({ data, error: null });
+      expect((await getOperationalExceptions(client, { organizationId: org })).data).toEqual(data);
+    });
+  it.each([
+    { ...notification, state: 'accepted', reasons: ['critical_created', 'transport_unknown'] },
+    { ...notification, state: 'blocked', reasons: ['critical_created', 'transport_blocked'] },
+    { ...notification, state: 'accepted', reasons: ['critical_created', 'transport_accepted', 'dispatch_configuration'] },
+    { ...notification, state: 'unknown', reasons: ['critical_created', 'transport_unknown', 'dispatch_rejection'] },
+    { ...notification, state: 'unknown', reasons: ['critical_created', 'transport_unknown'], endpoint: 'private' },
+    { ...notification, category: 'ownership', reasons: ['transport_pending'] },
+    { ...notification, category: 'vitals', reasons: ['dispatch_authorization'] },
+  ])('fails closed for inconsistent transport projection %j', async (row) => {
+    rpc.mockResolvedValue({ data: { ...empty, items: [row] }, error: null });
+    expect((await getOperationalExceptions(client, { organizationId: org })).data).toBeNull();
+  });
   it.each([
     { ...notification, state: 'cancelled' }, { ...notification, state: 'sent' }, { ...notification, state: 'failed' },
     { ...notification, state: 'blocked' }, { ...notification, work_item_id: null }, { ...notification, key: 'ownership:unexpected' },

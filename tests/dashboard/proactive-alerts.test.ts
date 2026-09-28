@@ -36,7 +36,7 @@ vi.mock('@/lib/auth/authorization', () => ({
     authorized: true,
     user: { id: 'provider-1' },
     role: 'provider',
-    supabase: { from: () => ({ upsert: mockUpsert }) },
+    supabase: { rpc: mockUpsert },
   })),
   authorize: vi.fn(),
 }));
@@ -67,7 +67,7 @@ vi.mock('next/headers', () => ({
 }));
 
 // Import muteAlertType AFTER mocks are set up
-const { muteAlertType } = await import('@/lib/dashboard/actions');
+const { muteAlertType, unmuteAlertType } = await import('@/lib/dashboard/actions');
 
 // ==========================================================================
 // evaluateNoCheckin (ALRT-01)
@@ -331,6 +331,20 @@ describe('muteAlertType guard (SAFE-06)', () => {
   it('allows low_adherence (non-critical) through', async () => {
     const result = await muteAlertType('patient-1', 'low_adherence');
     expect(result.success).toBe(true);
+  });
+  it('uses the serialized RPC without caller-controlled provider identity', async () => {
+    await muteAlertType('patient-1', 'no_checkin');
+    expect(mockUpsert).toHaveBeenCalledWith('set_alert_notification_preference', {
+      p_patient_id: 'patient-1', p_alert_type: 'no_checkin', p_muted: true,
+    });
+    await unmuteAlertType('patient-1', 'no_checkin');
+    expect(mockUpsert).toHaveBeenLastCalledWith('set_alert_notification_preference', {
+      p_patient_id: 'patient-1', p_alert_type: 'no_checkin', p_muted: false,
+    });
+  });
+  it('reports persistence failure without exposing raw errors', async () => {
+    mockUpsert.mockResolvedValueOnce({ error: { message: 'PRIVATE DATABASE ERROR' } });
+    expect(await muteAlertType('patient-1', 'no_checkin')).toEqual({ success: false, error: 'Unable to update alert preference' });
   });
 });
 

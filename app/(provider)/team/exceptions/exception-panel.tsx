@@ -79,9 +79,13 @@ function ExceptionPanelState({ organizations, initial, snapshotId }: ExceptionPa
               <h3 className="font-semibold">{EXCEPTION_LABELS[item.category]}</h3>
               <span className="rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-900">{item.state.replaceAll('_', ' ')}</span>
             </div>
-            {item.category === 'notification' && <p className="mt-2 text-sm text-slate-600">
+            {item.category === 'notification' && !item.reasons.some((reason) => reason.startsWith('transport_')) && <p className="mt-2 text-sm text-slate-600">
               Unsent intent only. These reasons describe capture time, not current authorization or a delivery attempt.
               Automated transport is inactive; this record does not promise a future send.
+            </p>}
+            {item.category === 'notification' && item.reasons.some((reason) => reason.startsWith('transport_')) && <p className="mt-2 text-sm text-slate-600">
+              This is a transport record, not proof of device delivery, reading, patient contact or completed care.
+              Uncertain attempts require review and are never automatically resent.
             </p>}
             {item.category === 'notification_routing' && <p className="mt-2 text-sm text-slate-600">
               Separate routing evidence, not a new episode or message. Reading this record does not resolve it or confirm patient contact.

@@ -187,5 +187,47 @@ SELECT is(pg_temp.page()#>>'{counts,notification}','35','expired manager still r
 SELECT is((SELECT count(*)::int FROM public.get_unowned_work(pg_temp.org())),0,'legacy ownership RPC also denies clock-expired access');
 RESET ROLE;
 SELECT is(pg_temp.ledger_snapshot(),(SELECT saved FROM before_read),'scope revocation/read tests never mutated notification or clinical ledgers');
+
+-- Real dispatch RPCs replace capture-only labels without broadening human scope.
+UPDATE member_authorizations SET expires_at=NULL WHERE membership_id IN
+ (SELECT id FROM organization_memberships WHERE organization_id=pg_temp.org() AND user_id IN(pg_temp.n(1),pg_temp.n(2)));
+SELECT set_config('request.jwt.claims','{"role":"service_role"}',true);
+CREATE FUNCTION pg_temp.dispatch_fixture(n integer,outcome text) RETURNS void LANGUAGE plpgsql AS $$
+DECLARE e uuid; c jsonb; a jsonb;
+BEGIN
+ SELECT id INTO e FROM notification_intents WHERE work_item_id=pg_temp.work(n);
+ c:=claim_notification_dispatch(e);
+ IF outcome='pending' THEN RETURN; END IF;
+ a:=prepare_notification_dispatch(e,(c->>'token')::uuid,(c->>'version')::bigint,outcome<>'blocked');
+ IF outcome='blocked' THEN RETURN; END IF;
+ PERFORM start_notification_dispatch(e,(a->>'id')::uuid,(c->>'token')::uuid,(c->>'version')::bigint,true);
+ IF outcome='sending' THEN RETURN; END IF;
+ PERFORM finish_notification_dispatch(e,(a->>'id')::uuid,(c->>'token')::uuid,(c->>'version')::bigint,outcome,
+  CASE outcome WHEN 'accepted' THEN 'accepted' ELSE 'timeout' END,CASE WHEN outcome='accepted' THEN 202 END);
+END $$;
+SELECT pg_temp.dispatch_fixture(n,state) FROM (VALUES(304,'blocked'),(305,'sending'),(306,'accepted'),(307,'unknown'),(308,'pending')) fixture(n,state);
+CREATE TEMP TABLE dispatch_before_read AS SELECT jsonb_build_object(
+ 'queue',(SELECT jsonb_agg(to_jsonb(q) ORDER BY intent_id) FROM notification_dispatches q),
+ 'attempts',(SELECT jsonb_agg(to_jsonb(a) ORDER BY id) FROM notification_dispatch_attempts a),
+ 'events',(SELECT jsonb_agg(to_jsonb(e) ORDER BY id) FROM notification_dispatch_events e)) saved;
+SELECT set_config('request.jwt.claims',jsonb_build_object('sub',pg_temp.n(1),'role','authenticated','aal','aal2')::text,true);
+SET LOCAL ROLE authenticated;
+DELETE FROM pages;
+INSERT INTO pages VALUES('dispatch-first',pg_temp.page());
+INSERT INTO pages VALUES('dispatch-second',pg_temp.page((SELECT result->>'next_cursor' FROM pages WHERE label='dispatch-first')));
+SELECT is((SELECT row->'reasons' FROM pages,jsonb_array_elements(result->'items') row WHERE row->>'work_item_id'=pg_temp.work(304)::text AND row->>'category'='notification'),
+ '["critical_created","transport_blocked","dispatch_configuration"]'::jsonb,'configuration block reaches human projection');
+SELECT is((SELECT row->>'state' FROM pages,jsonb_array_elements(result->'items') row WHERE row->>'work_item_id'=pg_temp.work(n)::text AND row->>'category'='notification'),
+ state,'human projection retains actual '||state) FROM (VALUES(305,'sending'),(306,'accepted'),(307,'unknown'),(308,'pending')) fixture(n,state);
+SELECT ok((SELECT bool_and(result::text NOT LIKE '%endpoint%' AND result::text NOT LIKE '%lease_token%' AND result::text NOT LIKE '%recipient_id%') FROM pages),'dispatch projection does not expose contact or lease');
+SELECT set_config('request.jwt.claims',jsonb_build_object('sub',pg_temp.n(4),'role','authenticated','aal','aal2')::text,true);
+SELECT is(pg_temp.page()->'items','[]'::jsonb,'aggregate-only manager cannot read transport detail');
+SELECT is(pg_temp.page()#>>'{counts,notification}','35','transport outcomes preserve scoped aggregate total');
+RESET ROLE;
+SELECT is(jsonb_build_object(
+ 'queue',(SELECT jsonb_agg(to_jsonb(q) ORDER BY intent_id) FROM notification_dispatches q),
+ 'attempts',(SELECT jsonb_agg(to_jsonb(a) ORDER BY id) FROM notification_dispatch_attempts a),
+ 'events',(SELECT jsonb_agg(to_jsonb(e) ORDER BY id) FROM notification_dispatch_events e)),(SELECT saved FROM dispatch_before_read),
+ 'reading transport projection never mutates queue, attempts or evidence');
 SELECT * FROM finish();
 ROLLBACK;
