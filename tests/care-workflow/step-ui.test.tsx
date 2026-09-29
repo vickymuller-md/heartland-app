@@ -2,7 +2,18 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect } from 'react';
 const mocks = vi.hoisted(() => ({ prepare: vi.fn(), recover: vi.fn(), apply: vi.fn(), cancel: vi.fn(), ack: vi.fn(),
-  detail: vi.fn(), list: vi.fn(), subscribe: vi.fn(), unsubscribe: vi.fn(), authorize: vi.fn(), directory: vi.fn(), labReady: true }));
+  detail: vi.fn(), list: vi.fn(), subscribe: vi.fn(), unsubscribe: vi.fn(), authorize: vi.fn(), directory: vi.fn(), labReady: true, humanReady: true }));
+vi.mock('@/app/(provider)/patients/[patientId]/_components/care-human-panel', () => ({
+  CareHumanPanel: function HumanCoordination({ refreshToken, peersReady, onReadiness, onChanged }: {
+    refreshToken: number; peersReady: boolean; onReadiness: (ready: boolean) => void; onChanged: () => void;
+  }) {
+    useEffect(() => { if (refreshToken > 0) onReadiness(mocks.humanReady); }, [refreshToken, onReadiness]);
+    return <div aria-label="Human coordination boundary"><p>Human peers ready: {String(peersReady)}</p>
+      <button onClick={() => onReadiness(false)}>Simulate pending human request</button>
+      <button onClick={() => onReadiness(true)}>Simulate complete human recovery</button>
+      <button onClick={onChanged}>Simulate applied human record</button></div>;
+  },
+}));
 vi.mock('@/app/(provider)/patients/[patientId]/_components/care-lab-panel', () => ({
   CareLabPanel: function LabCoordination({ refreshToken, stepsReady, onReadiness, onChanged }: {
     refreshToken: number; stepsReady: boolean; onReadiness: (ready: boolean) => void; onChanged: () => void;
@@ -50,7 +61,7 @@ function deferred() { let resolve!: (value: unknown) => void; let reject!: (erro
   const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
 beforeEach(() => {
   vi.resetAllMocks(); vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-09-29T13:00:00Z'));
-  mocks.labReady = true;
+  mocks.labReady = true; mocks.humanReady = true;
   mocks.subscribe.mockReturnValue({ data: { subscription: { unsubscribe: mocks.unsubscribe } } });
   mocks.detail.mockResolvedValue(ok(detail)); mocks.list.mockResolvedValue(ok({ items: [], next_cursor: null }));
   mocks.prepare.mockImplementation(async (value) => ok(saved(value)));
@@ -177,6 +188,33 @@ describe('historical laboratory compositions', () => {
   });
 });
 describe('recoverable operational steps', () => {
+  it('blocks steps and laboratory preparation while human recovery is incomplete', async () => {
+    mocks.humanReady = false; render(<CareWorkflowPanel {...props} />); refresh();
+    await screen.findByText('Human peers ready: true'); expect(screen.queryByRole('form')).toBeNull();
+    expect(screen.getByText('Steps ready: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate complete human recovery' })); await screen.findByRole('form');
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate pending human request' })); expect(screen.queryByRole('form')).toBeNull();
+  });
+  it.each(['referral', 'medication_access'] as const)('does not wait on an absent laboratory panel for %s', async (kind) => {
+    mocks.labReady = false;
+    const initial = { ...detail, kind, requested_analytes: [], request: { ...detail.request, kind, analytes: [] } };
+    await start(initial); expect(screen.queryByLabelText('Laboratory coordination boundary')).toBeNull();
+    expect(screen.getByText('Human peers ready: true')).toBeInTheDocument();
+  });
+  it.each(['detail', 'list'] as const)('invalidates the current %s read after a human record without losing recovery access', async (operation) => {
+    const pending = deferred(); mocks[operation].mockReturnValueOnce(pending.promise); render(<CareWorkflowPanel {...props} />); refresh();
+    await act(async () => {}); fireEvent.click(screen.getByRole('button', { name: 'Simulate applied human record' }));
+    await act(async () => pending.resolve(ok(operation === 'detail' ? detail : { items: [], next_cursor: null })));
+    expect(screen.queryByLabelText('Last loaded workflow snapshot')).toBeNull(); expect(screen.queryByRole('form')).toBeNull();
+    refresh(); await screen.findByRole('form');
+  });
+  it('preserves a private step response in flight when a human record invalidates current detail', async () => {
+    await prepare(); const pending = deferred(); mocks.apply.mockReturnValueOnce(pending.promise);
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm documented step' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate applied human record' }));
+    await act(async () => pending.resolve(ok(saved(mocks.prepare.mock.calls[0][0], 'applied'))));
+    expect(screen.getByText(/Step recorded at revision 2/)).toBeInTheDocument(); expect(screen.queryByLabelText('Last loaded workflow snapshot')).toBeNull();
+  });
   it('blocks a new laboratory step until all laboratory recovery families are ready', async () => {
     mocks.labReady = false; render(<CareWorkflowPanel {...props} />); refresh();
     await screen.findByText('Steps ready: true'); expect(screen.queryByRole('form')).toBeNull();

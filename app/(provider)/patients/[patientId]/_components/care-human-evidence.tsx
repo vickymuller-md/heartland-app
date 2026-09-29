@@ -5,8 +5,6 @@ import { LAB_OBSERVATION_FIELDS } from '@/lib/labs/quality';
 const label = (value: string) => value.replaceAll('_', ' ');
 export function CareHumanEvidence({ input }: { input: HumanInput }) {
   const command = humanCommandSchema.parse({ command: input.command, payload: input.payload });
-  const basis = input.basis;
-  const fact = basis.operational_event && careStepCommandSchema.parse({ command: basis.operational_event.command, payload: basis.operational_event.payload });
   return <div className="space-y-3 break-words" aria-label="Frozen human evidence">
     <p>Evidence: {command.payload.evidence}</p>
     <p>Occurred: {command.payload.occurred_at}</p>
@@ -19,12 +17,18 @@ export function CareHumanEvidence({ input }: { input: HumanInput }) {
       <p>Contact channel: {label(command.payload.details.channel)}</p>
       <p>Declared recipient: {label(command.payload.details.recipient_type)} · {command.payload.details.recipient_reference}</p>
       <p>Documented outcome: {label(command.payload.details.outcome)}</p>
-      <p>{command.payload.details.review_addressed ? 'Recorded as addressing the referenced review at that time.'
-        : 'Not recorded as addressing the current reviewed decision.'}</p>
+      <p>{command.payload.details.review_addressed ? 'Declared as addressing the referenced review. Application state is shown separately.'
+        : 'Not declared as addressing the current reviewed decision.'}</p>
       <p className="break-all">Review reference: {command.payload.details.review_event_id ?? 'None supplied'}</p>
       {command.payload.details.reason && <p>Contact barrier: {command.payload.details.reason}</p>}
       <p className="mt-2">This records a human statement; it does not certify delivery, comprehension or completed care.</p>
     </div>}
+    <CareHumanBasis basis={input.basis} signature={input.basis_signature} />
+  </div>;
+}
+export function CareHumanBasis({ basis, signature }: { basis: HumanInput['basis']; signature: string }) {
+  const fact = basis.operational_event && careStepCommandSchema.parse({ command: basis.operational_event.command, payload: basis.operational_event.payload });
+  return <div className="space-y-3 break-words" aria-label="Human evidence basis">
     {basis.kind === 'laboratory_order' ? <>
       <p className="font-semibold">Laboratory evidence shown for this record</p>
       <ul className="space-y-2" aria-label="Frozen laboratory evidence">{basis.sources.map((source) => <li key={source.analyte} className="rounded-lg border p-3">
@@ -58,7 +62,7 @@ export function CareHumanEvidence({ input }: { input: HumanInput }) {
         {Object.entries(fact.payload.details).map(([key, value]) => <p key={key}>{label(key)}: {value === null ? 'Not supplied' : key === 'source' ? label(value) : value}</p>)}</>}
     </div> : <p>No report or acquisition evidence had been recorded for this contact.</p>}
     <details className="text-xs"><summary>Exact evidence identity</summary>
-      <p className="break-all">Evidence signature: {input.basis_signature}</p>
+      <p className="break-all">Evidence signature: {signature}</p>
       <p className="break-all">Composition: {basis.composition_event_id ?? 'Not applicable or absent'}</p>
     </details>
   </div>;

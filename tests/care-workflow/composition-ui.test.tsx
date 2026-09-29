@@ -1,8 +1,19 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useEffect } from 'react';
 const mocks = vi.hoisted(() => ({ prepare: vi.fn(), recover: vi.fn(), apply: vi.fn(), cancel: vi.fn(), ack: vi.fn(),
   detail: vi.fn(), list: vi.fn(), intents: vi.fn(), routing: vi.fn(), changes: vi.fn(), sources: vi.fn(), subscribe: vi.fn(), unsubscribe: vi.fn(),
-  ready: vi.fn(), changed: vi.fn(), workflow: vi.fn(), steps: vi.fn() }));
+  ready: vi.fn(), changed: vi.fn(), workflow: vi.fn(), steps: vi.fn(), humanReady: true }));
+vi.mock('@/app/(provider)/patients/[patientId]/_components/care-human-panel', () => ({
+  CareHumanPanel: function HumanCoordination({ refreshToken, onReadiness, onChanged }: {
+    refreshToken: number; onReadiness: (ready: boolean) => void; onChanged: () => void;
+  }) {
+    useEffect(() => { if (refreshToken > 0) onReadiness(mocks.humanReady); }, [refreshToken, onReadiness]);
+    return <div><button onClick={() => onReadiness(false)}>Simulate pending human request</button>
+      <button onClick={() => onReadiness(true)}>Simulate complete human recovery</button>
+      <button onClick={onChanged}>Simulate applied human record</button></div>;
+  },
+}));
 vi.mock('@/lib/care-workflow/composition-actions', () => ({ prepareComposition: mocks.prepare, recoverComposition: mocks.recover,
   applyComposition: mocks.apply, cancelComposition: mocks.cancel, acknowledgeComposition: mocks.ack, loadCompositionDetail: mocks.detail,
   loadPendingCompositions: mocks.list, loadCompositionIntentions: mocks.routing, loadCompositionInvalidations: mocks.changes }));
@@ -52,6 +63,7 @@ function deferred() { let resolve!: (value: unknown) => void; let reject!: (erro
   const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
 beforeEach(() => {
   vi.resetAllMocks(); vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-09-29T13:00:00Z'));
+  mocks.humanReady = true;
   mocks.subscribe.mockReturnValue({ data: { subscription: { unsubscribe: mocks.unsubscribe } } });
   for (const name of ['list', 'intents', 'routing', 'changes', 'steps'] as const) mocks[name].mockResolvedValue(empty());
   mocks.detail.mockResolvedValue(ok(detail)); mocks.sources.mockResolvedValue(ok(sources)); mocks.workflow.mockResolvedValue(ok(workflow));
@@ -186,6 +198,25 @@ describe('exact laboratory source association', () => {
 });
 describe('real parent/child pending coordination', () => {
   const parent = { actorId: scope.actor_id, patientId: scope.patient_id, organizationId: scope.organization_id, workId: id(100), initial: workflow, scopeKey: 'test' };
+  it('keeps laboratory save and association blocked by incomplete human recovery', async () => {
+    mocks.humanReady = false; render(<CareWorkflowPanel {...parent} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh workflow and check pending steps' }));
+    await screen.findByText('Last loaded source composition'); expect(screen.queryByRole('form')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Save a new exam for this follow-up' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate complete human recovery' }));
+    await screen.findByRole('form', { name: 'New laboratory source composition' });
+    expect(screen.getByRole('button', { name: 'Save a new exam for this follow-up' })).toBeEnabled();
+  });
+  it('preserves an exact association write when a human change invalidates the parent', async () => {
+    render(<CareWorkflowPanel {...parent} />); fireEvent.click(screen.getByRole('button', { name: 'Refresh workflow and check pending steps' }));
+    await screen.findByRole('form', { name: 'New laboratory source composition' }); fill(); submit();
+    await screen.findByText('Prepared and recoverable; no association applied.');
+    const pending = deferred(); mocks.apply.mockReturnValueOnce(pending.promise);
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm exact source association' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate applied human record' }));
+    await act(async () => pending.resolve(ok(saved(mocks.prepare.mock.calls[0][0], 'applied'))));
+    expect(screen.queryByLabelText('Last loaded workflow snapshot')).toBeNull(); expect(screen.getByText(/Association recorded at revision/)).toBeInTheDocument();
+  });
   it('restores the parent step form after repeated immediate child refreshes without granting readiness early', async () => {
     render(<CareWorkflowPanel {...parent} />); fireEvent.click(screen.getByRole('button', { name: 'Refresh workflow and check pending steps' }));
     await screen.findByRole('form', { name: 'New documented step' });
