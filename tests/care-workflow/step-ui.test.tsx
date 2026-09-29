@@ -2,7 +2,18 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect } from 'react';
 const mocks = vi.hoisted(() => ({ prepare: vi.fn(), recover: vi.fn(), apply: vi.fn(), cancel: vi.fn(), ack: vi.fn(),
-  detail: vi.fn(), list: vi.fn(), subscribe: vi.fn(), unsubscribe: vi.fn(), authorize: vi.fn(), directory: vi.fn(), labReady: true, humanReady: true }));
+  detail: vi.fn(), list: vi.fn(), subscribe: vi.fn(), unsubscribe: vi.fn(), authorize: vi.fn(), directory: vi.fn(), labReady: true, humanReady: true, adminReady: true }));
+vi.mock('@/app/(provider)/patients/[patientId]/_components/care-unsaved-intent-panel', () => ({
+  CareUnsavedIntentPanel: function AdminCoordination({ refreshToken, peersReady, onReadiness, onChanged }: {
+    refreshToken: number; peersReady: boolean; onReadiness: (ready: boolean) => void; onChanged: () => void;
+  }) {
+    useEffect(() => { if (refreshToken > 0) onReadiness(mocks.adminReady); }, [refreshToken, onReadiness]);
+    return <div aria-label="Administrative coordination boundary"><p>Administrative peers ready: {String(peersReady)}</p>
+      <button onClick={() => onReadiness(false)}>Simulate pending administrative request</button>
+      <button onClick={() => onReadiness(true)}>Simulate complete administrative recovery</button>
+      <button onClick={onChanged}>Simulate applied administrative disposition</button></div>;
+  },
+}));
 vi.mock('@/app/(provider)/patients/[patientId]/_components/care-human-panel', () => ({
   CareHumanPanel: function HumanCoordination({ refreshToken, peersReady, onReadiness, onChanged }: {
     refreshToken: number; peersReady: boolean; onReadiness: (ready: boolean) => void; onChanged: () => void;
@@ -61,7 +72,7 @@ function deferred() { let resolve!: (value: unknown) => void; let reject!: (erro
   const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
 beforeEach(() => {
   vi.resetAllMocks(); vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-09-29T13:00:00Z'));
-  mocks.labReady = true; mocks.humanReady = true;
+  mocks.labReady = true; mocks.humanReady = true; mocks.adminReady = true;
   mocks.subscribe.mockReturnValue({ data: { subscription: { unsubscribe: mocks.unsubscribe } } });
   mocks.detail.mockResolvedValue(ok(detail)); mocks.list.mockResolvedValue(ok({ items: [], next_cursor: null }));
   mocks.prepare.mockImplementation(async (value) => ok(saved(value)));
@@ -280,6 +291,33 @@ describe('historical laboratory compositions', () => {
   });
 });
 describe('recoverable operational steps', () => {
+  it('blocks new step, lab and human preparation until administrative recovery is complete without cyclic waiting', async () => {
+    mocks.adminReady = false; render(<CareWorkflowPanel {...props} />); refresh();
+    await screen.findByText('Administrative peers ready: true'); expect(screen.queryByRole('form')).toBeNull();
+    expect(screen.getByText('Steps ready: false')).toBeInTheDocument(); expect(screen.getByText('Human peers ready: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate complete administrative recovery' })); await screen.findByRole('form');
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate pending administrative request' })); expect(screen.queryByRole('form')).toBeNull();
+  });
+  it('invalidates a clinical snapshot after administrative application even when the revision is unchanged', async () => {
+    await start(); expect(screen.getByText('Revision 1')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate applied administrative disposition' }));
+    expect(screen.queryByLabelText('Last loaded workflow snapshot')).toBeNull(); expect(screen.queryByRole('form')).toBeNull();
+    refresh(); await screen.findByRole('form'); expect(screen.getByText('Revision 1')).toBeInTheDocument();
+    expect(mocks.detail).toHaveBeenCalledTimes(2);
+  });
+  it('keeps the private step write response after administrative application invalidates current detail', async () => {
+    await prepare(); const pending = deferred(); mocks.apply.mockReturnValueOnce(pending.promise);
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm documented step' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate applied administrative disposition' }));
+    await act(async () => pending.resolve(ok(saved(mocks.prepare.mock.calls[0][0], 'applied'))));
+    expect(screen.getByText(/Step recorded at revision 2/)).toBeInTheDocument(); expect(screen.queryByLabelText('Last loaded workflow snapshot')).toBeNull();
+  });
+  it('keeps both laboratory recovery families available without preparing on unknown kind', async () => {
+    mocks.detail.mockResolvedValue(ok(null)); render(<CareWorkflowPanel {...props} initial={null} />); refresh();
+    await screen.findByText('Administrative peers ready: true'); expect(screen.queryByRole('form')).toBeNull();
+    expect(screen.getByLabelText('Administrative coordination boundary')).toBeInTheDocument();
+    expect(screen.getByLabelText('Laboratory coordination boundary')).toBeInTheDocument();
+  });
   it('blocks steps and laboratory preparation while human recovery is incomplete', async () => {
     mocks.humanReady = false; render(<CareWorkflowPanel {...props} />); refresh();
     await screen.findByText('Human peers ready: true'); expect(screen.queryByRole('form')).toBeNull();
@@ -288,9 +326,10 @@ describe('recoverable operational steps', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Simulate pending human request' })); expect(screen.queryByRole('form')).toBeNull();
   });
   it.each(['referral', 'medication_access'] as const)('does not wait on an absent laboratory panel for %s', async (kind) => {
-    mocks.labReady = false;
+    mocks.labReady = false; mocks.adminReady = false;
     const initial = { ...detail, kind, requested_analytes: [], request: { ...detail.request, kind, analytes: [] } };
     await start(initial); expect(screen.queryByLabelText('Laboratory coordination boundary')).toBeNull();
+    expect(screen.queryByLabelText('Administrative coordination boundary')).toBeNull();
     expect(screen.getByText('Human peers ready: true')).toBeInTheDocument();
   });
   it.each(['detail', 'list'] as const)('invalidates the current %s read after a human record without losing recovery access', async (operation) => {

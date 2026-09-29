@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect } from 'react';
 const mocks = vi.hoisted(() => ({ prepare: vi.fn(), recover: vi.fn(), apply: vi.fn(), cancel: vi.fn(), ack: vi.fn(),
   detail: vi.fn(), list: vi.fn(), intents: vi.fn(), routing: vi.fn(), changes: vi.fn(), sources: vi.fn(), subscribe: vi.fn(), unsubscribe: vi.fn(),
-  ready: vi.fn(), changed: vi.fn(), workflow: vi.fn(), steps: vi.fn(), humanReady: true }));
+  ready: vi.fn(), changed: vi.fn(), workflow: vi.fn(), steps: vi.fn(), humanReady: true,
+  adminList: vi.fn(), adminRecover: vi.fn(), adminApply: vi.fn(), adminAck: vi.fn() }));
+vi.mock('@/lib/care-workflow/unsaved-intent-actions', () => ({ loadPendingUnsaved: mocks.adminList,
+  recoverUnsaved: mocks.adminRecover, applyUnsaved: mocks.adminApply, acknowledgeUnsaved: mocks.adminAck,
+  prepareUnsaved: vi.fn(), cancelUnsaved: vi.fn(), loadUnsavedContext: vi.fn(), loadUnsavedHistory: vi.fn() }));
 vi.mock('@/app/(provider)/patients/[patientId]/_components/care-human-panel', () => ({
   CareHumanPanel: function HumanCoordination({ refreshToken, onReadiness, onChanged }: {
     refreshToken: number; onReadiness: (ready: boolean) => void; onChanged: () => void;
@@ -65,7 +69,7 @@ beforeEach(() => {
   vi.resetAllMocks(); vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-09-29T13:00:00Z'));
   mocks.humanReady = true;
   mocks.subscribe.mockReturnValue({ data: { subscription: { unsubscribe: mocks.unsubscribe } } });
-  for (const name of ['list', 'intents', 'routing', 'changes', 'steps'] as const) mocks[name].mockResolvedValue(empty());
+  for (const name of ['list', 'intents', 'routing', 'changes', 'steps', 'adminList'] as const) mocks[name].mockResolvedValue(empty());
   mocks.detail.mockResolvedValue(ok(detail)); mocks.sources.mockResolvedValue(ok(sources)); mocks.workflow.mockResolvedValue(ok(workflow));
   mocks.prepare.mockImplementation(async (value) => ok(saved(value))); mocks.recover.mockImplementation(async (value) => ok(saved(value)));
   mocks.apply.mockImplementation(async (value) => ok(saved(value, 'applied'))); mocks.cancel.mockImplementation(async (value) => ok(saved(value, 'cancelled')));
@@ -207,6 +211,41 @@ describe('exact laboratory source association', () => {
 });
 describe('real parent/child pending coordination', () => {
   const parent = { actorId: scope.actor_id, patientId: scope.patient_id, organizationId: scope.organization_id, workId: id(100), initial: workflow, scopeKey: 'test' };
+  it('fails closed until the real administrative recovery panel verifies its full queue', async () => {
+    mocks.adminList.mockResolvedValueOnce({ data: null, error: 'Unavailable' }); render(<CareWorkflowPanel {...parent} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh workflow and check pending steps' }));
+    await screen.findByText(/full administrative recovery list could not be verified/); expect(screen.queryByRole('form')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Save a new exam for this follow-up' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Check administrative pending records' }));
+    await screen.findByRole('form', { name: 'New documented step' }); await screen.findByRole('form', { name: 'New laboratory source composition' });
+    for (let n = 0; n < 3; n += 1) {
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Check administrative pending records' })); });
+      expect(await screen.findByRole('form', { name: 'New documented step' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Save a new exam for this follow-up' })).toBeEnabled();
+    }
+  });
+  it('real administrative application invalidates the parent at unchanged revision and preserves its separate receipt', async () => {
+    const request = { ...scope, request_id: id(950), work_item_id: id(100), intent_id: id(951), expected_revision: '1', expected_ownership_revision: '7',
+      payload: { snapshot: { intent_id: id(951), recorded_at: at, submission_status: 'awaiting_save', submission_cancelled_at: null },
+        occurred_at: at, evidence: 'Explicit administrative evidence', reason: 'Former-owner unsaved intention', unsaved_cancellation_acknowledged: true },
+      state: 'prepared', recorded_at: at, acknowledged_at: null, receipt: null };
+    const applied = { ...request, state: 'applied', receipt: { request_id: id(950), event_id: id(952), work_item_id: id(100), intent_id: id(951),
+      workflow_revision: '1', ownership_revision: '7', recorded_at: at, submission_cancelled_at: at, intent_cancelled_at: at, intention_cancelled: true,
+      result_saved: false, result_linked: false, clinical_review_recorded: false, communication_confirmed: false, care_completed: false } };
+    mocks.adminList.mockResolvedValueOnce(ok({ items: [request], next_cursor: null })); mocks.adminRecover.mockResolvedValue(ok(request));
+    mocks.adminApply.mockResolvedValue(ok(applied)); mocks.adminAck.mockResolvedValue(ok({ ...applied, acknowledged_at: at }));
+    render(<CareWorkflowPanel {...parent} />); fireEvent.click(screen.getByRole('button', { name: 'Refresh workflow and check pending steps' }));
+    await screen.findByRole('button', { name: `Recover administrative request ${id(950)}` }); expect(screen.queryByRole('form')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: `Recover administrative request ${id(950)}` }));
+    await screen.findByRole('button', { name: 'Confirm cancellation of unsaved intention' });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm cancellation of unsaved intention' }));
+    await screen.findByText(/Workflow revision remains 1/); expect(screen.queryByLabelText('Last loaded workflow snapshot')).toBeNull();
+    expect(screen.queryByRole('form')).toBeNull(); fireEvent.click(screen.getByRole('button', { name: 'Acknowledge administrative receipt' }));
+    await screen.findByRole('button', { name: 'Return to administrative recovery' }); fireEvent.click(screen.getByRole('button', { name: 'Return to administrative recovery' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh workflow and check pending steps' }));
+    await screen.findByRole('form', { name: 'New documented step' }); expect(screen.getByText('Revision 1')).toBeInTheDocument();
+    expect(mocks.workflow).toHaveBeenCalledTimes(2);
+  });
   it('keeps laboratory save and association blocked by incomplete human recovery', async () => {
     mocks.humanReady = false; render(<CareWorkflowPanel {...parent} />);
     fireEvent.click(screen.getByRole('button', { name: 'Refresh workflow and check pending steps' }));
