@@ -61,7 +61,7 @@ const labId = '10000000-0000-4000-a000-000000000001';
 const actorId = '20000000-0000-4000-a000-000000000001';
 const otherActorId = '20000000-0000-4000-a000-000000000002';
 const requestId = '30000000-0000-4000-a000-000000000001';
-const pending = { status: 'saved_alert_pending', success: false, labResultId: labId, eventId: 'event-a', alertStatus: 'pending' };
+const pending = { status: 'saved_alert_pending', success: false, labResultId: labId, eventId: '40000000-0000-4000-a000-000000000001', alertStatus: 'pending' };
 let currentSubmission: LabSubmission | null;
 
 function submission(overrides: Partial<LabSubmission> = {}): LabSubmission {
@@ -71,7 +71,7 @@ function submission(overrides: Partial<LabSubmission> = {}): LabSubmission {
 }
 
 function committed(overrides: Partial<LabSubmission> = {}): LabSubmission {
-  return submission({ status: 'committed', labResultId: labId, eventId: 'event-a',
+  return submission({ status: 'committed', labResultId: labId, eventId: '40000000-0000-4000-a000-000000000001',
     alertStatus: 'pending', collectedAt: '2025-08-01T13:15:00.123456Z', potassium: 6.2, ...overrides });
 }
 
@@ -95,6 +95,24 @@ function fillAndSubmit(input: HTMLInputElement) {
   fireEvent.change(input, { target: { value: '2025-08-01T09:15' } });
   fireEvent.change(screen.getByLabelText('K+ (mEq/L)'), { target: { value: '6.2' } });
   fireEvent.submit(input.closest('form')!);
+}
+
+function evaluatedHistory(partial = false) {
+  const root = '50000000-0000-4000-a000-000000000001';
+  const version = '60000000-0000-4000-a000-000000000001';
+  const at = '2025-08-01T13:15:00.123456Z';
+  const source = { lab_result_id: labId, value: '6.2', collected_at: at, root_id: root, version_id: version, revision: '1' };
+  return { id: '40000000-0000-4000-a000-000000000001', patient_id: patientId, lab_result_id: labId,
+    status: partial ? 'recorded' : 'invalidated', attempt_count: 1, lab_results: { collected_at: at },
+    source_assessment: { recipe: 'immediate-effective-v1', patient_id: patientId, lab_result_id: labId,
+      original_lab_result_id: labId, evaluated_at: '2025-08-02T13:15:00.123456Z', analytes: {
+        potassium: { reason: 'cancelled', event_source: source,
+          observed_head: { root_id: root, version_id: '60000000-0000-4000-a000-000000000002', revision: '2',
+            status: 'cancelled', effective_lab_result_id: null, value: null, collected_at: at } },
+        egfr: partial ? { reason: 'effective', event_source: { ...source, value: '10', root_id: null, version_id: null, revision: null },
+          observed_head: { root_id: null, version_id: null, revision: null, status: 'original', effective_lab_result_id: labId,
+            value: '10', collected_at: at } } : { reason: 'not_recorded', event_source: null, observed_head: null },
+      } } };
 }
 
 async function openForm() {
@@ -319,13 +337,13 @@ describe('lab collection form', () => {
   it('recovers persisted pending evaluations and linked collection time after reload, even outside the recent labs', async () => {
     mockLabs.mockResolvedValue({ data: [] });
     mockEvaluations.mockImplementation((_patient: string, cursor?: string) => ({ data: cursor ? [] : [{
-      id: 'event-a', lab_result_id: labId, patient_id: patientId, status: 'pending', attempt_count: 2,
+      id: '40000000-0000-4000-a000-000000000001', lab_result_id: labId, patient_id: patientId, status: 'pending', attempt_count: 2, source_assessment: null,
       lab_results: { collected_at: '2025-08-01T13:15:00.000Z' },
     }] }));
     const { unmount } = render(<LabResultsTab patientId={patientId} />);
     expect(await screen.findByText(/Lab result saved\. Alert evaluation pending/)).toBeVisible();
     expect(screen.getByText('2025-08-01T13:15:00.000Z')).toBeVisible();
-    expect(mockEvaluations).toHaveBeenCalledWith(patientId, 'event-a');
+    expect(mockEvaluations).toHaveBeenCalledWith(patientId, '40000000-0000-4000-a000-000000000001');
     unmount();
     render(<LabResultsTab patientId={patientId} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Retry alert evaluation' }));
@@ -345,17 +363,17 @@ describe('lab collection form', () => {
   it('does not silently treat an incomplete evaluation page sequence as an empty queue', async () => {
     mockEvaluations.mockImplementation((_id: string, cursor?: string) => cursor
       ? { data: null, error: { message: 'Page two unavailable' } }
-      : { data: [{ id: 'event-a', lab_result_id: labId, patient_id: patientId, status: 'pending', attempt_count: 1, lab_results: null }] });
+      : { data: [{ id: '40000000-0000-4000-a000-000000000001', lab_result_id: labId, patient_id: patientId, status: 'pending', attempt_count: 1, source_assessment: null, lab_results: null }] });
     render(<LabResultsTab patientId={patientId} />);
     expect(await screen.findByText(/Unable to load alert evaluation status/)).toBeVisible();
-    expect(mockEvaluations).toHaveBeenCalledWith(patientId, 'event-a');
+    expect(mockEvaluations).toHaveBeenCalledWith(patientId, '40000000-0000-4000-a000-000000000001');
     expect(screen.queryByText('Page two unavailable')).not.toBeInTheDocument();
   });
 
   it('suppresses double retry clicks and never calls the insert action', async () => {
     let finish!: (state: unknown) => void;
     mockEvaluations.mockImplementation((_id: string, cursor?: string) => ({ data: cursor ? [] : [{
-      id: 'event-a', lab_result_id: labId, patient_id: patientId, status: 'pending', attempt_count: 1, lab_results: null,
+      id: '40000000-0000-4000-a000-000000000001', lab_result_id: labId, patient_id: patientId, status: 'pending', attempt_count: 1, source_assessment: null, lab_results: null,
     }] }));
     mockRetry.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
     render(<LabResultsTab patientId={patientId} />);
@@ -389,7 +407,7 @@ describe('lab collection form', () => {
     rerender(<LabResultsTab patientId={otherPatientId} />);
     await screen.findByRole('button', { name: 'Add Lab Result' });
     await act(async () => { finishOld({ data: [{
-      id: 'event-old', lab_result_id: labId, patient_id: patientId, status: 'pending', attempt_count: 1,
+      id: '40000000-0000-4000-a000-000000000002', lab_result_id: labId, patient_id: patientId, status: 'pending', attempt_count: 1, source_assessment: null,
       lab_results: { collected_at: '2020-01-01T01:00:00Z' },
     }] }); });
     expect(screen.queryByText(/2020-01-01/)).not.toBeInTheDocument();
@@ -732,7 +750,7 @@ describe('lab collection form', () => {
     const [first, second] = await screen.findAllByTestId('effective-lab-row');
     expect(first).toHaveTextContent('cancelled; revision 3'); expect(first).toHaveTextContent('No current value');
     expect(first).not.toHaveTextContent('4.8');
-    expect(second).toHaveTextContent('corrected; revision 2'); expect(second).toHaveTextContent('Alert processing: pending');
+    expect(second).toHaveTextContent('corrected; revision 2'); expect(second).toHaveTextContent('Alert processing: Evaluation pending');
     fireEvent.click(within(second).getByText('Source details'));
     expect(within(second).getByText('10000000-0000-4000-a000-000000000099')).toBeVisible();
     expect(screen.getByRole('heading', { name: /including historical collections/ })).toBeVisible();
@@ -791,6 +809,65 @@ describe('lab collection form', () => {
     expect(screen.getByLabelText('Collection date and time')).toBe(input);
     expect(document.querySelector('input[name="requestId"]')).toHaveValue(requestId);
     expect(mockGet).toHaveBeenCalledTimes(1); expect(mockPrepare).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a terminal cancellation history after receipt ACK and a new draft', async () => {
+    currentSubmission = committed({ alertStatus: 'invalidated' });
+    mockEvaluations.mockImplementation((_patient: string, cursor?: string) => ({ data: cursor ? [] : [evaluatedHistory()] }));
+    render(<LabResultsTab patientId={patientId} />);
+    const history = await screen.findByRole('region', { name: 'Laboratory evaluation history' });
+    expect(history).toHaveTextContent('Excluded — cancelled before processing');
+    expect(history).toHaveTextContent('Not recorded in this event; not evaluated');
+    fireEvent.click(screen.getByRole('button', { name: 'Acknowledge saved receipt' }));
+    await screen.findByText(/Receipt acknowledged/);
+    expect(await screen.findByRole('region', { name: 'Laboratory evaluation history' })).toHaveTextContent('Event value: 6.2');
+    currentSubmission = null;
+    fireEvent.click(screen.getByRole('button', { name: 'Add Lab Result' }));
+    await screen.findByLabelText('Collection date and time');
+    expect(screen.getByRole('region', { name: 'Laboratory evaluation history' })).toBeVisible();
+    expect(mockRetry).not.toHaveBeenCalled(); expect(mockSave).not.toHaveBeenCalled();
+  });
+
+  it('distinguishes partial exclusions and paginated legacy history without claiming currentness', async () => {
+    const partial = evaluatedHistory(true);
+    const legacy = { ...partial, id: '40000000-0000-4000-a000-000000000002', source_assessment: null, status: 'not_required' };
+    mockEvaluations.mockImplementation((_patient: string, cursor?: string) => ({ data: !cursor ? [partial]
+      : cursor === partial.id ? [legacy] : [] }));
+    render(<LabResultsTab patientId={patientId} />);
+    const history = await screen.findByRole('region', { name: 'Laboratory evaluation history' });
+    expect(history).toHaveTextContent('Excluded — cancelled before processing');
+    expect(history).toHaveTextContent('Effective at processing');
+    expect(history).toHaveTextContent('Legacy event: no version-aware source assessment was recorded');
+    expect(history).toHaveTextContent('not whether a value is current now');
+    expect(mockEvaluations).toHaveBeenCalledWith(patientId, legacy.id);
+  });
+
+  it('clears historical assessments at refresh and keeps them hidden on a failed refresh', async () => {
+    mockEvaluations.mockImplementation((_patient: string, cursor?: string) => ({ data: cursor ? [] : [evaluatedHistory()] }));
+    render(<LabResultsTab patientId={patientId} />);
+    await screen.findByRole('region', { name: 'Laboratory evaluation history' });
+    const response = deferred(); mockEvaluations.mockReturnValue(response.promise);
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh laboratory sources' }));
+    expect(screen.queryByRole('region', { name: 'Laboratory evaluation history' })).not.toBeInTheDocument();
+    await act(async () => response.resolve({ data: null, error: null }));
+    expect(await screen.findByText(/Unable to load alert evaluation status/)).toBeVisible();
+    expect(screen.queryByText('Event value: 6.2')).not.toBeInTheDocument();
+  });
+
+  it('removes terminal history immediately on sign-out', async () => {
+    mockEvaluations.mockImplementation((_patient: string, cursor?: string) => ({ data: cursor ? [] : [evaluatedHistory()] }));
+    render(<LabResultsTab patientId={patientId} />);
+    await screen.findByRole('region', { name: 'Laboratory evaluation history' });
+    act(() => authListeners.forEach((listener) => listener('SIGNED_OUT', null)));
+    expect(screen.queryByRole('region', { name: 'Laboratory evaluation history' })).not.toBeInTheDocument();
+  });
+
+  it('rejects mismatched or incomplete assessment evidence without rendering it', async () => {
+    const bad = evaluatedHistory(); bad.source_assessment.patient_id = otherPatientId;
+    mockEvaluations.mockResolvedValue({ data: [bad], error: null });
+    render(<LabResultsTab patientId={patientId} />);
+    expect(await screen.findByText(/Unable to load alert evaluation status/)).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'Laboratory evaluation history' })).not.toBeInTheDocument();
   });
 
   it('fails closed on wrong-patient or malformed effective observations', async () => {

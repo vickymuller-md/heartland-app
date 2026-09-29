@@ -17,6 +17,7 @@ import {
 } from '@/lib/dashboard/constants';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { labEvaluationStatusSchema, labReceiptSchema, labReceiptRowsSchema, type LabEvaluationStatus } from '@/lib/labs/evaluation';
 
 // ---------- Zod Schemas ----------
 
@@ -52,7 +53,7 @@ export interface LabActionState {
   status?: 'not_saved' | 'save_unconfirmed' | 'saved' | 'saved_alert_pending';
   labResultId?: string;
   eventId?: string;
-  alertStatus?: 'pending' | 'recorded' | 'not_required';
+  alertStatus?: LabEvaluationStatus;
 }
 
 export interface LabSubmission {
@@ -60,7 +61,7 @@ export interface LabSubmission {
   status: 'prepared' | 'committed' | 'acknowledged' | 'cancelled';
   labResultId: string | null;
   eventId: string | null;
-  alertStatus: 'pending' | 'recorded' | 'not_required' | null;
+  alertStatus: LabEvaluationStatus | null;
   collectedAt: string | null;
   potassium: number | null;
   egfr: number | null;
@@ -85,7 +86,7 @@ const labSubmissionRowSchema = z.object({
   submission_status: z.enum(['prepared', 'committed', 'acknowledged', 'cancelled']),
   lab_result_id: z.uuid().nullable(),
   event_id: z.uuid().nullable(),
-  alert_status: z.enum(['pending', 'recorded', 'not_required']).nullable(),
+  alert_status: labEvaluationStatusSchema.nullable(),
   collected_at: z.iso.datetime({ offset: true }).nullable(),
   potassium: z.number().finite().nullable(),
   egfr: z.number().finite().nullable(),
@@ -175,13 +176,7 @@ export async function cancelLabSubmission(input: { patientId: string; requestId:
   return labSubmissionAction('cancel', input);
 }
 
-const labReceiptSchema = z.object({
-  lab_result_id: z.uuid(),
-  event_id: z.uuid(),
-  status: z.enum(['pending', 'recorded', 'not_required']),
-});
 type LabReceipt = z.infer<typeof labReceiptSchema>;
-const labReceiptRowsSchema = z.array(labReceiptSchema).length(1);
 
 function labOutcome(receipt: LabReceipt): LabActionState {
   const pending = receipt.status === 'pending';

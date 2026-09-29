@@ -55,7 +55,7 @@ export interface LabResultRow {
   revision: string | null;
   original_lab_result_id: string;
   effective_lab_result_id: string | null;
-  evaluation_status: 'pending' | 'recorded' | 'not_required' | null;
+  evaluation_status: 'pending' | 'recorded' | 'not_required' | 'invalidated' | null;
   data_quality: 'recorded' | 'invalid' | 'cancelled';
   quality_reason: string;
 }

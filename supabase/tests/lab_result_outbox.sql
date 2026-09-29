@@ -286,5 +286,11 @@ SELECT throws_ok($q$SELECT * FROM public.submit_lab_result('f2000000-0000-4000-8
 SELECT is((SELECT count(*)::int FROM public.lab_alert_sources), 0, 'revoked link hides historical source evidence');
 SELECT is((SELECT count(*)::int FROM public.lab_alert_evaluations WHERE patient_id = 'f1000000-0000-4000-8000-000000000012'), 0, 'revoked link hides pending/terminal evaluation');
 RESET ROLE;
+-- Terminal source assessments retain explicit historical identity after revoked access.
+SELECT ok(NOT EXISTS(SELECT 1 FROM public.lab_alert_evaluations WHERE status<>'pending' AND source_assessment IS NULL),
+ 'new terminal evaluations have version-aware source assessments');
+SELECT ok(NOT EXISTS(SELECT 1 FROM public.lab_alert_evaluations WHERE source_assessment IS NOT NULL
+ AND(source_assessment->>'lab_result_id'<>lab_result_id::text OR source_assessment->>'patient_id'<>patient_id::text)),
+ 'terminal source assessment matches persisted laboratory and patient identities');
 SELECT * FROM finish();
 ROLLBACK;

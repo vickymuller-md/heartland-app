@@ -167,7 +167,7 @@ describe('saveLabResult collection provenance', () => {
     // Atomic deduplication itself is exercised by lab_result_outbox.sql.
   });
 
-  it.each(['recorded', 'not_required'])('does not reprocess a terminal receipt: %s', async (status) => {
+  it.each(['recorded', 'not_required', 'invalidated'])('does not reprocess a terminal receipt: %s', async (status) => {
     mockSubmit.mockResolvedValue({ data: [{ lab_result_id: LAB_ID, event_id: EVENT_ID, status }], error: null });
     const result = await saveLabResult(null, makeForm());
     expect(result).toMatchObject({ success: true, status: 'saved', labResultId: LAB_ID, eventId: EVENT_ID, alertStatus: status });
@@ -260,7 +260,7 @@ describe('durable laboratory submission recovery actions', () => {
     expect(mockRevalidate).not.toHaveBeenCalled();
   });
 
-  it.each(['pending', 'recorded', 'not_required'])('keeps receipt confirmation distinct from %s alert evaluation', async (alert_status) => {
+  it.each(['pending', 'recorded', 'not_required', 'invalidated'])('keeps receipt confirmation distinct from %s alert evaluation', async (alert_status) => {
     mockSubmit.mockResolvedValue({ data: [{ ...savedRow, alert_status }], error: null });
     expect(await getLabSubmission({ patientId: PATIENT_ID })).toMatchObject({ success: true, submission: { status: 'committed', alertStatus: alert_status } });
     expect(mockRpc).not.toHaveBeenCalled();

@@ -205,8 +205,8 @@ describe('saveLabResult -- SAFE-04', () => {
     expect(mockAdminRpc).not.toHaveBeenCalled();
   });
 
-  it('does not refresh a terminal receipt on retry', async () => {
-    mockLookup.mockResolvedValue({ data: { id: EVENT_ID, lab_result_id: LAB_ID, patient_id: PATIENT_ID, status: 'recorded' }, error: null });
+  it.each(['recorded', 'not_required', 'invalidated'])('does not refresh terminal %s on retry', async (status) => {
+    mockLookup.mockResolvedValue({ data: { id: EVENT_ID, lab_result_id: LAB_ID, patient_id: PATIENT_ID, status }, error: null });
     expect((await retryLabAlerts({ patientId: PATIENT_ID, labResultId: LAB_ID })).success).toBe(true);
     expect(mockAdminRpc).not.toHaveBeenCalled();
   });

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { labEvaluationStatusSchema } from '@/lib/labs/evaluation';
 import { careAnalyteSchema } from '@/lib/care-workflow/types';
 
 const guid = z.guid();
@@ -14,7 +15,7 @@ export const effectiveLabObservationSchema = z.object({
   // Unexpected/nonfinite source encoding fails the whole read, never drops one observation.
   value: z.string().regex(/^-?\d+(?:\.\d+)?$/).nullable(), collected_at: instant,
   notes: z.string().nullable(), lab_facility: z.string().nullable(),
-  evaluation_status: z.enum(['pending', 'recorded', 'not_required']).nullable(),
+  evaluation_status: labEvaluationStatusSchema.nullable(),
 }).strict().superRefine((value, ctx) => {
   const registered = value.root_id !== null;
   if (value.id !== `${value.original_lab_result_id.toLowerCase()}:${value.analyte}`

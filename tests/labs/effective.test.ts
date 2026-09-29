@@ -92,6 +92,11 @@ describe('effective observation projection contract', () => {
 });
 
 describe('latest source selection never revives superseded evidence', () => {
+  it('accepts invalidated processing without treating it as a cancelled source or clinical classification', () => {
+    const row = observation(100, { evaluation_status: 'invalidated' });
+    expect(effectiveLabObservationSchema.safeParse(row).success).toBe(true);
+    expect(selectLatestEffectiveLab([row], patient, 'potassium', now).state).toBe('available');
+  });
   const old = observation(90, { collected_at: '2026-09-28T12:00:00Z', value: '4.1' });
   it('selects by patient/analyte, not newest whole panel', () => {
     const unrelated = observation(101, { patient_id: other, collected_at: '2026-09-29T12:30:00Z' });
