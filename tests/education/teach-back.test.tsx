@@ -33,6 +33,13 @@ async function answer(index = domain.question.correctIndex) {
   fireEvent.click(screen.getByRole('button', { name: domain.question.options[index] }));
   fireEvent.click(screen.getByRole('button', { name: 'Check Answer' }));
 }
+async function clickReadyRecoveryButton(name: string) {
+  const button = await screen.findByRole('button', { name });
+  // Error/result text may render before React finishes the pending transition.
+  // A disabled-button click is ignored; wait for the actual interactive state.
+  await waitFor(() => expect(button).toBeEnabled());
+  fireEvent.click(button);
+}
 beforeEach(() => {
   vi.resetAllMocks();
   read.mockImplementation(async (id: string, domainId: string) => ({ status: 'ready', context: { ...context, actorId: id, domainId } }));
@@ -111,7 +118,7 @@ describe('patient education self-assessment', () => {
     render(<TeachBackCard {...props} />);
     await answer();
     await screen.findByRole('alert');
-    fireEvent.click(screen.getByRole('button', { name: 'Check saved progress' }));
+    await clickReadyRecoveryButton('Check saved progress');
     expect(await screen.findByText(/Answer and progress saved/)).toBeInTheDocument();
     expect(recover).toHaveBeenCalledWith(submit.mock.calls[0][0]);
     expect(submit).toHaveBeenCalledTimes(1);
@@ -129,8 +136,9 @@ describe('patient education self-assessment', () => {
     render(<TeachBackCard {...props} />);
     await answer();
     await screen.findByRole('alert');
-    fireEvent.click(screen.getByRole('button', { name: 'Check saved progress' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Retry saving this answer' }));
+    await clickReadyRecoveryButton('Check saved progress');
+    await waitFor(() => expect(recover).toHaveBeenCalledExactlyOnceWith(submit.mock.calls[0][0]));
+    await clickReadyRecoveryButton('Retry saving this answer');
     expect(await screen.findByText(/Answer and progress saved/)).toBeInTheDocument();
     expect(submit).toHaveBeenCalledTimes(2);
     expect(submit.mock.calls[0][0]).toEqual(submit.mock.calls[1][0]);
