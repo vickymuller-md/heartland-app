@@ -57,7 +57,7 @@ Source: `protocol_v34_candidate.Rmd` + `tables_v34.R` (September 2026). V3.4 is 
 - Rurality independently associated with higher risk of incident HF (Turecamo et al., JAMA Cardiol 2023)
 - Mean distance to cardiology care 87 miles in counties without a cardiologist vs. 16 miles with one (Kim et al., JACC 2024)
 - Perceived social isolation associated with HR 3.74 (95% CI 1.82-7.70) for HF mortality (Manemann et al., JAHA 2018)
-- Social deprivation indices predict HF readmission independent of clinical severity (Deo et al., Circ Cardiovasc Qual Outcomes 2024)
+- **Social deprivation and incident HF:** In US veterans with type 2 diabetes and no HF at baseline, Deo et al. examined residential deprivation when externally validating and recalibrating WATCH-DM for first HF hospitalization over five years (*Circ Cardiovasc Qual Outcomes* 2024). This is not a study of readmission among patients with established HF and does not validate the HEARTLAND score.
 
 ---
 
@@ -99,7 +99,7 @@ A patient with an LVEF of exactly 40% is HFrEF by phenotype **and** within the f
 
 **Contraindications and interactions (finerenone).** Contraindicated with concomitant **strong CYP3A4 inhibitors** (for example clarithromycin, itraconazole, ritonavir), in **adrenal insufficiency**, and in hypersensitivity to any component. **Avoid** grapefruit and grapefruit juice; **avoid** concomitant strong or moderate CYP3A4 **inducers**; **avoid** use in severe hepatic impairment (Child-Pugh C).
 
-**Monitoring schedule (finerenone).** *Label minimum (KERENDIA, revision 8/2025):* potassium and eGFR **before initiation**, **4 weeks after initiation**, and **4 weeks after every dose adjustment** — the 4-week measurement is the **titration decision point** — then periodically. *HEARTLAND schedule (more frequent, by declared protocol choice):* add a potassium and eGFR check **at 1 week** after initiation and after each dose change, per the 2022 AHA/ACC/HFSA MRA laboratory schedule ("approximately 1 week, then 4 weeks, then every 6 months") and the spironolactone label minimum. **The 1-week check is additional to the 4-week milestone; it does not replace it.** Per the label, if eGFR has fallen by more than 30% from the previous measurement the dose is **maintained, not stopped** — a different rule from the Module 3 "creatinine increase >30%" gate.
+**Monitoring schedule (finerenone).** *Label minimum (KERENDIA, revision 8/2025):* potassium and eGFR **before initiation**, **4 weeks after initiation**, and **4 weeks after every dose adjustment** — the 4-week measurement is the **titration decision point** — then periodically. *HEARTLAND schedule (more frequent, by declared protocol choice):* add a potassium and eGFR check **at 1 week** after initiation and after each dose change, per the 2022 AHA/ACC/HFSA MRA laboratory schedule ("approximately 1 week, then 4 weeks, then every 6 months") and the spironolactone label minimum. **The 1-week check is additional to the 4-week milestone; it does not replace it.** In the HF label table, an eGFR fall of more than 30% from the previous measurement prevents an otherwise permitted dose increase: **maintain the current dose instead of increasing**. This footnote does not cancel the potassium-based dose-reduction or withholding instructions. Do not substitute the generic creatinine/MRA gate in Module 3 for this indication-specific table; assess clinically significant worsening renal function separately under the label warnings.
 
 | Clinical Scenario | Suggested Approach | Rationale |
 |-|-|-|
@@ -113,7 +113,7 @@ A patient with an LVEF of exactly 40% is HFrEF by phenotype **and** within the f
 ### Titration Safety Gates Summary
 
 **UPTITRATE IF:** SBP ≥100 and asymptomatic; HR ≥50 (beta-blockers); steroidal MRA K+ <5.0; finerenone K+ <5.0
-**HOLD IF:** SBP <90 or symptomatic hypotension; HR <50; steroidal MRA K+ >5.5; finerenone K+ ≥6.0 (≥5.5 to <6.0 = decrease one step; ≥5.0 to <5.5 = maintain, do NOT reduce); Cr ↑>30%
+**HOLD IF:** SBP <90 or symptomatic hypotension; HR <50; steroidal MRA K+ >5.5; finerenone K+ ≥6.0 (≥5.5 to <6.0 = decrease one step; at 10 mg daily, withhold; ≥5.0 to <5.5 = maintain, do NOT reduce). For Cr ↑>30%, use the ARNI/steroidal-MRA gate; finerenone follows its HF label table and renal-function warning, not this generic gate.
 
 ### 2.3 Non-Pharmacological Management
 
@@ -172,12 +172,12 @@ Both tracks follow **identical clinical decision algorithms**. Track selection i
 | HR <50 (for beta-blockers) | Reduce dose; if symptomatic, hold |
 | K+ 5.0-5.5 — STEROIDAL MRA (spironolactone, eplerenone) | Reduce dose; recheck in 1 week |
 | K+ >5.5 — STEROIDAL MRA and ARNI | Reduce the dose or hold; urgent recheck; dietary counseling. If potassium cannot be maintained <5.5 mEq/L, DISCONTINUE the MRA (2022 AHA/ACC/HFSA, COR 3: Harm) |
-| FINERENONE, K+ <5.0 | INCREASE to the target dose band for the patient's initiating eGFR (40 mg daily if eGFR ≥60; 20 mg daily if eGFR ≥25 to <60) |
+| FINERENONE, K+ <5.0 | At the label's 4-week decision point: current 10 mg -> 20 mg daily; current 20 mg -> maintain if initiating eGFR was 25 to <60, otherwise increase to 40 mg; current 40 mg -> maintain. If eGFR has fallen >30% from the previous measurement, maintain instead of increasing |
 | FINERENONE, K+ ≥5.0 to <5.5 | MAINTAIN the current dose — do NOT reduce (KERENDIA label, HF table) |
-| FINERENONE, K+ ≥5.5 to <6.0 | DECREASE one step: 40 mg to 20 mg daily; 20 mg to 10 mg daily. At 10 mg daily, withhold |
-| FINERENONE, K+ ≥6.0 | WITHHOLD at any dose |
-| FINERENONE, restart after a hold | Restart at 10 mg daily once K+ is <5.5 mEq/L. If repeated measurements are ≥5.5, restart only when K+ is <5.0. Note: these HF thresholds differ from the CKD/T2DM indication of the same drug and are not interchangeable |
-| Cr increase >30% | HOLD ARNI/MRA; evaluate; cardiology consult |
+| FINERENONE, K+ ≥5.5 to <6.0 | DECREASE one step: 40 mg to 20 mg daily; 20 mg to 10 mg daily. At 10 mg daily, withhold and restart at 10 mg only once K+ is <5.5 mEq/L |
+| FINERENONE, K+ ≥6.0 | WITHHOLD at any dose. Restart at 10 mg daily once K+ is <5.5 mEq/L; if repeated measurements are ≥5.5, restart only once K+ is <5.0 (footnote to the label's ≥6.0 row) |
+| FINERENONE, restart after a hold | Use the applicable withholding row above, not a single universal restart cutoff. HF and CKD/T2DM dose-adjustment tables are different and are not interchangeable |
+| Cr increase >30% | HOLD ARNI/steroidal MRA; evaluate; cardiology consult. Finerenone: use the HF label table and renal-function warning, not this generic gate |
 
 **Note on the potassium rows.** Finerenone and the steroidal MRAs do **not** share a potassium rule. The finerenone bands above are the label bands for the heart failure indication; applying the steroidal-MRA rule to finerenone de-escalates therapy at 5.0-5.4 where the label says maintain, and treats 5.6 identically to 6.5. Eplerenone follows the steroidal rows, with its own label contraindications at initiation (creatinine clearance ≤30 mL/min; K+ >5.5 mEq/L).
 
@@ -405,11 +405,11 @@ Candidates: NYHA I-II, stable GDMT ≥4 weeks, willing to participate.
 
 **Principle:** tier governs the **format and level of support** with which care is delivered, never whether a clinically indicated element is offered at all. A Tier 1 facility achieving consistent 48-hour phone calls and ≥2 GDMT classes is delivering evidence-based care within its resource constraints.
 
-**Tier 3 rapid up-titration:** STRONG-HF (Mebazaa et al., *Lancet* 2022) showed that intensive, early optimization within two weeks of discharge reduces the composite of HF rehospitalization and all-cause death; post-hospitalization initiation strategies (DeVore et al., *Circulation* 2020) support this approach. It requires close monitoring and adequate staffing.
+**Tier 3 rapid up-titration:** STRONG-HF (Mebazaa et al., *Lancet* 2022) showed that intensive, early optimization within two weeks of discharge reduces the composite of HF rehospitalization and all-cause death; post-hospitalization initiation strategies (DeVore et al., *JAMA Cardiology* 2020, doi:10.1001/jamacardio.2019.4665) support this approach. It requires close monitoring and adequate staffing.
 
 ### 8.3 Value-Based Payment Preparation (ASM 2027)
 
-CMS has announced the Ambulatory Specialty Model (ASM) as a mandatory value-based payment program for heart failure, with implementation anticipated in 2027.
+**Context:** CMS specifies five performance years for the Ambulatory Specialty Model (ASM), from **1 January 2027 through 31 December 2031**. It is mandatory for **selected specialists** caring for Original Medicare beneficiaries with heart failure or low back pain, not for every rural hospital, primary care practice or HEARTLAND adopter. Preparation here means checking actual participation and coordination requirements, not asserting eligibility, compliance, reimbursement or a demonstrated effect of HEARTLAND. Source: CMS Innovation Center ASM model page, accessed 21 September 2026.
 
 - Register for CMS Innovation Center updates
 - Establish baseline quality metrics
@@ -443,7 +443,7 @@ CMS has announced the Ambulatory Specialty Model (ASM) as a mandatory value-base
 | Sacubitril/valsartan | Novartis | NO manufacturer PAP coverage confirmed (verified 2026-09-17): not on the Novartis Patient Assistance Foundation medicine list and the brand sites redirect to a generic product index. A marketed US generic now exists — pursue the generic, not assistance |
 | Finerenone | Bayer | COPAY SAVINGS CARD (commercial insurance only; government-program beneficiaries ineligible; annual cap). A separate Bayer US Patient Assistance Foundation PAP is reported at ≤300% FPL for uninsured patients but could not be verified at source (manufacturer pages returned HTTP 403) — confirm directly before relying on it |
 | Empagliflozin | Lilly/BI | PAP (BI Cares). Income ceiling NOT verified — do not quote one. The Jardiance copay savings card is a COMMERCIAL-ONLY card and the version currently served still shows an expiration of 31 December 2024 |
-| Dapagliflozin | AstraZeneca | PAP (AZ&Me) — CLOSED TO NEW PATIENTS since 1 May 2026; patients enrolled by 31 December 2026 continue, last order 15 December 2026, no exceptions. Eligibility while it applied: ≤300% FPL. A marketed US generic dapagliflozin exists since April 2026 |
+| Dapagliflozin | AstraZeneca | PAP (AZ&Me) — CLOSED TO NEW PATIENTS since 1 May 2026; actively enrolled patients continue to receive assistance UNTIL 31 December 2026, not new enrollment through that date. Final refill request 15 December 2026; no extensions. Income ceiling while applicable: ≤300% FPL. The manufacturer cites generic availability from April 2026 |
 | Semaglutide | Novo Nordisk | PAP (Novo Nordisk) — ≤200% FPL for Ozempic in uninsured patients; Medicare Part D beneficiaries with drug coverage became ineligible in 2026. Wegovy is NOT listed on the PAP pages; do not assert PAP coverage for Wegovy |
 
 Additional: NeedyMeds.org, RxAssist.org, 340B pricing for eligible facilities (FQHC, CAH, certain hospitals).
