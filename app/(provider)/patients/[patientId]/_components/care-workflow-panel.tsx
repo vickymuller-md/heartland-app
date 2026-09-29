@@ -9,6 +9,7 @@ import { CareLabPanel } from './care-lab-panel';
 import { CareHumanEvidence } from './care-human-evidence';
 import { CareHumanPanel } from './care-human-panel';
 import { CareUnsavedIntentPanel } from './care-unsaved-intent-panel';
+import { CarePostclosurePanel } from './care-postclosure-panel';
 import { acknowledgeCareStep, applyCareStep, cancelCareStep, loadCareWorkflow, loadPendingCareSteps,
   prepareCareStep, recoverCareStep } from '@/lib/care-workflow/step-actions';
 import { CARE_STAGE_LABELS, CARE_STEP_LABELS, CARE_STEP_READ_UNAVAILABLE, CARE_STEP_UNCONFIRMED,
@@ -46,6 +47,7 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
   const [labReady, setLabReady] = useState(false);
   const [humanReady, setHumanReady] = useState(false);
   const [adminReady, setAdminReady] = useState(false);
+  const [routingReady, setRoutingReady] = useState(false);
   const [labRefreshToken, setLabRefreshToken] = useState(0);
   const [items, setItems] = useState<CareStepState[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -74,7 +76,7 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
     inFlight.current = true; const version = ++generation.current;
     readInFlight.current = true;
     setBusy(true); setError(null); setComplete(false);
-    setLabReady(false); setHumanReady(false); setAdminReady(false); setLabRefreshToken((value) => value + 1);
+    setLabReady(false); setHumanReady(false); setAdminReady(false); setRoutingReady(false); setLabRefreshToken((value) => value + 1);
     if (!after) { setItems([]); setCursor(null); }
     try {
       // Never use an old applied receipt as the next command's stage or ownership context.
@@ -97,7 +99,7 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
     if (inFlight.current || invalidSession.current) return;
     inFlight.current = true; const version = ++generation.current;
     setSelected(input); setSaved(null); setComplete(false); setBusy(true); setError(null);
-    setLabReady(false); setHumanReady(false); setAdminReady(false);
+    setLabReady(false); setHumanReady(false); setAdminReady(false); setRoutingReady(false);
     try {
       const response = await action(input);
       if (version !== generation.current) return;
@@ -108,11 +110,11 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
   const pendingHere = items.filter((item) => item.work_item_id === workId);
   const allowed = detail ? availableCareCommands(detail.kind, detail.stage) : [];
   const stepsReady = complete && !pendingHere.length && !selected && !busy;
-  const mayPrepare = !!detail && stepsReady && humanReady && (detail.kind !== 'laboratory_order' || labReady && adminReady) && canRecordCareStep(detail, actorId);
+  const mayPrepare = !!detail && stepsReady && humanReady && (detail.kind !== 'laboratory_order' || labReady && adminReady && routingReady) && canRecordCareStep(detail, actorId);
   function siblingChanged() {
     // Invalidate current reads, never the outcome of an exact private write.
     if (readInFlight.current) { generation.current += 1; readInFlight.current = false; inFlight.current = false; setBusy(false); }
-    setDetail(null); setComplete(false); setLabReady(false); setHumanReady(false); setAdminReady(false);
+    setDetail(null); setComplete(false); setLabReady(false); setHumanReady(false); setAdminReady(false); setRoutingReady(false);
   }
   function prepare(form: HTMLFormElement) {
     if (inFlight.current || invalidSession.current || !detail || !mayPrepare || !allowed.includes(command)) return;
@@ -236,7 +238,7 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
     </> : <p>Workflow detail is unavailable. Checking your own pending receipts does not restore ownership or permit a new step.</p>}
     {!selected && <div className="space-y-3 rounded-xl border bg-slate-50 p-4">
       <button className={button} type="button" disabled={busy} onClick={() => void load()}>Refresh workflow and check pending steps</button>
-      <p>Load complete step and human recovery lists before preparing a step. Laboratory follow-up also requires verified laboratory and administrative recovery lists with no own unresolved intention, composition or administrative request. Nothing is applied automatically.</p>
+      <p>Load complete step and human recovery lists before preparing a step. Laboratory follow-up also requires verified laboratory, administrative and post-closure routing recovery lists with no own unresolved intention, composition, administrative or routing request. Nothing is applied automatically.</p>
       {items.length > 0 && <ul className="space-y-2" aria-label="Pending step receipts">{items.map((item) => <li key={item.request_id} className="rounded-lg border bg-white p-3">
         <p>{CARE_STEP_LABELS[item.command as CareStepCommand['command']]} · {item.state === 'applied' ? 'Recorded; receipt unacknowledged' : 'Prepared; not recorded'}</p>
         {item.work_item_id === workId ? <button className={button} type="button" disabled={busy}
@@ -301,11 +303,13 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
       </div>
     </div>}
     {(kind === null || kind === 'laboratory_order') && <CareLabPanel scope={scope} workId={workId} workflow={detail}
-      stepsReady={stepsReady && humanReady && adminReady} refreshToken={labRefreshToken} onReadiness={setLabReady} onChanged={siblingChanged} />}
+      stepsReady={stepsReady && humanReady && adminReady && routingReady} refreshToken={labRefreshToken} onReadiness={setLabReady} onChanged={siblingChanged} />}
     {(kind === null || kind === 'laboratory_order') && <CareUnsavedIntentPanel scope={scope} workId={workId} workflow={detail}
-      peersReady={stepsReady && humanReady && labReady} refreshToken={labRefreshToken} onReadiness={setAdminReady} onChanged={siblingChanged} />}
+      peersReady={stepsReady && humanReady && labReady && routingReady} refreshToken={labRefreshToken} onReadiness={setAdminReady} onChanged={siblingChanged} />}
+    {(kind === null || kind === 'laboratory_order') && <CarePostclosurePanel scope={scope} workId={workId} workflow={detail}
+      peersReady={stepsReady && humanReady && labReady && adminReady} refreshToken={labRefreshToken} onReadiness={setRoutingReady} onChanged={siblingChanged} />}
     <CareHumanPanel scope={scope} workId={workId} workflow={detail}
-      peersReady={stepsReady && (kind !== null && kind !== 'laboratory_order' || labReady && adminReady)}
+      peersReady={stepsReady && (kind !== null && kind !== 'laboratory_order' || labReady && adminReady && routingReady)}
       refreshToken={labRefreshToken} onReadiness={setHumanReady} onChanged={siblingChanged} />
     {busy && <p role="status">Checking current authorized follow-up state…</p>}
     {error && <p role="alert" className="text-red-800">{error}</p>}

@@ -17,6 +17,7 @@ import { PatientTimeline } from './_components/patient-timeline';
 import { ActionCenter } from './_components/action-center';
 import { AccountabilityPanel } from './_components/accountability-panel';
 import { CareRequestPanel } from './_components/care-request-panel';
+import { CarePostclosureNeedsPanel } from './_components/care-postclosure-needs-panel';
 import { ProductEventTracker } from '@/components/analytics/product-event-tracker';
 import { getTeamDirectory, hasCapabilityInAnyOrganization } from '@/lib/team/queries';
 import { getEducationTeachbackState } from '@/lib/education/queries';
@@ -202,6 +203,8 @@ export default async function PatientDetailPage({
         organizations={teamDirectory.members.filter((member) => member.is_self)
           .map((member) => ({ id: member.organization_id, name: member.organization_name }))} />}
       <PatientTimeline events={operationalView.timeline} />
+      {!teamDirectory.error && <CarePostclosureNeedsPanel actorId={user.id} patientId={patientId} scopeKey={randomUUID()}
+        organizations={teamDirectory.members.filter((member) => member.is_self).map((member) => ({ id: member.organization_id, name: member.organization_name }))} />}
 
       {/* Tabs */}
       <div id="patient-record-tabs" className="scroll-mt-4">

@@ -4,7 +4,11 @@ import { useEffect } from 'react';
 const mocks = vi.hoisted(() => ({ prepare: vi.fn(), recover: vi.fn(), apply: vi.fn(), cancel: vi.fn(), ack: vi.fn(),
   detail: vi.fn(), list: vi.fn(), intents: vi.fn(), routing: vi.fn(), changes: vi.fn(), sources: vi.fn(), subscribe: vi.fn(), unsubscribe: vi.fn(),
   ready: vi.fn(), changed: vi.fn(), workflow: vi.fn(), steps: vi.fn(), humanReady: true,
-  adminList: vi.fn(), adminRecover: vi.fn(), adminApply: vi.fn(), adminAck: vi.fn() }));
+  adminList: vi.fn(), adminRecover: vi.fn(), adminApply: vi.fn(), adminAck: vi.fn(), postclosureList: vi.fn(),
+  postclosureRecover: vi.fn(), postclosureApply: vi.fn(), postclosureAck: vi.fn() }));
+vi.mock('@/lib/care-workflow/postclosure-actions', () => ({ loadPendingPostclosure: mocks.postclosureList, recoverPostclosure: mocks.postclosureRecover,
+  applyPostclosure: mocks.postclosureApply, acknowledgePostclosure: mocks.postclosureAck, preparePostclosure: vi.fn(), cancelPostclosure: vi.fn(),
+  loadPostclosureContext: vi.fn(), loadPostclosureNeeds: vi.fn(), loadPostclosureHistory: vi.fn(), loadPostclosureSuccessors: vi.fn() }));
 vi.mock('@/lib/care-workflow/unsaved-intent-actions', () => ({ loadPendingUnsaved: mocks.adminList,
   recoverUnsaved: mocks.adminRecover, applyUnsaved: mocks.adminApply, acknowledgeUnsaved: mocks.adminAck,
   prepareUnsaved: vi.fn(), cancelUnsaved: vi.fn(), loadUnsavedContext: vi.fn(), loadUnsavedHistory: vi.fn() }));
@@ -69,7 +73,7 @@ beforeEach(() => {
   vi.resetAllMocks(); vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-09-29T13:00:00Z'));
   mocks.humanReady = true;
   mocks.subscribe.mockReturnValue({ data: { subscription: { unsubscribe: mocks.unsubscribe } } });
-  for (const name of ['list', 'intents', 'routing', 'changes', 'steps', 'adminList'] as const) mocks[name].mockResolvedValue(empty());
+  for (const name of ['list', 'intents', 'routing', 'changes', 'steps', 'adminList', 'postclosureList'] as const) mocks[name].mockResolvedValue(empty());
   mocks.detail.mockResolvedValue(ok(detail)); mocks.sources.mockResolvedValue(ok(sources)); mocks.workflow.mockResolvedValue(ok(workflow));
   mocks.prepare.mockImplementation(async (value) => ok(saved(value))); mocks.recover.mockImplementation(async (value) => ok(saved(value)));
   mocks.apply.mockImplementation(async (value) => ok(saved(value, 'applied'))); mocks.cancel.mockImplementation(async (value) => ok(saved(value, 'cancelled')));
@@ -211,6 +215,40 @@ describe('exact laboratory source association', () => {
 });
 describe('real parent/child pending coordination', () => {
   const parent = { actorId: scope.actor_id, patientId: scope.patient_id, organizationId: scope.organization_id, workId: id(100), initial: workflow, scopeKey: 'test' };
+  it('real routing recovery fails closed, then releases every ready peer without cyclic waiting or lost batched readiness', async () => {
+    mocks.postclosureList.mockResolvedValueOnce({ data: null, error: 'Unavailable' }); render(<CareWorkflowPanel {...parent} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh workflow and check pending steps' }));
+    await screen.findByText(/Routing recovery is incomplete/); expect(screen.queryByRole('form')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Save a new exam for this follow-up' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Check routing pending records' }));
+    await screen.findByRole('form', { name: 'New documented step' }); await screen.findByRole('form', { name: 'New laboratory source composition' });
+    for (let n = 0; n < 3; n++) {
+      await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Check routing pending records' })));
+      expect(await screen.findByRole('form', { name: 'New documented step' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Save a new exam for this follow-up' })).toBeEnabled();
+    }
+  });
+  it('real routing application invalidates unchanged clinical revision, retains receipt and requires separate ACK/reload', async () => {
+    const snapshot = { invalidation_id: id(960), organization_id: scope.organization_id, patient_id: scope.patient_id, predecessor_work_item_id: id(961),
+      closure_event_id: id(962), closure_recorded_at: at, entry_id: id(963), composition_event_id: id(964), analyte: 'potassium', root_id: id(965),
+      change_version_id: id(966), change_revision: '2', change_status: 'corrected', change_recorded_at: at, invalidation_recorded_at: at };
+    const request = { ...scope, request_id: id(970), invalidation_id: id(960), predecessor_work_item_id: id(961), work_item_id: id(100),
+      expected_revision: '1', expected_ownership_revision: '7', expected_routing_revision: '0', previous_event_id: null,
+      payload: { snapshot, occurred_at: at, evidence: 'Exact routing evidence', reason: 'Source changed', review_at: due,
+        responsibility_acknowledged: true, supersession_acknowledged: false }, state: 'prepared', recorded_at: at, acknowledged_at: null, receipt: null };
+    const applied = { ...request, state: 'applied', receipt: { request_id: id(970), event_id: id(971), invalidation_id: id(960), predecessor_work_item_id: id(961),
+      work_item_id: id(100), previous_event_id: null, routing_revision: '1', workflow_revision: '1', ownership_revision: '7', recorded_at: at, review_at: due,
+      delegated: true, clinical_invalidation_resolved: false, clinical_review_recorded: false, communication_confirmed: false, care_completed: false } };
+    mocks.postclosureList.mockResolvedValueOnce(ok({ items: [request], next_cursor: null })); mocks.postclosureRecover.mockResolvedValue(ok(request));
+    mocks.postclosureApply.mockResolvedValue(ok(applied)); mocks.postclosureAck.mockResolvedValue(ok({ ...applied, acknowledged_at: at }));
+    render(<CareWorkflowPanel {...parent} />); fireEvent.click(screen.getByRole('button', { name: 'Refresh workflow and check pending steps' }));
+    fireEvent.click(await screen.findByRole('button', { name: `Recover routing request ${id(970)}` }));
+    await screen.findByRole('button', { name: 'Confirm explicit delegation' }); fireEvent.click(screen.getByRole('button', { name: 'Confirm explicit delegation' }));
+    await screen.findByText(/Workflow revision remains 1/); expect(screen.queryByLabelText('Last loaded workflow snapshot')).toBeNull(); expect(screen.queryByRole('form')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Acknowledge routing receipt' })); await screen.findByRole('button', { name: 'Return to routing recovery' });
+    fireEvent.click(screen.getByRole('button', { name: 'Return to routing recovery' })); fireEvent.click(screen.getByRole('button', { name: 'Refresh workflow and check pending steps' }));
+    await screen.findByRole('form', { name: 'New documented step' }); expect(screen.getByText('Revision 1')).toBeInTheDocument(); expect(mocks.workflow).toHaveBeenCalledTimes(2);
+  });
   it('fails closed until the real administrative recovery panel verifies its full queue', async () => {
     mocks.adminList.mockResolvedValueOnce({ data: null, error: 'Unavailable' }); render(<CareWorkflowPanel {...parent} />);
     fireEvent.click(screen.getByRole('button', { name: 'Refresh workflow and check pending steps' }));
