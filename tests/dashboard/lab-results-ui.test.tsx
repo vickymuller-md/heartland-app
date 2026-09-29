@@ -822,7 +822,7 @@ describe('lab collection form', () => {
     const history = await screen.findByRole('region', { name: 'Laboratory evaluation history' });
     expect(history).toHaveTextContent('Excluded — cancelled before processing');
     expect(history).toHaveTextContent('Not recorded in this event; not evaluated');
-    fireEvent.click(screen.getByRole('button', { name: 'Acknowledge saved receipt' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Acknowledge saved receipt' }));
     await screen.findByText(/Receipt acknowledged/);
     expect(await screen.findByRole('region', { name: 'Laboratory evaluation history' })).toHaveTextContent('Event value: 6.2');
     currentSubmission = null;
