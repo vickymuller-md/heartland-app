@@ -175,11 +175,13 @@ SELECT is((SELECT count(*)::int FROM public.vitals WHERE patient_id='46000000-00
 RESET ROLE;
 UPDATE public.profiles SET role='tester',sandbox_expires_at=now()-interval '1 hour' WHERE id='46000000-0000-4000-8000-000000000001';
 SET LOCAL ROLE service_role;
-SELECT lives_ok($q$SELECT public.purge_expired_tester_provenance('46000000-0000-4000-8000-000000000001')$q$,'actor tester purge also removes batch provenance');
-SELECT is((SELECT count(*)::int FROM public.vitals_submission_batches),0,'no batch actor provenance remains');
-SELECT is((SELECT count(*)::int FROM public.vitals_submission_batch_rows),0,'no recipe mapping orphan remains');
-SELECT is((SELECT vitals_batch_rows_deleted FROM public.lab_provenance_erasures WHERE actor_id='46000000-0000-4000-8000-000000000001'),2,'actor mapping count audited separately');
-SELECT is((SELECT vitals_batches_deleted FROM public.lab_provenance_erasures WHERE actor_id='46000000-0000-4000-8000-000000000001'),2,'actor captured and cancelled batches audited');
-SELECT is((SELECT count(*)::int FROM public.vitals WHERE patient_id='46000000-0000-4000-8000-000000000011'),3,'actor purge preserves third-party patient observations');
+-- This former provider is ALSO the historical recipient of an unresolved N2
+-- intent. Role conversion must not disguise subject erasure as actor cleanup.
+SELECT throws_ok($q$SELECT public.purge_expired_tester_provenance('46000000-0000-4000-8000-000000000001')$q$,
+ '23503','Notification subject evidence requires explicit disposition','historical recipient requires disposition before actor purge');
+SELECT is((SELECT count(*)::int FROM public.vitals_submission_batches),2,'blocked purge preserves both actor batches');
+SELECT is((SELECT count(*)::int FROM public.vitals_submission_batch_rows),2,'blocked purge preserves recipe mappings');
+SELECT is((SELECT count(*)::int FROM public.lab_provenance_erasures WHERE actor_id='46000000-0000-4000-8000-000000000001'),0,'blocked purge creates no partial erasure receipt');
+SELECT is((SELECT count(*)::int FROM public.vitals WHERE patient_id='46000000-0000-4000-8000-000000000011'),3,'blocked purge preserves third-party patient observations');
 SELECT * FROM finish();
 ROLLBACK;

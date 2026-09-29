@@ -72,6 +72,23 @@ SELECT is((SELECT count(*)::int FROM public.lab_provenance_erasures WHERE actor_
 SELECT throws_ok($q$DELETE FROM auth.users WHERE id=pg_temp.ne(1)$q$,'23503',NULL,'existing provider/work restrictions remain: no general erasure claim');
 SELECT throws_ok($q$DELETE FROM auth.users WHERE id=pg_temp.ne(11)$q$,'23503',NULL,'existing patient/work restrictions remain');
 
+-- A tester with a historical recipient relation is not merely an actor. The
+-- service must fail before ANY provenance is erased, even after role changes.
+UPDATE public.profiles SET sandbox_expires_at=now()-interval '1 day' WHERE id=pg_temp.ne(24);
+INSERT INTO public.notification_intents(work_item_id,alert_id,organization_id,patient_id,recipient_id,
+ source_revision,generation,event_kind,capture_state,state)
+ SELECT work_item_id,alert_id,organization_id,patient_id,pg_temp.ne(24),source_revision,999,'critical_reassigned','pending','pending'
+ FROM public.notification_intents WHERE patient_id=pg_temp.ne(11) LIMIT 1;
+SET LOCAL ROLE service_role;
+SELECT set_config('request.jwt.claims','{"role":"service_role"}',true);
+SELECT throws_ok($q$SELECT public.purge_expired_tester_provenance(pg_temp.ne(24))$q$,'23503',
+ 'Notification subject evidence requires explicit disposition','historical recipient refuses expired-tester purge');
+RESET ROLE;
+SELECT is((SELECT count(*)::int FROM public.lab_provenance_erasures WHERE actor_id=pg_temp.ne(24)),0,'subject refusal leaves no partial erasure audit');
+SELECT throws_ok($q$DELETE FROM public.profiles WHERE id=pg_temp.ne(24)$q$,'23503',
+ 'Notification subject evidence requires explicit disposition','profile without current work FK still protects historical recipient');
+SELECT is((SELECT count(*)::int FROM public.notification_intents WHERE recipient_id=pg_temp.ne(24)),1,'historical subject record retained');
+
 -- Blocked intent is cancellable, but captured blocked reason cannot be erased.
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claims',jsonb_build_object('sub',pg_temp.ne(1),'role','authenticated','aal','aal2')::text,true);
