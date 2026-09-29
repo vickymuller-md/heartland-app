@@ -12,6 +12,7 @@
 import React from 'react';
 import type { PatientSummaryData } from '@/lib/reports/types';
 import { RiskTierDisclaimer } from '@/components/disclaimers/risk-score-disclaimer';
+import { labCollectionUTC } from '@/lib/labs/quality';
 
 interface PatientSummaryPrintProps {
   data: PatientSummaryData | null;
@@ -104,7 +105,7 @@ export const PatientSummaryPrint = React.forwardRef<
 
           {/* c. Lab Results */}
           <h2 className="font-semibold mt-4 mb-2 border-b pb-1">Lab Results</h2>
-          <p className="text-xs text-gray-600 mb-2">Laboratory date range uses complete UTC calendar days. Flags are shown only when recorded.</p>
+          <p className="text-xs text-gray-600 mb-2">Current source versions by documented collection over complete UTC calendar days, not a reconstruction of past decisions. Flags are shown only when recorded. Source status and alert processing do not establish clinical review or suitability.</p>
           {data.labs.length === 0 ? (
             <p className="text-sm text-gray-500 mb-4">No lab values recorded in period.</p>
           ) : (
@@ -115,6 +116,7 @@ export const PatientSummaryPrint = React.forwardRef<
                   <th className="py-1 text-left font-medium">Value</th>
                   <th className="py-1 text-left font-medium">Collected at (UTC)</th>
                   <th className="py-1 text-left font-medium">Flag</th>
+                  <th className="py-1 text-left font-medium">Source / data quality</th>
                 </tr>
               </thead>
               <tbody>
@@ -122,11 +124,11 @@ export const PatientSummaryPrint = React.forwardRef<
                   <tr key={lab.id} className="border-b border-gray-200 break-inside-avoid">
                     <td className="py-1">{lab.test_name}</td>
                     <td className="py-1">
-                      {lab.value} {lab.unit}
+                      {lab.source_status === 'cancelled' ? 'No current value' : `${lab.value ?? '—'} ${lab.unit}`}
                     </td>
-                    <td className="py-1"><time dateTime={lab.collected_at}>{new Date(lab.collected_at).toISOString()}</time></td>
+                    <td className="py-1"><time dateTime={lab.collected_at}>{labCollectionUTC(lab.collected_at)}</time></td>
                     <td className="py-1">
-                      {lab.flag == null ? (
+                      {lab.flag == null || lab.source_status === 'cancelled' || lab.data_quality !== 'recorded' ? (
                         <span className="text-gray-500">Not recorded</span>
                       ) : lab.flag !== 'normal' ? (
                         <span
@@ -143,6 +145,12 @@ export const PatientSummaryPrint = React.forwardRef<
                       ) : (
                         <span className="text-green-600">Normal</span>
                       )}
+                    </td>
+                    <td className="py-1">
+                      <p>{lab.source_status}{lab.revision ? ` · revision ${lab.revision}` : ' · authority not registered'}</p>
+                      <p>{lab.data_quality === 'recorded' ? 'Recorded source; suitability not assessed' : 'Not usable — reconcile source'}</p>
+                      <p>{lab.quality_reason}</p>
+                      {lab.evaluation_status === 'pending' && <p>Alert processing pending</p>}
                     </td>
                   </tr>
                 ))}

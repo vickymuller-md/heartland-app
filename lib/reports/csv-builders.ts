@@ -119,7 +119,7 @@ export function buildVitalsCSV(
 
 /**
  * Build labs CSV data with header row.
- * Columns: patient_id, test_name, value, unit, collected_at, flag
+ * Effective source status is separate from recorded flags and validity. No free-text source notes.
  */
 export function buildLabsCSV(
   labs: LabResultRow[],
@@ -132,15 +132,20 @@ export function buildLabsCSV(
     'unit',
     'collected_at',
     'flag',
+    'source_status', 'revision', 'data_quality', 'quality_reason', 'evaluation_status',
+    'root_id', 'version_id', 'original_lab_result_id', 'effective_lab_result_id',
   ];
 
   const dataRows = labs.map((l) => [
     deidentifyId(l.patient_id, opts),
     l.test_name ?? '',
-    l.value != null ? String(l.value) : '',
+    l.source_status !== 'cancelled' && l.value != null ? l.value : '',
     l.unit ?? '',
     l.collected_at ? (opts.deidentify ? truncateToYear(l.collected_at) : l.collected_at) : '',
-    l.flag ?? '',
+    l.source_status === 'cancelled' || l.data_quality !== 'recorded' ? '' : (l.flag ?? ''),
+    l.source_status, l.revision ?? '', l.data_quality, l.quality_reason, l.evaluation_status ?? '',
+    ...(opts.deidentify ? ['', '', '', '']
+      : [l.root_id ?? '', l.version_id ?? '', l.original_lab_result_id, l.effective_lab_result_id ?? '']),
   ]);
 
   return [header, ...dataRows];

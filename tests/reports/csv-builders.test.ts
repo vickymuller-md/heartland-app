@@ -17,6 +17,7 @@ import {
   truncateToYear,
 } from '@/lib/reports/csv-builders';
 import { projectLabResults } from '@/lib/reports/lab-results';
+import type { LabResultRow } from '@/lib/reports/types';
 
 describe('REPT-03 downloadCSV / arrayToCSV', () => {
   it('wraps each cell in double quotes per RFC 4180', () => {
@@ -85,17 +86,38 @@ describe('REPT-03 buildLabsCSV', () => {
   });
 
   it('exports projected wide results with exact collection time and blank unrecorded flag', () => {
-    const labs = projectLabResults([{
-      id: 'draw-1', patient_id: 'patient-1', collected_at: '2025-08-01T09:15:00-04:00',
-      potassium: 6.2, creatinine: 1.1, egfr: null,
-    }]);
+    const original = '64000000-0000-4000-8000-000000000101';
+    const patient = '64000000-0000-4000-8000-000000000011';
+    const labs = projectLabResults((['potassium', 'creatinine'] as const).map((analyte, index) => ({
+      id: `${original}:${analyte}`, original_lab_result_id: original, patient_id: patient,
+      analyte, status: 'original', value: index === 0 ? '6.2' : '1.1', effective_lab_result_id: original,
+      collected_at: '2025-08-01T09:15:00.123456-04:00', root_id: null, version_id: null, revision: null,
+      notes: null, lab_facility: null, evaluation_status: null,
+    })));
     const rows = buildLabsCSV(labs, { deidentify: false });
-    expect(rows.slice(1)).toEqual([
-      ['patient-1', 'Potassium', '6.2', 'mEq/L', '2025-08-01T09:15:00-04:00', ''],
-      ['patient-1', 'Creatinine', '1.1', 'mg/dL', '2025-08-01T09:15:00-04:00', ''],
+    expect(rows.slice(1).map((row) => row.slice(0, 6))).toEqual([
+      [patient, 'Creatinine', '1.1', 'mg/dL', '2025-08-01T09:15:00.123456-04:00', ''],
+      [patient, 'Potassium', '6.2', 'mEq/L', '2025-08-01T09:15:00.123456-04:00', ''],
     ]);
-    const reduced = buildLabsCSV(labs, { deidentify: true, patientMap: new Map([['patient-1', 'P001']]) });
-    expect(reduced[1]).toEqual(['P001', 'Potassium', '6.2', 'mEq/L', '2025', '']);
+    expect(rows[1][13]).toBe(original);
+    const reduced = buildLabsCSV(labs, { deidentify: true, patientMap: new Map([[patient, 'P001']]) });
+    expect(reduced[1].slice(0, 6)).toEqual(['P001', 'Creatinine', '1.1', 'mg/dL', '2025', '']);
+    expect(JSON.stringify(reduced)).not.toContain(original);
+    expect(JSON.stringify(reduced)).not.toContain(patient);
+    expect(reduced.slice(1).every((row) => row.slice(11).every((cell) => cell === ''))).toBe(true);
+  });
+
+  it('exports cancellation without value/flag and omits every provenance identifier when minimized', () => {
+    const row: LabResultRow = { id: 'original:potassium', patient_id: 'patient', test_name: 'Potassium', value: '6.1',
+      unit: 'mEq/L', collected_at: '2026-08-01T12:00:00.123456Z', flag: 'normal', source_status: 'cancelled',
+      root_id: 'root', version_id: 'version', revision: '2', original_lab_result_id: 'original', effective_lab_result_id: null,
+      evaluation_status: null, data_quality: 'cancelled', quality_reason: 'Cancelled source; reconcile.' };
+    const exported = buildLabsCSV([row], { deidentify: false });
+    expect(exported[1][2]).toBe(''); expect(exported[1][5]).toBe('');
+    expect(exported[1][6]).toBe('cancelled'); expect(exported[1][7]).toBe('2');
+    const minimized = buildLabsCSV([row], { deidentify: true, patientMap: new Map([['patient', 'P001']]) });
+    expect(minimized[1].slice(11)).toEqual(['', '', '', '']);
+    expect(minimized[1]).not.toContain(row.id);
   });
 });
 
@@ -174,15 +196,18 @@ describe('REPT-08 year-only date reduction', () => {
 
   describe('buildLabsCSV with deidentify:true', () => {
     it('shows year-only in collected_at column', () => {
-      const labs = [
+      const labs: LabResultRow[] = [
         {
           id: 'lab-1',
           patient_id: 'uuid-1',
           test_name: 'BNP',
-          value: 150,
+          value: '150',
           unit: 'pg/mL',
           collected_at: '2026-03-27T10:00:00Z',
           flag: 'normal' as const,
+          source_status: 'original', root_id: null, version_id: null, revision: null,
+          original_lab_result_id: 'lab-1', effective_lab_result_id: 'lab-1', evaluation_status: null,
+          data_quality: 'recorded', quality_reason: 'Recorded source; suitability not assessed.',
         },
       ];
       const result = buildLabsCSV(labs, {

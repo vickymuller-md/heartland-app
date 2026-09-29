@@ -155,8 +155,8 @@ export async function getPatientSummaryData(
   const detail = await getPatientDetail(supabase, providerId, patientId);
   if (!detail) return null;
 
-  // 2. Read persisted wide panels and retain each recorded analyte and collection instant.
-  const labs = await getReportLabResults(supabase, [patientId], range);
+  // 2. Read the complete effective source composition under the expected authenticated actor.
+  const labs = await getReportLabResults(supabase, [patientId], range, providerId);
 
   return {
     ...detail,

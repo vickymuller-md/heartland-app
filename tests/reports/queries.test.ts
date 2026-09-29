@@ -17,29 +17,20 @@ import {
 } from '@/lib/reports/queries';
 
 const detail = {
-  patient: { id: 'patient-1', full_name: 'Synthetic Patient', risk_tier: null, track_assignment: null },
+  patient: { id: '64000000-0000-4000-8000-000000000011', full_name: 'Synthetic Patient', risk_tier: null, track_assignment: null },
   vitals: [], symptoms: [], adherenceSummary: null, educationProgress: null, notes: [], openAlerts: [],
 };
 
 function labClient(failure?: string) {
-  let selection = '';
-  let page = 0;
-  const query = {
-    select: vi.fn((columns: string) => { selection = columns; return query; }),
-    eq: vi.fn(() => query), in: vi.fn(() => query), gte: vi.fn(() => query),
-    lte: vi.fn(() => query), lt: vi.fn(() => query), gt: vi.fn(() => query),
-    order: vi.fn(() => query), limit: vi.fn(() => query),
-    then: (resolve: (value: unknown) => void) => {
-      if (failure || /test_name|\bvalue\b|\bunit\b|\bflag\b/.test(selection)) {
-        return resolve({ data: null, error: { message: failure ?? 'column lab_results.test_name does not exist' } });
-      }
-      return resolve({ data: page++ === 0 ? [{
-        id: 'lab-1', patient_id: 'patient-1', collected_at: '2025-08-01T13:15:00Z', potassium: 6.2,
-      }] : [], error: null });
-    },
-  };
-  const from = vi.fn(() => query);
-  return { client: { from } as unknown as SupabaseClient, from, query };
+  const rpc = vi.fn().mockResolvedValue({ data: { actor_id: '64000000-0000-4000-8000-000000000001',
+    patient_ids: ['64000000-0000-4000-8000-000000000011'], snapshot: 'a'.repeat(64), next_cursor: null,
+    items: [{ id: '64000000-0000-4000-8000-000000000101:potassium', original_lab_result_id: '64000000-0000-4000-8000-000000000101',
+      patient_id: '64000000-0000-4000-8000-000000000011', analyte: 'potassium', root_id: null, version_id: null, revision: null,
+      status: 'original', effective_lab_result_id: '64000000-0000-4000-8000-000000000101', value: '6.2',
+      collected_at: '2025-08-01T13:15:00Z', notes: null, lab_facility: null, evaluation_status: null }],
+    }, error: failure ? { message: failure } : null });
+  const from = vi.fn(() => { throw new Error('No raw laboratory fallback'); });
+  return { client: { from, rpc } as unknown as SupabaseClient, from, rpc };
 }
 
 beforeEach(() => { vi.clearAllMocks(); mockDetail.mockResolvedValue(detail); });
@@ -63,31 +54,31 @@ describe('REPT-02 getPatientSummaryData', () => {
   });
 
   it.todo('returns vitals array ordered by recorded_at desc');
-  it('queries real lab columns and preserves historical collection with no invented flag', async () => {
-    const { client, query } = labClient();
+  it('reads effective sources under the expected provider and preserves actual collection without a flag', async () => {
+    const { client, rpc } = labClient();
     const range = { from: '2025-08-01', to: '2025-08-31' };
-    const result = await getPatientSummaryData(client, 'patient-1', 'provider-1', range);
-    expect(mockDetail).toHaveBeenCalledWith(client, 'provider-1', 'patient-1');
+    const result = await getPatientSummaryData(client, '64000000-0000-4000-8000-000000000011', '64000000-0000-4000-8000-000000000001', range);
+    expect(mockDetail).toHaveBeenCalledWith(client, '64000000-0000-4000-8000-000000000001', '64000000-0000-4000-8000-000000000011');
     expect(result?.labs).toEqual([expect.objectContaining({
-      id: 'lab-1:potassium', test_name: 'Potassium', value: 6.2, unit: 'mEq/L',
+      id: '64000000-0000-4000-8000-000000000101:potassium', test_name: 'Potassium', value: '6.2', unit: 'mEq/L',
       collected_at: '2025-08-01T13:15:00Z', flag: null,
     })]);
-    expect(query.in).toHaveBeenCalledWith('patient_id', ['patient-1']);
-    expect(query.gte).toHaveBeenCalledWith('collected_at', '2025-08-01T00:00:00.000Z');
-    expect(query.lt).toHaveBeenCalledWith('collected_at', '2025-09-01T00:00:00.000Z');
+    expect(rpc).toHaveBeenCalledWith('get_effective_lab_observations', {
+      p_patient_ids: ['64000000-0000-4000-8000-000000000011'], p_after: null, p_snapshot: null,
+    });
   });
 
   it('does not query labs when the provider has no patient detail access', async () => {
     mockDetail.mockResolvedValue(null);
     const { client, from } = labClient();
-    expect(await getPatientSummaryData(client, 'patient-1', 'provider-1', { from: '2026-08-01', to: '2026-08-31' })).toBeNull();
+    expect(await getPatientSummaryData(client, '64000000-0000-4000-8000-000000000011', '64000000-0000-4000-8000-000000000001', { from: '2026-08-01', to: '2026-08-31' })).toBeNull();
     expect(from).not.toHaveBeenCalled();
   });
 
   it('propagates a laboratory query failure instead of returning empty labs', async () => {
     const { client } = labClient('Lab query unavailable');
-    await expect(getPatientSummaryData(client, 'patient-1', 'provider-1', { from: '2026-08-01', to: '2026-08-31' }))
-      .rejects.toMatchObject({ message: 'Lab query unavailable' });
+    await expect(getPatientSummaryData(client, '64000000-0000-4000-8000-000000000011', '64000000-0000-4000-8000-000000000001', { from: '2026-08-01', to: '2026-08-31' }))
+      .rejects.toThrow('could not be verified');
   });
   it.todo('returns education progress per domain');
 });

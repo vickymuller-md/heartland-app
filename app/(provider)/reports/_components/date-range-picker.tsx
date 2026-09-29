@@ -15,12 +15,14 @@ import { startOfMonth, subDays, format } from 'date-fns';
 interface DateRangePickerProps {
   from: string;
   to: string;
+  onRangeChange?: () => void;
 }
 
-export function DateRangePicker({ from, to }: DateRangePickerProps) {
+export function DateRangePicker({ from, to, onRangeChange }: DateRangePickerProps) {
   const router = useRouter();
 
   const push = (newFrom: string, newTo: string) => {
+    if (newFrom !== from || newTo !== to) onRangeChange?.();
     router.push(`/reports?from=${newFrom}&to=${newTo}`);
   };
 

@@ -10,7 +10,7 @@
  *               REPT-03 (CSV Export), REPT-04 (Date Range), REPT-05 (Navigation)
  */
 
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import { DateRangePicker } from './date-range-picker';
 import { MonthlyReportPrint } from './monthly-report-print';
@@ -29,138 +29,251 @@ import type { PatientWithStatus } from '@/lib/dashboard/types';
 import { Printer, Download } from 'lucide-react';
 
 interface ReportsShellProps {
+  providerId: string;
   data: MonthlyReportData;
   patients: PatientWithStatus[];
   from: string;
   to: string;
 }
 
-export function ReportsShell({ data, patients, from, to }: ReportsShellProps) {
-  // Print refs -- always mounted (never conditionally rendered)
+interface ReportPrintTicket {
+  epoch: number;
+  kind: 'monthly' | 'patient';
+  token: string;
+  frame: HTMLIFrameElement | null;
+  observer: MutationObserver | null;
+}
+
+export function ReportsShell(props: ReportsShellProps) {
+  // A new server context creates an isolated lifetime; old requests cannot populate it.
+  return <SessionBoundReports key={JSON.stringify([props.providerId, props.from, props.to, props.patients.map((p) => p.id)])} {...props} />;
+}
+
+function SessionBoundReports({ data, patients, from, to, providerId }: ReportsShellProps) {
+  const [supabase] = useState(() => createClient());
   const monthlyPrintRef = useRef<HTMLDivElement>(null);
   const patientPrintRef = useRef<HTMLDivElement>(null);
-
-  // react-to-print v3 hooks
-  const handleMonthlyPrint = useReactToPrint({
-    contentRef: monthlyPrintRef,
-    documentTitle: `HEARTLAND-Monthly-${data.month}`,
-  });
-
-  const handlePatientPrint = useReactToPrint({
-    contentRef: patientPrintRef,
-    documentTitle: 'HEARTLAND-Patient-Summary',
-  });
-
-  // Patient summary state
+  const alive = useRef(false);
+  const blocked = useRef(false);
+  const epoch = useRef(0);
+  const [sessionReady, setSessionReady] = useState(false);
+  const [sessionError, setSessionError] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [patientSummaryData, setPatientSummaryData] = useState<PatientSummaryData | null>(null);
   const [patientSummaryError, setPatientSummaryError] = useState<string | null>(null);
   const [patientSummaryLoading, setPatientSummaryLoading] = useState(false);
-  const printablePatientSummary = patientSummaryData?.patient.id === selectedPatientId
-    && patientSummaryData?.dateRange.from === from && patientSummaryData?.dateRange.to === to
-    ? patientSummaryData : null;
-
-  // Fetch patient data when selection changes
-  useEffect(() => {
-    let obsolete = false;
-    setPatientSummaryData(null);
-    setPatientSummaryError(null);
-    setPatientSummaryLoading(Boolean(selectedPatientId));
-    if (!selectedPatientId) return;
-
-    const loadSummary = async () => {
-      try {
-        const result = await fetchPatientSummary(selectedPatientId, from, to);
-        if (obsolete) return;
-        setPatientSummaryData(result);
-        if (!result) setPatientSummaryError('Unable to load patient summary. Please try again.');
-      } catch {
-        if (obsolete) return;
-        setPatientSummaryData(null);
-        setPatientSummaryError('Unable to load patient summary. Please try again.');
-      } finally {
-        if (!obsolete) setPatientSummaryLoading(false);
-      }
-    };
-    void loadSummary();
-    return () => { obsolete = true; };
-  }, [selectedPatientId, from, to]);
-
-  // CSV export state
   const [csvType, setCsvType] = useState<'vitals' | 'labs' | 'medications'>('vitals');
   const [deidentify, setDeidentify] = useState(false);
   const [csvLoading, setCsvLoading] = useState(false);
   const [csvError, setCsvError] = useState<string | null>(null);
-
+  const [printBusy, setPrintBusy] = useState(false);
+  const [printError, setPrintError] = useState<string | null>(null);
+  const printTicket = useRef<ReportPrintTicket | null>(null);
   const linkedPatientIds = patients.map((p) => p.id);
+  const printablePatientSummary = patientSummaryData?.patient.id === selectedPatientId
+    && patientSummaryData?.dateRange.from === from && patientSummaryData?.dateRange.to === to
+    ? patientSummaryData : null;
+
+  const isCurrent = useCallback((ticket: number) =>
+    alive.current && !blocked.current && epoch.current === ticket, []);
+  const ownsFrame = useCallback((ticket: ReportPrintTicket, frame: HTMLIFrameElement) => {
+    try { return Boolean(frame.contentDocument?.querySelector(`[data-heartland-print-ticket="${ticket.token}"]`)); }
+    catch { return false; }
+  }, []);
+  const watchPrintFrame = useCallback((ticket: ReportPrintTicket, frame: HTMLIFrameElement) => {
+    const claim = () => {
+      if (!ownsFrame(ticket, frame)) return;
+      ticket.frame = frame;
+      if (printTicket.current !== ticket || !isCurrent(ticket.epoch)) frame.remove();
+    };
+    claim(); frame.addEventListener('load', claim, { once: true });
+  }, [ownsFrame, isCurrent]);
+  const finishPrint = useCallback((ticket: ReportPrintTicket | null, removeClone = false) => {
+    if (!ticket) return;
+    // A queued append record must not be lost when disconnecting before the iframe's first load.
+    for (const record of ticket.observer?.takeRecords() ?? []) for (const node of record.addedNodes) {
+      if (node instanceof HTMLIFrameElement && node.id === 'printWindow') watchPrintFrame(ticket, node);
+    }
+    ticket.observer?.disconnect();
+    if (removeClone) {
+      ticket.frame?.remove();
+      // Also cover invalidation in the same task, before MutationObserver has delivered appendChild.
+      const candidate = document.getElementById('printWindow');
+      if (candidate instanceof HTMLIFrameElement) {
+        if (ownsFrame(ticket, candidate)) candidate.remove();
+        else watchPrintFrame(ticket, candidate); // Empty iframe: remove on load only if this ticket's clone appears.
+      }
+    }
+    const root = ticket.kind === 'monthly' ? monthlyPrintRef.current : patientPrintRef.current;
+    if (root?.dataset.heartlandPrintTicket === ticket.token) delete root.dataset.heartlandPrintTicket;
+    if (printTicket.current === ticket) {
+      printTicket.current = null;
+      if (alive.current) setPrintBusy(false);
+    }
+  }, [ownsFrame, watchPrintFrame]);
+  const invalidateSession = useCallback(() => {
+    blocked.current = true; epoch.current += 1;
+    finishPrint(printTicket.current, true);
+    if (alive.current) {
+      setSessionReady(false); setSessionError(true); setPatientSummaryData(null);
+    }
+  }, [finishPrint]);
+  const verifySession = useCallback(async (ticket: number) => {
+    if (!isCurrent(ticket)) throw new Error('Report context changed');
+    const { data: auth, error } = await supabase.auth.getUser();
+    if (!isCurrent(ticket)) throw new Error('Report context changed');
+    if (error || auth.user?.id !== providerId) {
+      invalidateSession(); throw new Error('Report session changed');
+    }
+    if (!isCurrent(ticket)) throw new Error('Report context changed');
+  }, [isCurrent, supabase, providerId, invalidateSession]);
+
+  useEffect(() => {
+    alive.current = true;
+    const ticket = epoch.current;
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || session?.user.id !== providerId) invalidateSession();
+    });
+    void verifySession(ticket).then(() => {
+      if (isCurrent(ticket)) setSessionReady(true);
+    }).catch(() => { if (isCurrent(ticket)) invalidateSession(); });
+    return () => { alive.current = false; epoch.current += 1; finishPrint(printTicket.current, true); listener.subscription.unsubscribe(); };
+  }, [supabase, providerId, isCurrent, verifySession, invalidateSession, finishPrint]);
+
+  useEffect(() => {
+    let obsolete = false;
+    setPatientSummaryData(null); setPatientSummaryError(null);
+    setPatientSummaryLoading(Boolean(sessionReady && selectedPatientId));
+    if (!sessionReady || !selectedPatientId) return;
+    const ticket = epoch.current;
+    const loadSummary = async () => {
+      try {
+        await verifySession(ticket);
+        const result = await fetchPatientSummary(selectedPatientId, from, to);
+        await verifySession(ticket);
+        if (obsolete || !isCurrent(ticket)) return;
+        setPatientSummaryData(result);
+        if (!result) setPatientSummaryError('Unable to load patient summary. Please try again.');
+      } catch {
+        if (obsolete || !isCurrent(ticket)) return;
+        setPatientSummaryData(null);
+        setPatientSummaryError('Unable to load patient summary. Please try again.');
+      } finally {
+        if (!obsolete && isCurrent(ticket)) setPatientSummaryLoading(false);
+      }
+    };
+    void loadSummary();
+    return () => { obsolete = true; };
+  }, [selectedPatientId, from, to, sessionReady, verifySession, isCurrent]);
+
+  const beforePrint = async () => {
+    const ticket = printTicket.current;
+    try {
+      if (!ticket) throw new Error('No current print request');
+      await verifySession(ticket.epoch);
+      if (ticket !== printTicket.current) throw new Error('Print request changed');
+    } catch (error) {
+      finishPrint(ticket, true);
+      if (ticket && isCurrent(ticket.epoch)) setPrintError('Printing stopped because the report session could not be verified.');
+      throw error;
+    }
+  };
+  const guardedPrint = async (iframe: HTMLIFrameElement) => {
+    // Bind the callback to the actual clone, not to a newer print that may have started meanwhile.
+    const candidate = printTicket.current;
+    const ticket = candidate && ownsFrame(candidate, iframe) ? candidate : null;
+    try {
+      if (!ticket) throw new Error('No current print request');
+      await verifySession(ticket.epoch);
+      if (!isCurrent(ticket.epoch) || ticket !== printTicket.current || !iframe.contentWindow) throw new Error('Print context changed');
+      // No await between this final fence and handing the document to the browser.
+      iframe.contentDocument!.title = ticket.kind === 'monthly' ? `HEARTLAND-Monthly-${data.month}` : 'HEARTLAND-Patient-Summary';
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    } catch (error) {
+      iframe.remove(); // A rejected clone must not retain hidden patient data.
+      if (ticket && isCurrent(ticket.epoch)) setPrintError('Printing stopped because the report could not be verified.');
+      throw error;
+    } finally {
+      finishPrint(ticket);
+    }
+  };
+  const printOptions = {
+    onBeforePrint: beforePrint, print: guardedPrint,
+    // Each failing callback handles its captured ticket; stale errors cannot clear a newer job.
+    onPrintError: () => {},
+  };
+  const handleMonthlyPrint = useReactToPrint({ contentRef: monthlyPrintRef, ...printOptions });
+  const handlePatientPrint = useReactToPrint({ contentRef: patientPrintRef, ...printOptions });
+  const beginPrint = (kind: 'monthly' | 'patient') => {
+    if (!sessionReady || !isCurrent(epoch.current) || printTicket.current || (kind === 'patient' && !printablePatientSummary)) return;
+    const ticket: ReportPrintTicket = { epoch: epoch.current, kind, token: crypto.randomUUID(), frame: null, observer: null };
+    const root = kind === 'monthly' ? monthlyPrintRef.current : patientPrintRef.current;
+    if (!root) return;
+    root.dataset.heartlandPrintTicket = ticket.token;
+    printTicket.current = ticket; setPrintBusy(true); setPrintError(null);
+    ticket.observer = new MutationObserver((records) => {
+      for (const record of records) for (const node of record.addedNodes) {
+        if (!(node instanceof HTMLIFrameElement) || node.id !== 'printWindow') continue;
+        watchPrintFrame(ticket, node);
+      }
+    });
+    ticket.observer.observe(document.body, { childList: true });
+    // The library awaits onBeforePrint before obtaining/cloning content. Fence that gap too.
+    const currentContent = () => isCurrent(ticket.epoch) && printTicket.current === ticket
+      && root.dataset.heartlandPrintTicket === ticket.token ? root : null;
+    if (kind === 'monthly') handleMonthlyPrint(currentContent); else handlePatientPrint(currentContent);
+  };
 
   const handleCsvDownload = async () => {
-    if (linkedPatientIds.length === 0) return;
-
-    setCsvLoading(true);
-    setCsvError(null);
+    if (!sessionReady || csvLoading || linkedPatientIds.length === 0) return;
+    const ticket = epoch.current;
+    setCsvLoading(true); setCsvError(null);
     try {
-      const supabase = createClient();
-
-      // Build local export labels for identifier substitution.
-      const patientMap = new Map<string, string>();
-      patients.forEach((p, i) => {
-        patientMap.set(p.id, `P${String(i + 1).padStart(3, '0')}`);
-      });
+      await verifySession(ticket);
+      const patientMap = new Map(patients.map((p, i) => [p.id, `P${String(i + 1).padStart(3, '0')}`]));
       const opts = { deidentify, patientMap };
-
-      if (csvType === 'vitals') {
-        const { data: vitals } = await supabase
-          .from('vitals')
+      let rows: string[][];
+      if (csvType === 'labs') {
+        rows = buildLabsCSV(await getReportLabResults(supabase, linkedPatientIds, { from, to }, providerId), opts);
+      } else if (csvType === 'vitals') {
+        const { data: vitals, error } = await supabase.from('vitals')
           .select('patient_id, recorded_at, weight_lbs, sbp, dbp, heart_rate, spo2')
-          .in('patient_id', linkedPatientIds)
-          .gte('recorded_at', from)
-          .lte('recorded_at', to)
+          .in('patient_id', linkedPatientIds).gte('recorded_at', from).lte('recorded_at', to)
           .order('recorded_at', { ascending: false });
-
-        const rows = buildVitalsCSV(vitals ?? [], opts);
-        downloadCSV(`heartland-vitals-${from}-to-${to}.csv`, rows);
-      } else if (csvType === 'labs') {
-        const labs = await getReportLabResults(supabase, linkedPatientIds, { from, to });
-        const rows = buildLabsCSV(labs, opts);
-        downloadCSV(`heartland-labs-${from}-to-${to}.csv`, rows);
+        if (error) throw error;
+        rows = buildVitalsCSV(vitals ?? [], opts);
       } else {
-        // medications: join medication_logs with medications
-        const { data: meds } = await supabase
-          .from('medication_logs')
+        const { data: meds, error } = await supabase.from('medication_logs')
           .select('patient_id, medications(name, dose, frequency), taken_at, taken')
-          .in('patient_id', linkedPatientIds)
-          .gte('taken_at', from)
-          .lte('taken_at', to)
+          .in('patient_id', linkedPatientIds).gte('taken_at', from).lte('taken_at', to)
           .order('taken_at', { ascending: false });
-
-        const rows = buildMedsCSV(
-          (meds ?? []).map((m: Record<string, unknown>) => {
-            const med = m.medications as Record<string, unknown> | null;
-            return {
-              patient_id: m.patient_id as string,
-              medication_name: (med?.name as string) ?? '',
-              dose: (med?.dose as string) ?? '',
-              frequency: (med?.frequency as string) ?? '',
-              taken_at: m.taken_at as string,
-              taken: m.taken as boolean,
-            };
-          }),
-          opts
-        );
-        downloadCSV(`heartland-medications-${from}-to-${to}.csv`, rows);
+        if (error) throw error;
+        rows = buildMedsCSV((meds ?? []).map((m: Record<string, unknown>) => {
+          const med = m.medications as Record<string, unknown> | null;
+          return { patient_id: m.patient_id as string, medication_name: (med?.name as string) ?? '',
+            dose: (med?.dose as string) ?? '', frequency: (med?.frequency as string) ?? '',
+            taken_at: m.taken_at as string, taken: m.taken as boolean };
+        }), opts);
       }
+      await verifySession(ticket);
+      if (!isCurrent(ticket)) return;
+      downloadCSV(`heartland-${csvType}-${from}-to-${to}.csv`, rows);
     } catch {
-      setCsvError('Unable to export data. Please try again.');
+      if (isCurrent(ticket)) setCsvError('Unable to export data. Please try again.');
     } finally {
-      setCsvLoading(false);
+      if (alive.current) setCsvLoading(false);
     }
   };
 
+  if (!sessionReady) return <p role={sessionError ? 'alert' : 'status'}>{sessionError
+    ? 'Report session changed or unavailable. Reload this page before exporting.'
+    : 'Verifying report session…'}</p>;
   return (
     <div className="space-y-8">
       {/* Date Range Picker */}
-      <DateRangePicker from={from} to={to} />
+      <DateRangePicker from={from} to={to} onRangeChange={invalidateSession} />
+      {printError && <p role="alert">{printError}</p>}
       <p className="text-xs text-gray-600">
         Lab reports use UTC calendar dates and include the full final day. Collection timestamps are retained unless privacy-minimized export is selected.
       </p>
@@ -172,7 +285,8 @@ export function ReportsShell({ data, patients, from, to }: ReportsShellProps) {
           <button
             type="button"
             className="flex items-center gap-2 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-            onClick={() => handleMonthlyPrint()}
+            disabled={printBusy}
+            onClick={() => beginPrint('monthly')}
           >
             <Printer className="size-4" />
             Export Monthly PDF
@@ -214,8 +328,8 @@ export function ReportsShell({ data, patients, from, to }: ReportsShellProps) {
           <button
             type="button"
             className="flex items-center gap-2 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            disabled={!printablePatientSummary || patientSummaryLoading}
-            onClick={() => handlePatientPrint()}
+            disabled={!printablePatientSummary || patientSummaryLoading || printBusy}
+            onClick={() => beginPrint('patient')}
           >
             <Printer className="size-4" />
             Export Patient PDF
@@ -230,9 +344,10 @@ export function ReportsShell({ data, patients, from, to }: ReportsShellProps) {
             id="patient-select"
             className="rounded border border-gray-300 px-3 py-2 text-sm"
             value={selectedPatientId ?? ''}
-            onChange={(e) =>
-              setSelectedPatientId(e.target.value || null)
-            }
+            onChange={(e) => {
+              epoch.current += 1; finishPrint(printTicket.current, true); setPatientSummaryData(null);
+              setSelectedPatientId(e.target.value || null);
+            }}
           >
             <option value="">-- Choose a patient --</option>
             {patients.map((p) => (
@@ -298,7 +413,7 @@ export function ReportsShell({ data, patients, from, to }: ReportsShellProps) {
           </button>
         </div>
         <p id="privacy-minimized-export-note" className="mt-3 max-w-3xl text-xs leading-5 text-gray-600">
-          When selected, patient IDs are replaced with local export labels and dates are reduced to year only. These transformations do not independently establish de-identification or HIPAA compliance; authorized reviewers must assess the complete dataset and intended disclosure.
+          When selected, patient IDs are replaced with local export labels and dates are reduced to year only; laboratory source identifiers are omitted. These transformations do not independently establish de-identification or HIPAA compliance; authorized reviewers must assess the complete dataset and intended disclosure.
         </p>
         {csvError && <p role="alert" className="mt-3 text-sm text-red-600">{csvError}</p>}
       </section>

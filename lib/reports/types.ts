@@ -45,10 +45,19 @@ export interface LabResultRow {
   id: string;
   patient_id: string;
   test_name: string;
-  value: number;
+  value: string | null;
   unit: string;
   collected_at: string;
   flag: 'normal' | 'low' | 'high' | 'critical' | null;
+  source_status: 'original' | 'corrected' | 'cancelled';
+  root_id: string | null;
+  version_id: string | null;
+  revision: string | null;
+  original_lab_result_id: string;
+  effective_lab_result_id: string | null;
+  evaluation_status: 'pending' | 'recorded' | 'not_required' | null;
+  data_quality: 'recorded' | 'invalid' | 'cancelled';
+  quality_reason: string;
 }
 
 // ---------- CSV Builder Types ----------

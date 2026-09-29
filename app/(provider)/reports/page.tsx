@@ -47,6 +47,7 @@ export default async function ReportsPage({
     <div>
       <h1 className="text-2xl font-bold mb-6">Reports &amp; Data Export</h1>
       <ReportsShell
+        providerId={providerId}
         data={monthlyData}
         patients={linkedPatients}
         from={from}
