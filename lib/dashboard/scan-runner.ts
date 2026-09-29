@@ -1,7 +1,7 @@
 import 'server-only';
 import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { evaluateScanSnapshot, SCAN_RECIPE, SCAN_RULES, type ScanResult } from './scan-evaluation';
+import { evaluateScanSnapshot, scanSnapshotRecipe, SCAN_RULES, type ScanResult, type ScanRecipe } from './scan-evaluation';
 
 const identity = z.string().uuid();
 const count = z.number().int().nonnegative();
@@ -29,7 +29,7 @@ export async function drainAlertScan(client: SupabaseClient, options: {
   const deadline = now() + Math.max(0, Math.min(options.budgetMs ?? 25000, 25000));
   const seen = new Set<string>();
   const visited = new Set<string>();
-  const contexts = new Map<string, ScanResult[] | null>();
+  const contexts = new Map<string, { recipe: ScanRecipe; results: ScanResult[] } | null>();
   let errors = 0, exhausted = false;
   const available = () => {
     if (now() >= deadline) { exhausted = true; return false; }
@@ -63,14 +63,18 @@ export async function drainAlertScan(client: SupabaseClient, options: {
             contexts.set(receipt.receipt_id, null);
             const capture = await rpc('capture_alert_scan_patient', { p_receipt_id: receipt.receipt_id }, captureSchema);
             if (capture.receipt_id !== receipt.receipt_id) throw new Error('Scan capture identity mismatch');
-            if (capture.state === 'captured') contexts.set(receipt.receipt_id, evaluateScanSnapshot(capture.snapshot));
+            if (capture.state === 'captured') {
+              const recipe = scanSnapshotRecipe(capture.snapshot);
+              if (!recipe) throw new Error('Unsupported captured recipe');
+              contexts.set(receipt.receipt_id, { recipe, results: evaluateScanSnapshot(capture.snapshot) });
+            }
           }
-          const results = contexts.get(receipt.receipt_id);
-          if (!results) continue;
-          const result = results.find((entry) => entry.rule === receipt.rule)!;
+          const context = contexts.get(receipt.receipt_id);
+          if (!context) continue;
+          const result = context.results.find((entry) => entry.rule === receipt.rule)!;
           if (result.receipt_id !== receipt.receipt_id) throw new Error('Scan source identity mismatch');
           const finalized = await rpc('finalize_alert_scan_rule', {
-            p_receipt_id: receipt.receipt_id, p_recipe: SCAN_RECIPE, p_result: result,
+            p_receipt_id: receipt.receipt_id, p_recipe: context.recipe, p_result: result,
           }, finalizationSchema);
           if (finalized.receipt_id !== receipt.receipt_id || finalized.rule !== result.rule) {
             throw new Error('Scan result identity mismatch');

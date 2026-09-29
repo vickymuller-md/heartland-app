@@ -74,7 +74,7 @@ BEGIN
  IF c.producer='lab' THEN
   SELECT to_jsonb(r) INTO result FROM public.process_lab_alert_event(c.lab_id) r;
  ELSIF c.producer='scan' THEN
-  result:=public.finalize_alert_scan_rule(c.request_id,'proactive-frozen-v1',jsonb_build_object(
+  result:=public.finalize_alert_scan_rule(c.request_id,'proactive-frozen-v2',jsonb_build_object(
    'receipt_id',c.request_id,'rule','hyperkalemia','decision','triggered','severity','critical','reason',NULL,'source_ids',jsonb_build_array(c.lab_id)));
  ELSE
   result:=public.finalize_vitals_submission_evaluation(c.request_id,pg_temp.nf(1),

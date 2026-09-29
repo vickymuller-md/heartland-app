@@ -187,11 +187,11 @@ SET LOCAL ROLE service_role;
 INSERT INTO exception_results VALUES('scan_run',public.prepare_alert_scan('UTC'));
 INSERT INTO exception_results VALUES('scan_capture',public.capture_alert_scan_patient((SELECT id FROM public.alert_scan_patients WHERE patient_id='49000000-0000-4000-8000-000000000011')));
 INSERT INTO exception_results
- SELECT 'scan_routing',public.finalize_alert_scan_rule(id,'proactive-frozen-v1',jsonb_build_object(
+ SELECT 'scan_routing',public.finalize_alert_scan_rule(id,'proactive-frozen-v2',jsonb_build_object(
  'receipt_id',id,'rule','no_checkin','decision','triggered','severity','informational','reason',NULL,'source_ids','[]'::jsonb))
  FROM public.alert_scan_patients WHERE patient_id='49000000-0000-4000-8000-000000000011';
 INSERT INTO exception_results
- SELECT 'scan_blocked',public.finalize_alert_scan_rule(id,'proactive-frozen-v1',jsonb_build_object(
+ SELECT 'scan_blocked',public.finalize_alert_scan_rule(id,'proactive-frozen-v2',jsonb_build_object(
  'receipt_id',id,'rule','weight_trend_7d','decision','blocked','severity',NULL,'reason','ambiguous_source','source_ids','[]'::jsonb))
  FROM public.alert_scan_patients WHERE patient_id='49000000-0000-4000-8000-000000000011';
 RESET ROLE;

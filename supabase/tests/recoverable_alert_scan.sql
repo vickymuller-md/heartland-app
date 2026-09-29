@@ -52,7 +52,7 @@ $$;
 CREATE FUNCTION pg_temp.finalize(p_rule text,p_decision text DEFAULT 'triggered',p_severity text DEFAULT 'informational',p_reason text DEFAULT NULL)
 RETURNS jsonb LANGUAGE sql AS $$
  SELECT public.finalize_alert_scan_rule(pg_temp.sr('48000000-0000-4000-8000-000000000011'),
- 'proactive-frozen-v1',pg_temp.scan_result(p_rule,p_decision,p_severity,p_reason))
+ 'proactive-frozen-v2',pg_temp.scan_result(p_rule,p_decision,p_severity,p_reason))
 $$;
 SET LOCAL ROLE service_role;
 SELECT set_config('request.jwt.claims','{"role":"service_role","sub":"48000000-0000-4000-8000-000000000001"}',true);
@@ -70,13 +70,13 @@ SELECT is((SELECT result#>>'{snapshot,calendar_timezone}' FROM scan_results WHER
 SELECT is((SELECT jsonb_array_length(result#>'{snapshot,calendar_dates}') FROM scan_results WHERE label='capture'),7,'seven saved calendar dates');
 SELECT is((SELECT result#>'{snapshot,sources,weights}' FROM scan_results WHERE label='capture'),'[]'::jsonb,'confirmed empty history is explicit');
 SELECT is((SELECT result#>'{snapshot,sources,checkin,latest_vital}' FROM scan_results WHERE label='capture'),'null'::jsonb,'confirmed absent last observation is distinct from failed query');
-SELECT throws_ok($q$SELECT public.finalize_alert_scan_rule(pg_temp.sr('48000000-0000-4000-8000-000000000011'),'proactive-frozen-v1',
+SELECT throws_ok($q$SELECT public.finalize_alert_scan_rule(pg_temp.sr('48000000-0000-4000-8000-000000000011'),'proactive-frozen-v2',
  jsonb_set(pg_temp.scan_result('hyperkalemia','triggered','critical'),'{source_ids}','[]'))$q$,
  '22023','Scan source identities do not match capture','triggered laboratory result cannot omit source');
-SELECT throws_ok($q$SELECT public.finalize_alert_scan_rule(pg_temp.sr('48000000-0000-4000-8000-000000000011'),'proactive-frozen-v1',
+SELECT throws_ok($q$SELECT public.finalize_alert_scan_rule(pg_temp.sr('48000000-0000-4000-8000-000000000011'),'proactive-frozen-v2',
  jsonb_set(pg_temp.scan_result('hyperkalemia','triggered','critical'),'{source_ids}','["48000000-0000-4000-8000-000000000401"]'))$q$,
  '22023','Scan source identities do not match capture','follow-up source cannot support laboratory classification');
-SELECT throws_ok($q$SELECT public.finalize_alert_scan_rule(pg_temp.sr('48000000-0000-4000-8000-000000000012'),'proactive-frozen-v1',
+SELECT throws_ok($q$SELECT public.finalize_alert_scan_rule(pg_temp.sr('48000000-0000-4000-8000-000000000012'),'proactive-frozen-v2',
  pg_temp.scan_result('no_checkin'))$q$,'22023','Invalid scan result','even source-less result cannot be swapped between receipts');
 INSERT INTO scan_results VALUES('no_checkin',pg_temp.finalize('no_checkin'));
 SELECT is((SELECT result->>'status' FROM scan_results WHERE label='no_checkin'),'complete','informational rule commits');
@@ -88,7 +88,7 @@ SELECT throws_ok($q$SELECT pg_temp.finalize('no_checkin','not_triggered',NULL)$q
 SELECT throws_ok($q$SELECT pg_temp.finalize('followup_due','triggered','warning')$q$,'22023','Invalid scan result','cannot promote informational follow-up');
 SELECT throws_ok($q$SELECT public.finalize_alert_scan_rule(pg_temp.sr('48000000-0000-4000-8000-000000000011'),'unknown',pg_temp.scan_result('followup_due'))$q$,
  '22023','Invalid scan result','unknown recipe rejected');
-SELECT throws_ok($q$SELECT public.finalize_alert_scan_rule(pg_temp.sr('48000000-0000-4000-8000-000000000011'),'proactive-frozen-v1',pg_temp.scan_result('unknown'))$q$,
+SELECT throws_ok($q$SELECT public.finalize_alert_scan_rule(pg_temp.sr('48000000-0000-4000-8000-000000000011'),'proactive-frozen-v2',pg_temp.scan_result('unknown'))$q$,
  '22023','Invalid scan result','unknown rule rejected');
 SELECT throws_ok($q$UPDATE public.alert_scan_patients SET snapshot='{}'$q$,'42501',NULL,'service direct snapshot edit denied');
 SELECT is(pg_temp.finalize('weight_trend_7d','blocked',NULL,'ambiguous_source')->>'status','blocked','ambiguity is explicit and not no-trigger');
@@ -171,13 +171,13 @@ INSERT INTO public.alert_scan_patients(id,run_id,patient_id,capture_status,snaps
 INSERT INTO public.alert_scan_evaluations(receipt_id,rule) VALUES('48000000-0000-4000-8000-000000000202','followup_overdue');
 SET LOCAL ROLE service_role;
 SELECT is(public.capture_alert_scan_patient('48000000-0000-4000-8000-000000000202')->>'state','captured','existing frozen capture replays after its slot ended');
-INSERT INTO scan_results VALUES('mixed',public.finalize_alert_scan_rule('48000000-0000-4000-8000-000000000202','proactive-frozen-v1',
+INSERT INTO scan_results VALUES('mixed',public.finalize_alert_scan_rule('48000000-0000-4000-8000-000000000202','proactive-frozen-v2',
  jsonb_set(pg_temp.scan_result('followup_overdue','triggered','critical'),'{receipt_id}','"48000000-0000-4000-8000-000000000202"')));
 SELECT is((SELECT result->>'status' FROM scan_results WHERE label='mixed'),'complete','mixed organization state does not block detection');
 SELECT is((SELECT severity FROM public.work_items WHERE organization_id='48000000-0000-4000-8000-000000000501' AND source_type='alert'),'critical','open organization receives critical signal refresh');
 SELECT is((SELECT to_jsonb(item) FROM public.work_items AS item WHERE status='closed'),(SELECT row FROM scan_closed),'other organization closed item is still byte-identical');
 SELECT is((SELECT jsonb_array_length(result->'prior_item_ids') FROM scan_results WHERE label='mixed'),1,'only closed item is listed for adjudication');
-SELECT is(public.finalize_alert_scan_rule('48000000-0000-4000-8000-000000000202','proactive-frozen-v1',
+SELECT is(public.finalize_alert_scan_rule('48000000-0000-4000-8000-000000000202','proactive-frozen-v2',
  jsonb_set(pg_temp.scan_result('followup_overdue','triggered','critical'),'{receipt_id}','"48000000-0000-4000-8000-000000000202"')),
  (SELECT result FROM scan_results WHERE label='mixed'),'mixed disposition replay is idempotent');
 SELECT is((SELECT occurrence_count FROM public.alerts WHERE flags=ARRAY['followup_overdue']),3,'only one extra occurrence from new mixed-organization receipt');

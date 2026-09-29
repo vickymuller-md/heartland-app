@@ -4,18 +4,24 @@ import { evaluateCriticalLabs, evaluateFollowupDue, evaluateFollowupOverdue, eva
   evaluateWeightTrend7d, evaluateLowAdherence } from '@/lib/dashboard/alert-engine';
 import { computeAdherenceDay } from '@/lib/medications/queries';
 import type { MedicationFrequency, MedicationLog, MedicationRow } from '@/lib/medications/types';
+import type { EffectiveLabObservation } from '@/lib/labs/effective';
 
 const clock = '2026-09-24T08:00:00.000000Z';
 const uuid = (n: number) => `47000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const ago = (days: number) => new Date(Date.parse(clock) - days * 86_400_000).toISOString();
 const dates = Array.from({ length: 7 }, (_, index) => ago(6 - index).slice(0, 10));
-const snapshot = () => ({ receipt_id: uuid(999), recipe: SCAN_RECIPE, captured_at: clock, calendar_timezone: 'UTC', calendar_dates: dates,
+const lab = (n: number, analyte: 'potassium' | 'egfr', value: string, collected = clock): EffectiveLabObservation => ({
+  id: `${uuid(n)}:${analyte}`, patient_id: uuid(998), original_lab_result_id: uuid(n), analyte,
+  root_id: null, version_id: null, revision: null, status: 'original', effective_lab_result_id: uuid(n),
+  value, collected_at: collected, notes: null, lab_facility: null, evaluation_status: null,
+});
+const snapshot = () => ({ receipt_id: uuid(999), patient_id: uuid(998), recipe: SCAN_RECIPE, captured_at: clock, calendar_timezone: 'UTC', calendar_dates: dates,
   sources: {
     checkin: { patient_created_at: ago(30), latest_vital: { id: uuid(1), recorded_at: ago(1) } },
     weights: [{ id: uuid(1), weight_lbs: 180, recorded_at: ago(1) }],
     adherence: { medications: [] as { id: string; frequency: string | null }[],
       logs: [] as { id: string; medication_id: string; scheduled_date: string; taken: boolean }[] },
-    latest_labs: [] as { id: string; potassium: number | null; egfr: number | null; collected_at: string }[],
+    effective_labs: { potassium: [] as EffectiveLabObservation[], egfr: [] as EffectiveLabObservation[] },
     followups: [] as { id: string; scheduled_at: string; completed: boolean }[],
     acute_alerts: [] as { id: string; flags: string[]; status: 'open' | 'acknowledged' }[],
   },
@@ -25,6 +31,72 @@ const triggers = (input: unknown, rule: ScanRule) => decision(input, rule).decis
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 
 describe('recoverable scan frozen evaluator', () => {
+  it('retires only legacy laboratory rules without changing the other five decisions', () => {
+    const input = snapshot();
+    const legacy = { ...input, recipe: 'proactive-frozen-v1', patient_id: undefined,
+      sources: { ...input.sources, latest_labs: [{ id: uuid(5), potassium: 6.2, egfr: 20, collected_at: clock }] } };
+    const rows = evaluateScanSnapshot(legacy);
+    expect(rows.filter((row) => ['hyperkalemia', 'low_egfr'].includes(row.rule))
+      .every((row) => row.decision === 'blocked' && row.reason === 'legacy_recipe' && row.source_ids.length === 0)).toBe(true);
+    expect(rows.filter((row) => !['hyperkalemia', 'low_egfr'].includes(row.rule)))
+      .toEqual(evaluateScanSnapshot(input).filter((row) => !['hyperkalemia', 'low_egfr'].includes(row.rule)));
+  });
+  it.each([
+    ['potassium', '5.50000000000000000000000001', true], ['potassium', '5.50000000000000000000000000', false],
+    ['potassium', '5.49999999999999999999999999', false], ['egfr', '29.9999999999999999999999999', true],
+    ['egfr', '30.0000000000000000000000000', false], ['egfr', '30.0000000000000000000000001', false],
+    ['egfr', '20', true], ['potassium', '9007199254740993', true],
+  ] as const)('compares %s exact decimal %s without floating-point rounding', (analyte, value, triggered) => {
+    const input = snapshot(); input.sources.effective_labs[analyte] = [lab(5, analyte, value)];
+    expect(triggers(input, analyte === 'potassium' ? 'hyperkalemia' : 'low_egfr')).toBe(triggered);
+  });
+  it('keeps independent collection times and version identities for K and eGFR', () => {
+    const input = snapshot();
+    input.sources.effective_labs.potassium = [{ ...lab(5, 'potassium', '4.2'), status: 'corrected', root_id: uuid(10),
+      version_id: uuid(11), revision: '2', effective_lab_result_id: uuid(12) }];
+    input.sources.effective_labs.egfr = [lab(5, 'egfr', '20', ago(3))];
+    expect(decision(input, 'hyperkalemia')).toMatchObject({ decision: 'not_triggered', source_ids: [uuid(11)] });
+    expect(decision(input, 'low_egfr')).toMatchObject({ decision: 'triggered', source_ids: [uuid(5)] });
+    Object.assign(input.sources.effective_labs.potassium[0], { status: 'cancelled', value: null, effective_lab_result_id: null, revision: '3' });
+    expect(decision(input, 'hyperkalemia')).toMatchObject({ decision: 'blocked', reason: 'cancelled_source' });
+    expect(triggers(input, 'low_egfr')).toBe(true);
+  });
+  it('accepts equivalent decimal ties, but a cancellation at that time blocks only its analyte', () => {
+    const input = snapshot(); input.sources.effective_labs.potassium = [lab(5, 'potassium', '06.20'), lab(6, 'potassium', '6.2')];
+    input.sources.effective_labs.potassium[1].collected_at = '2026-09-24T04:00:00-04:00';
+    expect(decision(input, 'hyperkalemia')).toMatchObject({ decision: 'triggered', source_ids: [uuid(5), uuid(6)] });
+    Object.assign(input.sources.effective_labs.potassium[1], { status: 'cancelled', root_id: uuid(10), version_id: uuid(11),
+      revision: '2', effective_lab_result_id: null, value: null });
+    expect(decision(input, 'hyperkalemia').reason).toBe('cancelled_source');
+  });
+  it('preserves microsecond capture boundaries and rejects future collection', () => {
+    const input = snapshot(); input.captured_at = '2026-09-24T08:00:00.000500Z';
+    input.sources.effective_labs.potassium = [lab(5, 'potassium', '6.2', input.captured_at)];
+    expect(triggers(input, 'hyperkalemia')).toBe(true);
+    input.sources.effective_labs.potassium[0].collected_at = '2026-09-24T08:00:00.000501Z';
+    expect(decision(input, 'hyperkalemia').reason).toBe('invalid_source');
+  });
+  it.each(['patient', 'analyte', 'version', 'duplicate', 'negative', 'null', 'nan', 'overflow', 'notes', 'evaluation'])
+  ('blocks invalid effective source %s without raw fallback', (fault) => {
+    const input = snapshot(); const row = lab(5, 'potassium', '6.2'); input.sources.effective_labs.potassium = [row];
+    if (fault === 'patient') row.patient_id = uuid(997);
+    if (fault === 'analyte') row.analyte = 'egfr';
+    if (fault === 'version') row.status = 'corrected';
+    if (fault === 'duplicate') input.sources.effective_labs.potassium.push(row);
+    if (fault === 'negative') row.value = '-6';
+    if (fault === 'null') row.value = null;
+    if (fault === 'nan') row.value = 'NaN';
+    if (fault === 'overflow') row.value = '6'.repeat(257);
+    if (fault === 'notes') row.notes = 'unneeded private detail';
+    if (fault === 'evaluation') row.evaluation_status = 'pending';
+    expect(decision({ ...input, sources: { ...input.sources,
+      latest_labs: [{ id: uuid(4), potassium: 4.5, egfr: 50, collected_at: clock }] } }, 'hyperkalemia').decision).toBe('blocked');
+  });
+  it('rejects absent groups and patient identity rather than interpreting them as empty', () => {
+    const input = snapshot();
+    expect(decision({ ...input, sources: { ...input.sources, effective_labs: undefined } }, 'hyperkalemia').decision).toBe('blocked');
+    expect(evaluateScanSnapshot({ ...input, patient_id: undefined }).every((row) => row.reason === 'invalid_context')).toBe(true);
+  });
   it('returns exactly seven distinguishable decisions, never a normal or delivered label', () => {
     const rows = evaluateScanSnapshot(snapshot());
     expect(rows.map((row) => row.rule)).toEqual([...SCAN_RULES]);
@@ -98,23 +170,23 @@ describe('recoverable scan frozen evaluator', () => {
     expect(decision({ ...input, sources: { ...input.sources, acute_alerts: null } }, 'weight_trend_7d').decision).toBe('blocked');
   });
   it.each([null, 5, 5.5, 5.501, 6])('keeps potassium threshold %s', (potassium) => {
-    const input = snapshot(); const lab = { id: uuid(5), potassium, egfr: 30, collected_at: clock };
-    input.sources.latest_labs = [lab];
-    expect(triggers(input, 'hyperkalemia')).toBe(evaluateCriticalLabs(lab).includes('hyperkalemia'));
+    const input = snapshot();
+    input.sources.effective_labs.potassium = potassium === null ? [] : [lab(5, 'potassium', String(potassium))];
+    expect(triggers(input, 'hyperkalemia')).toBe(evaluateCriticalLabs({ potassium, egfr: 30 }).includes('hyperkalemia'));
   });
   it.each([null, 0, 29.999, 30, 31])('keeps eGFR threshold %s', (egfr) => {
-    const input = snapshot(); const lab = { id: uuid(5), potassium: 5.5, egfr, collected_at: clock };
-    input.sources.latest_labs = [lab];
-    expect(triggers(input, 'low_egfr')).toBe(evaluateCriticalLabs(lab).includes('low_egfr'));
+    const input = snapshot();
+    input.sources.effective_labs.egfr = egfr === null ? [] : [lab(5, 'egfr', String(egfr))];
+    expect(triggers(input, 'low_egfr')).toBe(evaluateCriticalLabs({ potassium: 5.5, egfr }).includes('low_egfr'));
   });
   it('handles ambiguity per analyte without hiding an independent known critical value', () => {
-    const input = snapshot(); input.sources.latest_labs = [
-      { id: uuid(5), potassium: 6, egfr: 20, collected_at: clock },
-      { id: uuid(6), potassium: null, egfr: 20, collected_at: clock },
-    ];
+    const input = snapshot(); input.sources.effective_labs = {
+      potassium: [lab(5, 'potassium', '6'), lab(6, 'potassium', '4')],
+      egfr: [lab(5, 'egfr', '20'), lab(6, 'egfr', '20')],
+    };
     expect(decision(input, 'hyperkalemia').reason).toBe('ambiguous_source');
     expect(decision(input, 'low_egfr').decision).toBe('triggered');
-    input.sources.latest_labs[1].collected_at = ago(1);
+    input.sources.effective_labs.egfr[1].collected_at = ago(1);
     expect(decision(input, 'low_egfr').decision).toBe('blocked');
   });
   it.each([-24, -0.001, 0, 23.999, 24, 71.999, 72, 72.001, 168])('keeps follow-up boundaries %s hours', (hoursAgo) => {
@@ -185,7 +257,7 @@ describe('recoverable scan frozen evaluator', () => {
     expect(triggers(input, 'no_checkin')).toBe(true);
   });
   it('does not convert missing or malformed groups to empty, and keeps unaffected rules', () => {
-    const input = snapshot(); input.sources.latest_labs = [{ id: uuid(5), potassium: 6.2, egfr: 29, collected_at: clock }];
+    const input = snapshot(); input.sources.effective_labs.potassium = [lab(5, 'potassium', '6.2')];
     for (const source of ['checkin', 'weights', 'adherence', 'followups', 'acute_alerts']) {
       const bad = { ...input, sources: { ...input.sources, [source]: undefined } };
       expect(triggers(bad, 'hyperkalemia')).toBe(true);

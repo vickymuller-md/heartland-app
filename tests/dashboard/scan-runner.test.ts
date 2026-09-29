@@ -5,10 +5,10 @@ import { drainAlertScan, type ScanStatus } from '@/lib/dashboard/scan-runner';
 import { SCAN_RECIPE, SCAN_RULES } from '@/lib/dashboard/scan-evaluation';
 
 const id = (n: number) => `48000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
-const snapshot = (receipt: string) => ({ receipt_id: receipt, recipe: SCAN_RECIPE, captured_at: '2026-09-24T08:00:00Z',
+const snapshot = (receipt: string) => ({ receipt_id: receipt, patient_id: id(99), recipe: SCAN_RECIPE, captured_at: '2026-09-24T08:00:00Z',
   calendar_timezone: 'UTC', calendar_dates: ['2026-09-18','2026-09-19','2026-09-20','2026-09-21','2026-09-22','2026-09-23','2026-09-24'],
   sources: { checkin: { patient_created_at: '2026-08-01T00:00:00Z', latest_vital: null },
-    weights: [], latest_labs: [], followups: [], acute_alerts: [], adherence: { medications: [], logs: [] } } });
+    weights: [], effective_labs: { potassium: [], egfr: [] }, followups: [], acute_alerts: [], adherence: { medications: [], logs: [] } } });
 const ready: ScanStatus = { patients: 0, capture_pending: 0, capture_blocked: 0, rules_pending: 0, rules_blocked: 0,
   routing_exceptions: 0, rules_complete: 0 };
 function mock(handler?: (name: string, args: Record<string, unknown>) => unknown) {
@@ -39,6 +39,31 @@ function cyclicPage(...receipts: string[]) {
 }
 
 describe('durable scan runner', () => {
+  it.each(['proactive-frozen-v1', SCAN_RECIPE])('forwards the actual captured recipe %s', async (recipe) => {
+    const next = cyclicPage(id(2));
+    const backend = mock((name) => {
+      if (name === 'next_alert_scan_page') return next();
+      if (name === 'capture_alert_scan_patient') return { data: { receipt_id: id(2), state: 'captured', snapshot: { ...snapshot(id(2)), recipe } }, error: null };
+    });
+    await drainAlertScan(backend.client);
+    const finals = backend.rpc.mock.calls.filter((call) => call[0] === 'finalize_alert_scan_rule');
+    expect(finals).toHaveLength(7);
+    expect(finals.every((call) => (call[1] as { p_recipe: string }).p_recipe === recipe)).toBe(true);
+    if (recipe === 'proactive-frozen-v1') {
+      const labs = finals.map((call) => (call[1] as { p_result: { rule: string; decision: string; reason: string } }).p_result)
+        .filter((row) => ['hyperkalemia', 'low_egfr'].includes(row.rule));
+      expect(labs.every((row) => row.decision === 'blocked' && row.reason === 'legacy_recipe')).toBe(true);
+    }
+  });
+  it('never labels an unknown recipe as the current recipe', async () => {
+    const next = cyclicPage(id(2));
+    const backend = mock((name) => {
+      if (name === 'next_alert_scan_page') return next();
+      if (name === 'capture_alert_scan_patient') return { data: { receipt_id: id(2), state: 'captured', snapshot: { ...snapshot(id(2)), recipe: 'future-v9' } }, error: null };
+    });
+    expect(await drainAlertScan(backend.client)).toMatchObject({ complete: false, processing_errors: 1 });
+    expect(backend.rpc.mock.calls.some((call) => call[0] === 'finalize_alert_scan_rule')).toBe(false);
+  });
   it('confirms an empty run only from successful RPC status, with per-call abort bounds', async () => {
     const backend = mock();
     expect(await drainAlertScan(backend.client, { calendarTimezone: 'UTC' })).toMatchObject({ complete: true, receipts_visited: 0, processing_errors: 0 });

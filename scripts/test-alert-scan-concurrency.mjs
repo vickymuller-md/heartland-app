@@ -117,7 +117,7 @@ await race('scheduler-scheduler', service + 'SELECT public.next_alert_scan_page(
 for (const f of fixtures) {
   f.receipt = await sql(`SELECT id FROM public.alert_scan_patients WHERE patient_id='${f.patient}'`);
   f.capture = `SELECT public.capture_alert_scan_patient('${f.receipt}');`;
-  f.finish = (decision = 'triggered') => `SELECT public.finalize_alert_scan_rule('${f.receipt}','proactive-frozen-v1',
+  f.finish = (decision = 'triggered') => `SELECT public.finalize_alert_scan_rule('${f.receipt}','proactive-frozen-v2',
     '${JSON.stringify({ receipt_id: f.receipt, rule: 'no_checkin', decision, severity: decision === 'triggered' ? 'informational' : null, reason: null, source_ids: [] })}'::jsonb);`;
   f.revoke = `UPDATE public.provider_patient_links SET status='revoked' WHERE patient_id='${f.patient}';`;
   f.expire = `UPDATE public.profiles SET role='tester',sandbox_expires_at=now()-interval '1 hour' WHERE id='${f.patient}';`;

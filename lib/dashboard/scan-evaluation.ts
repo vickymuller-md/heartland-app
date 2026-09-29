@@ -1,14 +1,22 @@
 /** Frozen proactive-rule evaluation. No database writes, notifications or clinical normal label. */
 import { z } from 'zod';
 import {
-  classifyProactiveSeverity, evaluateCriticalLabs, evaluateFollowupDue,
+  classifyProactiveSeverity, evaluateFollowupDue,
   evaluateFollowupOverdue, evaluateLowAdherence, evaluateNoCheckin, evaluateWeightTrend7d,
 } from './alert-engine';
 import { FREQUENCY_DOSES_MAP } from '@/lib/medications/constants';
 import type { AdherenceDay } from '@/lib/medications/types';
 import type { AlertSeverity } from './types';
+import { effectiveLabObservationSchema } from '@/lib/labs/effective';
 
-export const SCAN_RECIPE = 'proactive-frozen-v1';
+export const SCAN_RECIPE = 'proactive-frozen-v2';
+export const SCAN_RECIPES = ['proactive-frozen-v1', SCAN_RECIPE] as const;
+export type ScanRecipe = typeof SCAN_RECIPES[number];
+/** Unknown recipes must not be relabelled as the current recipe. */
+export function scanSnapshotRecipe(input: unknown): ScanRecipe | null {
+  const parsed = z.object({ recipe: z.enum(SCAN_RECIPES) }).safeParse(input);
+  return parsed.success ? parsed.data.recipe : null;
+}
 export const SCAN_RULES = [
   'no_checkin', 'low_adherence', 'weight_trend_7d', 'hyperkalemia',
   'low_egfr', 'followup_due', 'followup_overdue',
@@ -19,7 +27,7 @@ export type ScanResult = {
   rule: ScanRule;
   decision: 'triggered' | 'not_triggered' | 'not_applicable' | 'suppressed' | 'blocked';
   severity: AlertSeverity | null;
-  reason: 'invalid_context' | 'invalid_source' | 'ambiguous_source' | 'acute_weight_active' | null;
+  reason: 'invalid_context' | 'invalid_source' | 'ambiguous_source' | 'cancelled_source' | 'legacy_recipe' | 'acute_weight_active' | null;
   source_ids: string[];
 };
 
@@ -32,16 +40,14 @@ const calendarDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 });
 const envelope = z.object({
-  receipt_id: id, recipe: z.literal(SCAN_RECIPE), captured_at: instant, calendar_timezone: z.string().min(1),
+  receipt_id: id, recipe: z.enum(SCAN_RECIPES), patient_id: id.optional(), captured_at: instant, calendar_timezone: z.string().min(1),
   calendar_dates: z.array(calendarDay).length(7), sources: z.record(z.string(), z.unknown()),
 });
 const checkinSource = z.object({
   patient_created_at: instant, latest_vital: z.object({ id, recorded_at: instant }).nullable(),
 });
 const weightSource = z.array(z.object({ id, weight_lbs: number, recorded_at: instant })).max(1000);
-const labSource = z.array(z.object({
-  id, potassium: number.nullable(), egfr: number.nullable(), collected_at: instant,
-})).max(1000);
+const labSource = z.array(effectiveLabObservationSchema.refine((row) => row.value === null || row.value.length <= 256)).max(1000);
 const followupSource = z.array(z.object({ id, scheduled_at: instant, completed: z.boolean() })).max(1000);
 const alertSource = z.array(z.object({
   id, flags: z.array(z.string()), status: z.enum(['open', 'acknowledged']),
@@ -67,6 +73,19 @@ function microseconds(value: string): bigint {
   const fraction = value.match(/\.(\d+)(?:Z|[+-]\d\d:\d\d)$/)?.[1] ?? '';
   return BigInt(Date.parse(value)) * BigInt(1000) + BigInt(fraction.padEnd(6, '0').slice(3, 6));
 }
+/** Exact plain decimals only; no Number conversion at the clinical boundary. */
+function compareDecimal(a: string, b: string): number {
+  const parts = (value: string) => {
+    const [whole, fraction = ''] = value.replace(/^-/, '').split('.');
+    return { negative: value.startsWith('-'), whole, fraction };
+  };
+  const first = parts(a), second = parts(b);
+  const scale = Math.max(first.fraction.length, second.fraction.length);
+  const scaled = (value: ReturnType<typeof parts>) => BigInt(value.whole + value.fraction.padEnd(scale, '0'))
+    * (value.negative ? BigInt(-1) : BigInt(1));
+  const difference = scaled(first) - scaled(second);
+  return difference < BigInt(0) ? -1 : difference > BigInt(0) ? 1 : 0;
+}
 function frozenCalendarMatches(capturedAt: string, timezone: string, days: string[]): boolean {
   try {
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -82,7 +101,7 @@ function frozenCalendarMatches(capturedAt: string, timezone: string, days: strin
 
 export function evaluateScanSnapshot(input: unknown): ScanResult[] {
   const parsed = envelope.safeParse(input);
-  if (!parsed.success || !frozenCalendarMatches(parsed.data.captured_at,
+  if (!parsed.success || (parsed.data.recipe === SCAN_RECIPE && !parsed.data.patient_id) || !frozenCalendarMatches(parsed.data.captured_at,
     parsed.data.calendar_timezone, parsed.data.calendar_dates)) {
     const identity = z.object({ receipt_id: id }).safeParse(input);
     return SCAN_RULES.map((rule) => ({ ...blocked(rule, 'invalid_context'),
@@ -139,21 +158,31 @@ export function evaluateScanSnapshot(input: unknown): ScanResult[] {
         evaluateWeightTrend7d(sorted) ? 'triggered' : 'not_triggered', sorted.map((row) => row.id)));
   }
 
-  // Snapshot stores all latest-timestamp candidates, not an arbitrary row selected by LIMIT1.
-  const labs = labSource.safeParse(sources.latest_labs);
+  // Retire only the two raw-panel v1 rules. The five other frozen recipes are unchanged.
   for (const rule of ['hyperkalemia', 'low_egfr'] as const) {
+    if (parsed.data.recipe === 'proactive-frozen-v1') { output.set(rule, blocked(rule, 'legacy_recipe')); continue; }
+    const field = rule === 'hyperkalemia' ? 'potassium' : 'egfr';
+    const groups = z.record(z.string(), z.unknown()).safeParse(sources.effective_labs);
+    const labs = labSource.safeParse(groups.success ? groups.data[field] : undefined);
     if (!labs.success || !uniqueIds(labs.data)) { output.set(rule, blocked(rule)); continue; }
     if (!labs.data.length) { output.set(rule, result(rule, 'not_applicable')); continue; }
-    const field = rule === 'hyperkalemia' ? 'potassium' : 'egfr';
     const first = labs.data[0];
-    if (labs.data.some((row) => microseconds(row.collected_at) !== microseconds(first.collected_at))) {
+    if (labs.data.some((row) => row.patient_id !== parsed.data.patient_id || row.analyte !== field
+      || row.notes !== null || row.lab_facility !== null || row.evaluation_status !== null
+      || microseconds(row.collected_at) > nowMicros || microseconds(row.collected_at) !== microseconds(first.collected_at))) {
       output.set(rule, blocked(rule)); continue;
     }
-    if (labs.data.some((row) => row[field] !== first[field])) {
+    if (labs.data.some((row) => row.status === 'cancelled')) { output.set(rule, blocked(rule, 'cancelled_source')); continue; }
+    if (labs.data.some((row) => row.value === null || compareDecimal(row.value, '0') < 0)) {
+      output.set(rule, blocked(rule)); continue;
+    }
+    if (labs.data.some((row) => compareDecimal(row.value!, first.value!) !== 0)) {
       output.set(rule, blocked(rule, 'ambiguous_source')); continue;
     }
-    output.set(rule, result(rule, first[field] === null ? 'not_applicable' :
-      evaluateCriticalLabs(first).includes(rule) ? 'triggered' : 'not_triggered', labs.data.map((row) => row.id)));
+    // Preserve the scanner's existing eGFR<30 recipe, distinct from immediate evaluation<15.
+    const triggered = rule === 'hyperkalemia' ? compareDecimal(first.value!, '5.5') > 0 : compareDecimal(first.value!, '30') < 0;
+    output.set(rule, result(rule, triggered ? 'triggered' : 'not_triggered',
+      labs.data.map((row) => row.version_id ?? row.original_lab_result_id)));
   }
 
   const followups = followupSource.safeParse(sources.followups);
