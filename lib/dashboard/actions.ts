@@ -111,9 +111,11 @@ type LabSubmissionOperation = 'get' | 'prepare' | 'acknowledge' | 'cancel';
 async function labSubmissionAction(
   operation: LabSubmissionOperation,
   input: { patientId: string; requestId?: string; labResultId?: string },
+  careActorId?: string,
 ): Promise<LabSubmissionState> {
   const parsed = labSubmissionInputSchema.safeParse(input);
-  if (!parsed.success || ((operation === 'acknowledge' || operation === 'cancel') && !parsed.data.requestId)
+  if ((careActorId !== undefined && !z.guid().safeParse(careActorId).success)
+    || !parsed.success || ((operation === 'acknowledge' || operation === 'cancel') && !parsed.data.requestId)
     || (operation === 'acknowledge' && !parsed.data.labResultId)) {
     return { success: false, error: 'Invalid laboratory submission identity' };
   }
@@ -125,6 +127,7 @@ async function labSubmissionAction(
   try {
     const auth = await authorizeProviderForPatient(patientId);
     if (!auth.authorized) return { success: false, error: auth.error };
+    if (careActorId !== undefined && auth.user.id.toLowerCase() !== careActorId.toLowerCase()) return unavailable;
 
     const rpcArgs: Record<string, string | null> = { p_patient_id: patientId };
     if (operation !== 'prepare') rpcArgs.p_request_id = requestId ?? null;
@@ -150,7 +153,7 @@ async function labSubmissionAction(
       collectedAt: row.collected_at, potassium: row.potassium, egfr: row.egfr,
       creatinine: row.creatinine, sodium: row.sodium, notes: row.notes, isNew: row.is_new,
     };
-    if (operation === 'acknowledge' || operation === 'cancel') revalidatePath(`/patients/${patientId}`);
+    if (careActorId === undefined && (operation === 'acknowledge' || operation === 'cancel')) revalidatePath(`/patients/${patientId}`);
     return { success: true, actorId: auth.user.id, submission };
   } catch {
     // A transport failure is not evidence that prepare, save, acknowledge or cancel rolled back.
@@ -174,6 +177,21 @@ export async function acknowledgeLabSubmission(input: {
 
 export async function cancelLabSubmission(input: { patientId: string; requestId: string }): Promise<LabSubmissionState> {
   return labSubmissionAction('cancel', input);
+}
+
+// Expected account is verified before RPC on the same authorized client. Keep
+// care receipts mounted; invalidation must not discard a frozen workflow request.
+export async function getCareLabSubmission(input: { actorId: string; patientId: string; requestId?: string }): Promise<LabSubmissionState> {
+  return labSubmissionAction('get', input, input.actorId ?? '');
+}
+export async function prepareCareLabSubmission(input: { actorId: string; patientId: string }): Promise<LabSubmissionState> {
+  return labSubmissionAction('prepare', input, input.actorId ?? '');
+}
+export async function acknowledgeCareLabSubmission(input: { actorId: string; patientId: string; requestId: string; labResultId: string }): Promise<LabSubmissionState> {
+  return labSubmissionAction('acknowledge', input, input.actorId ?? '');
+}
+export async function cancelCareLabSubmission(input: { actorId: string; patientId: string; requestId: string }): Promise<LabSubmissionState> {
+  return labSubmissionAction('cancel', input, input.actorId ?? '');
 }
 
 type LabReceipt = z.infer<typeof labReceiptSchema>;
@@ -218,10 +236,12 @@ async function processLabReceipt(receipt: LabReceipt): Promise<LabActionState> {
 // 22023 invalid collection time or empty panel, 42501 not authorized.
 const PROVEN_REJECTION_CODES = new Set(['22023', '42501']);
 
-export async function saveLabResult(
+async function saveLabResultForActor(
   _prevState: unknown,
-  formData: FormData
+  formData: FormData,
+  careActorId?: string,
 ): Promise<LabActionState> {
+  if (careActorId !== undefined && !z.guid().safeParse(careActorId).success) return { status: 'not_saved', error: 'The expected account could not be verified.' };
   // 1. Extract and validate input
   const raw: Record<string, unknown> = {
     patientId: formData.get('patientId') as string,
@@ -249,6 +269,9 @@ export async function saveLabResult(
   const { patientId, requestId, collectedAt, potassium, egfr, creatinine, sodium, notes } = parsed.data;
   const auth = await authorizeProviderForPatient(patientId);
   if (!auth.authorized) return { error: auth.error };
+  if (careActorId !== undefined && auth.user.id.toLowerCase() !== careActorId.toLowerCase()) {
+    return { status: 'not_saved', error: 'Your account changed. Reload this follow-up before continuing.' };
+  }
 
   let receipt: LabReceipt | undefined;
   let rejection: string | undefined;
@@ -287,12 +310,22 @@ export async function saveLabResult(
   }
 
   const result = await processLabReceipt(receipt);
-  revalidatePath(`/patients/${patientId}`);
-  if (result.alertStatus === 'recorded') {
-    revalidatePath('/dashboard');
-    revalidatePath('/alerts');
+  if (careActorId === undefined) {
+    revalidatePath(`/patients/${patientId}`);
+    if (result.alertStatus === 'recorded') {
+      revalidatePath('/dashboard');
+      revalidatePath('/alerts');
+    }
   }
   return result;
+}
+
+export async function saveLabResult(prevState: unknown, formData: FormData): Promise<LabActionState> {
+  return saveLabResultForActor(prevState, formData);
+}
+export async function saveCareLabResult(actorId: string, prevState: unknown, formData: FormData): Promise<LabActionState> {
+  try { return await saveLabResultForActor(prevState, formData, actorId ?? ''); }
+  catch { return { status: 'save_unconfirmed', error: 'The save could not be confirmed. Recover the same submission without resending values.' }; }
 }
 
 /** Explicit recovery only: scope the existing event before using service role. */

@@ -183,9 +183,10 @@ function PendingLabEvaluation({ patientId, labResultId, collectedAt, onResolved,
   );
 }
 
-function AddLabForm({ patientId, requestId, editable, onResult, onStart, isCurrent }: {
+export function AddLabForm({ patientId, requestId, editable, onResult, onStart, isCurrent, saveAction = saveLabResult }: {
   patientId: string; requestId: string; editable: boolean;
   onResult: (result: LabActionState) => Promise<void>; onStart: () => void; isCurrent: () => boolean;
+  saveAction?: typeof saveLabResult;
 }) {
   const [collectedLocal, setCollectedLocal] = useState('');
   const [selectedInstant, setSelectedInstant] = useState('');
@@ -224,7 +225,7 @@ function AddLabForm({ patientId, requestId, editable, onResult, onStart, isCurre
     const payload = new FormData(event.currentTarget);
     let result: LabActionState;
     try {
-      result = await saveLabResult(state, payload);
+      result = await saveAction(state, payload);
     } catch {
       result = { status: 'save_unconfirmed' };
     }

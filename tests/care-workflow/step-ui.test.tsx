@@ -1,7 +1,21 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useEffect } from 'react';
 const mocks = vi.hoisted(() => ({ prepare: vi.fn(), recover: vi.fn(), apply: vi.fn(), cancel: vi.fn(), ack: vi.fn(),
-  detail: vi.fn(), list: vi.fn(), subscribe: vi.fn(), unsubscribe: vi.fn(), authorize: vi.fn(), directory: vi.fn() }));
+  detail: vi.fn(), list: vi.fn(), subscribe: vi.fn(), unsubscribe: vi.fn(), authorize: vi.fn(), directory: vi.fn(), labReady: true }));
+vi.mock('@/app/(provider)/patients/[patientId]/_components/care-lab-panel', () => ({
+  CareLabPanel: function LabCoordination({ refreshToken, stepsReady, onReadiness, onChanged }: {
+    refreshToken: number; stepsReady: boolean; onReadiness: (ready: boolean) => void; onChanged: () => void;
+  }) {
+    useEffect(() => { if (refreshToken > 0) onReadiness(mocks.labReady); }, [refreshToken, onReadiness]);
+    return <div aria-label="Laboratory coordination boundary">
+      <p>Steps ready: {String(stepsReady)}</p>
+      <button onClick={() => onReadiness(false)}>Simulate pending laboratory request</button>
+      <button onClick={() => onReadiness(true)}>Simulate complete laboratory recovery</button>
+      <button onClick={onChanged}>Simulate applied source association</button>
+    </div>;
+  },
+}));
 vi.mock('@/lib/care-workflow/step-actions', () => ({ prepareCareStep: mocks.prepare, recoverCareStep: mocks.recover,
   applyCareStep: mocks.apply, cancelCareStep: mocks.cancel, acknowledgeCareStep: mocks.ack,
   loadCareWorkflow: mocks.detail, loadPendingCareSteps: mocks.list }));
@@ -35,6 +49,7 @@ function deferred() { let resolve!: (value: unknown) => void; let reject!: (erro
   const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
 beforeEach(() => {
   vi.resetAllMocks(); vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-09-29T13:00:00Z'));
+  mocks.labReady = true;
   mocks.subscribe.mockReturnValue({ data: { subscription: { unsubscribe: mocks.unsubscribe } } });
   mocks.detail.mockResolvedValue(ok(detail)); mocks.list.mockResolvedValue(ok({ items: [], next_cursor: null }));
   mocks.prepare.mockImplementation(async (value) => ok(saved(value)));
@@ -104,6 +119,40 @@ describe('historical laboratory compositions', () => {
   });
 });
 describe('recoverable operational steps', () => {
+  it('blocks a new laboratory step until all laboratory recovery families are ready', async () => {
+    mocks.labReady = false; render(<CareWorkflowPanel {...props} />); refresh();
+    await screen.findByText('Steps ready: true'); expect(screen.queryByRole('form')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate complete laboratory recovery' }));
+    expect(screen.getByRole('form')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate pending laboratory request' }));
+    expect(screen.queryByRole('form')).toBeNull(); expect(mocks.prepare).not.toHaveBeenCalled();
+  });
+  it('preserves a frozen step while association invalidates the current snapshot', async () => {
+    await prepare(); const frozen = mocks.prepare.mock.calls[0][0];
+    expect(screen.getByText('Steps ready: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate applied source association' }));
+    expect(screen.getByText(/Prepared and recoverable/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Last loaded workflow snapshot')).toBeNull();
+    expect(screen.getByLabelText('Laboratory coordination boundary')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Check saved step' }));
+    await screen.findByText(/Prepared and recoverable/); expect(mocks.recover).toHaveBeenCalledExactlyOnceWith(frozen);
+  });
+  it.each(['detail', 'list'] as const)('rejects a stale parent %s response after a composition invalidates current context', async (operation) => {
+    const gate = deferred(); mocks[operation].mockReturnValueOnce(gate.promise); render(<CareWorkflowPanel {...props} />); refresh();
+    await act(async () => {}); fireEvent.click(screen.getByRole('button', { name: 'Simulate applied source association' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate complete laboratory recovery' }));
+    await act(async () => gate.resolve(ok(operation === 'detail' ? detail : { items: [], next_cursor: null })));
+    expect(screen.queryByLabelText('Last loaded workflow snapshot')).toBeNull(); expect(screen.queryByRole('form')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Refresh workflow and check pending steps' })).not.toBeDisabled();
+    refresh(); await screen.findByRole('form');
+  });
+  it('keeps the exact write receipt when composition change arrives during step recovery', async () => {
+    await prepare(); const gate = deferred(); mocks.recover.mockReturnValueOnce(gate.promise);
+    fireEvent.click(screen.getByRole('button', { name: 'Check saved step' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate applied source association' }));
+    await act(async () => gate.resolve(ok(saved(mocks.prepare.mock.calls[0][0], 'applied'))));
+    expect(screen.getByText(/Step recorded at revision 2/)).toBeInTheDocument(); expect(screen.queryByLabelText('Last loaded workflow snapshot')).toBeNull();
+  });
   it('does not fetch or prepare automatically and requires complete fresh context', async () => {
     render(<CareWorkflowPanel {...props} />); expect(mocks.detail).not.toHaveBeenCalled(); expect(screen.queryByRole('form')).toBeNull();
     refresh(); await screen.findByRole('form'); expect(mocks.detail).toHaveBeenCalledExactlyOnceWith({ actor_id: id(1), patient_id: id(2), work_item_id: id(5) });

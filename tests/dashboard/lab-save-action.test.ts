@@ -21,6 +21,11 @@ import {
   getLabSubmission,
   prepareLabSubmission,
   saveLabResult,
+  getCareLabSubmission,
+  prepareCareLabSubmission,
+  acknowledgeCareLabSubmission,
+  cancelCareLabSubmission,
+  saveCareLabResult,
 } from '@/lib/dashboard/actions';
 
 const PATIENT_ID = '00000000-0000-4000-a000-000000000001';
@@ -58,6 +63,30 @@ describe('saveLabResult collection provenance', () => {
   });
 
   afterEach(() => vi.useRealTimers());
+
+  it('care save verifies the expected actor on the same client and preserves existing processing without remounting', async () => {
+    expect(await saveCareLabResult(ACTOR_ID, null, makeForm())).toMatchObject({ status: 'saved', labResultId: LAB_ID, alertStatus: 'not_required' });
+    expect(mockAuthorize).toHaveBeenCalledExactlyOnceWith(PATIENT_ID);
+    expect(mockSubmit).toHaveBeenCalledOnce();
+    expect(mockRpc).toHaveBeenCalledExactlyOnceWith('process_lab_alert_event', { p_lab_result_id: LAB_ID });
+    expect(mockRevalidate).not.toHaveBeenCalled();
+  });
+  it.each(['bad', '', undefined, PATIENT_ID])('care save rejects absent/changed actor %s before RPC', async (actor) => {
+    expect((await saveCareLabResult(actor as string, null, makeForm())).status).toBe('not_saved');
+    expect(mockSubmit).not.toHaveBeenCalled(); expect(mockRpc).not.toHaveBeenCalled(); expect(mockRevalidate).not.toHaveBeenCalled();
+    if (actor !== PATIENT_ID) expect(mockAuthorize).not.toHaveBeenCalled();
+  });
+  it('care save contains authorization transport failure without creating a replacement attempt', async () => {
+    mockAuthorize.mockRejectedValue(new Error('Private session detail'));
+    const result = await saveCareLabResult(ACTOR_ID, null, makeForm());
+    expect(result.status).toBe('save_unconfirmed'); expect(JSON.stringify(result)).not.toContain('Private');
+    expect(mockSubmit).not.toHaveBeenCalled(); expect(mockRpc).not.toHaveBeenCalled();
+  });
+  it('care save retains durable pending processing when immediate evaluation fails', async () => {
+    mockRpc.mockRejectedValue(new Error('Private processing detail'));
+    expect(await saveCareLabResult(ACTOR_ID, null, makeForm())).toMatchObject({ status: 'saved_alert_pending', labResultId: LAB_ID, alertStatus: 'pending' });
+    expect(mockSubmit).toHaveBeenCalledOnce(); expect(mockRevalidate).not.toHaveBeenCalled();
+  });
 
   it('preserves historical collection time and lets the database stamp entry time', async () => {
     const result = await saveLabResult(null, makeForm());
@@ -245,6 +274,24 @@ describe('durable laboratory submission recovery actions', () => {
     expect(mockRpc).not.toHaveBeenCalled();
     expect(mockFrom).not.toHaveBeenCalled();
     expect(mockRevalidate).not.toHaveBeenCalled();
+  });
+
+  it.each(['read', 'prepare', 'acknowledge', 'cancel'] as const)('care %s verifies the actor before its RPC and preserves the mounted receipt', async (operation) => {
+    const action = { read: getCareLabSubmission, prepare: prepareCareLabSubmission, acknowledge: acknowledgeCareLabSubmission, cancel: cancelCareLabSubmission }[operation];
+    const input = { actorId: ACTOR_ID, patientId: PATIENT_ID, requestId: REQUEST_ID, labResultId: LAB_ID };
+    const row = operation === 'acknowledge' ? { ...savedRow, submission_status: 'acknowledged' }
+      : operation === 'cancel' ? { ...preparedRow, submission_status: 'cancelled' } : preparedRow;
+    mockSubmit.mockResolvedValue({ data: [row], error: null });
+    expect((await action(input)).success).toBe(true);
+    expect(mockAuthorize).toHaveBeenCalledExactlyOnceWith(PATIENT_ID); expect(mockSubmit).toHaveBeenCalledOnce();
+    expect(mockRevalidate).not.toHaveBeenCalled(); expect(mockRpc).not.toHaveBeenCalled();
+    vi.clearAllMocks();
+    expect((await action({ ...input, actorId: PATIENT_ID })).success).toBe(false);
+    expect(mockAuthorize).toHaveBeenCalledOnce(); expect(mockSubmit).not.toHaveBeenCalled();
+    expect(mockRevalidate).not.toHaveBeenCalled();
+    vi.clearAllMocks();
+    expect((await action({ ...input, actorId: undefined as unknown as string })).success).toBe(false);
+    expect(mockAuthorize).not.toHaveBeenCalled(); expect(mockSubmit).not.toHaveBeenCalled();
   });
 
   it('returns a minimal saved receipt and preserves microseconds, without retransmitting or evaluating the exam', async () => {

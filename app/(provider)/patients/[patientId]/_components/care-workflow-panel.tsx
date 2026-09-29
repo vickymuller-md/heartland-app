@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { CARE_KIND_LABELS } from '@/lib/care-workflow/types';
 import { LAB_OBSERVATION_FIELDS } from '@/lib/labs/quality';
+import { CareLabPanel } from './care-lab-panel';
 import { acknowledgeCareStep, applyCareStep, cancelCareStep, loadCareWorkflow, loadPendingCareSteps,
   prepareCareStep, recoverCareStep } from '@/lib/care-workflow/step-actions';
 import { CARE_STAGE_LABELS, CARE_STEP_LABELS, CARE_STEP_READ_UNAVAILABLE, CARE_STEP_UNCONFIRMED,
@@ -37,6 +38,9 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
   const scope = { actor_id: actorId, patient_id: patientId, organization_id: organizationId };
   const read = { actor_id: actorId, patient_id: patientId, work_item_id: workId };
   const [detail, setDetail] = useState(initial);
+  const [kind, setKind] = useState(initial?.kind ?? null);
+  const [labReady, setLabReady] = useState(false);
+  const [labRefreshToken, setLabRefreshToken] = useState(0);
   const [items, setItems] = useState<CareStepState[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [complete, setComplete] = useState(false);
@@ -47,6 +51,7 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
   const [busy, setBusy] = useState(false);
   const [sessionChanged, setSessionChanged] = useState(false);
   const inFlight = useRef(false);
+  const readInFlight = useRef(false);
   const generation = useRef(0);
   const invalidSession = useRef(false);
   useEffect(() => {
@@ -61,7 +66,9 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
   async function load(after: string | null = null) {
     if (inFlight.current || invalidSession.current) return;
     inFlight.current = true; const version = ++generation.current;
+    readInFlight.current = true;
     setBusy(true); setError(null); setComplete(false);
+    setLabReady(false); setLabRefreshToken((value) => value + 1);
     if (!after) { setItems([]); setCursor(null); }
     try {
       // Never use an old applied receipt as the next command's stage or ownership context.
@@ -69,6 +76,7 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
       if (version !== generation.current) return;
       const currentDetail = current.data?.organization_id === scope.organization_id ? current.data : null;
       setDetail(currentDetail);
+      if (currentDetail) setKind(currentDetail.kind);
       if (currentDetail) setCommand((old) => availableCareCommands(currentDetail.kind, currentDetail.stage).includes(old) ? old : 'record_exception');
       const response = await loadPendingCareSteps({ ...scope, after });
       if (version !== generation.current) return;
@@ -77,12 +85,13 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
       setCursor(response.data.next_cursor); setComplete(response.data.next_cursor === null);
       if (!currentDetail) setError('Current workflow detail is unavailable. Your own authorized pending receipts may still be recovered below; new steps remain unavailable.');
     } catch { if (version === generation.current) setError(CARE_STEP_READ_UNAVAILABLE); }
-    finally { if (version === generation.current) { inFlight.current = false; setBusy(false); } }
+    finally { if (version === generation.current) { inFlight.current = false; readInFlight.current = false; setBusy(false); } }
   }
   async function operate(input: CareStepInput, action: (input: CareStepInput) => Promise<CareStepResult>) {
     if (inFlight.current || invalidSession.current) return;
     inFlight.current = true; const version = ++generation.current;
     setSelected(input); setSaved(null); setComplete(false); setBusy(true); setError(null);
+    setLabReady(false);
     try {
       const response = await action(input);
       if (version !== generation.current) return;
@@ -92,7 +101,8 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
   }
   const pendingHere = items.filter((item) => item.work_item_id === workId);
   const allowed = detail ? availableCareCommands(detail.kind, detail.stage) : [];
-  const mayPrepare = !!detail && complete && !pendingHere.length && !selected && canRecordCareStep(detail, actorId);
+  const stepsReady = complete && !pendingHere.length && !selected && !busy;
+  const mayPrepare = !!detail && stepsReady && (detail.kind !== 'laboratory_order' || labReady) && canRecordCareStep(detail, actorId);
   function prepare(form: HTMLFormElement) {
     if (inFlight.current || invalidSession.current || !detail || !mayPrepare || !allowed.includes(command)) return;
     const values = new FormData(form);
@@ -187,7 +197,7 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
     </> : <p>Workflow detail is unavailable. Checking your own pending receipts does not restore ownership or permit a new step.</p>}
     {!selected && <div className="space-y-3 rounded-xl border bg-slate-50 p-4">
       <button className={button} type="button" disabled={busy} onClick={() => void load()}>Refresh workflow and check pending steps</button>
-      <p>Load the complete pending list before preparing a step. Nothing is applied automatically.</p>
+      <p>Load the complete pending list before preparing a step. Laboratory follow-up also requires verified laboratory recovery lists with no own unresolved intention or composition request. Nothing is applied automatically.</p>
       {items.length > 0 && <ul className="space-y-2" aria-label="Pending step receipts">{items.map((item) => <li key={item.request_id} className="rounded-lg border bg-white p-3">
         <p>{CARE_STEP_LABELS[item.command as CareStepCommand['command']]} · {item.state === 'applied' ? 'Recorded; receipt unacknowledged' : 'Prepared; not recorded'}</p>
         {item.work_item_id === workId ? <button className={button} type="button" disabled={busy}
@@ -251,6 +261,14 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
           onClick={() => { setSelected(null); setSaved(null); void load(); }}>Reload current workflow</button>}
       </div>
     </div>}
+    {(kind === null || kind === 'laboratory_order') && <CareLabPanel scope={scope} workId={workId} workflow={detail}
+      stepsReady={stepsReady} refreshToken={labRefreshToken} onReadiness={setLabReady}
+      onChanged={() => {
+        // A late pre-composition read must not restore the previous current snapshot.
+        // Exact write receipts are private history and must still be delivered.
+        if (readInFlight.current) { generation.current += 1; readInFlight.current = false; inFlight.current = false; setBusy(false); }
+        setDetail(null); setComplete(false); setLabReady(false);
+      }} />}
     {busy && <p role="status">Checking current authorized follow-up state…</p>}
     {error && <p role="alert" className="text-red-800">{error}</p>}
   </section>;
