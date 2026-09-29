@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { authorize } from '@/lib/auth/authorization';
 import { careScopeSchema, type CareScope } from './types';
-import { humanContextSchema, humanInputSchema, humanMatches, humanPendingPageSchema, humanStateSchema,
+import { humanContextSchema, humanInputSchema, humanMatches, humanPendingPageSchema, humanStateSchema, humanCommandNameSchema,
   type HumanContext, type HumanInput, type HumanState } from './human-types';
 
 type Result = { data: HumanState; error: null } | { data: null; error: string };
@@ -46,7 +46,7 @@ export async function applyHuman(input: HumanInput) { return operation('apply', 
 export async function cancelHuman(input: HumanInput) { return operation('cancel', input); }
 export async function acknowledgeHuman(input: HumanInput) { return operation('acknowledge', input); }
 
-const readSchema = careScopeSchema.extend({ work_item_id: z.guid(), command: z.enum(['record_review', 'record_contact']) }).strict();
+const readSchema = careScopeSchema.extend({ work_item_id: z.guid(), command: humanCommandNameSchema }).strict();
 export async function loadHumanContext(input: z.infer<typeof readSchema>): Promise<{ data: HumanContext | null; error: string | null }> {
   if (!readSchema.safeParse(input).success) return failure;
   try {

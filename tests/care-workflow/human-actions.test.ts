@@ -123,3 +123,48 @@ describe('human evidence and recovery reads', () => {
     expect((await loadPendingHuman({ ...scope, after: null })).data).toBeNull();
   });
 });
+
+describe('exact barrier resolution server actions', () => {
+  const exception = { exception_id: id(30), origin_event_id: id(31), human_origin_event_id: null, origin_revision: '2', origin_occurred_at: at,
+    code: 'report_missing', reason: 'Missing report record', next_action: common.next_action, next_review_at: due, recorded_at: at };
+  const resolution = humanInputSchema.parse({ ...input, command: 'resolve_exception', payload: { ...common,
+    details: { exception, disposition: 'clinical_non_delivery', resolution_reason: 'Professional non-delivery decision' } } });
+  const frozen = { ...prepared, ...resolution };
+  const done = { ...applied, ...resolution, receipt: { ...applied.receipt, command: 'resolve_exception', clinical_review_recorded: false,
+    resolved_exception_id: id(30), resolution_event_id: applied.receipt.event_id } };
+  it('loads exact open targets using the expected actor and command', async () => {
+    const data = { ...context, command: 'resolve_exception', exceptions: [exception] };
+    rpc.mockResolvedValue(ok(data)); expect((await loadHumanContext({ ...read, command: 'resolve_exception' })).data).toEqual(data);
+    expect(rpc).toHaveBeenCalledExactlyOnceWith('get_care_human_context', { p_work_item_id: id(5), p_command: 'resolve_exception' });
+  });
+  it('passes the unchanged target and disposition only after same-ID lookup', async () => {
+    rpc.mockResolvedValueOnce(failure).mockResolvedValueOnce(ok(frozen));
+    expect((await prepareHuman(resolution)).data).toEqual(frozen);
+    expect(rpc.mock.calls[1]).toEqual(['prepare_care_human_request', expect.objectContaining({ p_command: 'resolve_exception', p_payload: resolution.payload })]);
+  });
+  it.each(actions)('refuses changed actor before resolution RPC %#', async (action) => {
+    authorize.mockResolvedValue({ authorized: true, user: { id: id(999) }, supabase: { rpc } });
+    expect((await action(resolution)).data).toBeNull(); expect(rpc).not.toHaveBeenCalled();
+  });
+  it.each(['exception_id', 'reason', 'recorded_at', 'origin_revision'])('never replaces frozen target %s', async (key) => {
+    const changed = { ...exception, [key]: key === 'exception_id' ? id(99) : key === 'origin_revision' ? '3' : key === 'recorded_at' ? due : 'Changed reason' };
+    rpc.mockResolvedValue(ok({ ...frozen, payload: { ...frozen.payload, details: { exception: changed, disposition: 'clinical_non_delivery', resolution_reason: 'Professional non-delivery decision' } } }));
+    expect((await applyHuman(resolution)).data).toBeNull(); expect(rpc).toHaveBeenCalledTimes(1);
+  });
+  it('recovers an expired applied resolution with inaccessible current context', async () => {
+    const old = { ...resolution, payload: { ...resolution.payload, next_review_at: '2020-01-01T00:00:00Z' } };
+    rpc.mockResolvedValue(ok({ ...done, payload: old.payload }));
+    expect((await prepareHuman(old)).data?.state).toBe('applied');
+    expect(rpc).toHaveBeenCalledExactlyOnceWith('get_care_human_request', { p_request_id: resolution.request_id });
+  });
+  it('requires exact resolution proof, exposes lost cancellation as applied and acknowledges separately', async () => {
+    rpc.mockResolvedValue(ok(done)); expect((await cancelHuman(resolution)).data?.receipt).toEqual(done.receipt);
+    expect((await acknowledgeHuman(resolution)).data).toBeNull();
+    rpc.mockResolvedValue(ok({ ...done, acknowledged_at: at })); expect((await acknowledgeHuman(resolution)).data?.acknowledged_at).toBe(at);
+    rpc.mockResolvedValue(ok({ ...done, receipt: { ...done.receipt, resolved_exception_id: id(99) } })); expect((await recoverHuman(resolution)).data).toBeNull();
+  });
+  it('includes the third variant in exact private recovery pages', async () => {
+    rpc.mockResolvedValue(ok({ items: [frozen], next_cursor: null }));
+    expect((await loadPendingHuman({ ...scope, after: null })).data?.items[0].command).toBe('resolve_exception');
+  });
+});

@@ -10,7 +10,7 @@ import { CareHumanPanel } from './care-human-panel';
 import { acknowledgeCareStep, applyCareStep, cancelCareStep, loadCareWorkflow, loadPendingCareSteps,
   prepareCareStep, recoverCareStep } from '@/lib/care-workflow/step-actions';
 import { CARE_STAGE_LABELS, CARE_STEP_LABELS, CARE_STEP_READ_UNAVAILABLE, CARE_STEP_UNCONFIRMED,
-  availableCareCommands, canRecordCareStep, careExceptionCodeSchema, careStepCommandSchema, careStepInputFromState, careWorkflowTimeline,
+  availableCareCommands, canRecordCareStep, careExceptionCodeSchema, careStepCommandSchema, careStepInputFromState, careWorkflowTimeline, careExceptionHistory,
   validateNewCareStep, type CareStepCommand, type CareStepInput, type CareStepResult, type CareStepState,
   type CareWorkflowDetail } from '@/lib/care-workflow/step-types';
 
@@ -137,6 +137,8 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
   const textField = (name: string, max = 1000) => <label key={name} className="block font-medium">{fieldLabels[name]}
     <textarea className={control} name={name} required minLength={3} maxLength={max} disabled={busy} /></label>;
   if (sessionChanged) return <p role="alert">Your session changed. Reload this follow-up page before continuing.</p>;
+  const barriers = detail ? careExceptionHistory(detail) : [];
+  const openBarriers = barriers.filter((row) => !row.resolution), resolvedBarriers = barriers.filter((row) => row.resolution);
   return <section className="space-y-5 text-sm" aria-labelledby="care-workflow-heading" aria-busy={busy}>
     <header className="space-y-2">
       <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Documented care follow-up</p>
@@ -168,7 +170,7 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
         </li>
         {careWorkflowTimeline(detail).map((item) => <li key={item.id} className="min-w-0 space-y-2 break-words rounded-xl border bg-white p-4">
           <h3 className="font-semibold">{item.revision} · {item.kind === 'step' ? CARE_STEP_LABELS[item.event.command as CareStepCommand['command']]
-            : item.kind === 'human' ? item.event.request.command === 'record_review' ? 'Human review recorded' : 'Human contact documented' : 'Laboratory source composition recorded'}</h3>
+            : item.kind === 'human' ? item.event.request.command === 'record_review' ? 'Human review recorded' : item.event.request.command === 'record_contact' ? 'Human contact documented' : 'Barrier resolution recorded' : 'Laboratory source composition recorded'}</h3>
           <p>{CARE_STAGE_LABELS[item.event.from_stage]} → {CARE_STAGE_LABELS[item.event.to_stage]}</p>
           {item.kind === 'step' ? <StepEvidence command={careStepCommandSchema.parse({ command: item.event.command, payload: item.event.payload })} />
             : item.kind === 'human' ? <>
@@ -200,13 +202,19 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
       </ol>
     </section>
     <section className="space-y-3" aria-labelledby="care-barriers-heading">
-      <h2 id="care-barriers-heading" className="text-lg font-bold">Unresolved barriers ({detail.exceptions.length})</h2>
-      {detail.exceptions.length === 0 ? <p>No barrier was recorded in this snapshot. This does not confirm completion.</p>
-        : <ul className="space-y-3">{detail.exceptions.map((item) => <li key={item.id} className="space-y-1 rounded-xl border border-amber-300 bg-amber-50 p-4">
+      <h2 id="care-barriers-heading" className="text-lg font-bold">Unresolved barriers ({openBarriers.length})</h2>
+      {openBarriers.length === 0 ? <p>No unresolved barrier remains in this snapshot. This does not confirm completion.</p>
+        : <ul className="space-y-3">{openBarriers.map(({ exception: item }) => <li key={item.id} className="space-y-1 rounded-xl border border-amber-300 bg-amber-50 p-4">
           <h3 className="font-semibold">{human(item.code)}</h3><p>{item.reason}</p><p>Next action: {item.next_action}</p>
           <p>Review by: {item.next_review_at}</p><p className="break-all text-xs">Barrier: {item.id} · {item.human_origin_event_id ? 'Human contact origin' : 'Operational origin'}: {item.human_origin_event_id ?? item.origin_event_id}</p>
         </li>)}</ul>}
-      <p>A later step does not resolve an earlier barrier. Human review and contact have separate controls below. Barrier resolution and final closure are not enabled in this increment.</p>
+      {resolvedBarriers.length > 0 && <details><summary>Resolved barriers — original history retained</summary>
+        <ul className="space-y-3">{resolvedBarriers.map(({ exception: item, resolution }) =>
+          <li key={item.id} className="rounded-xl border bg-slate-50 p-4"><p>{human(item.code)}: {item.reason}</p>
+            <p>Resolution recorded at revision {resolution!.revision}, {resolution!.recorded_at}.</p>
+            <p className="break-all text-xs">Barrier: {item.id} · Resolution event: {resolution!.id}</p>
+            <p>Original evidence and resolution justification remain in the timeline.</p></li>)}</ul></details>}
+      <p>A later step does not resolve an earlier barrier. Use the exact barrier resolution control below. Resolution does not resolve source invalidations or confirm completed care; final closure remains unavailable.</p>
     </section>
     </> : <p>Workflow detail is unavailable. Checking your own pending receipts does not restore ownership or permit a new step.</p>}
     {!selected && <div className="space-y-3 rounded-xl border bg-slate-50 p-4">

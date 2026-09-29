@@ -13,7 +13,7 @@ export function CareHumanEvidence({ input }: { input: HumanInput }) {
       <p className="font-semibold">Documented human decision</p><p>{command.payload.details.decision}</p>
       <p className="mt-2 font-semibold">Limitations retained</p><p>{command.payload.details.limitations}</p>
       <p className="mt-2">An attestation about partial evidence does not make the result complete or confirm care completion.</p>
-    </div> : <div className="rounded-lg bg-amber-50 p-3">
+    </div> : command.command === 'record_contact' ? <div className="rounded-lg bg-amber-50 p-3">
       <p>Contact channel: {label(command.payload.details.channel)}</p>
       <p>Declared recipient: {label(command.payload.details.recipient_type)} · {command.payload.details.recipient_reference}</p>
       <p>Documented outcome: {label(command.payload.details.outcome)}</p>
@@ -22,8 +22,22 @@ export function CareHumanEvidence({ input }: { input: HumanInput }) {
       <p className="break-all">Review reference: {command.payload.details.review_event_id ?? 'None supplied'}</p>
       {command.payload.details.reason && <p>Contact barrier: {command.payload.details.reason}</p>}
       <p className="mt-2">This records a human statement; it does not certify delivery, comprehension or completed care.</p>
+    </div> : <div className="space-y-2 rounded-lg bg-amber-50 p-3">
+      <CareExceptionSnapshot exception={command.payload.details.exception} />
+      <p>Declared disposition: {label(command.payload.details.disposition)}</p>
+      <p>Resolution reason: {command.payload.details.resolution_reason}</p>
+      <p>Application state is shown separately. Resolving this barrier does not confirm delivery, resolve source invalidations or complete care.</p>
     </div>}
     <CareHumanBasis basis={input.basis} signature={input.basis_signature} />
+  </div>;
+}
+export function CareExceptionSnapshot({ exception }: { exception: Extract<HumanInput['payload']['details'], { exception: unknown }>['exception'] }) {
+  return <div aria-label="Exact barrier origin" className="space-y-1 break-words">
+    <p className="font-semibold">Barrier: {label(exception.code)}</p><p>Original reason: {exception.reason}</p>
+    <p>Original next action: {exception.next_action}</p><p>Original review deadline: {exception.next_review_at}</p>
+    <p>Origin occurred: {exception.origin_occurred_at}</p><p>Barrier recorded: {exception.recorded_at}</p>
+    <p className="break-all text-xs">Barrier ID: {exception.exception_id}</p>
+    <p className="break-all text-xs">{exception.origin_event_id ? 'Operational origin' : 'Human contact origin'}: {exception.origin_event_id ?? exception.human_origin_event_id} · Origin revision: {exception.origin_revision}</p>
   </div>;
 }
 export function CareHumanBasis({ basis, signature }: { basis: HumanInput['basis']; signature: string }) {
@@ -60,7 +74,7 @@ export function CareHumanBasis({ basis, signature }: { basis: HumanInput['basis'
       <p>Occurred: {basis.operational_event.occurred_at}</p>
       {fact && <><p>Evidence: {fact.payload.evidence}</p>
         {Object.entries(fact.payload.details).map(([key, value]) => <p key={key}>{label(key)}: {value === null ? 'Not supplied' : key === 'source' ? label(value) : value}</p>)}</>}
-    </div> : <p>No report or acquisition evidence had been recorded for this contact.</p>}
+    </div> : <p>No report or acquisition evidence had been recorded for this human record.</p>}
     <details className="text-xs"><summary>Exact evidence identity</summary>
       <p className="break-all">Evidence signature: {signature}</p>
       <p className="break-all">Composition: {basis.composition_event_id ?? 'Not applicable or absent'}</p>

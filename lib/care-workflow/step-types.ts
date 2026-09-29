@@ -123,6 +123,7 @@ export const careWorkflowDetailSchema = z.object({
   let latestFact: z.infer<typeof eventSchema> | null = null;
   let latestReview: z.infer<typeof humanEventSchema> | null = null;
   const reviews = new Map<string, z.infer<typeof humanEventSchema>>();
+  const resolved = new Set<string>();
   type Head = NonNullable<z.infer<typeof compositionReceiptSchema>['sources'][number]['observed_head']>;
   const observedHeads = new Map<string, Head>();
   const observeHead = (root: string | null, head: Head | null) => {
@@ -154,6 +155,17 @@ export const careWorkflowDetailSchema = z.object({
         ctx.addIssue({ code: 'custom', message: 'Inconsistent step history.' });
       }
       if (command.success && ['record_report', 'record_obtained'].includes(command.data.command)) latestFact = item.event;
+      if (command.success) {
+        const c = command.data, barriers = value.exceptions.filter((row) => sameId(row.origin_event_id, item.id));
+        const creates = c.command === 'record_exception' || c.command === 'record_assistance_response' && c.payload.details.outcome === 'denied';
+        if (barriers.length !== (creates ? 1 : 0) || creates && barriers.some((barrier) =>
+          barrier.human_origin_event_id !== null || barrier.code !== (c.command === 'record_exception' ? c.payload.details.code : 'assistance_denied')
+          || barrier.reason !== (c.command === 'record_exception' ? c.payload.details.reason : c.payload.evidence)
+          || c.command === 'record_exception' && !sameId(barrier.id, c.payload.details.exception_id)
+          || barrier.next_action !== c.payload.next_action || labCollectionMicros(barrier.next_review_at) !== labCollectionMicros(c.payload.next_review_at))) {
+          ctx.addIssue({ code: 'custom', message: 'Operational exception disagrees with its originating step.' });
+        }
+      }
     } else if (item.kind === 'composition') {
       const { receipt, payload } = item.event;
       const hasSource = payload.sources.some((source) => source.root_id !== null);
@@ -193,7 +205,7 @@ export const careWorkflowDetailSchema = z.object({
       if (!command.success) reject();
       else if (command.data.command === 'record_review') {
         latestReview = item.event; reviews.set(item.id.toLowerCase(), item.event);
-      } else {
+      } else if (command.data.command === 'record_contact') {
         const d = command.data.payload.details;
         const referenced = d.review_event_id === null ? null : reviews.get(d.review_event_id.toLowerCase());
         if (d.review_event_id !== null && !referenced) reject();
@@ -207,6 +219,18 @@ export const careWorkflowDetailSchema = z.object({
             || labCollectionMicros(barrier.next_review_at) !== labCollectionMicros(request.payload.next_review_at)
             || !sameId(receipt.exception_id, barrier.id)) reject();
         }
+      } else {
+        const target = command.data.payload.details.exception;
+        const barrier = value.exceptions.find((row) => sameId(row.id, target.exception_id));
+        const origin = target.origin_event_id !== null ? value.steps.find((row) => sameId(row.id, target.origin_event_id))
+          : value.humans.find((row) => sameId(row.id, target.human_origin_event_id));
+        if (!barrier || !origin || !ids.has(origin.id.toLowerCase()) || resolved.has(target.exception_id.toLowerCase())
+          || !sameId(target.origin_event_id, barrier.origin_event_id) || !sameId(target.human_origin_event_id, barrier.human_origin_event_id)
+          || target.origin_revision !== origin.revision || labCollectionMicros(target.origin_occurred_at) !== labCollectionMicros(origin.occurred_at)
+          || target.code !== barrier.code || target.reason !== barrier.reason || target.next_action !== barrier.next_action
+          || labCollectionMicros(target.next_review_at) !== labCollectionMicros(barrier.next_review_at)
+          || labCollectionMicros(target.recorded_at) !== labCollectionMicros(barrier.recorded_at)) reject();
+        resolved.add(target.exception_id.toLowerCase());
       }
     }
     ids.add(item.id.toLowerCase()); stage = event.to_stage;
@@ -224,6 +248,15 @@ export const careWorkflowDetailSchema = z.object({
   }
 });
 export type CareWorkflowDetail = z.infer<typeof careWorkflowDetailSchema>;
+// Only call with a decoded complete immutable history. Do not mutate or filter its original exceptions.
+export function careExceptionHistory(value: CareWorkflowDetail) {
+  const resolutions = new Map<string, CareWorkflowDetail['humans'][number]>();
+  for (const event of value.humans) {
+    const parsed = humanCommandSchema.parse({ command: event.request.command, payload: event.request.payload });
+    if (parsed.command === 'resolve_exception') resolutions.set(parsed.payload.details.exception.exception_id.toLowerCase(), event);
+  }
+  return value.exceptions.map((exception) => ({ exception, resolution: resolutions.get(exception.id.toLowerCase()) ?? null }));
+}
 type TimelineSource = { steps: z.infer<typeof eventSchema>[]; compositions: z.infer<typeof compositionEventSchema>[]; humans: z.infer<typeof humanEventSchema>[] };
 export function careWorkflowTimeline(value: TimelineSource) {
   const events = [

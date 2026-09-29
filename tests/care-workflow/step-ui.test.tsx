@@ -129,6 +129,25 @@ function humanDetail(): CareWorkflowDetail {
       next_action: input.payload.next_action, next_review_at: due, recorded_at: at }] };
 }
 describe('historical human evidence', () => {
+  it('separates a resolved barrier from a remaining open barrier without removing either origin', () => {
+    const current = humanDetail(), prior = current.humans[0], target = current.exceptions[1];
+    const resolution: CareWorkflowDetail['humans'][number] = { ...prior, id: id(160), revision: '6',
+      request: { ...prior.request, command: 'resolve_exception', request_id: id(161), expected_revision: '5', payload: { ...input.payload,
+        details: { exception: { exception_id: target.id, origin_event_id: null, human_origin_event_id: id(131), origin_revision: '5',
+          origin_occurred_at: at, code: target.code, reason: target.reason, next_action: target.next_action, next_review_at: due, recorded_at: at },
+        disposition: 'clinical_non_delivery', resolution_reason: 'Synthetic documented reason for non-delivery' } } },
+      receipt: { ...prior.receipt, command: 'resolve_exception', request_id: id(161), event_id: id(160), workflow_revision: '6',
+        clinical_review_recorded: false, addresses_current_review: false, exception_id: null, resolved_exception_id: target.id, resolution_event_id: id(160) } };
+    render(<CareWorkflowPanel {...props} initial={{ ...current, revision: '6', humans: [...current.humans, resolution] }} />);
+    expect(screen.getByRole('heading', { name: 'Unresolved barriers (1)' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '5 · Human contact documented' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '6 · Barrier resolution recorded' })).toBeInTheDocument();
+    expect(screen.getByText('Resolved barriers — original history retained')).toBeInTheDocument();
+    expect(screen.getByText('Resolution reason: Synthetic documented reason for non-delivery')).toBeInTheDocument();
+    expect(screen.getByText('Declared disposition: clinical non delivery')).toBeInTheDocument();
+    expect(screen.getByText(/Resolution does not resolve source invalidations/)).toBeInTheDocument();
+    expect(mocks.apply).not.toHaveBeenCalled();
+  });
   it('shows exact decision, limitations and corrected evidence separately from the original association', () => {
     render(<CareWorkflowPanel {...props} initial={humanDetail()} />);
     expect(screen.getByRole('heading', { name: '4 · Human review recorded' })).toBeInTheDocument();

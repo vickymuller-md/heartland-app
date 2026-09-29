@@ -6,7 +6,7 @@ vi.mock('@/lib/care-workflow/human-actions', () => ({ prepareHuman: mocks.prepar
   applyHuman: mocks.apply, cancelHuman: mocks.cancel, acknowledgeHuman: mocks.ack, loadHumanContext: mocks.context, loadPendingHuman: mocks.list }));
 vi.mock('@/lib/supabase/client', () => ({ createClient: () => ({ auth: { onAuthStateChange: mocks.subscribe } }) }));
 import { CareHumanPanel } from '@/app/(provider)/patients/[patientId]/_components/care-human-panel';
-import { humanCommandSchema, type HumanContext, type HumanInput, type HumanState } from '@/lib/care-workflow/human-types';
+import { humanCommandSchema, humanStateSchema, type HumanContext, type HumanInput, type HumanState } from '@/lib/care-workflow/human-types';
 import type { CareWorkflowDetail } from '@/lib/care-workflow/step-types';
 const id = (n: number) => `ac000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const at = '2026-09-29T12:00:00Z', due = '2026-10-01T12:00:00Z';
@@ -21,7 +21,7 @@ const context: HumanContext = { ...scope, work_item_id: id(5), workflow_revision
     processing: [{ lab_result_id: id(43), evaluation: { event_id: id(45), status: 'pending', completed_at: null, source_assessment: null } }] } };
 const latest: NonNullable<HumanContext['latest_review']> = { event_id: id(100), actor_id: id(1), revision: '3', occurred_at: at, recorded_at: at,
   basis_signature: context.basis_signature, is_current: true, decision: 'Latest synthetic decision' };
-function workflow(current = context): CareWorkflowDetail {
+function workflow(current: HumanContext = context): CareWorkflowDetail {
   const analytes: CareWorkflowDetail['requested_analytes'] = current.kind === 'laboratory_order' ? ['potassium'] : [];
   return { ...scope, work_item_id: id(5), assigned_to: id(1), accepted_by: id(1), accepted_at: at, transfer_pending_to: null,
     ownership_revision: current.ownership_revision, due_at: due, kind: current.kind, stage: current.stage, revision: current.workflow_revision,
@@ -35,7 +35,7 @@ const input: HumanInput = { ...scope, request_id: id(10), work_item_id: id(5), e
   payload: { ...common, details: { decision: 'Synthetic decision', limitations: 'Partial evidence remains' } } };
 function saved(value = input, state: HumanState['state'] = 'prepared'): HumanState {
   const command = humanCommandSchema.parse({ command: value.command, payload: value.payload });
-  return { ...value, state, recorded_at: at, acknowledged_at: null, receipt: state === 'applied' ? {
+  return humanStateSchema.parse({ ...value, state, recorded_at: at, acknowledged_at: null, receipt: state === 'applied' ? {
     request_id: value.request_id, work_item_id: value.work_item_id, event_id: id(20), command: value.command,
     workflow_revision: String(BigInt(value.expected_revision) + BigInt(1)), ownership_revision: value.expected_ownership_revision,
     stage: value.basis.kind === 'laboratory_order' ? 'result_received' : value.basis.kind === 'referral' ? 'report_received' : 'obtained',
@@ -43,7 +43,8 @@ function saved(value = input, state: HumanState['state'] = 'prepared'): HumanSta
     exception_id: command.command === 'record_contact' ? command.payload.details.exception_id : null,
     clinical_review_recorded: value.command === 'record_review', addresses_current_review: command.command === 'record_contact' && command.payload.details.review_addressed,
     communication_confirmed: false, care_completed: false,
-  } : null };
+    ...(command.command === 'resolve_exception' ? { resolved_exception_id: command.payload.details.exception.exception_id, resolution_event_id: id(20) } : {}),
+  } : null });
 }
 const props = { scope, workId: id(5), workflow: workflow(), peersReady: true, refreshToken: 0, onReadiness: mocks.ready, onChanged: mocks.changed };
 const ok = (data: unknown) => ({ data, error: null }), empty = () => ok({ items: [], next_cursor: null });
@@ -56,6 +57,89 @@ beforeEach(() => {
   mocks.prepare.mockImplementation(async (value) => ok(saved(value))); mocks.recover.mockImplementation(async (value) => ok(saved(value)));
   mocks.apply.mockImplementation(async (value) => ok(saved(value, 'applied'))); mocks.cancel.mockImplementation(async (value) => ok(saved(value, 'cancelled')));
   mocks.ack.mockImplementation(async (value) => ok({ ...saved(value, 'applied'), acknowledged_at: at }));
+});
+
+const barrier = { exception_id: id(300), origin_event_id: id(301), human_origin_event_id: null, origin_revision: '2', origin_occurred_at: at,
+  code: 'report_missing' as const, reason: 'Missing synthetic report', next_action: 'Locate missing report', next_review_at: due, recorded_at: at };
+const resolutionContext: HumanContext = { ...context, command: 'resolve_exception', exceptions: [barrier, { ...barrier, exception_id: id(302), reason: 'Second missing report' }] };
+async function startResolution(current: HumanContext = resolutionContext) {
+  mocks.context.mockResolvedValue(ok(current)); const view = render(<CareHumanPanel {...props} workflow={workflow(current)} />);
+  refresh(); await waitFor(() => expect(mocks.ready).toHaveBeenLastCalledWith(true)); change('Human record type', 'resolve_exception'); evidence();
+  await screen.findByRole('form', { name: 'New human record' }); return view;
+}
+function fillResolution() {
+  change('Barrier to resolve', barrier.exception_id); change('Resolution disposition', 'barrier_addressed');
+  change('Resolution reason', 'Report location verified'); change('Human record evidence', 'Synthetic resolution evidence');
+  change('Human occurrence at (UTC)', '2026-09-29T12:00'); change('Human follow-up next action', 'Review remaining evidence');
+  change('Human next review at (UTC)', '2026-10-01T12:00');
+}
+describe('explicit recoverable barrier resolution UI', () => {
+  it.each(['laboratory_order', 'referral', 'medication_access'] as const)('supports %s without a clinical review default', async (kind) => {
+    const current: HumanContext = kind === 'laboratory_order' ? resolutionContext : { ...resolutionContext, kind, stage: 'requested',
+      basis: { kind, sources: [], processing: [], operational_event: null, composition_event_id: null } };
+    await startResolution(current); expect(screen.getByLabelText('Barrier to resolve')).toHaveValue('');
+    expect(screen.queryByLabelText('Resolution reason')).toBeNull(); expect(screen.queryByRole('button', { name: 'Prepare human record for review' })).toBeNull();
+    fillResolution(); expect(screen.getByLabelText('Exact barrier origin')).toHaveTextContent(barrier.origin_event_id);
+    submit(); await screen.findByText('Frozen barrier resolution');
+    expect(mocks.prepare.mock.calls[0][0]).toMatchObject({ command: 'resolve_exception', basis: current.basis,
+      payload: { details: { exception: barrier, disposition: 'barrier_addressed', resolution_reason: 'Report location verified' } } });
+    expect(mocks.apply).not.toHaveBeenCalled();
+  });
+  it('clears unsaved facts and disposition on target change, including returning to the first target', async () => {
+    await startResolution(); fillResolution(); change('Barrier to resolve', id(302));
+    expect(screen.getByLabelText('Resolution disposition')).toHaveValue(''); expect(screen.queryByLabelText('Resolution reason')).toBeNull();
+    change('Resolution disposition', 'barrier_addressed'); expect(screen.getByLabelText('Resolution reason')).toHaveValue('');
+    expect(screen.getByLabelText('Human record evidence')).toHaveValue(''); expect(screen.getByLabelText('Human next review at (UTC)')).toHaveValue('');
+    change('Barrier to resolve', barrier.exception_id); change('Resolution disposition', 'clinical_non_delivery');
+    expect(screen.getByLabelText('Resolution reason')).toHaveValue(''); expect(mocks.prepare).not.toHaveBeenCalled();
+  });
+  it('clears evidence when changing disposition instead of carrying operational evidence into a clinical declaration', async () => {
+    await startResolution(); fillResolution(); change('Resolution disposition', 'clinical_non_delivery');
+    expect(screen.getByLabelText('Resolution reason')).toHaveValue(''); expect(screen.getByLabelText('Human record evidence')).toHaveValue('');
+    expect(screen.getByText(/Clinical permission is rechecked/)).toBeInTheDocument();
+  });
+  it('clears selection and form when evidence is reloaded', async () => {
+    await startResolution(); fillResolution(); evidence(); await screen.findByLabelText('Barrier to resolve');
+    expect(screen.getByLabelText('Barrier to resolve')).toHaveValue(''); expect(screen.queryByLabelText('Resolution reason')).toBeNull();
+  });
+  it('never offers new preparation with no open targets', async () => {
+    mocks.context.mockResolvedValue(ok({ ...resolutionContext, exceptions: [] })); render(<CareHumanPanel {...props} />);
+    refresh(); await waitFor(() => expect(mocks.ready).toHaveBeenLastCalledWith(true)); change('Human record type', 'resolve_exception'); evidence();
+    await screen.findByText(/No open barrier was returned/); expect(screen.queryByRole('form')).toBeNull();
+  });
+  it('rejects an occurrence before the exact origin without allocating a request', async () => {
+    await startResolution(); fillResolution(); change('Human occurrence at (UTC)', '2026-09-29T11:59'); submit();
+    expect(screen.getByRole('alert')).toHaveTextContent('nonfuture occurrence'); expect(mocks.prepare).not.toHaveBeenCalled();
+  });
+  it('keeps frozen target during lost apply response, peer invalidation and ownership loss', async () => {
+    const view = await startResolution(); fillResolution(); submit(); await screen.findByText(/Human record prepared and recoverable/);
+    const exact = mocks.prepare.mock.calls[0][0], pending = deferred(); mocks.apply.mockReturnValueOnce(pending.promise); click('Confirm human record');
+    view.rerender(<CareHumanPanel {...props} workflow={null} peersReady={false} refreshToken={1} />);
+    await act(async () => pending.resolve({ data: null, error: 'lost response' })); await screen.findByText(/Human record state is unconfirmed/);
+    expect(screen.getByLabelText('Frozen human request')).toHaveTextContent(barrier.exception_id);
+    mocks.recover.mockResolvedValueOnce(ok(saved(exact, 'applied'))); click('Check saved human request');
+    await screen.findByText(/Human record saved at revision 4/); expect(mocks.recover).toHaveBeenCalledExactlyOnceWith(exact);
+    expect(screen.getByLabelText('Frozen human request')).not.toHaveTextContent('Human contact');
+    click('Acknowledge human receipt'); await screen.findByRole('button', { name: 'Return to human recovery' });
+  });
+  it('recovers an expired prepared resolution when context is unavailable and current owner changed', async () => {
+    const exact: HumanInput = { ...input, command: 'resolve_exception', payload: { ...common, next_review_at: '2020-01-01T00:00:00Z',
+      details: { exception: barrier, disposition: 'clinical_non_delivery', resolution_reason: 'Documented non-delivery' } } };
+    mocks.list.mockResolvedValue(ok({ items: [saved(exact)], next_cursor: null })); mocks.context.mockResolvedValue({ data: null, error: 'denied' });
+    render(<CareHumanPanel {...props} workflow={{ ...props.workflow, assigned_to: id(99), ownership_revision: '2' }} peersReady={false} />);
+    refresh(); await screen.findByLabelText('Pending human requests'); evidence(); await screen.findByText(/Current human evidence is unavailable/);
+    click(`Recover human request ${exact.request_id}`); await screen.findByText('Frozen barrier resolution');
+    click('Cancel human preparation'); await screen.findByText(/Human preparation cancelled/); expect(mocks.cancel).toHaveBeenCalledExactlyOnceWith(exact);
+  });
+  it.each(['session', 'route'])('fences a late resolution response after %s change', async (kind) => {
+    const view = await startResolution(); fillResolution(); const pending = deferred(); mocks.prepare.mockReturnValueOnce(pending.promise); submit();
+    const exact = mocks.prepare.mock.calls[0][0];
+    if (kind === 'session') { const listener = mocks.subscribe.mock.calls[0][0]; act(() => {
+      listener('SIGNED_IN', { user: { id: id(999) } }); listener('SIGNED_IN', { user: { id: id(1) } });
+    }); } else view.rerender(<CareHumanPanel {...props} workId={id(999)} workflow={null} />);
+    await act(async () => pending.resolve(ok(saved(exact, 'applied'))));
+    expect(screen.queryByLabelText('Frozen human request')).toBeNull(); expect(mocks.changed).not.toHaveBeenCalled();
+  });
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 function click(name: string) { fireEvent.click(screen.getByRole('button', { name })); }

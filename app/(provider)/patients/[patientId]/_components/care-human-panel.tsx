@@ -7,7 +7,7 @@ import type { CareScope } from '@/lib/care-workflow/types';
 import { canRecordCareStep, type CareWorkflowDetail } from '@/lib/care-workflow/step-types';
 import { acknowledgeHuman, applyHuman, cancelHuman, loadHumanContext, loadPendingHuman, prepareHuman, recoverHuman } from '@/lib/care-workflow/human-actions';
 import { humanCommandSchema, humanInputFromState, validateNewHumanInput, type HumanContext, type HumanInput, type HumanState } from '@/lib/care-workflow/human-types';
-import { CareHumanBasis, CareHumanEvidence } from './care-human-evidence';
+import { CareExceptionSnapshot, CareHumanBasis, CareHumanEvidence } from './care-human-evidence';
 
 type Props = { scope: CareScope; workId: string; workflow: CareWorkflowDetail | null; peersReady: boolean; refreshToken: number;
   onReadiness: (ready: boolean) => void; onChanged: () => void };
@@ -116,14 +116,17 @@ function HumanStatePanel({ scope, workId, workflow, peersReady, refreshToken, on
   const reviewEvidence = context?.kind === 'laboratory_order' ? context.stage === 'result_received' && context.basis.composition_event_id !== null
     : !!context?.basis.operational_event && (context.kind === 'referral' ? context.stage === 'report_received' : context.stage === 'obtained');
   const mayPrepare = coherent && ownReady && peersReady && canRecordCareStep(workflow!, scope.actor_id)
-    && (command === 'record_contact' || reviewEvidence);
+    && (command === 'record_review' ? reviewEvidence : command === 'record_contact' || context?.command === 'resolve_exception' && context.exceptions.length > 0);
   function prepare(form: HTMLFormElement) {
     if (!live.current || inFlight.current || !context || !mayPrepare) return;
     const values = new FormData(form), text = (key: string) => String(values.get(key) ?? '');
     const utc = (key: string) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(text(key)) ? text(key) + (text(key).length === 16 ? ':00Z' : 'Z') : '';
     const placeholder = '00000000-0000-4000-8000-000000000000';
     const addressed = values.get('review_addressed') === 'on', referenced = text('review_reference') === 'latest';
-    const details = command === 'record_review' ? { decision: text('decision'), limitations: text('limitations') } : {
+    const details = command === 'resolve_exception' ? {
+      exception: context.command === 'resolve_exception' ? context.exceptions.find((item) => item.exception_id === text('exception_id')) : undefined,
+      disposition: text('disposition'), resolution_reason: text('resolution_reason'),
+    } : command === 'record_review' ? { decision: text('decision'), limitations: text('limitations') } : {
       channel: text('channel'), recipient_type: text('recipient_type'), recipient_reference: text('recipient_reference'), outcome: text('outcome'),
       review_event_id: referenced ? context.latest_review?.event_id ?? null : null, review_addressed: addressed,
       exception_id: text('outcome') === 'human_reached' ? null : placeholder, reason: text('outcome') === 'human_reached' ? null : text('reason'),
@@ -149,14 +152,14 @@ function HumanStatePanel({ scope, workId, workflow, peersReady, refreshToken, on
       <button className={button} disabled={busy} onClick={() => void loadRecovery()}>Check human pending records</button>
       <p>Recover every pending request before preparing a new record. Evidence access alone does not grant permission to record a clinical review or establish institutional approval.</p>
       {requests.length > 0 && <ul aria-label="Pending human requests" className="space-y-2">{requests.map((item) => <li key={item.request_id} className="break-all rounded-lg border p-3">
-        <p>{item.command === 'record_review' ? 'Human review' : 'Documented contact'} · {item.state === 'applied' ? 'Recorded; receipt unacknowledged' : 'Prepared; not recorded'}</p>
+        <p>{item.command === 'record_review' ? 'Human review' : item.command === 'record_contact' ? 'Documented contact' : 'Barrier resolution'} · {item.state === 'applied' ? 'Recorded; receipt unacknowledged' : 'Prepared; not recorded'}</p>
         {same(item.work_item_id, workId) ? <button className={button} disabled={busy} onClick={() => void operate(humanInputFromState(item), recoverHuman)}>Recover human request {item.request_id}</button>
           : <a className={button} href={`/patients/${item.patient_id}/care/${item.work_item_id}?organization=${item.organization_id}`}>Open other follow-up</a>}
       </li>)}</ul>}
       <label className="block">Human record type<select className={control} value={command} onChange={(event) => {
         if (inFlight.current === 'write') return;
         invalidateContext(); setCommand(event.target.value as typeof command); setError(null);
-      }}><option value="record_review">Professional review</option><option value="record_contact">Documented contact</option></select></label>
+      }}><option value="record_review">Professional review</option><option value="record_contact">Documented contact</option><option value="resolve_exception">Resolve a documented barrier</option></select></label>
       <button className={button} disabled={busy} onClick={() => void loadContext()}>Load evidence for this human record</button>
       {context && <div className="space-y-3 rounded-lg bg-slate-50 p-3" aria-label="Evidence before human preparation">
         <p>Last loaded evidence — every preparation and confirmation rechecks the exact basis.</p>
@@ -166,13 +169,14 @@ function HumanStatePanel({ scope, workId, workflow, peersReady, refreshToken, on
           <p>{context.latest_review.is_current ? 'Review matched this evidence when loaded.' : 'Review is stale for this evidence.'}</p>
           <p className="break-all">Review event: {context.latest_review.event_id}</p>
         </div>}
+        {context.command === 'resolve_exception' && !context.exceptions.length && <p>No open barrier was returned for this workflow. This does not mean care is complete.</p>}
         {!mayPrepare && <p>New preparation requires matching current workflow, accepted ownership, complete recovery in every relevant panel and suitable evidence. Refresh the workflow if revisions changed.</p>}
       </div>}
       {mayPrepare && <HumanForm key={`${command}:${epoch}:${context!.workflow_revision}:${context!.ownership_revision}:${context!.basis_signature}:${context!.latest_review?.event_id}`}
         context={context!} onPrepare={prepare} />}
     </>}
     {selected && <div aria-label="Frozen human request" className="space-y-3 rounded-xl border border-blue-300 bg-blue-50 p-4">
-      <h3 className="font-bold">{selected.command === 'record_review' ? 'Frozen professional review' : 'Frozen documented contact'}</h3>
+      <h3 className="font-bold">{selected.command === 'record_review' ? 'Frozen professional review' : selected.command === 'record_contact' ? 'Frozen documented contact' : 'Frozen barrier resolution'}</h3>
       <p className="break-all">Request: {selected.request_id}</p><p>Workflow revision: {selected.expected_revision} · Ownership revision: {selected.expected_ownership_revision}</p>
       <CareHumanEvidence input={selected} />
       {!saved && <p>Outcome unknown. Check this same request; do not create a replacement. Permission or revision changes require recovery and explicit cancellation of a still-prepared request, not changed frozen evidence.</p>}
@@ -198,11 +202,26 @@ function HumanStatePanel({ scope, workId, workflow, peersReady, refreshToken, on
 
 function HumanForm({ context, onPrepare }: { context: HumanContext; onPrepare: (form: HTMLFormElement) => void }) {
   const [outcome, setOutcome] = useState(''), [reference, setReference] = useState(''), [addressed, setAddressed] = useState(false);
+  const [target, setTarget] = useState(''), [disposition, setDisposition] = useState('');
+  const exception = context.command === 'resolve_exception' ? context.exceptions.find((item) => item.exception_id === target) : null;
   const field = (name: string, title: string, max = 1000) => <label className="block">{title}<textarea className={control} name={name} required minLength={3} maxLength={max} /></label>;
   const select = (name: string, title: string, options: string[]) => <label className="block">{title}<select name={name} className={control} required defaultValue="">
     <option value="" disabled>Choose documented value</option>{options.map((value) => <option key={value} value={value}>{label(value)}</option>)}</select></label>;
   return <form aria-label="New human record" className="space-y-3" onSubmit={(event) => { event.preventDefault(); onPrepare(event.currentTarget); }}>
-    {context.command === 'record_review' ? <>{field('decision', 'Professional decision')}{field('limitations', 'Evidence limitations')}</> : <>
+    {context.command === 'resolve_exception' && <>
+      <label className="block">Barrier to resolve<select name="exception_id" className={control} required value={target}
+        onChange={(event) => { setTarget(event.target.value); setDisposition(''); }}>
+        <option value="" disabled>Choose the exact open barrier</option>{context.exceptions.map((item) => <option key={item.exception_id} value={item.exception_id}>
+          {label(item.code)} — {item.reason} — {item.exception_id}</option>)}</select></label>
+      {exception && <><CareExceptionSnapshot exception={exception} />
+        <label className="block">Resolution disposition<select name="disposition" className={control} required value={disposition} onChange={(event) => setDisposition(event.target.value)}>
+          <option value="" disabled>Choose documented disposition</option><option value="barrier_addressed">Barrier addressed (operational attestation)</option>
+          <option value="clinical_non_delivery">Clinical non-delivery (requires clinical permission)</option></select></label>
+        <p>Clinical permission is rechecked by the server. Neither disposition confirms delivery or completed care.</p></>}
+    </>}
+    {(context.command !== 'resolve_exception' || exception && disposition) && <fieldset key={`${target}:${disposition}`} className="space-y-3">
+    {context.command === 'resolve_exception' ? field('resolution_reason', 'Resolution reason')
+      : context.command === 'record_review' ? <>{field('decision', 'Professional decision')}{field('limitations', 'Evidence limitations')}</> : <>
       {select('channel', 'Contact channel', ['phone', 'in_person', 'video', 'secure_message', 'mail', 'other'])}
       {select('recipient_type', 'Recipient type', ['patient', 'caregiver', 'receiving_professional', 'other'])}
       {field('recipient_reference', 'Recipient reference (synthetic only)', 500)}
@@ -221,5 +240,6 @@ function HumanForm({ context, onPrepare }: { context: HumanContext; onPrepare: (
     <label className="block">Human next review at (UTC)<input className={control} type="datetime-local" step="1" name="next_review_at" required /></label>
     <p>Enter UTC explicitly. No clinical decision, review interval or successful outcome is preselected. Reloading evidence clears this unsaved form.</p>
     <button className={button} type="submit">Prepare human record for review</button>
+    </fieldset>}
   </form>;
 }

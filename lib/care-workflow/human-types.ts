@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { careKindSchema, careScopeSchema } from './types';
-import { careStepCommandSchema, careStepStageSchema } from './step-command';
+import { careStepCommandSchema, careStepStageSchema, careExceptionCodeSchema } from './step-command';
 import { compositionDetailSchema } from './composition-types';
 import { labEvaluationStatusSchema, labSourceAssessmentSchema, labEvaluationHistorySchema } from '@/lib/labs/evaluation';
 import { labCollectionMicros } from '@/lib/labs/quality';
@@ -22,6 +22,14 @@ function canonical(value: unknown): unknown {
 }
 const equal = (a: unknown, b: unknown) => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
 const common = { occurred_at: instant, evidence: text(), next_action: text(500), next_review_at: instant };
+export const exceptionSnapshotSchema = z.object({ exception_id: guid, origin_event_id: guid.nullable(), human_origin_event_id: guid.nullable(),
+  origin_revision: revision(BigInt(2)), origin_occurred_at: instant, code: z.enum([...careExceptionCodeSchema.options, 'assistance_denied']),
+  reason: text(), next_action: text(500), next_review_at: instant, recorded_at: instant,
+}).strict().refine((value) => (value.origin_event_id === null) !== (value.human_origin_event_id === null));
+const resolutionPayload = z.object({ ...common, details: z.object({ exception: exceptionSnapshotSchema,
+  disposition: z.enum(['barrier_addressed', 'clinical_non_delivery']), resolution_reason: text(),
+}).strict() }).strict().refine((value) => (labCollectionMicros(value.occurred_at) ?? BigInt(-1))
+  >= (labCollectionMicros(value.details.exception.origin_occurred_at) ?? BigInt(0)));
 const reviewPayload = z.object({ ...common, details: z.object({ decision: text(), limitations: text() }).strict() }).strict();
 const contactPayload = z.object({ ...common, details: z.object({
   channel: z.enum(['phone', 'in_person', 'video', 'secure_message', 'mail', 'other']),
@@ -33,8 +41,10 @@ const contactPayload = z.object({ ...common, details: z.object({
 export const humanCommandSchema = z.discriminatedUnion('command', [
   z.object({ command: z.literal('record_review'), payload: reviewPayload }).strict(),
   z.object({ command: z.literal('record_contact'), payload: contactPayload }).strict(),
+  z.object({ command: z.literal('resolve_exception'), payload: resolutionPayload }).strict(),
 ]);
-const command = z.enum(['record_review', 'record_contact']);
+export const humanCommandNameSchema = z.enum(['record_review', 'record_contact', 'resolve_exception']);
+const command = humanCommandNameSchema;
 const processing = z.object({ lab_result_id: guid, evaluation: z.object({ event_id: guid, status: labEvaluationStatusSchema,
   completed_at: instant.nullable(), source_assessment: labSourceAssessmentSchema.nullable(),
 }).strict().refine((value) => (value.status === 'pending') === (value.completed_at === null)).nullable() }).strict()
@@ -73,14 +83,16 @@ export const humanBasisSchema = z.object({ kind: careKindSchema, composition_eve
 });
 const baseInput = careScopeSchema.extend({ request_id: guid, work_item_id: guid,
   expected_revision: revision(BigInt(1), BigInt('9223372036854775806')), expected_ownership_revision: revision(BigInt(0)),
-  command, basis: humanBasisSchema, basis_signature: signature, payload: z.union([reviewPayload, contactPayload]),
+  command, basis: humanBasisSchema, basis_signature: signature, payload: z.union([reviewPayload, contactPayload, resolutionPayload]),
 }).strict();
 function inputConsistent(value: z.infer<typeof baseInput>) {
   const parsed = humanCommandSchema.safeParse({ command: value.command, payload: value.payload });
   const fact = value.basis.operational_event;
   return parsed.success && (!fact || validRevision(fact.revision) && validRevision(value.expected_revision)
     && BigInt(fact.revision) <= BigInt(value.expected_revision))
-    && (!(parsed.data.command === 'record_review' || parsed.data.payload.details.review_addressed) || hasReviewEvidence(value.basis))
+    && (!(parsed.data.command === 'record_review' || parsed.data.command === 'record_contact' && parsed.data.payload.details.review_addressed) || hasReviewEvidence(value.basis))
+    && (parsed.data.command !== 'resolve_exception' || validRevision(parsed.data.payload.details.exception.origin_revision)
+      && validRevision(value.expected_revision) && BigInt(parsed.data.payload.details.exception.origin_revision) <= BigInt(value.expected_revision))
     && value.basis.processing.every((row) => !row.evaluation?.source_assessment
     || same(row.evaluation.source_assessment.patient_id, value.patient_id));
 }
@@ -94,11 +106,18 @@ function validStage(kind: z.infer<typeof careKindSchema>, stage: z.infer<typeof 
     referral: ['requested', 'accepted', 'scheduled', 'attended', 'report_received'],
     medication_access: ['requested', 'assistance_requested', 'response_received', 'obtained'] }[kind]).includes(stage);
 }
-const receipt = z.object({ request_id: guid, work_item_id: guid, event_id: guid, command, workflow_revision: revision(BigInt(2)),
+const receiptFields = { request_id: guid, work_item_id: guid, event_id: guid, workflow_revision: revision(BigInt(2)),
   ownership_revision: revision(BigInt(0)), stage: careStepStageSchema, recorded_at: instant, basis: humanBasisSchema,
   basis_signature: signature, exception_id: guid.nullable(), due_at: instant, clinical_review_recorded: z.boolean(),
   addresses_current_review: z.boolean(), communication_confirmed: z.literal(false), care_completed: z.literal(false),
-}).strict();
+};
+const receipt = z.discriminatedUnion('command', [
+  z.object({ ...receiptFields, command: z.literal('record_review') }).strict(),
+  z.object({ ...receiptFields, command: z.literal('record_contact') }).strict(),
+  z.object({ ...receiptFields, command: z.literal('resolve_exception'), resolved_exception_id: guid, resolution_event_id: guid,
+    exception_id: z.null(), clinical_review_recorded: z.literal(false), addresses_current_review: z.literal(false),
+  }).strict(),
+]);
 export const humanStateSchema = baseInput.extend({ state: z.enum(['prepared', 'applied', 'cancelled']), recorded_at: instant,
   acknowledged_at: instant.nullable(), receipt: receipt.nullable(),
 }).strict().superRefine((value, ctx) => {
@@ -117,17 +136,24 @@ export const humanStateSchema = baseInput.extend({ state: z.enum(['prepared', 'a
   if (parsed.data.command === 'record_review') {
     if (r.stage !== reviewStage[value.basis.kind] || r.exception_id !== null || r.addresses_current_review
       || !hasReviewEvidence(value.basis)) reject();
-  } else {
+  } else if (parsed.data.command === 'record_contact') {
     const d = parsed.data.payload.details;
     if (r.exception_id?.toLowerCase() !== d.exception_id?.toLowerCase() || r.addresses_current_review !== d.review_addressed
       || d.review_addressed && r.stage !== reviewStage[value.basis.kind]) reject();
+  } else if (r.command !== 'resolve_exception' || !same(r.resolved_exception_id, parsed.data.payload.details.exception.exception_id)
+    || !same(r.resolution_event_id, r.event_id)) {
+    reject();
   }
 });
 const latestReview = z.object({ event_id: guid, revision: revision(BigInt(2)), actor_id: guid, occurred_at: instant,
   recorded_at: instant, basis_signature: signature, is_current: z.boolean(), decision: text() }).strict();
-export const humanContextSchema = careScopeSchema.extend({ work_item_id: guid, workflow_revision: revision(), ownership_revision: revision(BigInt(0)),
-  kind: careKindSchema, stage: careStepStageSchema, command, basis: humanBasisSchema, basis_signature: signature, latest_review: latestReview.nullable(),
-}).strict().superRefine((value, ctx) => {
+const contextFields = { ...careScopeSchema.shape, work_item_id: guid, workflow_revision: revision(), ownership_revision: revision(BigInt(0)),
+  kind: careKindSchema, stage: careStepStageSchema, basis: humanBasisSchema, basis_signature: signature, latest_review: latestReview.nullable() };
+export const humanContextSchema = z.discriminatedUnion('command', [
+  z.object({ ...contextFields, command: z.literal('record_review') }).strict(),
+  z.object({ ...contextFields, command: z.literal('record_contact') }).strict(),
+  z.object({ ...contextFields, command: z.literal('resolve_exception'), exceptions: z.array(exceptionSnapshotSchema) }).strict(),
+]).superRefine((value, ctx) => {
   const r = value.latest_review, fact = value.basis.operational_event;
   if (value.kind !== value.basis.kind || !validStage(value.kind, value.stage)
     || fact && (!validRevision(fact.revision) || !validRevision(value.workflow_revision)
@@ -138,6 +164,18 @@ export const humanContextSchema = careScopeSchema.extend({ work_item_id: guid, w
       || r.is_current && (!hasReviewEvidence(value.basis) || value.stage !== reviewStage[value.kind]
         || fact && (!validRevision(fact.revision) || BigInt(fact.revision) >= BigInt(r.revision))))) {
     ctx.addIssue({ code: 'custom', message: 'Current human context is inconsistent.' });
+  }
+  if (value.command === 'resolve_exception') {
+    const ids = new Set<string>();
+    for (const [n, item] of value.exceptions.entries()) {
+      const before = value.exceptions[n - 1], time = labCollectionMicros(item.next_review_at), prior = before && labCollectionMicros(before.next_review_at);
+      if (ids.has(item.exception_id.toLowerCase()) || !validRevision(item.origin_revision) || !validRevision(value.workflow_revision)
+        || BigInt(item.origin_revision) > BigInt(value.workflow_revision) || time === null
+        || before && (prior === null || time! < prior! || time === prior && item.exception_id.toLowerCase() <= before.exception_id.toLowerCase())) {
+        ctx.addIssue({ code: 'custom', message: 'Open exception context is inconsistent.' });
+      }
+      ids.add(item.exception_id.toLowerCase());
+    }
   }
 });
 export const humanPendingPageSchema = z.object({ items: z.array(humanStateSchema).max(25), next_cursor: guid.nullable() }).strict()

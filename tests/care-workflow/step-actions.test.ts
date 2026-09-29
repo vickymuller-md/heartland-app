@@ -121,11 +121,13 @@ describe('workflow reads and pagination', () => {
       { id: id(81), actor_id: scope.actor_id, revision: '3', ownership_revision: '0', from_stage: 'assistance_requested', to_stage: 'response_received',
         occurred_at: input.payload.occurred_at, recorded_at: prepared.recorded_at, command: 'record_assistance_response', payload: { ...input.payload, details: { outcome: 'denied', response_reference: 'Reference_2' } } },
     ];
-    const exceptions = [{ id: id(82), origin_event_id: id(81), human_origin_event_id: null, code: 'assistance_denied', reason: 'Documented denial', next_action: 'Review alternatives',
+    const exceptions = [{ id: id(82), origin_event_id: id(81), human_origin_event_id: null, code: 'assistance_denied', reason: input.payload.evidence, next_action: input.payload.next_action,
       next_review_at: input.payload.next_review_at, recorded_at: prepared.recorded_at }];
     const value = { ...detail, kind: 'medication_access', requested_analytes: [], request, revision: '3', stage: 'response_received', steps, exceptions };
     expect(careWorkflowDetailSchema.safeParse(value).success).toBe(true);
     expect(careWorkflowDetailSchema.safeParse({ ...value, exceptions: [{ ...exceptions[0], origin_event_id: id(99) }] }).success).toBe(false);
+    expect(careWorkflowDetailSchema.safeParse({ ...value, exceptions: [{ ...exceptions[0], reason: 'Documented denial' }] }).success).toBe(false);
+    expect(careWorkflowDetailSchema.safeParse({ ...value, exceptions: [{ ...exceptions[0], next_action: 'Review alternatives' }] }).success).toBe(false);
   });
   it('loads 25 records plus a tail, including other work receipts', async () => {
     const items = Array.from({ length: 25 }, (_, i) => ({ ...prepared, request_id: id(10 + i), work_item_id: id(50) }));
