@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { careAnalyteSchema, careKindSchema, careRequestPayloadSchema, careScopeSchema, type CareScope } from './types';
+import { compositionHistorySchema, compositionPayloadSchema, compositionReceiptSchema } from './composition-types';
+import { labCollectionMicros } from '@/lib/labs/quality';
 
 const guid = z.guid();
 const instant = z.iso.datetime({ offset: true }).refine((value) =>
@@ -10,7 +12,7 @@ const text = (max: number) => z.string().refine((value) => [...value].length <= 
 const revision = (min: bigint, max = BigInt('9223372036854775807')) => z.string().regex(/^(0|[1-9]\d*)$/)
   .refine((value) => /^(0|[1-9]\d*)$/.test(value) && value.length <= 19 && BigInt(value) >= min && BigInt(value) <= max);
 export const careStepStageSchema = z.enum(['requested', 'scheduled', 'collected', 'accepted', 'attended',
-  'report_received', 'assistance_requested', 'response_received', 'obtained']);
+  'report_received', 'assistance_requested', 'response_received', 'obtained', 'result_received']);
 export const careExceptionCodeSchema = z.enum(['no_answer', 'refused', 'unable_to_contact', 'destination_refused',
   'missed_appointment', 'report_missing', 'medication_not_obtained', 'not_performed', 'cancelled', 'other']);
 const base = { occurred_at: instant, evidence: text(1000), next_action: text(500), next_review_at: instant };
@@ -85,6 +87,15 @@ const eventSchema = z.object({ id: guid, actor_id: guid, revision: revision(BigI
   ownership_revision: revision(BigInt(0)), from_stage: careStepStageSchema, to_stage: careStepStageSchema,
   occurred_at: instant, recorded_at: instant, command: z.string(), payload: z.unknown(),
 }).strict().refine((value) => careStepCommandSchema.safeParse({ command: value.command, payload: value.payload }).success);
+const compositionEventSchema = z.object({ id: guid, revision: revision(BigInt(2)), ownership_revision: revision(BigInt(0)),
+  actor_id: guid, from_stage: careStepStageSchema, to_stage: careStepStageSchema,
+  occurred_at: instant, recorded_at: instant, payload: compositionPayloadSchema, receipt: compositionReceiptSchema,
+}).strict().refine((value) => compositionHistorySchema.safeParse({ work_item_id: value.receipt.work_item_id,
+  items: [{ payload: value.payload, receipt: value.receipt }], next_cursor: null }).success
+  && value.to_stage === value.receipt.stage && value.id.toLowerCase() === value.receipt.event_id.toLowerCase()
+  && value.revision === value.receipt.workflow_revision && value.ownership_revision === value.receipt.ownership_revision
+  && labCollectionMicros(value.occurred_at) !== null && labCollectionMicros(value.occurred_at) === labCollectionMicros(value.payload.occurred_at)
+  && labCollectionMicros(value.recorded_at) !== null && labCollectionMicros(value.recorded_at) === labCollectionMicros(value.receipt.recorded_at));
 export const careWorkflowDetailSchema = z.object({
   work_item_id: guid, patient_id: guid, organization_id: guid, assigned_to: guid.nullable(),
   accepted_at: instant.nullable(), accepted_by: guid.nullable(), transfer_pending_to: guid.nullable(),
@@ -94,29 +105,59 @@ export const careWorkflowDetailSchema = z.object({
     occurred_at: instant, recorded_at: instant }).strict()).length(1),
   // The initializer copies the original purpose (up to 1,000 characters), not a step's 500-character action.
   next_action: text(1000), next_review_at: instant,
-  work_status: z.enum(['new', 'reviewed', 'actioned', 'awaiting', 'due', 'closed']), steps: z.array(eventSchema),
+  work_status: z.enum(['new', 'reviewed', 'actioned', 'awaiting', 'due', 'closed']), steps: z.array(eventSchema), compositions: z.array(compositionEventSchema),
   exceptions: z.array(z.object({ id: guid, origin_event_id: guid, code: z.enum([...careExceptionCodeSchema.options, 'assistance_denied']),
     reason: text(1000), next_action: text(500), next_review_at: instant, recorded_at: instant }).strict()),
 }).strict().superRefine((value, ctx) => {
   if (value.request.kind !== value.kind || JSON.stringify(value.request.analytes) !== JSON.stringify(value.requested_analytes)
-    || value.revision !== String(value.steps.length + 1)) ctx.addIssue({ code: 'custom', message: 'Inconsistent workflow history.' });
+    || value.revision !== String(value.steps.length + value.compositions.length + 1)) ctx.addIssue({ code: 'custom', message: 'Inconsistent workflow history.' });
   let stage: z.infer<typeof careStepStageSchema> = 'requested';
-  const ids = new Set<string>(value.events.map((event) => event.id));
-  for (const [index, event] of value.steps.entries()) {
-    const command = careStepCommandSchema.safeParse({ command: event.command, payload: event.payload });
-    if (event.revision !== String(index + 2) || event.from_stage !== stage || ids.has(event.id)
-      || !command.success || !availableCareCommands(value.kind, stage).includes(command.data.command)
-      || (command.success && event.to_stage !== (command.data.command === 'record_exception' ? stage : CARE_STEP_TARGET[command.data.command]))) {
-      ctx.addIssue({ code: 'custom', message: 'Inconsistent step history.' });
+  const ids = new Set<string>(value.events.map((event) => event.id.toLowerCase()));
+  const mixed = careWorkflowTimeline(value);
+  const requiredAnalytes = [...value.requested_analytes].sort();
+  let previousComposition: string | null = null;
+  for (const [index, item] of mixed.entries()) {
+    const event = item.event;
+    if (item.revision !== String(index + 2) || event.from_stage !== stage || ids.has(item.id.toLowerCase())) {
+      ctx.addIssue({ code: 'custom', message: 'Incomplete or inconsistent mixed history.' });
     }
-    ids.add(event.id); stage = event.to_stage;
+    if (item.kind === 'step') {
+      const command = careStepCommandSchema.safeParse({ command: item.event.command, payload: item.event.payload });
+      if (!command.success || !availableCareCommands(value.kind, stage).includes(command.data.command)
+        || (command.success && event.to_stage !== (command.data.command === 'record_exception' ? stage : CARE_STEP_TARGET[command.data.command]))) {
+        ctx.addIssue({ code: 'custom', message: 'Inconsistent step history.' });
+      }
+    } else {
+      const { receipt, payload } = item.event;
+      const hasSource = payload.sources.some((source) => source.root_id !== null);
+      if (value.kind !== 'laboratory_order' || receipt.work_item_id.toLowerCase() !== value.work_item_id.toLowerCase()
+        || (receipt.previous_event_id?.toLowerCase() ?? null) !== previousComposition
+        || !['requested', 'scheduled', 'collected', 'result_received'].includes(stage)
+        || event.to_stage !== (hasSource ? 'result_received' : stage)
+        || JSON.stringify(payload.sources.map((source) => source.analyte)) !== JSON.stringify(requiredAnalytes)) {
+        ctx.addIssue({ code: 'custom', message: 'Inconsistent laboratory composition history.' });
+      }
+      previousComposition = receipt.event_id.toLowerCase();
+    }
+    ids.add(item.id.toLowerCase()); stage = event.to_stage;
   }
-  if (stage !== value.stage || new Set(value.exceptions.map((item) => item.id)).size !== value.exceptions.length
-    || value.exceptions.some((item) => !value.steps.some((event) => event.id === item.origin_event_id))) {
+  if (stage !== value.stage || (value.kind !== 'laboratory_order' && stage === 'result_received')
+    || new Set(value.exceptions.map((item) => item.id.toLowerCase())).size !== value.exceptions.length
+    || value.exceptions.some((item) => !value.steps.some((event) => event.id.toLowerCase() === item.origin_event_id.toLowerCase()))) {
     ctx.addIssue({ code: 'custom', message: 'Inconsistent stage or exception origin.' });
   }
 });
 export type CareWorkflowDetail = z.infer<typeof careWorkflowDetailSchema>;
+type TimelineSource = { steps: z.infer<typeof eventSchema>[]; compositions: z.infer<typeof compositionEventSchema>[] };
+export function careWorkflowTimeline(value: TimelineSource) {
+  const events = [
+    ...value.steps.map((event) => ({ kind: 'step' as const, id: event.id, revision: event.revision, event })),
+    ...value.compositions.map((event) => ({ kind: 'composition' as const, id: event.id, revision: event.revision, event })),
+  ];
+  // Refinement can receive invalid revision strings; never throw while decoding an error.
+  const safe = (value: string) => /^[1-9]\d{0,18}$/.test(value) ? BigInt(value) : BigInt(-1);
+  return events.sort((a, b) => safe(a.revision) < safe(b.revision) ? -1 : safe(a.revision) > safe(b.revision) ? 1 : 0);
+}
 export const CARE_STEP_LABELS: Record<CareStepCommand['command'], string> = {
   record_schedule: 'Record appointment', record_collection: 'Record specimen collection',
   record_destination_acceptance: 'Record destination acceptance', record_attendance: 'Record attendance',
@@ -126,6 +167,7 @@ export const CARE_STEP_LABELS: Record<CareStepCommand['command'], string> = {
 };
 export const CARE_STAGE_LABELS: Record<z.infer<typeof careStepStageSchema>, string> = {
   requested: 'Requested', scheduled: 'Appointment recorded', collected: 'Collection recorded',
+  result_received: 'Result source associated (historical stage)',
   accepted: 'Destination accepted', attended: 'Attendance recorded', report_received: 'Report received',
   assistance_requested: 'Assistance requested', response_received: 'Assistance response recorded', obtained: 'Obtained (documented source)',
 };

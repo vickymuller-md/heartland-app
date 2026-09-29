@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { CARE_KIND_LABELS } from '@/lib/care-workflow/types';
+import { LAB_OBSERVATION_FIELDS } from '@/lib/labs/quality';
 import { acknowledgeCareStep, applyCareStep, cancelCareStep, loadCareWorkflow, loadPendingCareSteps,
   prepareCareStep, recoverCareStep } from '@/lib/care-workflow/step-actions';
 import { CARE_STAGE_LABELS, CARE_STEP_LABELS, CARE_STEP_READ_UNAVAILABLE, CARE_STEP_UNCONFIRMED,
-  availableCareCommands, canRecordCareStep, careExceptionCodeSchema, careStepCommandSchema, careStepInputFromState,
+  availableCareCommands, canRecordCareStep, careExceptionCodeSchema, careStepCommandSchema, careStepInputFromState, careWorkflowTimeline,
   validateNewCareStep, type CareStepCommand, type CareStepInput, type CareStepResult, type CareStepState,
   type CareWorkflowDetail } from '@/lib/care-workflow/step-types';
 
@@ -147,11 +148,30 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
           <p>Occurred: {detail.request.occurred_at}</p><p>Recorded: {detail.events[0].recorded_at}</p>
           {detail.requested_analytes.length > 0 && <p>Requested analytes: {detail.requested_analytes.join(', ')}</p>}
         </li>
-        {detail.steps.map((step) => <li key={step.id} className="space-y-2 rounded-xl border bg-white p-4">
-          <h3 className="font-semibold">{step.revision} · {CARE_STEP_LABELS[step.command as CareStepCommand['command']]}</h3>
-          <p>{CARE_STAGE_LABELS[step.from_stage]} → {CARE_STAGE_LABELS[step.to_stage]}</p>
-          <StepEvidence command={careStepCommandSchema.parse({ command: step.command, payload: step.payload })} />
-          <p>Recorded: {step.recorded_at}</p><p className="break-all text-xs">Recorded by: {step.actor_id}</p>
+        {careWorkflowTimeline(detail).map((item) => <li key={item.id} className="min-w-0 space-y-2 break-words rounded-xl border bg-white p-4">
+          <h3 className="font-semibold">{item.revision} · {item.kind === 'step' ? CARE_STEP_LABELS[item.event.command as CareStepCommand['command']] : 'Laboratory source composition recorded'}</h3>
+          <p>{CARE_STAGE_LABELS[item.event.from_stage]} → {CARE_STAGE_LABELS[item.event.to_stage]}</p>
+          {item.kind === 'step' ? <StepEvidence command={careStepCommandSchema.parse({ command: item.event.command, payload: item.event.payload })} /> : <>
+            <p>Historical source snapshot — values and associations may have changed since this record. This is not current source verification, clinical review, confirmed communication or care completion.</p>
+            <p>Evidence: {item.event.payload.evidence}</p><p>Selection reason: {item.event.payload.reason}</p>
+            <p>Occurred: {item.event.payload.occurred_at}</p><p>Next action: {item.event.payload.next_action}</p><p>Next review: {item.event.payload.next_review_at}</p>
+            <ul aria-label={`Historical sources at revision ${item.revision}`} className="space-y-2">
+              {item.event.receipt.sources.map((source) => <li key={source.analyte} className="rounded-lg bg-slate-50 p-3 break-words">
+                <p className="font-medium">{LAB_OBSERVATION_FIELDS[source.analyte].label}: {source.observed_head === null ? 'Missing from this composition'
+                  : source.observed_head.status === 'cancelled' ? 'Cancelled source; no value' : `${source.observed_head.value} ${LAB_OBSERVATION_FIELDS[source.analyte].unit}`}</p>
+                {source.observed_head && <><p>Collected: {source.observed_head.collected_at}</p>
+                  <p className="break-all text-xs">Root: {source.root_id} · Observed version: {source.observed_head.version_id} · Revision: {source.observed_head.revision}</p></>}
+              </li>)}
+            </ul>
+            {item.event.receipt.intent_resolutions.map((resolution) => <div key={resolution.intent_id} className="rounded-lg border p-3 break-words">
+              <p>Saved attempt reconciliation: {resolution.disposition === 'linked' ? 'Exact saved sources associated' : 'Saved sources not used'}</p>
+              <p>Reason: {resolution.reason}</p>
+              <p>Matched: {resolution.matched_analytes.length ? resolution.matched_analytes.map((key) => LAB_OBSERVATION_FIELDS[key].label).join(', ') : 'None'}</p>
+              <p>Missing from the intended save: {resolution.missing_analytes.length ? resolution.missing_analytes.map((key) => LAB_OBSERVATION_FIELDS[key].label).join(', ') : 'None recorded'}</p>
+              <p className="break-all text-xs">Intention: {resolution.intent_id} · Saved result: {resolution.lab_result_id}</p>
+            </div>)}
+          </>}
+          <p>Recorded: {item.event.recorded_at}</p><p className="break-all text-xs">Recorded by: {item.event.actor_id}</p>
         </li>)}
       </ol>
     </section>

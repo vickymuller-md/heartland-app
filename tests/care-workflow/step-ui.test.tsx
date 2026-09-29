@@ -18,7 +18,7 @@ const detail: CareWorkflowDetail = { work_item_id: id(5), patient_id: id(2), org
   accepted_at: at, transfer_pending_to: null, ownership_revision: '7', due_at: due, kind: 'laboratory_order', stage: 'requested', revision: '1',
   requested_analytes: ['potassium'], request: { kind: 'laboratory_order', source: 'external_documented', purpose: 'Synthetic follow-up', evidence: 'Original source', occurred_at: at, next_review_at: due, analytes: ['potassium'] },
   events: [{ id: id(9), actor_id: id(1), revision: '1', event_type: 'request_recorded', occurred_at: at, recorded_at: at }],
-  next_action: 'Review next step', next_review_at: due, work_status: 'new', steps: [], exceptions: [] };
+  next_action: 'Review next step', next_review_at: due, work_status: 'new', steps: [], compositions: [], exceptions: [] };
 const props = { actorId: id(1), patientId: id(2), organizationId: id(3), workId: id(5), initial: detail, scopeKey: 'snapshot1' };
 const input: CareStepInput = { actor_id: id(1), patient_id: id(2), organization_id: id(3), work_item_id: id(5), request_id: id(4),
   expected_revision: '1', expected_ownership_revision: '7', command: 'record_collection',
@@ -58,6 +58,51 @@ function fill(command = 'record_collection') {
 function change(label: string, value: string) { fireEvent.change(screen.getByLabelText(label), { target: { value } }); }
 function submit() { fireEvent.submit(screen.getByRole('form', { name: 'New documented step' })); }
 async function prepare() { await start(); fill(); submit(); await screen.findByText(/Prepared and recoverable/); }
+function mixedDetail(): CareWorkflowDetail {
+  const analytes: CareWorkflowDetail['requested_analytes'] = ['potassium', 'egfr'];
+  const composition: CareWorkflowDetail['compositions'][number] = { id: id(30), revision: '2', ownership_revision: '1', actor_id: id(99),
+    from_stage: 'requested', to_stage: 'result_received', occurred_at: at, recorded_at: at,
+    payload: { occurred_at: at, evidence: 'Original_report_reference', reason: 'Partial source selected', next_action: 'Review missing eGFR', next_review_at: due,
+      sources: [{ analyte: 'egfr', root_id: null, expected_root_revision: null }, { analyte: 'potassium', root_id: id(40), expected_root_revision: '1' }], intent_resolutions: [] },
+    receipt: { request_id: id(20), work_item_id: id(5), event_id: id(30), previous_event_id: null, workflow_revision: '2', ownership_revision: '1', stage: 'result_received', recorded_at: at, due_at: due,
+      sources: [{ analyte: 'egfr', root_id: null, observed_head: null }, { analyte: 'potassium', root_id: id(40), observed_head: {
+        version_id: id(50), revision: '1', status: 'original', effective_lab_result_id: id(60), value: '4.60', collected_at: at } }],
+      intent_resolutions: [], clinical_review_recorded: false, communication_confirmed: false, care_completed: false } };
+  return { ...detail, stage: 'result_received', revision: '3', requested_analytes: analytes, request: { ...detail.request, analytes },
+    compositions: [composition], steps: [{ id: id(31), actor_id: id(1), revision: '3', ownership_revision: '7', from_stage: 'result_received', to_stage: 'result_received',
+      occurred_at: at, recorded_at: at, command: 'record_exception', payload: { ...input.payload,
+        details: { exception_id: id(32), code: 'report_missing', reason: 'eGFR not supplied in original report' } } }],
+    exceptions: [{ id: id(32), origin_event_id: id(31), code: 'report_missing', reason: 'eGFR not supplied in original report', next_action: input.payload.next_action, next_review_at: due, recorded_at: at }] };
+}
+describe('historical laboratory compositions', () => {
+  it('renders the ordered mixed timeline, exact historical value and missingness with explicit limits', async () => {
+    await start(mixedDetail());
+    const headings = screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent);
+    expect(headings.slice(0, 3)).toEqual(['1 · Request recorded', '2 · Laboratory source composition recorded', '3 · Record a barrier']);
+    const sources = screen.getByRole('list', { name: 'Historical sources at revision 2' });
+    expect(within(sources).getByText('Potassium: 4.60 mEq/L')).toBeInTheDocument();
+    expect(within(sources).getByText('eGFR: Missing from this composition')).toBeInTheDocument();
+    expect(screen.getByText(/Historical source snapshot/)).toHaveTextContent('not current source verification, clinical review, confirmed communication or care completion');
+    expect(screen.getByText('Evidence: Original_report_reference')).toBeInTheDocument();
+    expect(screen.getByText(`Recorded by: ${id(99)}`)).toBeInTheDocument();
+    expect(within(screen.getByLabelText('Step to document')).getAllByRole('option').map((option) => option.textContent)).toEqual(['Record a barrier']);
+    expect(mocks.prepare).not.toHaveBeenCalled();
+  });
+  it('does not use an old value when the historical source itself was cancelled', () => {
+    const cancelled = structuredClone(mixedDetail());
+    cancelled.compositions[0].payload.sources[1].expected_root_revision = '2';
+    cancelled.compositions[0].receipt.sources[1].observed_head = { version_id: id(51), revision: '2', status: 'cancelled', effective_lab_result_id: null, value: null, collected_at: at };
+    render(<CareWorkflowPanel {...props} initial={cancelled} />);
+    expect(screen.getByText('Potassium: Cancelled source; no value')).toBeInTheDocument();
+    expect(screen.queryByText('Potassium: 4.60 mEq/L')).toBeNull();
+  });
+  it('clears historical source evidence after the session changes', async () => {
+    render(<CareWorkflowPanel {...props} initial={mixedDetail()} />);
+    await act(async () => { mocks.subscribe.mock.calls[0][0]('SIGNED_OUT', null); });
+    expect(screen.queryByText('Evidence: Original_report_reference')).toBeNull();
+    expect(screen.getByRole('alert')).toHaveTextContent('Your session changed');
+  });
+});
 describe('recoverable operational steps', () => {
   it('does not fetch or prepare automatically and requires complete fresh context', async () => {
     render(<CareWorkflowPanel {...props} />); expect(mocks.detail).not.toHaveBeenCalled(); expect(screen.queryByRole('form')).toBeNull();
