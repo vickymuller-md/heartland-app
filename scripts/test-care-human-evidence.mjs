@@ -18,7 +18,9 @@ const fixtures = source.match(/-- BEGIN HUMAN FIXTURES\n([\s\S]*?)-- END HUMAN F
 const helper = fixtures.match(/CREATE FUNCTION pg_temp\.cs\([\s\S]*?\$\$;/)[0];
 const helpers = source.match(/-- BEGIN HUMAN HELPERS\n([\s\S]*?)-- END HUMAN HELPERS/)[1];
 const human = source.match(/-- BEGIN HUMAN COMMAND HELPERS\n([\s\S]*?)-- END HUMAN COMMAND HELPERS/)[1];
-const prefix = `SET search_path=public,extensions; SET timezone='UTC'; ${helper} ${helpers} ${human}\n`;
+const resolutionSource = await readFile('supabase/tests/care_exception_resolution.sql', 'utf8');
+const resolutionHelpers = resolutionSource.match(/-- BEGIN RESOLUTION HELPERS\n([\s\S]*?)-- END RESOLUTION HELPERS/)[1];
+const prefix = `SET search_path=public,extensions; SET timezone='UTC'; ${helper} ${helpers} ${human} ${resolutionHelpers}\n`;
 const auth = `SET LOCAL ROLE authenticated; SELECT set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',pg_temp.cs(1),'aal','aal2')::text,true);`;
 const authority = auth.replace('pg_temp.cs(1)', 'pg_temp.cs(3)');
 const service = `SET LOCAL ROLE service_role; SELECT set_config('request.jwt.claims','{"role":"service_role"}',true);`;
@@ -129,7 +131,7 @@ await capture('restore-clinical-scope', `UPDATE public.member_authorizations SET
 // Pause only this disposable clone after writes but before its final scope check.
 n++; await setup(n);
 const definition = await sql("SELECT pg_get_functiondef('public.apply_care_human_request(uuid)'::regprocedure)");
-const marker = " PERFORM public.require_care_workflow_scope(item.organization_id,item.patient_id,saved.command='record_review'); RETURN result;";
+const marker = ' PERFORM public.require_care_workflow_scope(item.organization_id,item.patient_id,public.care_human_requires_clinical(saved.command,saved.payload)); RETURN result;';
 assert.equal(definition.split(marker).length, 2);
 await capture('install-final-pause', definition.replace(marker, ' PERFORM pg_catalog.pg_advisory_xact_lock(700070);\n' + marker));
 try {
@@ -207,10 +209,104 @@ for (const isolation of ['REPEATABLE READ', 'SERIALIZABLE']) {
   s.send(`${prefix} BEGIN ISOLATION LEVEL ${isolation}; ${auth} ${readContext(n)} COMMIT;\n`, true);
   assert.equal(await s.done, 3); assert.match(s.state.stderr, /25001/); await s.persist();
 }
+// Resolution outputs use a separate prefix: old client decoders remain strict until integrated.
+const resolutionResultsStart = results.length;
+const resolutionWrite = (n) => `SELECT 'RESOLVE_STATE:'||public.apply_care_human_request(pg_temp.cs(${61000 + n}))::text;`;
+async function setupResolution(n, disposition = 'barrier_addressed', prepare = true) {
+  await setup(n, 'record_review', false);
+  await capture('resolution-setup-' + n, `${prefix} BEGIN; ${auth}
+   SELECT pg_temp.ch_apply(${60000 + n},${20000 + n},'record_contact',jsonb_build_object('outcome','no_answer',
+    'exception_id',pg_temp.cs(${64000 + n}),'reason','Synthetic barrier for exact resolution'));
+   ${prepare ? `SELECT pg_temp.cr_prepare(${61000 + n},${20000 + n},pg_temp.cs(${64000 + n}),'${disposition}');` : ''}
+   SELECT 'RESOLVE_CONTEXT:'||public.get_care_human_context(pg_temp.cs(${20000 + n}),'resolve_exception')::text; COMMIT;`);
+}
+async function resolutionReadback(name, n, state) {
+  const raw = await capture(name + '-readback', `${prefix} BEGIN; ${auth}
+   SELECT 'RESOLVE_STATE:'||public.get_care_human_request(pg_temp.cs(${61000 + n}))::text;
+   SELECT 'RESOLVE_TIMELINE:'||public.get_care_workflow_steps(pg_temp.cs(${20000 + n}))::text;
+   SELECT 'RESOLVE_CONTEXT:'||public.get_care_human_context(pg_temp.cs(${20000 + n}),'resolve_exception')::text;
+   SELECT 'RESOLVE_INVALIDATIONS:'||public.list_care_lab_invalidations(pg_temp.cs(${20000 + n}))::text;
+   RESET ROLE; SELECT 'RESOLUTION_COUNT:'||count(*) FROM public.care_exception_resolutions WHERE exception_id=pg_temp.cs(${64000 + n}); COMMIT;`);
+  const request = JSON.parse(raw.match(/^RESOLVE_STATE:(.*)$/m)[1]);
+  assert.equal(request.state, state); assert.match(raw, new RegExp('RESOLUTION_COUNT:' + (state === 'applied' ? 1 : 0)));
+  assert.equal(JSON.parse(raw.match(/^RESOLVE_TIMELINE:(.*)$/m)[1]).exceptions.length, 1);
+  assert.equal(JSON.parse(raw.match(/^RESOLVE_CONTEXT:(.*)$/m)[1]).exceptions.length, state === 'applied' ? 0 : 1);
+  if (state === 'applied') {
+    for (const flag of ['clinical_review_recorded','addresses_current_review','communication_confirmed','care_completed']) assert.equal(request.receipt[flag], false);
+    assert.equal(request.receipt.exception_id, null); assert.equal(request.receipt.resolution_event_id, request.receipt.event_id);
+  }
+  return raw;
+}
+for (const operation of ['source', 'processing']) for (const resolutionFirst of [true, false]) {
+  n++; await setupResolution(n);
+  const change = operation === 'source' ? correct(n) : evaluate(n), write = auth + resolutionWrite(n);
+  const name = `resolution-${operation}-${resolutionFirst ? 'resolution-first' : 'change-first'}`;
+  await race(name, resolutionFirst ? write : change, resolutionFirst ? change : write, resolutionFirst ? null : '40001');
+  const raw = await resolutionReadback(name, n, resolutionFirst ? 'applied' : 'prepared');
+  if (operation === 'source') assert.equal(JSON.parse(raw.match(/^RESOLVE_INVALIDATIONS:(.*)$/m)[1]).items.length, 1);
+}
+n++; await setupResolution(n);
+{
+  const value = await race('resolution-same-request-replay', auth + resolutionWrite(n), auth + resolutionWrite(n));
+  assert.deepEqual(JSON.parse(value.first.match(/^RESOLVE_STATE:(.*)$/m)[1]), JSON.parse(value.second.match(/^RESOLVE_STATE:(.*)$/m)[1]));
+  await resolutionReadback('resolution-same-request-replay', n, 'applied');
+}
+n++; await setupResolution(n, 'barrier_addressed', false);
+{
+  const contextRaw = await capture('resolution-competing-context', `${prefix} BEGIN; ${auth}
+   SELECT 'RESOLVE_CONTEXT:'||public.get_care_human_context(pg_temp.cs(${20000 + n}),'resolve_exception')::text; COMMIT;`);
+  const context = JSON.parse(contextRaw.match(/^RESOLVE_CONTEXT:(.*)$/m)[1]);
+  const literal = JSON.stringify(context).replaceAll("'", "''");
+  const prepare = (request) => `${auth} SELECT pg_temp.cr_from_context(${request},'${literal}'::jsonb,
+   pg_temp.cr_payload('${literal}'::jsonb,pg_temp.cs(${64000 + n})));`;
+  await race('resolution-competing-request', prepare(61000 + n) + resolutionWrite(n), prepare(65000 + n), '40001');
+  await resolutionReadback('resolution-competing-request', n, 'applied');
+  const raw = await capture('resolution-competing-no-second-request', `${prefix} SELECT count(*) FROM public.care_human_requests WHERE id=pg_temp.cs(${65000 + n});`);
+  assert.equal(raw.trim(), '0');
+}
+for (const readFirst of [true, false]) {
+  n++; await setupResolution(n);
+  const history = `SELECT 'RESOLVE_TIMELINE:'||public.get_care_workflow_steps(pg_temp.cs(${20000 + n}))::text;`;
+  const value = await race('resolution-history-' + readFirst, auth + (readFirst ? history : resolutionWrite(n)), auth + (readFirst ? resolutionWrite(n) : history));
+  const historyValue = JSON.parse((readFirst ? value.first : value.second).match(/^RESOLVE_TIMELINE:(.*)$/m)[1]);
+  assert.equal(historyValue.humans.filter((row) => row.request.command === 'resolve_exception').length, readFirst ? 0 : 1);
+  assert.equal(historyValue.exceptions.length, 1);
+}
+for (const transferFirst of [true, false]) {
+  n++; await setupResolution(n);
+  const transfer = `${auth} SELECT public.offer_work_item_transfer(pg_temp.cs(${20000 + n}),pg_temp.cs(2));`, write = auth + resolutionWrite(n);
+  await race('resolution-transfer-' + transferFirst, transferFirst ? transfer : write, transferFirst ? write : transfer, transferFirst ? '42501' : null);
+}
+n++; await setupResolution(n, 'clinical_non_delivery');
+await race('resolution-clinical-revocation-before-apply', `UPDATE public.member_authorizations SET revoked_at=clock_timestamp()
+ WHERE capability='clinical_disposition' AND membership_id IN(SELECT id FROM public.organization_memberships WHERE user_id='60000000-0000-4000-8000-000000000001');`,
+ auth + resolutionWrite(n), '42501');
+await capture('resolution-restore-clinical', "UPDATE public.member_authorizations SET revoked_at=NULL WHERE capability='clinical_disposition';");
+for (const capability of ['monitor', 'clinical_disposition']) {
+  n++; await setupResolution(n, capability === 'monitor' ? 'barrier_addressed' : 'clinical_non_delivery');
+  const original = await sql("SELECT pg_get_functiondef('public.apply_care_human_request(uuid)'::regprocedure)");
+  assert.equal(original.split(marker).length, 2);
+  await capture('resolution-install-pause-' + capability, original.replace(marker, ' PERFORM pg_catalog.pg_advisory_xact_lock(720072);\n' + marker));
+  try {
+    const before = await capture('resolution-counts-before-' + capability, `${prefix} SELECT pg_temp.cr_counts(${20000 + n},${61000 + n});`);
+    await capture('resolution-expiry-setup-' + capability, `UPDATE public.member_authorizations SET expires_at=clock_timestamp()+interval '2 seconds'
+     WHERE capability='${capability}' AND membership_id IN(SELECT id FROM public.organization_memberships WHERE user_id='60000000-0000-4000-8000-000000000001');`);
+    const value = await race('resolution-expiry-after-writes-' + capability, 'SELECT pg_advisory_xact_lock(720072);', auth + resolutionWrite(n), '42501', 2200);
+    assert.ok(!value.second.includes('RESOLVE_STATE:'));
+    const after = await capture('resolution-counts-after-' + capability, `${prefix} SELECT pg_temp.cr_counts(${20000 + n},${61000 + n});`);
+    assert.deepEqual(JSON.parse(after), JSON.parse(before));
+  } finally {
+    await capture('resolution-restore-function-' + capability, original);
+    await capture('resolution-restore-scope-' + capability, 'UPDATE public.member_authorizations SET expires_at=NULL;');
+  }
+}
 const hashes = {};
-for (const file of ['supabase/migrations/00070_care_human_evidence.sql','supabase/migrations/00071_care_human_history.sql','supabase/tests/care_human_evidence.sql','scripts/test-care-human-evidence.mjs']) {
+for (const file of ['supabase/migrations/00070_care_human_evidence.sql','supabase/migrations/00071_care_human_history.sql',
+  'supabase/migrations/00072_care_exception_resolution.sql','supabase/tests/care_human_evidence.sql',
+  'supabase/tests/care_exception_resolution.sql','scripts/test-care-human-evidence.mjs']) {
   hashes[file] = createHash('sha256').update(await readFile(file)).digest('hex');
 }
 await writeFile(path.join(output, 'completion.json'), JSON.stringify({ database, completed_at: new Date().toISOString(), results,
-  actual_blocking_cases: results.length, source_history_independence_cases: 1, isolation_denials: 2, hashes, all_ok: true }, null, 2), { flag: 'wx' });
+  actual_blocking_cases: results.length, resolution_blocking_cases: results.length - resolutionResultsStart,
+  source_history_independence_cases: 1, isolation_denials: 2, hashes, all_ok: true }, null, 2), { flag: 'wx' });
 console.log('Human evidence concurrency: PASS');
