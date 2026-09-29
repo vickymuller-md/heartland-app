@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { CARE_KIND_LABELS } from '@/lib/care-workflow/types';
 import { LAB_OBSERVATION_FIELDS } from '@/lib/labs/quality';
 import { CareLabPanel } from './care-lab-panel';
+import { CareHumanEvidence } from './care-human-evidence';
 import { acknowledgeCareStep, applyCareStep, cancelCareStep, loadCareWorkflow, loadPendingCareSteps,
   prepareCareStep, recoverCareStep } from '@/lib/care-workflow/step-actions';
 import { CARE_STAGE_LABELS, CARE_STEP_LABELS, CARE_STEP_READ_UNAVAILABLE, CARE_STEP_UNCONFIRMED,
@@ -159,9 +160,15 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
           {detail.requested_analytes.length > 0 && <p>Requested analytes: {detail.requested_analytes.join(', ')}</p>}
         </li>
         {careWorkflowTimeline(detail).map((item) => <li key={item.id} className="min-w-0 space-y-2 break-words rounded-xl border bg-white p-4">
-          <h3 className="font-semibold">{item.revision} · {item.kind === 'step' ? CARE_STEP_LABELS[item.event.command as CareStepCommand['command']] : 'Laboratory source composition recorded'}</h3>
+          <h3 className="font-semibold">{item.revision} · {item.kind === 'step' ? CARE_STEP_LABELS[item.event.command as CareStepCommand['command']]
+            : item.kind === 'human' ? item.event.request.command === 'record_review' ? 'Human review recorded' : 'Human contact documented' : 'Laboratory source composition recorded'}</h3>
           <p>{CARE_STAGE_LABELS[item.event.from_stage]} → {CARE_STAGE_LABELS[item.event.to_stage]}</p>
-          {item.kind === 'step' ? <StepEvidence command={careStepCommandSchema.parse({ command: item.event.command, payload: item.event.payload })} /> : <>
+          {item.kind === 'step' ? <StepEvidence command={careStepCommandSchema.parse({ command: item.event.command, payload: item.event.payload })} />
+            : item.kind === 'human' ? <>
+              <p>Historical human record — its evidence may have changed. This does not establish current review validity or endorsement by a new responsible professional.</p>
+              <CareHumanEvidence input={item.event.request} />
+              <p>Request recorded: {item.event.request.recorded_at}</p>
+            </> : <>
             <p>Historical source snapshot — values and associations may have changed since this record. This is not current source verification, clinical review, confirmed communication or care completion.</p>
             <p>Evidence: {item.event.payload.evidence}</p><p>Selection reason: {item.event.payload.reason}</p>
             <p>Occurred: {item.event.payload.occurred_at}</p><p>Next action: {item.event.payload.next_action}</p><p>Next review: {item.event.payload.next_review_at}</p>
@@ -190,7 +197,7 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
       {detail.exceptions.length === 0 ? <p>No barrier was recorded in this snapshot. This does not confirm completion.</p>
         : <ul className="space-y-3">{detail.exceptions.map((item) => <li key={item.id} className="space-y-1 rounded-xl border border-amber-300 bg-amber-50 p-4">
           <h3 className="font-semibold">{human(item.code)}</h3><p>{item.reason}</p><p>Next action: {item.next_action}</p>
-          <p>Review by: {item.next_review_at}</p><p className="break-all text-xs">Barrier: {item.id} · Origin: {item.origin_event_id}</p>
+          <p>Review by: {item.next_review_at}</p><p className="break-all text-xs">Barrier: {item.id} · {item.human_origin_event_id ? 'Human contact origin' : 'Operational origin'}: {item.human_origin_event_id ?? item.origin_event_id}</p>
         </li>)}</ul>}
       <p>A later step does not resolve an earlier barrier. Resolution, clinical review, contact and final closure require their own evidence; these controls are not enabled in this increment.</p>
     </section>

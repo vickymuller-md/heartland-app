@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { careKindSchema, careScopeSchema } from './types';
-import { careStepCommandSchema, careStepStageSchema } from './step-types';
+import { careStepCommandSchema, careStepStageSchema } from './step-command';
 import { compositionDetailSchema } from './composition-types';
 import { labEvaluationStatusSchema, labSourceAssessmentSchema, labEvaluationHistorySchema } from '@/lib/labs/evaluation';
 import { labCollectionMicros } from '@/lib/labs/quality';

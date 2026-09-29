@@ -25,7 +25,7 @@ const workflow: CareWorkflowDetail = { ...scope, work_item_id: id(100), assigned
   transfer_pending_to: null, ownership_revision: '7', due_at: due, kind: 'laboratory_order', stage: 'requested', revision: '1', requested_analytes: ['potassium', 'egfr'],
   request: { kind: 'laboratory_order', source: 'external_documented', purpose: 'Synthetic follow-up', evidence: 'Original source', occurred_at: at, next_review_at: due, analytes: ['potassium', 'egfr'] },
   events: [{ id: id(9), actor_id: id(1), revision: '1', event_type: 'request_recorded', occurred_at: at, recorded_at: at }],
-  next_action: 'Review next step', next_review_at: due, work_status: 'new', steps: [], compositions: [], exceptions: [] };
+  next_action: 'Review next step', next_review_at: due, work_status: 'new', steps: [], compositions: [], humans: [], exceptions: [] };
 const input: CompositionInput = { ...scope, work_item_id: id(100), request_id: id(200), expected_revision: '1', expected_ownership_revision: '7',
   payload: { occurred_at: at, next_review_at: due, evidence: 'Exact source evidence', reason: 'Partial source available', next_action: 'Review missing eGFR',
     sources: [{ analyte: 'egfr', root_id: null, expected_root_revision: null }, { analyte: 'potassium', root_id: id(400), expected_root_revision: '1' }], intent_resolutions: [] } };

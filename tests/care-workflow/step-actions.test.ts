@@ -21,7 +21,7 @@ const detail = { work_item_id: input.work_item_id, patient_id: scope.patient_id,
   requested_analytes: ['potassium'], request: { kind: 'laboratory_order', source: 'external_documented', purpose: 'P'.repeat(1000), evidence: 'Original request',
     occurred_at: input.payload.occurred_at, next_review_at: input.payload.next_review_at, analytes: ['potassium'] },
   events: [{ id: id(9), actor_id: scope.actor_id, revision: '1', event_type: 'request_recorded', occurred_at: input.payload.occurred_at, recorded_at: prepared.recorded_at }],
-  next_action: 'P'.repeat(1000), next_review_at: input.payload.next_review_at, work_status: 'new', steps: [], compositions: [], exceptions: [] };
+  next_action: 'P'.repeat(1000), next_review_at: input.payload.next_review_at, work_status: 'new', steps: [], compositions: [], humans: [], exceptions: [] };
 const read = { actor_id: scope.actor_id, patient_id: scope.patient_id, work_item_id: input.work_item_id };
 const ok = (data: unknown) => ({ data, error: null });
 const operations = [prepareCareStep, recoverCareStep, applyCareStep, cancelCareStep, acknowledgeCareStep];
@@ -121,7 +121,7 @@ describe('workflow reads and pagination', () => {
       { id: id(81), actor_id: scope.actor_id, revision: '3', ownership_revision: '0', from_stage: 'assistance_requested', to_stage: 'response_received',
         occurred_at: input.payload.occurred_at, recorded_at: prepared.recorded_at, command: 'record_assistance_response', payload: { ...input.payload, details: { outcome: 'denied', response_reference: 'Reference_2' } } },
     ];
-    const exceptions = [{ id: id(82), origin_event_id: id(81), code: 'assistance_denied', reason: 'Documented denial', next_action: 'Review alternatives',
+    const exceptions = [{ id: id(82), origin_event_id: id(81), human_origin_event_id: null, code: 'assistance_denied', reason: 'Documented denial', next_action: 'Review alternatives',
       next_review_at: input.payload.next_review_at, recorded_at: prepared.recorded_at }];
     const value = { ...detail, kind: 'medication_access', requested_analytes: [], request, revision: '3', stage: 'response_received', steps, exceptions };
     expect(careWorkflowDetailSchema.safeParse(value).success).toBe(true);

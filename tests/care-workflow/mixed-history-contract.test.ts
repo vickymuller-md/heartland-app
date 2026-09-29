@@ -30,8 +30,8 @@ const detail = { work_item_id: id(5), patient_id: id(2), organization_id: id(3),
   requested_analytes: ['potassium', 'egfr'], request: { kind: 'laboratory_order', source: 'external_documented', purpose: 'Synthetic follow-up',
     evidence: 'Original request', occurred_at: at, next_review_at: due, analytes: ['potassium', 'egfr'] },
   events: [{ id: id(9), actor_id: id(1), revision: '1', event_type: 'request_recorded', occurred_at: at, recorded_at: at }],
-  next_action: 'Review missing evidence', next_review_at: due, work_status: 'new', steps: [step, barrier], compositions: [composition, unlink],
-  exceptions: [{ id: id(12), origin_event_id: id(11), code: 'report_missing', reason: 'Synthetic missing report', next_action: 'Review next evidence', next_review_at: due, recorded_at: at }] };
+  next_action: 'Review missing evidence', next_review_at: due, work_status: 'new', steps: [step, barrier], compositions: [composition, unlink], humans: [],
+  exceptions: [{ id: id(12), origin_event_id: id(11), human_origin_event_id: null, code: 'report_missing', reason: 'Synthetic missing report', next_action: 'Review next evidence', next_review_at: due, recorded_at: at }] };
 
 describe('mixed operational and laboratory composition history', () => {
   it('merges the complete chain without equating historical actors/ownership to the current owner', () => {

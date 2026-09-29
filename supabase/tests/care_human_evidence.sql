@@ -305,6 +305,10 @@ SELECT is((SELECT count(*) FROM public.care_workflow_write_context),0::bigint,'r
 DROP TRIGGER human_test_failure ON public.care_workflows;
 SET LOCAL ROLE authenticated;
 SELECT is(public.apply_care_human_request(pg_temp.cs(10104))->>'state','applied','same exact preparation retries after transaction failure');
+SELECT pg_temp.ch_apply(10204,101,'record_contact',jsonb_build_object('outcome','no_answer','exception_id',pg_temp.cs(9011),'reason','A later independent contact failure'),
+ jsonb_build_object('next_review_at',pg_temp.cs_instant(now()+interval '5 days')));
+SELECT is(jsonb_array_length(public.get_care_workflow_steps(pg_temp.cs(101))->'exceptions'),2,'two failed contacts retain two separate barriers');
+SELECT is((public.get_care_human_request(pg_temp.cs(10204))#>>'{receipt,due_at}')::timestamptz,now()+interval '2 days','later contact deadline cannot postpone the earlier independent barrier');
 
 -- Legacy NULL assessment remains different from no evaluation; cancellation remains explicit.
 SELECT pg_temp.cs_new(105); SELECT pg_temp.cc_register(6101,pg_temp.cs(4101)); SELECT pg_temp.cc_apply(7105,105,pg_temp.cc_mapping(6101));
@@ -359,6 +363,28 @@ SELECT is((SELECT value->'next_cursor' FROM human_proofs WHERE label='page2'),'n
 SELECT is((SELECT count(DISTINCT j->>'request_id') FROM human_proofs CROSS JOIN LATERAL jsonb_array_elements(value->'items') j
  WHERE label IN('page1','page2')),27::bigint,'pagination covers all own requests without duplicates');
 
+-- Shared journal contains only applied facts and immutable request fields, never private ACK.
+INSERT INTO human_proofs VALUES('shared-history',public.get_care_workflow_steps(pg_temp.cs(100)));
+SELECT is(jsonb_array_length((SELECT value->'humans' FROM human_proofs WHERE label='shared-history')),5,'shared timeline includes every applied human event');
+SELECT ok(NOT EXISTS(SELECT 1 FROM human_proofs CROSS JOIN LATERAL jsonb_array_elements(value->'humans') h
+ WHERE label='shared-history' AND(h->'request' ?| ARRAY['acknowledged_at','state','receipt'])),'shared requests omit mutable private recovery metadata');
+SELECT is((SELECT value#>>'{humans,0,request,actor_id}' FROM human_proofs WHERE label='shared-history'),pg_temp.cs(1)::text,'historical actor projected exactly');
+SELECT is((SELECT value#>>'{exceptions,0,human_origin_event_id}' FROM human_proofs WHERE label='shared-history'),
+ public.get_care_human_request(pg_temp.cs(10001))#>>'{receipt,event_id}','human barrier origin projected exactly');
+SELECT is((SELECT value#>'{exceptions,0,origin_event_id}' FROM human_proofs WHERE label='shared-history'),'null'::jsonb,'human barrier does not invent a step origin');
+SELECT is(public.get_care_workflow_steps(pg_temp.cs(500))->'humans','[]'::jsonb,'prepared human request is not exposed as shared fact');
+SELECT pg_temp.cc_change(7202,6100,2);
+SELECT is(public.get_care_workflow_steps(pg_temp.cs(100)),(SELECT value FROM human_proofs WHERE label='shared-history'),'later source correction leaves historical timeline byte-equivalent JSON');
+SELECT public.acknowledge_care_human_request(pg_temp.cs(10001));
+SELECT is(public.get_care_workflow_steps(pg_temp.cs(100)),(SELECT value FROM human_proofs WHERE label='shared-history'),'private ACK cannot change public historical proof');
+SELECT public.offer_work_item_transfer(pg_temp.cs(100),pg_temp.cs(2));
+SELECT set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',pg_temp.cs(2),'aal','aal2')::text,true);
+SELECT public.accept_work_item_transfer(pg_temp.cs(100));
+SELECT is(public.get_care_workflow_steps(pg_temp.cs(100))->'humans',(SELECT value->'humans' FROM human_proofs WHERE label='shared-history'),'new accepted owner reads exact historical actors without adopting their private requests');
+SELECT is(public.get_care_workflow_steps(pg_temp.cs(100))->'exceptions',(SELECT value->'exceptions' FROM human_proofs WHERE label='shared-history'),'transfer retains every independent historical barrier');
+SELECT throws_ok($q$SELECT public.get_care_human_request(pg_temp.cs(10001))$q$,'42501',NULL,'shared history does not authorize private request recovery');
+SELECT set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',pg_temp.cs(1),'aal','aal2')::text,true);
+
 -- Clinical permission loss prevents fresh attestation, not authorized private recovery.
 RESET ROLE;
 UPDATE public.member_authorizations SET revoked_at=clock_timestamp() WHERE capability='clinical_disposition'
@@ -368,11 +394,13 @@ SELECT throws_ok($q$SELECT pg_temp.ch_prepare(10030,101)$q$,'42501',NULL,'fresh 
 SELECT is(public.get_care_human_request(pg_temp.cs(10002))->>'state','applied','monitor can recover own historical clinical receipt after grant loss');
 SELECT is(public.apply_care_human_request(pg_temp.cs(10002))->>'state','applied','terminal replay does not rereview current sources');
 SELECT is(public.acknowledge_care_human_request(pg_temp.cs(10002))->>'state','applied','terminal ACK survives clinical grant loss');
+SELECT is(public.get_care_workflow_steps(pg_temp.cs(100))->'humans',(SELECT value->'humans' FROM human_proofs WHERE label='shared-history'),'authorized manager reads history after clinical grant loss');
 SELECT pg_temp.ch_apply(10031,101,'record_contact');
 SELECT is(public.get_care_human_request(pg_temp.cs(10031))#>>'{receipt,clinical_review_recorded}','false','monitor contact does not forge clinical review');
 SELECT throws_ok($q$SELECT public.care_human_basis(pg_temp.cs(100))$q$,'42501',NULL,'internal basis helper cannot bypass authorization');
 SELECT set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',pg_temp.cs(2),'aal','aal2')::text,true);
-SELECT throws_ok($q$SELECT public.get_care_human_context(pg_temp.cs(100),'record_contact')$q$,'42501',NULL,'monitor alone does not grant peer workflow visibility');
+SELECT throws_ok($q$SELECT public.get_care_human_context(pg_temp.cs(101),'record_contact')$q$,'42501',NULL,'monitor alone does not grant peer workflow visibility');
+SELECT throws_ok($q$SELECT public.get_care_workflow_steps(pg_temp.cs(101))$q$,'42501',NULL,'shared human history still requires work visibility');
 SELECT throws_ok($q$SELECT public.get_care_human_request(pg_temp.cs(10002))$q$,'42501',NULL,'other actor cannot read private review request');
 RESET ROLE;
 SELECT throws_ok($q$DELETE FROM public.care_human_requests WHERE id=pg_temp.cs(10002)$q$,'42501',NULL,'even owner cannot erase immutable human request');

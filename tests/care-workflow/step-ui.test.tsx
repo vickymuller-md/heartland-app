@@ -26,13 +26,14 @@ vi.mock('@/components/disclaimers/provider-page-disclaimer', () => ({ ProviderPa
 import { CareWorkflowPanel } from '@/app/(provider)/patients/[patientId]/_components/care-workflow-panel';
 import CareWorkflowPage from '@/app/(provider)/patients/[patientId]/care/[workId]/page';
 import { CARE_STEP_UNCONFIRMED, type CareStepInput, type CareStepState, type CareWorkflowDetail } from '@/lib/care-workflow/step-types';
+import type { HumanInput } from '@/lib/care-workflow/human-types';
 const id = (n: number) => `60000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const at = '2026-09-29T12:00:00Z'; const due = '2026-10-01T12:00:00Z';
 const detail: CareWorkflowDetail = { work_item_id: id(5), patient_id: id(2), organization_id: id(3), assigned_to: id(1), accepted_by: id(1),
   accepted_at: at, transfer_pending_to: null, ownership_revision: '7', due_at: due, kind: 'laboratory_order', stage: 'requested', revision: '1',
   requested_analytes: ['potassium'], request: { kind: 'laboratory_order', source: 'external_documented', purpose: 'Synthetic follow-up', evidence: 'Original source', occurred_at: at, next_review_at: due, analytes: ['potassium'] },
   events: [{ id: id(9), actor_id: id(1), revision: '1', event_type: 'request_recorded', occurred_at: at, recorded_at: at }],
-  next_action: 'Review next step', next_review_at: due, work_status: 'new', steps: [], compositions: [], exceptions: [] };
+  next_action: 'Review next step', next_review_at: due, work_status: 'new', steps: [], compositions: [], humans: [], exceptions: [] };
 const props = { actorId: id(1), patientId: id(2), organizationId: id(3), workId: id(5), initial: detail, scopeKey: 'snapshot1' };
 const input: CareStepInput = { actor_id: id(1), patient_id: id(2), organization_id: id(3), work_item_id: id(5), request_id: id(4),
   expected_revision: '1', expected_ownership_revision: '7', command: 'record_collection',
@@ -87,8 +88,65 @@ function mixedDetail(): CareWorkflowDetail {
     compositions: [composition], steps: [{ id: id(31), actor_id: id(1), revision: '3', ownership_revision: '7', from_stage: 'result_received', to_stage: 'result_received',
       occurred_at: at, recorded_at: at, command: 'record_exception', payload: { ...input.payload,
         details: { exception_id: id(32), code: 'report_missing', reason: 'eGFR not supplied in original report' } } }],
-    exceptions: [{ id: id(32), origin_event_id: id(31), code: 'report_missing', reason: 'eGFR not supplied in original report', next_action: input.payload.next_action, next_review_at: due, recorded_at: at }] };
+    exceptions: [{ id: id(32), origin_event_id: id(31), human_origin_event_id: null, code: 'report_missing', reason: 'eGFR not supplied in original report', next_action: input.payload.next_action, next_review_at: due, recorded_at: at }] };
 }
+function humanDetail(): CareWorkflowDetail {
+  const current = mixedDetail(), c = current.compositions[0];
+  const basis: HumanInput['basis'] = { kind: 'laboratory_order', composition_event_id: c.id, operational_event: null,
+    sources: c.receipt.sources.map((row, n) => ({ analyte: row.analyte, entry_id: id(100 + n), root_id: row.root_id,
+      authority_organization_id: row.root_id ? id(3) : null, original_lab_result_id: row.observed_head?.effective_lab_result_id ?? null,
+      observed_version_id: row.observed_head?.version_id ?? null, head: row.observed_head ? { ...row.observed_head,
+        status: 'corrected', revision: '2', version_id: id(110), effective_lab_result_id: id(111), value: '4.20' } : null,
+      quality: row.root_id ? 'available' : 'missing', evaluation_status: row.root_id ? 'pending' : null })),
+    processing: [{ lab_result_id: id(111), evaluation: { event_id: id(112), status: 'pending', completed_at: null, source_assessment: null } }] };
+  const request: HumanInput & { recorded_at: string } = { actor_id: id(99), organization_id: id(3), patient_id: id(2), work_item_id: id(5),
+    request_id: id(120), expected_revision: '3', expected_ownership_revision: '1', recorded_at: at, command: 'record_review',
+    basis, basis_signature: 'a'.repeat(64), payload: { ...input.payload, details: { decision: 'Synthetic_review_decision', limitations: 'Missing eGFR; processing incomplete' } } };
+  const review: CareWorkflowDetail['humans'][number] = { id: id(130), actor_id: id(99), revision: '4', ownership_revision: '1',
+    from_stage: 'result_received', to_stage: 'result_received', occurred_at: at, recorded_at: at, request,
+    receipt: { request_id: id(120), work_item_id: id(5), event_id: id(130), command: 'record_review', workflow_revision: '4', ownership_revision: '1',
+      stage: 'result_received', recorded_at: at, due_at: due, basis, basis_signature: request.basis_signature, exception_id: null,
+      clinical_review_recorded: true, addresses_current_review: false, communication_confirmed: false, care_completed: false } };
+  const contact: CareWorkflowDetail['humans'][number] = { ...review, id: id(131), revision: '5',
+    request: { ...request, request_id: id(121), expected_revision: '4', command: 'record_contact', payload: { ...input.payload,
+      details: { channel: 'phone', recipient_type: 'caregiver', recipient_reference: 'Synthetic_caregiver', outcome: 'no_answer',
+        review_event_id: id(130), review_addressed: false, exception_id: id(150), reason: 'Synthetic_contact_barrier' } } },
+    receipt: { ...review.receipt, request_id: id(121), event_id: id(131), workflow_revision: '5', command: 'record_contact',
+      clinical_review_recorded: false, exception_id: id(150) } };
+  return { ...current, revision: '5', humans: [review, contact], exceptions: [...current.exceptions,
+    { id: id(150), origin_event_id: null, human_origin_event_id: id(131), code: 'no_answer', reason: 'Synthetic_contact_barrier',
+      next_action: input.payload.next_action, next_review_at: due, recorded_at: at }] };
+}
+describe('historical human evidence', () => {
+  it('shows exact decision, limitations and corrected evidence separately from the original association', () => {
+    render(<CareWorkflowPanel {...props} initial={humanDetail()} />);
+    expect(screen.getByRole('heading', { name: '4 · Human review recorded' })).toBeInTheDocument();
+    expect(screen.getByText('Synthetic_review_decision')).toBeInTheDocument();
+    expect(screen.getByText('Missing eGFR; processing incomplete')).toBeInTheDocument();
+    expect(screen.getByText('Potassium: 4.60 mEq/L')).toBeInTheDocument();
+    expect(screen.getAllByText('Potassium: 4.20 mEq/L')).toHaveLength(2);
+    expect(screen.getAllByText('Processing: pending')).toHaveLength(2);
+    expect(screen.getAllByText(/does not classify every analyte/)).toHaveLength(2);
+    expect(screen.getAllByText(/Historical human record/)[0]).toHaveTextContent('does not establish current review validity');
+  });
+  it('shows declared contact and separate barrier origin without claiming transport or resolution', () => {
+    render(<CareWorkflowPanel {...props} initial={humanDetail()} />);
+    expect(screen.getByRole('heading', { name: '5 · Human contact documented' })).toBeInTheDocument();
+    expect(screen.getByText('Declared recipient: caregiver · Synthetic_caregiver')).toBeInTheDocument();
+    expect(screen.getByText('Documented outcome: no answer')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Unresolved barriers (2)' })).toBeInTheDocument();
+    expect(screen.getByText(/Human contact origin:/)).toHaveTextContent(id(131));
+    expect(screen.getByText(/does not certify delivery, comprehension/)).toBeInTheDocument();
+    expect(mocks.apply).not.toHaveBeenCalled();
+  });
+  it('clears human evidence and recipient reference after account change', async () => {
+    render(<CareWorkflowPanel {...props} initial={humanDetail()} />);
+    await act(async () => { mocks.subscribe.mock.calls[0][0]('SIGNED_OUT', null); });
+    expect(screen.queryByText('Synthetic_review_decision')).toBeNull();
+    expect(screen.queryByText(/Synthetic_caregiver/)).toBeNull();
+    expect(screen.getByRole('alert')).toHaveTextContent('session changed');
+  });
+});
 describe('historical laboratory compositions', () => {
   it('renders the ordered mixed timeline, exact historical value and missingness with explicit limits', async () => {
     await start(mixedDetail());
@@ -237,8 +295,8 @@ describe('recoverable operational steps', () => {
   });
   it('renders separate barrier deadlines and retains underscore-containing evidence verbatim', async () => {
     const current: CareWorkflowDetail = { ...detail, next_review_at: '2026-10-03T12:00:00Z', due_at: due, exceptions: [
-      { id: id(70), origin_event_id: id(6), code: 'report_missing', reason: 'Original_missing_report', next_action: 'Call_source_A', next_review_at: due, recorded_at: at },
-      { id: id(71), origin_event_id: id(7), code: 'no_answer', reason: 'Second independent barrier', next_action: 'Retry contact B', next_review_at: '2026-10-02T12:00:00Z', recorded_at: at },
+      { id: id(70), origin_event_id: id(6), human_origin_event_id: null, code: 'report_missing', reason: 'Original_missing_report', next_action: 'Call_source_A', next_review_at: due, recorded_at: at },
+      { id: id(71), origin_event_id: id(7), human_origin_event_id: null, code: 'no_answer', reason: 'Second independent barrier', next_action: 'Retry contact B', next_review_at: '2026-10-02T12:00:00Z', recorded_at: at },
     ] };
     render(<CareWorkflowPanel {...props} initial={current} />);
     expect(screen.getByRole('heading', { name: 'Unresolved barriers (2)' })).toBeInTheDocument();

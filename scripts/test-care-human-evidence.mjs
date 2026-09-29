@@ -92,7 +92,8 @@ for (const command of ['record_review', 'record_contact']) for (const operation 
   const name = `${command}-${operation}-${humanFirst ? 'human-first' : 'change-first'}`;
   const value = await race(name, humanFirst ? humanWrite : change, humanFirst ? change : humanWrite, humanFirst ? null : '40001');
   const readback = await capture(name + '-readback', `${prefix} BEGIN; ${auth} ${readContext(n)}
-   SELECT 'REQUEST:'||public.get_care_human_request(pg_temp.cs(${61000 + n}))::text; COMMIT;`);
+   SELECT 'REQUEST:'||public.get_care_human_request(pg_temp.cs(${61000 + n}))::text;
+   SELECT 'HISTORY:'||public.get_care_workflow_steps(pg_temp.cs(${20000 + n}))::text; COMMIT;`);
   const state = JSON.parse(readback.match(/REQUEST:(.*)/)[1]), context = JSON.parse(readback.match(/CONTEXT:(.*)/)[1]);
   assert.equal(state.state, humanFirst ? 'applied' : 'prepared');
   if (humanFirst || command === 'record_contact') assert.equal(context.latest_review.is_current, false);
@@ -147,15 +148,69 @@ try {
   await capture('restore-uninstrumented-function', definition);
   await capture('restore-scope-finally', 'UPDATE public.member_authorizations SET expires_at=NULL;');
 }
+const readHistory = (n) => `SELECT 'HISTORY:'||public.get_care_workflow_steps(pg_temp.cs(${20000 + n}))::text;`;
+const historyWrite = (n) => apply(n).replace("'RECEIPT:'", "'HISTORY_WRITE:'");
+for (const readFirst of [true, false]) {
+  n++; await setup(n);
+  const value = await race('history-apply-' + readFirst, auth + (readFirst ? readHistory(n) : historyWrite(n)), auth + (readFirst ? historyWrite(n) : readHistory(n)));
+  const history = JSON.parse((readFirst ? value.first : value.second).match(/HISTORY:(.*)/)[1]);
+  assert.equal(history.humans.length, readFirst ? 0 : 1); assert.equal(history.revision, readFirst ? '2' : '3');
+}
+n++; await setup(n);
+await capture('history-independent-setup', `${prefix} BEGIN; ${auth} ${historyWrite(n)} COMMIT;`);
+{
+  const a = session('history-independent-a'), b = session('history-independent-b');
+  try {
+    a.send(`${prefix} SELECT 'PID:'||pg_backend_pid(); BEGIN; ${auth} ${readHistory(n)}\n\\echo HOLDING\n`);
+    await until(() => { if (a.state.ended) throw new Error(a.state.stderr); return a.state.stdout.includes('HOLDING'); }, 'history-independent');
+    b.send(`${prefix} BEGIN; ${correct(n)} COMMIT;\n`, true);
+    assert.equal(await b.done, 0, b.state.stderr); assert.equal(a.state.ended, false);
+    a.send('COMMIT;\n', true); assert.equal(await a.done, 0);
+    const after = await capture('history-independent-readback', `${prefix} BEGIN; ${auth} ${readHistory(n)} COMMIT;`);
+    assert.deepEqual(JSON.parse(after.match(/HISTORY:(.*)/)[1]), JSON.parse(a.state.stdout.match(/HISTORY:(.*)/)[1]));
+  } finally {
+    if (!a.state.ended) a.child.kill('SIGTERM'); if (!b.state.ended) b.child.kill('SIGTERM');
+    await Promise.all([a.done, b.done]); await Promise.all([a.persist(), b.persist()]);
+  }
+}
+const historyDefinition = await sql("SELECT pg_get_functiondef('public.get_care_workflow_steps(uuid)'::regprocedure)");
+const historyMarker = " PERFORM public.require_care_workflow_scope((result->>'organization_id')::uuid,(result->>'patient_id')::uuid,false);";
+assert.equal(historyDefinition.split(historyMarker).length, 2);
+await capture('install-history-pause', historyDefinition.replace(historyMarker, ' PERFORM pg_catalog.pg_advisory_xact_lock(710071);\n' + historyMarker));
+try {
+  await capture('history-expiry-setup', `UPDATE public.member_authorizations SET expires_at=clock_timestamp()+interval '2 seconds'
+    WHERE capability='monitor' AND membership_id IN(SELECT id FROM public.organization_memberships WHERE user_id='60000000-0000-4000-8000-000000000001');`);
+  const value = await race('expiry-after-history-projection', 'SELECT pg_advisory_xact_lock(710071);', auth + readHistory(n), '42501', 2200);
+  assert.ok(!value.second.includes('HISTORY:'));
+} finally {
+  await capture('restore-history-uninstrumented', historyDefinition);
+  await capture('restore-history-scope', 'UPDATE public.member_authorizations SET expires_at=NULL;');
+}
+await capture('nonlaboratory-histories', `${prefix} BEGIN; ${auth}
+ SELECT pg_temp.cs_new(70000,'referral');
+ SELECT pg_temp.cs_step(90000,70000,'record_destination_acceptance','{"destination":"Synthetic clinic"}');
+ SELECT pg_temp.cs_step(90001,70000,'record_schedule','{"appointment_date":"2026-09-01","appointment_at":null,"appointment_timezone":null}');
+ SELECT pg_temp.cs_step(90002,70000,'record_attendance');
+ SELECT pg_temp.cs_step(90003,70000,'record_report','{"report_reference":"Synthetic report A"}');
+ SELECT pg_temp.ch_apply(91000,70000); SELECT pg_temp.ch_apply(91001,70000,'record_contact',
+  jsonb_build_object('review_addressed',true,'review_event_id',public.get_care_human_request(pg_temp.cs(91000))#>>'{receipt,event_id}'));
+ SELECT 'HISTORY:'||public.get_care_workflow_steps(pg_temp.cs(70000))::text;
+ SELECT pg_temp.cs_new(70001,'medication_access');
+ SELECT pg_temp.cs_step(90010,70001,'record_assistance_request','{"assistance_program":"Synthetic assistance","request_reference":"Synthetic request A"}');
+ SELECT pg_temp.cs_step(90011,70001,'record_assistance_response','{"outcome":"approved","response_reference":"Synthetic response A"}');
+ SELECT pg_temp.cs_step(90012,70001,'record_obtained','{"source":"patient_report"}');
+ SELECT pg_temp.ch_apply(91010,70001); SELECT pg_temp.ch_apply(91011,70001,'record_contact',
+  jsonb_build_object('outcome','refused','exception_id',pg_temp.cs(92000),'reason','Synthetic documented refusal'));
+ SELECT 'HISTORY:'||public.get_care_workflow_steps(pg_temp.cs(70001))::text; COMMIT;`);
 for (const isolation of ['REPEATABLE READ', 'SERIALIZABLE']) {
   const s = session('isolation-' + isolation.toLowerCase().replaceAll(' ', '-'));
   s.send(`${prefix} BEGIN ISOLATION LEVEL ${isolation}; ${auth} ${readContext(n)} COMMIT;\n`, true);
   assert.equal(await s.done, 3); assert.match(s.state.stderr, /25001/); await s.persist();
 }
 const hashes = {};
-for (const file of ['supabase/migrations/00070_care_human_evidence.sql','supabase/tests/care_human_evidence.sql','scripts/test-care-human-evidence.mjs']) {
+for (const file of ['supabase/migrations/00070_care_human_evidence.sql','supabase/migrations/00071_care_human_history.sql','supabase/tests/care_human_evidence.sql','scripts/test-care-human-evidence.mjs']) {
   hashes[file] = createHash('sha256').update(await readFile(file)).digest('hex');
 }
 await writeFile(path.join(output, 'completion.json'), JSON.stringify({ database, completed_at: new Date().toISOString(), results,
-  actual_blocking_cases: results.length, isolation_denials: 2, hashes, all_ok: true }, null, 2), { flag: 'wx' });
+  actual_blocking_cases: results.length, source_history_independence_cases: 1, isolation_denials: 2, hashes, all_ok: true }, null, 2), { flag: 'wx' });
 console.log('Human evidence concurrency: PASS');
