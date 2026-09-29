@@ -36,7 +36,7 @@ vi.mock('@/lib/team/queries', () => ({ getTeamDirectory: mocks.directory }));
 vi.mock('@/components/disclaimers/provider-page-disclaimer', () => ({ ProviderPageDisclaimer: () => <p>Synthetic boundary</p> }));
 import { CareWorkflowPanel } from '@/app/(provider)/patients/[patientId]/_components/care-workflow-panel';
 import CareWorkflowPage from '@/app/(provider)/patients/[patientId]/care/[workId]/page';
-import { CARE_STEP_UNCONFIRMED, type CareStepInput, type CareStepState, type CareWorkflowDetail } from '@/lib/care-workflow/step-types';
+import { CARE_STEP_UNCONFIRMED, careWorkflowDetailSchema, type CareStepInput, type CareStepState, type CareWorkflowDetail } from '@/lib/care-workflow/step-types';
 import type { HumanInput } from '@/lib/care-workflow/human-types';
 const id = (n: number) => `60000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const at = '2026-09-29T12:00:00Z'; const due = '2026-10-01T12:00:00Z';
@@ -128,6 +128,60 @@ function humanDetail(): CareWorkflowDetail {
     { id: id(150), origin_event_id: null, human_origin_event_id: id(131), code: 'no_answer', reason: 'Synthetic_contact_barrier',
       next_action: input.payload.next_action, next_review_at: due, recorded_at: at }] };
 }
+function closedDetail(disposition = 'transferred'): CareWorkflowDetail {
+  const barrier = { id: id(32), origin_event_id: id(31), human_origin_event_id: null, code: 'report_missing',
+    reason: 'Original unresolved barrier', next_action: input.payload.next_action, next_review_at: due, recorded_at: at };
+  const basis = { kind: 'laboratory_order', composition_event_id: null, operational_event: null, processing: [],
+    sources: [{ analyte: 'potassium', entry_id: null, root_id: null, authority_organization_id: null, original_lab_result_id: null,
+      observed_version_id: null, head: null, quality: 'missing', evaluation_status: null }] };
+  const snapshot = { exceptions: [{ exception_id: barrier.id, origin_event_id: barrier.origin_event_id, human_origin_event_id: null,
+    origin_revision: '2', origin_occurred_at: at, code: barrier.code, reason: barrier.reason, next_action: barrier.next_action,
+    next_review_at: due, recorded_at: at }], invalidations: [], known_invalidation_ids: [], prepared_intents: [] };
+  const request = { actor_id: id(1), organization_id: id(3), patient_id: id(2), work_item_id: id(5), request_id: id(160),
+    expected_revision: '2', expected_ownership_revision: '7', command: 'close_without_completion', basis, basis_signature: 'a'.repeat(64),
+    recorded_at: at, payload: { occurred_at: at, evidence: 'Exact closure evidence', details: { snapshot, outcome: 'Documented non-completion',
+      disposition, reason: 'Explicit non-delivery rationale', declarations: [{ target_type: 'exception', target_id: barrier.id,
+        reason: 'Barrier retained without delivery', non_delivery_acknowledged: true }] } } };
+  return careWorkflowDetailSchema.parse({ ...detail, revision: '3', work_status: 'closed', exceptions: [barrier],
+    steps: [{ id: id(31), actor_id: id(1), revision: '2', ownership_revision: '7', from_stage: 'requested', to_stage: 'requested',
+      occurred_at: at, recorded_at: at, command: 'record_exception', payload: { ...input.payload,
+        details: { exception_id: barrier.id, code: barrier.code, reason: barrier.reason } } }],
+    humans: [{ id: id(161), actor_id: id(1), revision: '3', ownership_revision: '7', from_stage: 'requested', to_stage: 'requested',
+      occurred_at: at, recorded_at: at, request, receipt: { request_id: id(160), work_item_id: id(5), event_id: id(161),
+        command: 'close_without_completion', workflow_revision: '3', ownership_revision: '7', stage: 'requested', recorded_at: at,
+        basis, basis_signature: request.basis_signature, work_closed: true, closed_at: at, completion_outcome: disposition,
+        clinical_review_recorded: false, addresses_current_review: false, communication_confirmed: false, care_completed: false } }] });
+}
+describe('explicit closed workflow projection', () => {
+  it.each(['refused', 'not_performed', 'cancelled', 'transferred'])('retains barriers and historical deadlines without enabling a new step (%s)', async (disposition) => {
+    const current = closedDetail(disposition); mocks.detail.mockResolvedValue(ok(current));
+    render(<CareWorkflowPanel {...props} initial={current} />); refresh();
+    await screen.findByText('Human peers ready: true');
+    expect(screen.getByRole('status')).toHaveTextContent('Closed — care not completed');
+    expect(screen.getByText('Historical queue deadline')).toBeInTheDocument();
+    expect(screen.getByText(`Historical workflow review: ${due}`)).toBeInTheDocument();
+    expect(screen.getByText(`Historical workflow action: ${detail.next_action}`)).toBeInTheDocument();
+    expect(screen.queryByText('Earliest queue review')).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Unresolved barriers retained at closure (1)' })).toBeInTheDocument();
+    expect(screen.getByText(`Original review deadline (historical): ${due}`)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '3 · Closure without completed care recorded' })).toBeInTheDocument();
+    expect(screen.getByText('Rationale: Explicit non-delivery rationale')).toBeInTheDocument();
+    expect(screen.getByText('Barrier retained without delivery')).toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'New documented step' })).toBeNull();
+    expect(screen.queryByText('Closed — documented workflow completion')).toBeNull();
+    expect(screen.getByLabelText('Human coordination boundary')).toBeInTheDocument();
+    expect(screen.getByText(/Later source changes are not covered/)).toBeInTheDocument();
+    if (disposition === 'transferred') expect(screen.getByRole('status')).toHaveTextContent('not accepted ownership or a confirmed handoff');
+    expect(mocks.prepare).not.toHaveBeenCalled(); expect(mocks.apply).not.toHaveBeenCalled();
+  });
+  it('removes closure evidence after a session change', async () => {
+    render(<CareWorkflowPanel {...props} initial={closedDetail()} />);
+    await act(async () => { mocks.subscribe.mock.calls[0][0]('SIGNED_OUT', null); });
+    expect(screen.queryByText('Rationale: Explicit non-delivery rationale')).toBeNull();
+    expect(screen.queryByText('Closed — care not completed')).toBeNull();
+    expect(screen.getByRole('alert')).toHaveTextContent('Your session changed');
+  });
+});
 describe('historical human evidence', () => {
   it('labels a source-change attestation separately and retains source, review and contact identities', () => {
     const current = humanDetail(), prior = current.humans[0], source = prior.request.basis.sources.find((row) => row.analyte === 'potassium')!;

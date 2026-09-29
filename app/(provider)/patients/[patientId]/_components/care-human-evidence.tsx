@@ -8,7 +8,7 @@ export function CareHumanEvidence({ input }: { input: HumanInput }) {
   return <div className="space-y-3 break-words" aria-label="Frozen human evidence">
     <p>Evidence: {command.payload.evidence}</p>
     <p>Occurred: {command.payload.occurred_at}</p>
-    <p>Next action: {command.payload.next_action}</p><p>Next review: {command.payload.next_review_at}</p>
+    {'next_action' in command.payload && <><p>Next action: {command.payload.next_action}</p><p>Next review: {command.payload.next_review_at}</p></>}
     {command.command === 'record_review' ? <div className="rounded-lg bg-blue-50 p-3">
       <p className="font-semibold">Documented human decision</p><p>{command.payload.details.decision}</p>
       <p className="mt-2 font-semibold">Limitations retained</p><p>{command.payload.details.limitations}</p>
@@ -27,7 +27,7 @@ export function CareHumanEvidence({ input }: { input: HumanInput }) {
       <p>Declared disposition: {label(command.payload.details.disposition)}</p>
       <p>Resolution reason: {command.payload.details.resolution_reason}</p>
       <p>Application state is shown separately. Resolving this barrier does not confirm delivery, resolve source invalidations or complete care.</p>
-    </div> : <div className="space-y-2 rounded-lg bg-amber-50 p-3">
+    </div> : command.command === 'resolve_source_invalidation' ? <div className="space-y-2 rounded-lg bg-amber-50 p-3">
       <CareSourceSnapshot target={command.payload.details.invalidation} />
       <p>Declared disposition: {label(command.payload.details.disposition)}</p><p>Resolution reason: {command.payload.details.resolution_reason}</p>
       <p className="break-all">Referenced review: {command.payload.details.review_event_id}</p>
@@ -35,8 +35,34 @@ export function CareHumanEvidence({ input }: { input: HumanInput }) {
       <p className="break-all">Referenced contact: {command.payload.details.contact_event_id}</p>
       <p>New source-specific contact declaration: {command.payload.details.source_communication_evidence}</p>
       <p>Prior review and contact records remain unchanged. Application state is shown separately; this declaration does not certify delivery, comprehension, usable results or completed care.</p>
+    </div> : <div className="space-y-2 rounded-lg border border-blue-200 p-3">
+      <p className="font-semibold">{command.command === 'close_success' ? 'Declared workflow completion' : 'Declared closure without completed care'}</p>
+      <p>Documented outcome: {command.payload.details.outcome}</p>
+      {command.command === 'close_success' ? <>
+        <p>Explicit declarations: workflow completed; referenced review and contact accepted.</p>
+        <p className="break-all">Review: {command.payload.details.review_event_id} · Contact: {command.payload.details.contact_event_id}</p>
+      </> : <>
+        <p>Non-completion disposition: {label(command.payload.details.disposition)}</p><p>Rationale: {command.payload.details.reason}</p>
+        {command.payload.details.declarations.map((row) => <div key={`${row.target_type}:${row.target_id}`} className="rounded-lg bg-amber-50 p-3">
+          <p className="break-all">Explicit non-delivery declaration for {label(row.target_type)}: {row.target_id}</p><p>{row.reason}</p>
+        </div>)}
+        {command.payload.details.disposition === 'transferred' && <p>Transfer disposition is not ownership acceptance, a confirmed handoff or evidence of care delivered elsewhere.</p>}
+      </>}
+      <CareClosureSnapshot snapshot={command.payload.details.snapshot} />
+      <p>Application state is shown separately. This declaration supplies no new deadline and does not certify transmission, comprehension, treatment efficacy or patient outcomes.</p>
     </div>}
     <CareHumanBasis basis={input.basis} signature={input.basis_signature} />
+  </div>;
+}
+export function CareClosureSnapshot({ snapshot }: { snapshot: Extract<HumanInput['payload']['details'], { snapshot: unknown }>['snapshot'] }) {
+  return <div className="space-y-3" aria-label="Exact closure obligations">
+    <p>Complete obligations at this snapshot: {snapshot.exceptions.length} barriers, {snapshot.invalidations.length} source changes, {snapshot.prepared_intents.length} prepared save intentions.</p>
+    {snapshot.exceptions.map((row) => <CareExceptionSnapshot key={row.exception_id} exception={row} />)}
+    {snapshot.invalidations.map((row) => <CareSourceSnapshot key={row.invalidation_id} target={row} />)}
+    {snapshot.prepared_intents.map((row) => <p key={row.intent_id} className="break-all">Prepared save intention: {row.intent_id} · {row.recorded_at}. Requires explicit recovery or reconciliation before closure.</p>)}
+    <details><summary>All known source-change identities ({snapshot.known_invalidation_ids.length}) — includes previously resolved changes</summary>
+      <ul>{snapshot.known_invalidation_ids.map((id) => <li key={id} className="break-all">{id}</li>)}</ul></details>
+    <p>Original obligations are retained as history, not silently marked resolved. A later change is not covered by this snapshot.</p>
   </div>;
 }
 export function CareSourceSnapshot({ target }: { target: Extract<HumanInput['payload']['details'], { invalidation: unknown }>['invalidation'] }) {

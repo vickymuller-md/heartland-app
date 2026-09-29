@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { CARE_KIND_LABELS } from '@/lib/care-workflow/types';
+import { HUMAN_COMMAND_LABELS } from '@/lib/care-workflow/human-types';
 import { LAB_OBSERVATION_FIELDS } from '@/lib/labs/quality';
 import { CareLabPanel } from './care-lab-panel';
 import { CareHumanEvidence } from './care-human-evidence';
@@ -139,6 +140,8 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
   if (sessionChanged) return <p role="alert">Your session changed. Reload this follow-up page before continuing.</p>;
   const barriers = detail ? careExceptionHistory(detail) : [];
   const openBarriers = barriers.filter((row) => !row.resolution), resolvedBarriers = barriers.filter((row) => row.resolution);
+  const closure = detail?.humans.find((row) => row.request.command === 'close_success' || row.request.command === 'close_without_completion');
+  const closureReceipt = closure && 'closed_at' in closure.receipt ? closure.receipt : null;
   return <section className="space-y-5 text-sm" aria-labelledby="care-workflow-heading" aria-busy={busy}>
     <header className="space-y-2">
       <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Documented care follow-up</p>
@@ -150,10 +153,19 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
     <div className="grid gap-3 sm:grid-cols-3" aria-label="Last loaded workflow snapshot">
       <div className="rounded-xl border bg-blue-50 p-4"><p>Documented stage</p><p className="font-semibold">{CARE_STAGE_LABELS[detail.stage]}</p></div>
       <div className="rounded-xl border bg-white p-4"><p>Queue status</p><p className="font-semibold">{human(detail.work_status)}</p><p>Revision {detail.revision}</p></div>
-      <div className="rounded-xl border bg-amber-50 p-4"><p>Earliest queue review</p><p className="break-all font-semibold">{detail.due_at}</p><p>Includes every unresolved barrier.</p></div>
+      <div className="rounded-xl border bg-amber-50 p-4"><p>{closureReceipt ? 'Historical queue deadline' : 'Earliest queue review'}</p><p className="break-all font-semibold">{detail.due_at}</p>
+        <p>{closureReceipt ? 'Retained from before closure; not a new active obligation.' : 'Includes every unresolved barrier.'}</p></div>
     </div>
     <div className="rounded-xl border bg-white p-4">
-      <p>Workflow next action: {detail.next_action}</p><p>Workflow review: {detail.next_review_at}</p>
+      <p>{closureReceipt ? 'Historical workflow action' : 'Workflow next action'}: {detail.next_action}</p>
+      <p>{closureReceipt ? 'Historical workflow review' : 'Workflow review'}: {detail.next_review_at}</p>
+      {closureReceipt && <div role="status" className="mt-3 space-y-2 rounded-lg border border-blue-200 p-3">
+        <p className="font-semibold">{closureReceipt.care_completed ? 'Closed — documented workflow completion' : 'Closed — care not completed'}</p>
+        <p>Recorded closure: {closureReceipt.closed_at} · {human(closureReceipt.completion_outcome)}</p>
+        <p>The factual stage and original evidence remain unchanged. No new review, deadline, transmission, treatment efficacy or patient outcome is inferred.</p>
+        {closureReceipt.completion_outcome === 'transferred' && <p>Transfer disposition is not accepted ownership or a confirmed handoff.</p>}
+        <p>Later source changes are not covered by this closure. They require separate follow-up; this work does not automatically reopen.</p>
+      </div>}
       <p className="mt-2">{canRecordCareStep(detail, actorId) ? 'You are the accepted owner in this snapshot. Every write rechecks current access and revisions.'
         : 'Recording is unavailable: it requires the current accepted owner, open work and no pending transfer. Use Daily Loop to review responsibility.'}</p>
       <a href="/dashboard" className={`${button} mt-2`}>Open Daily Loop for responsibility</a>
@@ -171,7 +183,8 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
         {careWorkflowTimeline(detail).map((item) => <li key={item.id} className="min-w-0 space-y-2 break-words rounded-xl border bg-white p-4">
           <h3 className="font-semibold">{item.revision} · {item.kind === 'step' ? CARE_STEP_LABELS[item.event.command as CareStepCommand['command']]
             : item.kind === 'human' ? item.event.request.command === 'record_review' ? 'Human review recorded' : item.event.request.command === 'record_contact' ? 'Human contact documented'
-              : item.event.request.command === 'resolve_exception' ? 'Barrier resolution recorded' : 'Source-change resolution recorded' : 'Laboratory source composition recorded'}</h3>
+              : item.event.request.command === 'resolve_exception' ? 'Barrier resolution recorded' : item.event.request.command === 'resolve_source_invalidation'
+                ? 'Source-change resolution recorded' : `${HUMAN_COMMAND_LABELS[item.event.request.command]} recorded` : 'Laboratory source composition recorded'}</h3>
           <p>{CARE_STAGE_LABELS[item.event.from_stage]} → {CARE_STAGE_LABELS[item.event.to_stage]}</p>
           {item.kind === 'step' ? <StepEvidence command={careStepCommandSchema.parse({ command: item.event.command, payload: item.event.payload })} />
             : item.kind === 'human' ? <>
@@ -203,11 +216,11 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
       </ol>
     </section>
     <section className="space-y-3" aria-labelledby="care-barriers-heading">
-      <h2 id="care-barriers-heading" className="text-lg font-bold">Unresolved barriers ({openBarriers.length})</h2>
+      <h2 id="care-barriers-heading" className="text-lg font-bold">{closureReceipt ? 'Unresolved barriers retained at closure' : 'Unresolved barriers'} ({openBarriers.length})</h2>
       {openBarriers.length === 0 ? <p>No unresolved barrier remains in this snapshot. This does not confirm completion.</p>
         : <ul className="space-y-3">{openBarriers.map(({ exception: item }) => <li key={item.id} className="space-y-1 rounded-xl border border-amber-300 bg-amber-50 p-4">
-          <h3 className="font-semibold">{human(item.code)}</h3><p>{item.reason}</p><p>Next action: {item.next_action}</p>
-          <p>Review by: {item.next_review_at}</p><p className="break-all text-xs">Barrier: {item.id} · {item.human_origin_event_id ? 'Human contact origin' : 'Operational origin'}: {item.human_origin_event_id ?? item.origin_event_id}</p>
+          <h3 className="font-semibold">{human(item.code)}</h3><p>{item.reason}</p><p>{closureReceipt ? 'Original action' : 'Next action'}: {item.next_action}</p>
+          <p>{closureReceipt ? 'Original review deadline (historical)' : 'Review by'}: {item.next_review_at}</p><p className="break-all text-xs">Barrier: {item.id} · {item.human_origin_event_id ? 'Human contact origin' : 'Operational origin'}: {item.human_origin_event_id ?? item.origin_event_id}</p>
         </li>)}</ul>}
       {resolvedBarriers.length > 0 && <details><summary>Resolved barriers — original history retained</summary>
         <ul className="space-y-3">{resolvedBarriers.map(({ exception: item, resolution }) =>
@@ -215,7 +228,8 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
             <p>Resolution recorded at revision {resolution!.revision}, {resolution!.recorded_at}.</p>
             <p className="break-all text-xs">Barrier: {item.id} · Resolution event: {resolution!.id}</p>
             <p>Original evidence and resolution justification remain in the timeline.</p></li>)}</ul></details>}
-      <p>A later step does not resolve an earlier barrier. Use the exact barrier resolution control below. Resolution does not resolve source invalidations or confirm completed care; final closure remains unavailable.</p>
+      <p>{closureReceipt ? 'Unresolved-at-closure barriers remain preserved, not resolved or assigned a new deadline. The closure declaration and original reasons are in the timeline.'
+        : 'A later step does not resolve an earlier barrier. Use the exact barrier resolution control below. Resolution does not resolve source invalidations or confirm completed care; closure requires its own explicit record.'}</p>
     </section>
     </> : <p>Workflow detail is unavailable. Checking your own pending receipts does not restore ownership or permit a new step.</p>}
     {!selected && <div className="space-y-3 rounded-xl border bg-slate-50 p-4">

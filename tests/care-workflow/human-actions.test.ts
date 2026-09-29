@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { authorize, rpc } = vi.hoisted(() => ({ authorize: vi.fn(), rpc: vi.fn() }));
 vi.mock('@/lib/auth/authorization', () => ({ authorize }));
-import { acknowledgeHuman, applyHuman, cancelHuman, loadHumanContext, loadSourceResolutionContext, loadPendingHuman, prepareHuman, recoverHuman } from '@/lib/care-workflow/human-actions';
+import { acknowledgeHuman, applyHuman, cancelHuman, loadHumanContext, loadSourceResolutionContext, loadClosureContext, loadPendingHuman, prepareHuman, recoverHuman } from '@/lib/care-workflow/human-actions';
 import { humanInputSchema } from '@/lib/care-workflow/human-types';
 
 const id = (n: number) => `ab000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -140,6 +140,56 @@ describe('exact changed-source server actions', () => {
     rpc.mockResolvedValue(ok(done)); expect((await cancelHuman(value)).data?.state).toBe('applied'); expect((await acknowledgeHuman(value)).data).toBeNull();
     rpc.mockResolvedValue(ok({ ...done, acknowledged_at: at })); expect((await acknowledgeHuman(value)).data?.acknowledged_at).toBe(at);
     rpc.mockResolvedValue(ok({ items: [frozen], next_cursor: null })); expect((await loadPendingHuman({ ...scope, after: null })).data?.items[0].command).toBe(value.command);
+  });
+});
+describe.each(['close_success', 'close_without_completion'] as const)('explicit %s actions', (command) => {
+  const snapshot = { exceptions: [], invalidations: [], known_invalidation_ids: [], prepared_intents: [] };
+  const value = humanInputSchema.parse({ ...input, command, expected_revision: '4', payload: { occurred_at: at, evidence: 'Explicit closure evidence',
+    details: { snapshot, outcome: 'Documented workflow outcome', ...(command === 'close_success'
+      ? { review_event_id: id(20), contact_event_id: id(21), workflow_completed: true, review_contact_accepted: true }
+      : { disposition: 'transferred', reason: 'Non-completion at this service', declarations: [] }) } } });
+  const frozen = { ...prepared, ...value };
+  const done = { ...frozen, state: 'applied', receipt: { request_id: value.request_id, work_item_id: value.work_item_id, event_id: id(22),
+    command, workflow_revision: '5', ownership_revision: '1', stage: 'report_received', recorded_at: at, closed_at: at, basis,
+    basis_signature: value.basis_signature, work_closed: true, clinical_review_recorded: false, addresses_current_review: false,
+    communication_confirmed: false, care_completed: command === 'close_success', completion_outcome: command === 'close_success' ? 'documented_workflow_completion' : 'transferred' } };
+  const read = { ...scope, work_item_id: id(5), command };
+  const data = { ...context, command, workflow_revision: '4', snapshot, contact: null };
+  it('uses the dedicated scoped context even when prerequisites are missing', async () => {
+    rpc.mockResolvedValue(ok(data)); expect((await loadClosureContext(read)).data).toEqual(data);
+    expect(rpc).toHaveBeenCalledExactlyOnceWith('get_care_closure_context', { p_work_item_id: id(5), p_command: command });
+  });
+  it.each(['actor_id', 'patient_id', 'organization_id', 'work_item_id', 'command'])('rejects changed context %s', async (key) => {
+    rpc.mockResolvedValue(ok({ ...data, [key]: key === 'command' ? 'record_review' : id(99) })); expect((await loadClosureContext(read)).data).toBeNull();
+  });
+  it('rejects generic or malformed closure context before authentication', async () => {
+    expect((await loadHumanContext(read as never)).data).toBeNull(); expect((await loadClosureContext({ ...read, work_item_id: 'bad' })).data).toBeNull();
+    expect(authorize).not.toHaveBeenCalled();
+  });
+  it.each(actions)('checks expected actor for closure operation %#', async (action) => {
+    authorize.mockResolvedValue({ authorized: true, user: { id: id(99) }, supabase: { rpc } });
+    expect((await action(value)).data).toBeNull(); expect(rpc).not.toHaveBeenCalled();
+  });
+  it('preserves frozen closure payload on same-ID preparation', async () => {
+    rpc.mockResolvedValueOnce(failure).mockResolvedValueOnce(ok(frozen)); expect((await prepareHuman(value)).data).toEqual(frozen);
+    expect(rpc.mock.calls[1]).toEqual(['prepare_care_human_request', expect.objectContaining({ p_command: command, p_payload: value.payload })]);
+    expect(value.payload).not.toHaveProperty('next_review_at');
+  });
+  it.each(['outcome', 'snapshot'])('rejects replaced frozen closure %s before applying', async (key) => {
+    const changed = structuredClone(frozen); Object.assign(changed.payload.details, { [key]: key === 'outcome' ? 'Changed outcome' : { ...snapshot, known_invalidation_ids: [id(99)] } });
+    rpc.mockResolvedValue(ok(changed)); expect((await applyHuman(value)).data).toBeNull(); expect(rpc).toHaveBeenCalledTimes(1);
+  });
+  it('recovers terminal result and ACK without rereading current context or deciding closure again', async () => {
+    rpc.mockResolvedValue(ok(done)); expect((await prepareHuman(value)).data).toEqual(done);
+    expect(rpc).toHaveBeenCalledExactlyOnceWith('get_care_human_request', { p_request_id: value.request_id });
+    expect((await cancelHuman(value)).data?.state).toBe('applied'); expect((await acknowledgeHuman(value)).data).toBeNull();
+    rpc.mockResolvedValue(ok({ ...done, acknowledged_at: at })); expect((await acknowledgeHuman(value)).data?.acknowledged_at).toBe(at);
+  });
+  it('rejects old deadline-bearing receipts for a closure', async () => {
+    rpc.mockResolvedValue(ok({ ...done, receipt: { ...done.receipt, due_at: due } })); expect((await recoverHuman(value)).data).toBeNull();
+  });
+  it('includes closure in the existing private recovery family', async () => {
+    rpc.mockResolvedValue(ok({ items: [frozen], next_cursor: null })); expect((await loadPendingHuman({ ...scope, after: null })).data?.items[0].command).toBe(command);
   });
 });
 describe('human evidence and recovery reads', () => {

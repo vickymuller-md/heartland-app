@@ -1,9 +1,9 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ prepare: vi.fn(), recover: vi.fn(), apply: vi.fn(), cancel: vi.fn(), ack: vi.fn(), context: vi.fn(),
-  list: vi.fn(), sourceContext: vi.fn(), changes: vi.fn(), subscribe: vi.fn(), unsubscribe: vi.fn(), ready: vi.fn(), changed: vi.fn() }));
+  list: vi.fn(), sourceContext: vi.fn(), closureContext: vi.fn(), changes: vi.fn(), subscribe: vi.fn(), unsubscribe: vi.fn(), ready: vi.fn(), changed: vi.fn() }));
 vi.mock('@/lib/care-workflow/human-actions', () => ({ prepareHuman: mocks.prepare, recoverHuman: mocks.recover,
-  applyHuman: mocks.apply, cancelHuman: mocks.cancel, acknowledgeHuman: mocks.ack, loadHumanContext: mocks.context, loadSourceResolutionContext: mocks.sourceContext, loadPendingHuman: mocks.list }));
+  applyHuman: mocks.apply, cancelHuman: mocks.cancel, acknowledgeHuman: mocks.ack, loadHumanContext: mocks.context, loadSourceResolutionContext: mocks.sourceContext, loadClosureContext: mocks.closureContext, loadPendingHuman: mocks.list }));
 vi.mock('@/lib/care-workflow/composition-actions', () => ({ loadCompositionInvalidations: mocks.changes }));
 vi.mock('@/lib/supabase/client', () => ({ createClient: () => ({ auth: { onAuthStateChange: mocks.subscribe } }) }));
 import { CareHumanPanel } from '@/app/(provider)/patients/[patientId]/_components/care-human-panel';
@@ -36,6 +36,14 @@ const input: HumanInput = { ...scope, request_id: id(10), work_item_id: id(5), e
   payload: { ...common, details: { decision: 'Synthetic decision', limitations: 'Partial evidence remains' } } };
 function saved(value = input, state: HumanState['state'] = 'prepared'): HumanState {
   const command = humanCommandSchema.parse({ command: value.command, payload: value.payload });
+  if (command.command === 'close_success' || command.command === 'close_without_completion') return humanStateSchema.parse({ ...value,
+    state, recorded_at: '2026-09-29T13:00:00Z', acknowledged_at: null, receipt: state === 'applied' ? {
+      request_id: value.request_id, work_item_id: value.work_item_id, event_id: id(20), command: command.command,
+      workflow_revision: String(BigInt(value.expected_revision) + BigInt(1)), ownership_revision: value.expected_ownership_revision,
+      stage: 'result_received', recorded_at: '2026-09-29T13:00:00Z', closed_at: '2026-09-29T13:00:00Z', basis: value.basis,
+      basis_signature: value.basis_signature, work_closed: true, clinical_review_recorded: false, addresses_current_review: false, communication_confirmed: false,
+      care_completed: command.command === 'close_success', completion_outcome: command.command === 'close_success' ? 'documented_workflow_completion' : command.payload.details.disposition,
+    } : null });
   return humanStateSchema.parse({ ...value, state, recorded_at: at, acknowledged_at: null, receipt: state === 'applied' ? {
     request_id: value.request_id, work_item_id: value.work_item_id, event_id: id(20), command: value.command,
     workflow_revision: String(BigInt(value.expected_revision) + BigInt(1)), ownership_revision: value.expected_ownership_revision,
@@ -60,6 +68,90 @@ beforeEach(() => {
   mocks.prepare.mockImplementation(async (value) => ok(saved(value))); mocks.recover.mockImplementation(async (value) => ok(saved(value)));
   mocks.apply.mockImplementation(async (value) => ok(saved(value, 'applied'))); mocks.cancel.mockImplementation(async (value) => ok(saved(value, 'cancelled')));
   mocks.ack.mockImplementation(async (value) => ok({ ...saved(value, 'applied'), acknowledged_at: at }));
+});
+
+function closureContext(success = true): Extract<HumanContext, { command: 'close_success' | 'close_without_completion' }> {
+  const source = sourceContext(), basis = structuredClone(source.basis);
+  basis.sources[0].evaluation_status = 'not_required';
+  basis.processing[0].evaluation = { ...basis.processing[0].evaluation!, status: 'not_required', completed_at: at };
+  return { ...context, command: success ? 'close_success' : 'close_without_completion', workflow_revision: '4', basis,
+    latest_review: latest, contact: source.contact,
+    snapshot: { exceptions: [], invalidations: [], known_invalidation_ids: [], prepared_intents: [] } };
+}
+async function startClosure(c = closureContext()) {
+  mocks.closureContext.mockResolvedValue(ok(c)); const view = render(<CareHumanPanel {...props} workflow={workflow(c)} />);
+  refresh(); await waitFor(() => expect(mocks.ready).toHaveBeenLastCalledWith(true));
+  change('Human record type', c.command); evidence(); await screen.findByLabelText('Exact closure obligations'); return view;
+}
+function fillClosure(success = true) {
+  if (success) {
+    fireEvent.click(screen.getByRole('checkbox', { name: 'I explicitly attest that this workflow was completed' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'I accept the exact displayed current review and documented contact for this closure' }));
+  } else { change('Non-completion disposition', 'not_performed'); change('Non-completion rationale', 'Service not delivered in this workflow'); }
+  change('Documented closure outcome', 'Explicit documented synthetic outcome'); change('Human record evidence', 'Explicit synthetic closure evidence');
+  change('Human occurrence at (UTC)', '2026-09-29T12:10');
+}
+describe('explicit closure UI', () => {
+  it('requires two unselected completion attestations and creates no future deadline', async () => {
+    await startClosure(); expect(mocks.closureContext).toHaveBeenCalledWith({ ...scope, work_item_id: id(5), command: 'close_success' });
+    for (const checkbox of screen.getAllByRole('checkbox')) expect(checkbox).not.toBeChecked();
+    expect(screen.queryByLabelText('Human next review at (UTC)')).toBeNull(); expect(screen.queryByLabelText('Human follow-up next action')).toBeNull();
+    fillClosure(); submit(); await screen.findByText('Frozen documented workflow completion');
+    const sent = mocks.prepare.mock.calls[0][0]; expect(Object.keys(sent.payload).sort()).toEqual(['details', 'evidence', 'occurred_at']);
+    expect(sent.payload.details).toMatchObject({ workflow_completed: true, review_contact_accepted: true, review_event_id: id(100), contact_event_id: id(101) });
+    expect(mocks.apply).not.toHaveBeenCalled(); click('Confirm human record'); await screen.findByText(/Work closed at/);
+    expect(screen.queryByText(/Queue deadline at recording/)).toBeNull(); expect(mocks.ack).not.toHaveBeenCalled();
+    click('Acknowledge human receipt'); await screen.findByRole('button', { name: 'Return to human recovery' });
+  });
+  it('rejects an unchecked completion declaration', async () => {
+    await startClosure(); fillClosure(); fireEvent.click(screen.getByRole('checkbox', { name: 'I explicitly attest that this workflow was completed' }));
+    submit(); expect(mocks.prepare).not.toHaveBeenCalled(); expect(screen.getByRole('alert')).toHaveTextContent('explicit closure declarations');
+  });
+  it('requires a separate unchecked declaration and rationale for every unresolved target', async () => {
+    const c = closureContext(false), target = sourceContext().invalidation;
+    c.snapshot.invalidations = [target]; c.snapshot.known_invalidation_ids = [target.invalidation_id];
+    c.snapshot.exceptions = [{ exception_id: id(55), origin_event_id: id(54), human_origin_event_id: null, origin_revision: '2', origin_occurred_at: at,
+      code: 'report_missing', reason: 'Original missing report', next_action: 'Old action retained', next_review_at: due, recorded_at: at }];
+    await startClosure(c); expect(screen.getByLabelText('Non-completion disposition')).toHaveValue('');
+    expect(screen.queryByLabelText('Non-completion rationale')).toBeNull(); fillClosure(false);
+    expect(screen.getAllByRole('checkbox')).toHaveLength(2); for (const checkbox of screen.getAllByRole('checkbox')) expect(checkbox).not.toBeChecked();
+    submit(); expect(mocks.prepare).not.toHaveBeenCalled();
+    for (const checkbox of screen.getAllByRole('checkbox')) fireEvent.click(checkbox);
+    change(`Target-specific rationale for ${id(50)}`, 'Source change not delivered'); change(`Target-specific rationale for ${id(55)}`, 'Report missing and not delivered');
+    submit(); await screen.findByText('Frozen closure without completed care');
+    const sent = mocks.prepare.mock.calls[0][0]; expect(sent.payload.details.declarations).toHaveLength(2);
+    expect(sent.payload.details.snapshot).toEqual(c.snapshot); click('Confirm human record'); await screen.findByText(/No completed care recorded/);
+    expect(sent.payload).not.toHaveProperty('next_action');
+  });
+  it('clears unsaved non-completion declarations when disposition changes', async () => {
+    await startClosure(closureContext(false)); fillClosure(false); change('Non-completion disposition', 'transferred');
+    expect(screen.getByLabelText('Non-completion rationale')).toHaveValue(''); expect(screen.getByLabelText('Documented closure outcome')).toHaveValue('');
+    expect(screen.getByText(/Transfer does not confirm acceptance/)).toBeInTheDocument();
+  });
+  it.each(['contact', 'review', 'processing', 'intent', 'barrier'] as const)('shows %s prerequisite failure and keeps private recovery accessible', async (kind) => {
+    const c = closureContext(); if (kind === 'contact') c.contact = null;
+    if (kind === 'review') { c.latest_review = null; c.contact = null; }
+    if (kind === 'processing') { c.basis.processing[0].evaluation!.status = 'pending'; c.basis.processing[0].evaluation!.completed_at = null; c.basis.sources[0].evaluation_status = 'pending'; }
+    if (kind === 'intent') c.snapshot.prepared_intents = [{ intent_id: id(88), state: 'prepared', recorded_at: at }];
+    if (kind === 'barrier') c.snapshot.exceptions = [{ exception_id: id(55), origin_event_id: id(54), human_origin_event_id: null, origin_revision: '2', origin_occurred_at: at,
+      code: 'report_missing', reason: 'Report absent', next_action: 'Original action', next_review_at: due, recorded_at: at }];
+    await startClosure(c); expect(screen.queryByRole('form')).toBeNull(); expect(screen.getByText(/Closure prerequisites are incomplete/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Check human pending records' })).toBeEnabled();
+  });
+  it('preserves a lost-response closure through owner, peer and workflow changes', async () => {
+    const c = closureContext(), view = await startClosure(c), pending = deferred(); mocks.prepare.mockReturnValueOnce(pending.promise);
+    fillClosure(); submit(); const sent = mocks.prepare.mock.calls[0][0];
+    view.rerender(<CareHumanPanel {...props} workflow={null} peersReady={false} refreshToken={1} />);
+    await act(async () => pending.resolve({ data: null, error: 'Unconfirmed' })); expect(screen.getByText('Frozen documented workflow completion')).toBeInTheDocument();
+    click('Check saved human request'); await screen.findByText('Human record prepared and recoverable; not yet recorded.'); expect(mocks.recover).toHaveBeenCalledWith(sent);
+    click('Cancel human preparation'); await screen.findByText('Human preparation cancelled; this request recorded no human event.'); expect(mocks.cancel).toHaveBeenCalledWith(sent);
+  });
+  it.each(['session', 'route'] as const)('fences a late closure context after %s replacement', async (kind) => {
+    const view = await startClosure(), pending = deferred(); mocks.closureContext.mockReturnValueOnce(pending.promise); evidence();
+    if (kind === 'session') { const listener = mocks.subscribe.mock.calls[0][0]; act(() => { listener('SIGNED_IN', { user: { id: id(99) } }); listener('SIGNED_IN', { user: { id: id(1) } }); }); }
+    else view.rerender(<CareHumanPanel {...props} workId={id(99)} workflow={null} />);
+    await act(async () => pending.resolve(ok(closureContext()))); expect(screen.queryByRole('form')).toBeNull(); expect(mocks.prepare).not.toHaveBeenCalled();
+  });
 });
 
 function sourceContext(): Extract<HumanContext, { command: 'resolve_source_invalidation' }> {

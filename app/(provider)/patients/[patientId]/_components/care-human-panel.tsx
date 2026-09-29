@@ -5,10 +5,10 @@ import { createClient } from '@/lib/supabase/client';
 import { labCollectionMicros } from '@/lib/labs/quality';
 import type { CareScope } from '@/lib/care-workflow/types';
 import { canRecordCareStep, type CareWorkflowDetail } from '@/lib/care-workflow/step-types';
-import { acknowledgeHuman, applyHuman, cancelHuman, loadHumanContext, loadSourceResolutionContext, loadPendingHuman, prepareHuman, recoverHuman } from '@/lib/care-workflow/human-actions';
+import { acknowledgeHuman, applyHuman, cancelHuman, loadHumanContext, loadSourceResolutionContext, loadClosureContext, loadPendingHuman, prepareHuman, recoverHuman } from '@/lib/care-workflow/human-actions';
 import { loadCompositionInvalidations } from '@/lib/care-workflow/composition-actions';
-import { humanCommandSchema, humanInputFromState, sourceResolutionReady, validateNewHumanInput, type HumanContext, type HumanInput, type HumanState } from '@/lib/care-workflow/human-types';
-import { CareExceptionSnapshot, CareSourceSnapshot, CareHumanBasis, CareHumanEvidence } from './care-human-evidence';
+import { humanCommandSchema, humanInputFromState, sourceResolutionReady, closureReady, HUMAN_COMMAND_LABELS, validateNewHumanInput, type HumanContext, type HumanInput, type HumanState } from '@/lib/care-workflow/human-types';
+import { CareExceptionSnapshot, CareSourceSnapshot, CareClosureSnapshot, CareHumanBasis, CareHumanEvidence } from './care-human-evidence';
 
 type Props = { scope: CareScope; workId: string; workflow: CareWorkflowDetail | null; peersReady: boolean; refreshToken: number;
   onReadiness: (ready: boolean) => void; onChanged: () => void };
@@ -118,6 +118,7 @@ function HumanStatePanel({ scope, workId, workflow, peersReady, refreshToken, on
     try {
       const result = command === 'resolve_source_invalidation'
         ? await loadSourceResolutionContext({ ...scope, work_item_id: workId, invalidation_id: sourceTarget })
+        : command === 'close_success' || command === 'close_without_completion' ? await loadClosureContext({ ...scope, work_item_id: workId, command })
         : await loadHumanContext({ ...scope, work_item_id: workId, command });
       if (!live.current || generation.current !== version) return;
       setContext(result.data);
@@ -145,14 +146,24 @@ function HumanStatePanel({ scope, workId, workflow, peersReady, refreshToken, on
     : !!context?.basis.operational_event && (context.kind === 'referral' ? context.stage === 'report_received' : context.stage === 'obtained');
   const mayPrepare = coherent && ownReady && peersReady && canRecordCareStep(workflow!, scope.actor_id)
     && (command === 'record_review' ? reviewEvidence : command === 'record_contact' || context?.command === 'resolve_exception' && context.exceptions.length > 0
-      || context?.command === 'resolve_source_invalidation' && sourceResolutionReady(context));
+      || context?.command === 'resolve_source_invalidation' && sourceResolutionReady(context) || !!context && closureReady(context));
   function prepare(form: HTMLFormElement) {
     if (!live.current || inFlight.current || !context || !mayPrepare) return;
     const values = new FormData(form), text = (key: string) => String(values.get(key) ?? '');
     const utc = (key: string) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(text(key)) ? text(key) + (text(key).length === 16 ? ':00Z' : 'Z') : '';
     const placeholder = '00000000-0000-4000-8000-000000000000';
     const addressed = values.get('review_addressed') === 'on', referenced = text('review_reference') === 'latest';
-    const details = command === 'resolve_source_invalidation' && context.command === 'resolve_source_invalidation' ? {
+    const closure = command === 'close_success' || command === 'close_without_completion';
+    const details = closure && 'snapshot' in context ? { snapshot: context.snapshot, outcome: text('closure_outcome'),
+      ...(command === 'close_success' ? { review_event_id: context.latest_review?.event_id, contact_event_id: context.contact?.event_id,
+        workflow_completed: values.get('workflow_completed') === 'on', review_contact_accepted: values.get('review_contact_accepted') === 'on' }
+        : { disposition: text('disposition'), reason: text('closure_reason'), declarations: [
+          ...context.snapshot.exceptions.map((row) => ({ target_type: 'exception', target_id: row.exception_id,
+            reason: text(`exception-${row.exception_id}-reason`), non_delivery_acknowledged: values.get(`exception-${row.exception_id}-ack`) === 'on' })),
+          ...context.snapshot.invalidations.map((row) => ({ target_type: 'source_invalidation', target_id: row.invalidation_id,
+            reason: text(`source_invalidation-${row.invalidation_id}-reason`), non_delivery_acknowledged: values.get(`source_invalidation-${row.invalidation_id}-ack`) === 'on' })),
+        ] }),
+    } : command === 'resolve_source_invalidation' && context.command === 'resolve_source_invalidation' ? {
       invalidation: context.invalidation, review_event_id: context.latest_review?.event_id, contact_event_id: context.contact?.event_id,
       disposition: text('disposition'), resolution_reason: text('resolution_reason'), source_reviewed: values.get('source_reviewed') === 'on',
       change_addressed_in_contact: values.get('change_addressed_in_contact') === 'on',
@@ -168,13 +179,17 @@ function HumanStatePanel({ scope, workId, workflow, peersReady, refreshToken, on
     const input = validateNewHumanInput({ ...scope, work_item_id: workId, request_id: placeholder, command,
       expected_revision: context.workflow_revision, expected_ownership_revision: context.ownership_revision,
       basis: context.basis, basis_signature: context.basis_signature, payload: { details, evidence: text('evidence'),
-        occurred_at: utc('occurred_at'), next_action: text('next_action'), next_review_at: utc('next_review_at') } });
+        occurred_at: utc('occurred_at'), ...(closure ? {} : { next_action: text('next_action'), next_review_at: utc('next_review_at') }) } });
     const occurred = input && labCollectionMicros(input.payload.occurred_at);
     const reviewed = context.latest_review && labCollectionMicros(context.latest_review.occurred_at);
-    const contacted = context.command === 'resolve_source_invalidation' && context.contact ? labCollectionMicros(context.contact.occurred_at) : null;
+    const contacted = 'contact' in context && context.contact ? labCollectionMicros(context.contact.occurred_at) : null;
+    const priorOccurrences = workflow ? [workflow.request.occurred_at, ...workflow.steps.map((row) => row.occurred_at),
+      ...workflow.compositions.map((row) => row.occurred_at), ...workflow.humans.map((row) => row.occurred_at)] : [];
     if (!input || addressed && (!referenced || !context.latest_review?.is_current || occurred === null || reviewed === null || occurred! < reviewed!)
-      || command === 'resolve_source_invalidation' && (contacted === null || occurred === null || occurred! < contacted)) {
-      setError('Verify evidence, required details and explicit nonfuture occurrence/future review time. Addressing a review requires the current displayed review, a reached human and occurrence not before that review.'); return;
+      || (command === 'resolve_source_invalidation' || command === 'close_success') && (contacted === null || occurred === null || occurred! < contacted)
+      || closure && priorOccurrences.some((time) => occurred === null || (labCollectionMicros(time) ?? BigInt(0)) > occurred!)) {
+      setError(closure ? 'Verify the explicit closure declarations, exact targets and nonfuture occurrence after all recorded workflow evidence. No new deadline is required.'
+        : 'Verify evidence, required details and explicit nonfuture occurrence/future review time. Addressing a review requires the current displayed review, a reached human and occurrence not before that review.'); return;
     }
     const parsed = humanCommandSchema.parse({ command: input.command, payload: input.payload });
     if (parsed.command === 'record_contact' && parsed.payload.details.exception_id !== null) parsed.payload.details.exception_id = crypto.randomUUID();
@@ -183,12 +198,12 @@ function HumanStatePanel({ scope, workId, workflow, peersReady, refreshToken, on
   if (sessionChanged) return <p role="alert">Your session changed. Reload human follow-up before continuing.</p>;
   return <section aria-label="Human review and contact" aria-busy={busy} className="space-y-4 rounded-xl border border-blue-200 p-4 text-sm">
     <h2 className="text-lg font-bold">Human review and documented contact</h2>
-    <p>Synthetic information only. These controls record professional statements, not a message, call, delivery confirmation or completed care.</p>
+    <p>Synthetic information only. These controls record professional statements, not messages, calls or delivery confirmations. Documented workflow completion requires a separate explicit closure.</p>
     {!selected && <>
       <button className={button} disabled={busy} onClick={() => void loadRecovery()}>Check human pending records</button>
       <p>Recover every pending request before preparing a new record. Evidence access alone does not grant permission to record a clinical review or establish institutional approval.</p>
       {requests.length > 0 && <ul aria-label="Pending human requests" className="space-y-2">{requests.map((item) => <li key={item.request_id} className="break-all rounded-lg border p-3">
-        <p>{item.command === 'record_review' ? 'Human review' : item.command === 'record_contact' ? 'Documented contact' : item.command === 'resolve_exception' ? 'Barrier resolution' : 'Source-change resolution'} · {item.state === 'applied' ? 'Recorded; receipt unacknowledged' : 'Prepared; not recorded'}</p>
+        <p>{HUMAN_COMMAND_LABELS[item.command]} · {item.state === 'applied' ? 'Recorded; receipt unacknowledged' : 'Prepared; not recorded'}</p>
         {same(item.work_item_id, workId) ? <button className={button} disabled={busy} onClick={() => void operate(humanInputFromState(item), recoverHuman)}>Recover human request {item.request_id}</button>
           : <a className={button} href={`/patients/${item.patient_id}/care/${item.work_item_id}?organization=${item.organization_id}`}>Open other follow-up</a>}
       </li>)}</ul>}
@@ -196,7 +211,8 @@ function HumanStatePanel({ scope, workId, workflow, peersReady, refreshToken, on
         if (inFlight.current === 'write') return;
         invalidateContext(); setCommand(event.target.value as typeof command); setSourceTarget(''); setSourceTargets([]); setTargetsLoaded(false); setError(null);
       }}><option value="record_review">Professional review</option><option value="record_contact">Documented contact</option><option value="resolve_exception">Resolve a documented barrier</option>
-        {workflow?.kind === 'laboratory_order' && <option value="resolve_source_invalidation">Reconcile a changed laboratory source</option>}</select></label>
+        {workflow?.kind === 'laboratory_order' && <option value="resolve_source_invalidation">Reconcile a changed laboratory source</option>}
+        <option value="close_success">Close with documented workflow completion</option><option value="close_without_completion">Close without completed care</option></select></label>
       {command === 'resolve_source_invalidation' && <div className="space-y-3">
         <button className={button} disabled={busy} onClick={() => void loadSourceTargets()}>Load source-change history</button>
         <p>This live paginated list is not an atomic closure check. A dedicated read rechecks the selected obligation.</p>
@@ -218,6 +234,11 @@ function HumanStatePanel({ scope, workId, workflow, peersReady, refreshToken, on
           <p className="break-all">Review event: {context.latest_review.event_id}</p>
         </div>}
         {context.command === 'resolve_exception' && !context.exceptions.length && <p>No open barrier was returned for this workflow. This does not mean care is complete.</p>}
+        {'snapshot' in context && <>
+          <CareClosureSnapshot snapshot={context.snapshot} />
+          {context.contact && <p className="break-all">Exact qualified contact: {context.contact.event_id} · {context.contact.occurred_at} · {context.contact.recipient_reference}</p>}
+          {!closureReady(context) && <p role="status">Closure prerequisites are incomplete. Successful closure requires complete available evidence, finished processing, current review and exact addressed contact, with no unresolved obligations or prepared save intentions. Non-completion still requires zero prepared save intentions.</p>}
+        </>}
         {context.command === 'resolve_source_invalidation' && <div className="space-y-2">
           <CareSourceSnapshot target={context.invalidation} />
           <p>{context.basis.sources.some((row) => row.root_id && same(row.root_id, context.invalidation.root_id)) ? 'The source remains in the current composition.' : 'The source was removed from the current composition; its original obligation remains.'}</p>
@@ -232,13 +253,15 @@ function HumanStatePanel({ scope, workId, workflow, peersReady, refreshToken, on
         context={context!} onPrepare={prepare} />}
     </>}
     {selected && <div aria-label="Frozen human request" className="space-y-3 rounded-xl border border-blue-300 bg-blue-50 p-4">
-      <h3 className="font-bold">{selected.command === 'record_review' ? 'Frozen professional review' : selected.command === 'record_contact' ? 'Frozen documented contact' : selected.command === 'resolve_exception' ? 'Frozen barrier resolution' : 'Frozen source-change resolution'}</h3>
+      <h3 className="font-bold">Frozen {HUMAN_COMMAND_LABELS[selected.command].toLowerCase()}</h3>
       <p className="break-all">Request: {selected.request_id}</p><p>Workflow revision: {selected.expected_revision} · Ownership revision: {selected.expected_ownership_revision}</p>
       <CareHumanEvidence input={selected} />
       {!saved && <p>Outcome unknown. Check this same request; do not create a replacement. Permission or revision changes require recovery and explicit cancellation of a still-prepared request, not changed frozen evidence.</p>}
       {saved?.state === 'prepared' && <p role="status">Human record prepared and recoverable; not yet recorded.</p>}
       {saved?.state === 'applied' && <div role="status"><p>Human record saved at revision {saved.receipt!.workflow_revision}. Historical receipt; current workflow has not been refreshed.</p>
-        <p>Queue deadline at recording: {saved.receipt!.due_at}. No confirmed transmission or completed care.</p></div>}
+        {'closed_at' in saved.receipt! ? <p>Work closed at {saved.receipt!.closed_at}: {label(saved.receipt!.completion_outcome)}.
+          {saved.receipt!.care_completed ? ' Documented workflow completion, not treatment efficacy or patient outcomes.' : ' No completed care recorded.'} No confirmed transmission or new deadline.</p>
+          : <p>Queue deadline at recording: {saved.receipt!.due_at}. No confirmed transmission or completed care.</p>}</div>}
       {saved?.state === 'cancelled' && <p role="status">Human preparation cancelled; this request recorded no human event.</p>}
       <div className="flex flex-wrap gap-2">
         <button className={button} disabled={busy} onClick={() => void operate(selected, recoverHuman)}>Check saved human request</button>
@@ -263,6 +286,34 @@ function HumanForm({ context, onPrepare }: { context: HumanContext; onPrepare: (
   const field = (name: string, title: string, max = 1000) => <label className="block">{title}<textarea className={control} name={name} required minLength={3} maxLength={max} /></label>;
   const select = (name: string, title: string, options: string[]) => <label className="block">{title}<select name={name} className={control} required defaultValue="">
     <option value="" disabled>Choose documented value</option>{options.map((value) => <option key={value} value={value}>{label(value)}</option>)}</select></label>;
+  if (context.command === 'close_success' || context.command === 'close_without_completion') {
+    const targets = [...context.snapshot.exceptions.map((row) => ({ kind: 'exception', id: row.exception_id })),
+      ...context.snapshot.invalidations.map((row) => ({ kind: 'source_invalidation', id: row.invalidation_id }))];
+    return <form aria-label="New human record" className="space-y-3" onSubmit={(event) => { event.preventDefault(); onPrepare(event.currentTarget); }}>
+      <h3 className="font-bold">{HUMAN_COMMAND_LABELS[context.command]}</h3>
+      {context.command === 'close_without_completion' && <label className="block">Non-completion disposition<select name="disposition" className={control} required value={disposition}
+        onChange={(event) => setDisposition(event.target.value)}><option value="" disabled>Choose documented non-completion</option>
+        {['refused', 'not_performed', 'cancelled', 'transferred'].map((value) => <option key={value} value={value}>{label(value)}</option>)}</select></label>}
+      {(context.command === 'close_success' || disposition) && <fieldset key={disposition} className="space-y-3">
+        {context.command === 'close_success' ? <>
+          <label className="flex items-start gap-2"><input type="checkbox" name="workflow_completed" required />I explicitly attest that this workflow was completed</label>
+          <label className="flex items-start gap-2"><input type="checkbox" name="review_contact_accepted" required />I accept the exact displayed current review and documented contact for this closure</label>
+        </> : <>
+          {field('closure_reason', 'Non-completion rationale')}
+          {targets.map((target) => <div key={`${target.kind}:${target.id}`} className="space-y-2 rounded-lg border border-amber-300 p-3">
+            <label className="flex items-start gap-2 break-all"><input type="checkbox" name={`${target.kind}-${target.id}-ack`} required />
+              I explicitly acknowledge non-delivery for {label(target.kind)} {target.id}</label>
+            {field(`${target.kind}-${target.id}-reason`, `Target-specific rationale for ${target.id}`)}
+          </div>)}
+          <p>These declarations preserve unresolved obligations. Transfer does not confirm acceptance, handoff or care elsewhere.</p>
+        </>}
+        {field('closure_outcome', 'Documented closure outcome')}{field('evidence', 'Human record evidence')}
+        <label className="block">Human occurrence at (UTC)<input className={control} type="datetime-local" step="1" name="occurred_at" required /></label>
+        <p>Enter UTC explicitly, after all prior recorded occurrences. No new action, deadline or clinical outcome is preselected.</p>
+        <button className={button} type="submit">Prepare human record for review</button>
+      </fieldset>}
+    </form>;
+  }
   return <form aria-label="New human record" className="space-y-3" onSubmit={(event) => { event.preventDefault(); onPrepare(event.currentTarget); }}>
     {context.command === 'resolve_exception' && <>
       <label className="block">Barrier to resolve<select name="exception_id" className={control} required value={target}

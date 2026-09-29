@@ -125,6 +125,8 @@ export const careWorkflowDetailSchema = z.object({
   const reviews = new Map<string, z.infer<typeof humanEventSchema>>();
   const resolved = new Set<string>();
   const resolvedSources = new Set<string>();
+  let closed = false;
+  let latestOccurrence = labCollectionMicros(value.events[0].occurred_at) ?? BigInt(-1);
   type Head = NonNullable<z.infer<typeof compositionReceiptSchema>['sources'][number]['observed_head']>;
   const observedHeads = new Map<string, Head>();
   const observeHead = (root: string | null, head: Head | null) => {
@@ -146,7 +148,7 @@ export const careWorkflowDetailSchema = z.object({
   };
   for (const [index, item] of mixed.entries()) {
     const event = item.event;
-    if (item.revision !== String(index + 2) || event.from_stage !== stage || ids.has(item.id.toLowerCase())) {
+    if (closed || item.revision !== String(index + 2) || event.from_stage !== stage || ids.has(item.id.toLowerCase())) {
       ctx.addIssue({ code: 'custom', message: 'Incomplete or inconsistent mixed history.' });
     }
     if (item.kind === 'step') {
@@ -216,9 +218,9 @@ export const careWorkflowDetailSchema = z.object({
         if (d.outcome !== 'human_reached') {
           const barrier = value.exceptions.find((row) => sameId(row.id, d.exception_id));
           if (!barrier || !sameId(barrier.human_origin_event_id, item.id) || barrier.origin_event_id !== null
-            || barrier.code !== d.outcome || barrier.reason !== d.reason || barrier.next_action !== request.payload.next_action
-            || labCollectionMicros(barrier.next_review_at) !== labCollectionMicros(request.payload.next_review_at)
-            || !sameId(receipt.exception_id, barrier.id)) reject();
+            || barrier.code !== d.outcome || barrier.reason !== d.reason || barrier.next_action !== command.data.payload.next_action
+            || labCollectionMicros(barrier.next_review_at) !== labCollectionMicros(command.data.payload.next_review_at)
+            || !('exception_id' in receipt) || !sameId(receipt.exception_id, barrier.id)) reject();
         }
       } else if (command.data.command === 'resolve_exception') {
         const target = command.data.payload.details.exception;
@@ -232,7 +234,7 @@ export const careWorkflowDetailSchema = z.object({
           || labCollectionMicros(target.next_review_at) !== labCollectionMicros(barrier.next_review_at)
           || labCollectionMicros(target.recorded_at) !== labCollectionMicros(barrier.recorded_at)) reject();
         resolved.add(target.exception_id.toLowerCase());
-      } else {
+      } else if (command.data.command === 'resolve_source_invalidation') {
         const d = command.data.payload.details, target = d.invalidation;
         const origin = value.compositions.find((row) => sameId(row.id, target.composition_event_id));
         const source = origin?.receipt.sources.find((row) => sameId(row.root_id, target.root_id) && row.analyte === target.analyte);
@@ -259,11 +261,63 @@ export const careWorkflowDetailSchema = z.object({
           || before(contact.occurred_at, latestReview.occurred_at) || before(request.payload.occurred_at, contact.occurred_at)) reject();
         observeHead(target.root_id, target.head);
         resolvedSources.add(target.invalidation_id.toLowerCase());
+      } else {
+        const d = command.data.payload.details, snapshot = d.snapshot;
+        const occurred = labCollectionMicros(command.data.payload.occurred_at) ?? BigInt(-1);
+        const open = value.exceptions.filter((row) => !resolved.has(row.id.toLowerCase()));
+        const expectedBaseline = [...resolvedSources, ...snapshot.invalidations.map((row) => row.invalidation_id.toLowerCase())].sort();
+        if (occurred < latestOccurrence || open.length !== snapshot.exceptions.length
+          || !jsonEqual(expectedBaseline, snapshot.known_invalidation_ids.map((id) => id.toLowerCase()))) reject();
+        for (const target of snapshot.exceptions) {
+          const barrier = open.find((row) => sameId(row.id, target.exception_id));
+          const origin = target.origin_event_id !== null ? value.steps.find((row) => sameId(row.id, target.origin_event_id))
+            : value.humans.find((row) => sameId(row.id, target.human_origin_event_id));
+          if (!barrier || !origin || !ids.has(origin.id.toLowerCase())
+            || !sameId(target.origin_event_id, barrier.origin_event_id) || !sameId(target.human_origin_event_id, barrier.human_origin_event_id)
+            || target.origin_revision !== origin.revision || labCollectionMicros(target.origin_occurred_at) !== labCollectionMicros(origin.occurred_at)
+            || target.code !== barrier.code || target.reason !== barrier.reason || target.next_action !== barrier.next_action
+            || labCollectionMicros(target.next_review_at) !== labCollectionMicros(barrier.next_review_at)
+            || labCollectionMicros(target.recorded_at) !== labCollectionMicros(barrier.recorded_at)) reject();
+        }
+        for (const target of snapshot.invalidations) {
+          const origin = value.compositions.find((row) => sameId(row.id, target.composition_event_id));
+          const source = origin?.receipt.sources.find((row) => sameId(row.root_id, target.root_id) && row.analyte === target.analyte);
+          if (!origin || !ids.has(origin.id.toLowerCase()) || origin.revision !== target.composition_revision || !source?.observed_head
+            || !sameId(source.observed_head.version_id, target.observed_version_id) || resolvedSources.has(target.invalidation_id.toLowerCase())
+            || !revision(BigInt(2)).safeParse(target.change_revision).success || !revision(BigInt(1)).safeParse(source.observed_head.revision).success
+            || BigInt(target.change_revision) <= BigInt(source.observed_head.revision)
+            || (labCollectionMicros(target.recorded_at) ?? BigInt(-1)) < (labCollectionMicros(origin.recorded_at) ?? BigInt(0))) reject();
+          const knownEntry = [...value.humans].filter((row) => ids.has(row.id.toLowerCase())
+            && sameId(row.request.basis.composition_event_id, target.composition_event_id))
+            .flatMap((row) => row.request.basis.sources).find((row) => sameId(row.root_id, target.root_id) && row.analyte === target.analyte);
+          if (knownEntry && !sameId(knownEntry.entry_id, target.entry_id)) reject();
+          if (sameId(basis.composition_event_id, target.composition_event_id)) {
+            const current = basis.sources.find((row) => sameId(row.root_id, target.root_id) && row.analyte === target.analyte);
+            if (!current || !sameId(current.entry_id, target.entry_id) || !jsonEqual(current.head, target.head)) reject();
+          }
+          observeHead(target.root_id, target.head);
+        }
+        if (command.data.command === 'close_success') {
+          const success = command.data.payload.details;
+          const contact = value.humans.find((row) => sameId(row.id, success.contact_event_id));
+          const c = contact && humanCommandSchema.safeParse({ command: contact.request.command, payload: contact.request.payload });
+          if (!latestReview || !sameId(latestReview.id, success.review_event_id) || !jsonEqual(latestReview.request.basis, basis)
+            || latestReview.request.basis_signature !== request.basis_signature || !contact || !ids.has(contact.id.toLowerCase())
+            || !c?.success || c.data.command !== 'record_contact' || c.data.payload.details.outcome !== 'human_reached'
+            || !c.data.payload.details.review_addressed || !sameId(c.data.payload.details.review_event_id, success.review_event_id)
+            || !jsonEqual(contact.request.basis, basis) || contact.request.basis_signature !== request.basis_signature
+            || !revision(BigInt(2)).safeParse(contact.revision).success || !revision(BigInt(2)).safeParse(latestReview.revision).success
+            || BigInt(contact.revision) <= BigInt(latestReview.revision)
+            || (labCollectionMicros(contact.occurred_at) ?? BigInt(-1)) < (labCollectionMicros(latestReview.occurred_at) ?? BigInt(0))) reject();
+        }
+        closed = true;
       }
     }
+    const occurred = labCollectionMicros(event.occurred_at);
+    if (occurred !== null && occurred > latestOccurrence) latestOccurrence = occurred;
     ids.add(item.id.toLowerCase()); stage = event.to_stage;
   }
-  if (stage !== value.stage || (value.kind !== 'laboratory_order' && stage === 'result_received')
+  if (closed !== (value.work_status === 'closed') || stage !== value.stage || (value.kind !== 'laboratory_order' && stage === 'result_received')
     || new Set(value.exceptions.map((item) => item.id.toLowerCase())).size !== value.exceptions.length
     || value.exceptions.some((item) => item.origin_event_id !== null
       ? !value.steps.some((event) => sameId(event.id, item.origin_event_id))
