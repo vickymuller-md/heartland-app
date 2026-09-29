@@ -11,6 +11,7 @@ export type AccountabilitySource =
   | 'org_owner'
   | 'accepted_transfer'
   | 'manager_reassigned'
+  | 'self_requested'
   | 'legacy_fan_out';
 
 /** Documented closure outcomes. `followup_*` and `outcome_not_recorded` are database-written only. */
