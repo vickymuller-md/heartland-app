@@ -14,6 +14,65 @@ const receipt = { request_id: id(1100), root_id: id(2100), version_id: id(3100),
   clinical_review_recorded: false, care_completed: false };
 const applied = { ...prepared, state: 'applied', receipt };
 
+const changeInput = { ...input, request_id: id(8000), command: 'correct_source', expected_revision: '1',
+  payload: { ...input.payload, reason: '  Corrected synthetic report  ', value: '4.20', collected_at: instant } };
+const head = { version_id: id(3100), revision: '1', status: 'original', effective_lab_result_id: id(100),
+  value: '4.6', collected_at: instant };
+const changePrepared = { ...changeInput, source_snapshot: head, state: 'prepared', recorded_at: instant, acknowledged_at: null, receipt: null };
+const changeReceipt = { request_id: id(8000), root_id: id(2100), version_id: id(3101), revision: '2', previous_version_id: id(3100),
+  original_lab_result_id: id(100), analyte: 'potassium', status: 'corrected', effective_lab_result_id: id(4000),
+  stored_source: { value: '4.2', collected_at: '2026-09-29T16:00:00.123456Z' }, evaluation_status: 'pending', recorded_at: instant,
+  source_change_recorded: true, work_invalidation_recorded: false, order_authorship_confirmed: false,
+  clinical_review_recorded: false, care_completed: false };
+const changeApplied = { ...changePrepared, state: 'applied', receipt: changeReceipt };
+
+describe('source amendment contract', () => {
+  it('preserves exact frozen spelling but accepts the numerically equal stored scale and timezone', () => {
+    expect(observationStateSchema.parse(changeApplied)).toEqual(changeApplied);
+    expect(observationInputFromState(observationStateSchema.parse(changePrepared))).toEqual(changeInput);
+    expect(observationMatches(observationStateSchema.parse(changePrepared), observationInputSchema.parse({ ...changeInput,
+      payload: { ...changeInput.payload, value: '4.2' } }))).toBe(false);
+  });
+  it.each(['0', '-1', '1.0', '01', '1e3', '9223372036854775807', '9223372036854775808', '9'.repeat(100)])('rejects invalid expected revision %s without throwing', (value) => {
+    expect(observationStateSchema.safeParse({ ...changePrepared, expected_revision: value }).success).toBe(false);
+  });
+  it('does not round revisions larger than Number safe integer', () => {
+    const large = { ...changeApplied, expected_revision: '9007199254740993', source_snapshot: { ...head, status: 'corrected', revision: '9007199254740993', effective_lab_result_id: id(3999) },
+      receipt: { ...changeReceipt, revision: '9007199254740994' } };
+    expect(observationStateSchema.parse(large)).toEqual(large);
+    expect(observationStateSchema.safeParse({ ...large, receipt: { ...large.receipt, revision: '9007199254740993' } }).success).toBe(false);
+  });
+  it.each([{ value: '4.21', collected_at: instant }, { value: null, collected_at: instant },
+    { value: '4.2', collected_at: '2026-09-29T16:00:00.123455Z' }])('rejects a changed stored source %#', (stored_source) => {
+    expect(observationStateSchema.safeParse({ ...changeApplied, receipt: { ...changeReceipt, stored_source } }).success).toBe(false);
+  });
+  it.each([{ previous_version_id: id(999) }, { version_id: head.version_id }, { revision: '3' }, { request_id: id(999) },
+    { status: 'cancelled' }, { effective_lab_result_id: id(100) }, { effective_lab_result_id: null }, { evaluation_status: null },
+    { work_invalidation_recorded: true }, { clinical_review_recorded: true }, { care_completed: true }, { delivered: true }])('rejects mismatched or overclaiming amendment receipt %#', (change) => {
+    expect(observationStateSchema.safeParse({ ...changeApplied, receipt: { ...changeReceipt, ...change } }).success).toBe(false);
+  });
+  it.each([{ effective_lab_result_id: null }, { value: null }, { revision: '2' }, { status: 'corrected' }, { status: 'cancelled' }])('rejects inconsistent frozen head %#', (change) => {
+    expect(observationStateSchema.safeParse({ ...changePrepared, source_snapshot: { ...head, ...change } }).success).toBe(false);
+  });
+  it('decodes cancellation with no invented source/evaluation and an unchanged collection anchor', () => {
+    const cancelled = { ...changeApplied, command: 'cancel_source', payload: { ...input.payload, reason: 'Invalid synthetic source' },
+      receipt: { ...changeReceipt, status: 'cancelled', effective_lab_result_id: null, stored_source: { value: null, collected_at: instant }, evaluation_status: null } };
+    expect(observationStateSchema.parse(cancelled)).toEqual(cancelled);
+    expect(observationStateSchema.safeParse({ ...cancelled, source_snapshot: { ...head, revision: '1', status: 'cancelled', value: null, effective_lab_result_id: null } }).success).toBe(false);
+    expect(observationStateSchema.safeParse({ ...cancelled, receipt: { ...cancelled.receipt, stored_source: { value: null, collected_at: '2026-09-29T16:00:00.123455Z' } } }).success).toBe(false);
+  });
+  it('permits an explicit new correction after cancellation, never implicit resurrection', () => {
+    const restored = { ...changeApplied, expected_revision: '3', source_snapshot: { ...head, revision: '3', status: 'cancelled', value: null, effective_lab_result_id: null },
+      receipt: { ...changeReceipt, revision: '4' } };
+    expect(observationStateSchema.parse(restored)).toEqual(restored);
+    expect(observationStateSchema.safeParse({ ...restored, command: 'cancel_source', payload: { ...input.payload, reason: 'Again' } }).success).toBe(false);
+  });
+  it('decodes mixed recovery pages without losing registration receipts', () => {
+    const items = [applied, changePrepared];
+    expect(observationPendingPageSchema.parse({ items, next_cursor: null }).items).toHaveLength(2);
+  });
+});
+
 describe('source authority registration contract', () => {
   it('preserves historical microseconds, evidence whitespace and arbitrary decimal precision', () => {
     expect(observationStateSchema.parse(prepared)).toEqual(prepared);

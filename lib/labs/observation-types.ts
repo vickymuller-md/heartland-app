@@ -1,41 +1,93 @@
 import { z } from 'zod';
 import { careAnalyteSchema, careScopeSchema } from '@/lib/care-workflow/types';
+import { labCollectionMicros } from './quality';
 
 const guid = z.guid();
 const instant = z.iso.datetime({ offset: true }).regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/);
 const sameId = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
-// Decode historical evidence without trimming, rounding decimals, changing time
-// zones or applying new-operation freshness rules to a recovered request.
-export const observationPayloadSchema = z.object({
-  evidence: z.string().refine((value) => [...value].length <= 1000 && [...value.replace(/^ +| +$/g, '')].length >= 3),
-  occurred_at: instant,
+const text = z.string().refine((value) => [...value].length <= 1000 && [...value.replace(/^ +| +$/g, '')].length >= 3);
+const decimal = z.string().regex(/^\d+(?:\.\d+)?$/);
+const revision = (min: bigint, max = BigInt('9223372036854775807')) => z.string().refine((value) =>
+  /^[1-9]\d{0,18}$/.test(value) && BigInt(value) >= min && BigInt(value) <= max);
+const sameDecimal = (a: string, b: string) => {
+  const normalize = (value: string) => value.replace(/^0+(?=\d)/, '').replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+  return normalize(a) === normalize(b);
+};
+// Receipt decoding preserves frozen text, decimal spelling and microseconds; it is not fresh-operation validation.
+export const observationPayloadSchema = z.object({ evidence: text, occurred_at: instant }).strict();
+export const observationChangePayloadSchema = observationPayloadSchema.extend({ reason: text }).strict();
+export const observationCorrectionPayloadSchema = observationChangePayloadSchema.extend({
+  value: decimal.max(256), collected_at: instant,
 }).strict();
-export const observationSourceSchema = z.object({
-  value: z.string().regex(/^\d+(?:\.\d+)?$/), collected_at: instant,
-}).strict();
-export const observationInputSchema = careScopeSchema.extend({
-  request_id: guid, root_id: guid, original_lab_result_id: guid, analyte: careAnalyteSchema,
+export const observationSourceSchema = z.object({ value: decimal, collected_at: instant }).strict();
+const headSchema = z.object({
+  version_id: guid, revision: revision(BigInt(1)), status: z.enum(['original', 'corrected', 'cancelled']),
+  effective_lab_result_id: guid.nullable(), value: decimal.nullable(), collected_at: instant,
+}).strict().refine((value) => (value.status === 'original') === (value.revision === '1')
+  && (value.status === 'cancelled') === (value.value === null)
+  && (value.status === 'cancelled') === (value.effective_lab_result_id === null));
+const identity = careScopeSchema.extend({ request_id: guid, root_id: guid, original_lab_result_id: guid, analyte: careAnalyteSchema }).strict();
+const registrationInput = identity.extend({
   command: z.literal('register_source'), expected_revision: z.literal('0'), payload: observationPayloadSchema,
 }).strict();
-const receiptSchema = z.object({
-  request_id: guid, root_id: guid, version_id: guid, revision: z.literal('1'),
-  original_lab_result_id: guid, analyte: careAnalyteSchema, recorded_at: instant,
-  source_authority_registered: z.literal(true), order_authorship_confirmed: z.literal(false),
+const correctionInput = identity.extend({
+  command: z.literal('correct_source'), expected_revision: revision(BigInt(1), BigInt('9223372036854775806')),
+  payload: observationCorrectionPayloadSchema,
+}).strict();
+const cancellationInput = identity.extend({
+  command: z.literal('cancel_source'), expected_revision: revision(BigInt(1), BigInt('9223372036854775806')),
+  payload: observationChangePayloadSchema,
+}).strict();
+export const observationInputSchema = z.discriminatedUnion('command', [registrationInput, correctionInput, cancellationInput]);
+const receiptIdentity = z.object({
+  request_id: guid, root_id: guid, version_id: guid, original_lab_result_id: guid, analyte: careAnalyteSchema,
+  recorded_at: instant, order_authorship_confirmed: z.literal(false),
   clinical_review_recorded: z.literal(false), care_completed: z.literal(false),
 }).strict();
-export const observationStateSchema = observationInputSchema.extend({
-  source_snapshot: observationSourceSchema, state: z.enum(['prepared', 'applied', 'cancelled']),
-  recorded_at: instant, acknowledged_at: instant.nullable(), receipt: receiptSchema.nullable(),
-}).strict().superRefine((value, ctx) => {
+const registrationReceipt = receiptIdentity.extend({
+  revision: z.literal('1'), source_authority_registered: z.literal(true),
+}).strict();
+const changeReceipt = receiptIdentity.extend({
+  revision: revision(BigInt(2)), previous_version_id: guid, status: z.enum(['corrected', 'cancelled']),
+  effective_lab_result_id: guid.nullable(), stored_source: z.object({ value: decimal.nullable(), collected_at: instant }).strict(),
+  evaluation_status: z.literal('pending').nullable(), source_change_recorded: z.literal(true),
+  // Global change evidence is not yet an integrated per-work invalidation receipt.
+  work_invalidation_recorded: z.literal(false),
+}).strict().refine((value) => (value.status === 'cancelled') === (value.effective_lab_result_id === null)
+  && (value.status === 'cancelled') === (value.stored_source.value === null)
+  && (value.status === 'cancelled') === (value.evaluation_status === null));
+const stateFields = { state: z.enum(['prepared', 'applied', 'cancelled']), recorded_at: instant, acknowledged_at: instant.nullable() };
+export const observationStateSchema = z.discriminatedUnion('command', [
+  registrationInput.extend({ ...stateFields, source_snapshot: observationSourceSchema, receipt: registrationReceipt.nullable() }).strict(),
+  correctionInput.extend({ ...stateFields, source_snapshot: headSchema, receipt: changeReceipt.nullable() }).strict(),
+  cancellationInput.extend({ ...stateFields, source_snapshot: headSchema, receipt: changeReceipt.nullable() }).strict(),
+]).superRefine((value, ctx) => {
+  const invalid = () => ctx.addIssue({ code: 'custom', message: 'Observation source or receipt identity mismatch.' });
+  if (value.command !== 'register_source') {
+    const head = value.source_snapshot;
+    if (head.revision !== value.expected_revision || (head.status === 'original' && (head.effective_lab_result_id === null || !sameId(head.effective_lab_result_id, value.original_lab_result_id)))
+      || (head.status === 'corrected' && head.effective_lab_result_id !== null && sameId(head.effective_lab_result_id, value.original_lab_result_id))
+      || (value.command === 'cancel_source' && head.status === 'cancelled')) invalid();
+  }
   if (value.state === 'applied') {
     const receipt = value.receipt;
     if (!receipt || !sameId(receipt.request_id, value.request_id) || !sameId(receipt.root_id, value.root_id)
-      || !sameId(receipt.original_lab_result_id, value.original_lab_result_id) || receipt.analyte !== value.analyte) {
-      ctx.addIssue({ code: 'custom', message: 'Observation receipt identity mismatch.' });
+      || !sameId(receipt.original_lab_result_id, value.original_lab_result_id) || receipt.analyte !== value.analyte) { invalid(); return; }
+    if (value.command !== 'register_source') {
+      const changed = value.receipt!;
+      const head = value.source_snapshot;
+      if (!/^[1-9]\d{0,18}$/.test(changed.revision) || !/^[1-9]\d{0,18}$/.test(value.expected_revision)
+        || BigInt(changed.revision) !== BigInt(value.expected_revision) + BigInt(1)
+        || !sameId(changed.previous_version_id, head.version_id) || sameId(changed.version_id, head.version_id)
+        || changed.status !== (value.command === 'correct_source' ? 'corrected' : 'cancelled')) invalid();
+      if (value.command === 'correct_source') {
+        if (changed.stored_source.value === null || !sameDecimal(changed.stored_source.value, value.payload.value)
+          || labCollectionMicros(changed.stored_source.collected_at) !== labCollectionMicros(value.payload.collected_at)
+          || changed.effective_lab_result_id === null || sameId(changed.effective_lab_result_id, value.original_lab_result_id)
+          || (head.effective_lab_result_id !== null && sameId(changed.effective_lab_result_id, head.effective_lab_result_id))) invalid();
+      } else if (labCollectionMicros(changed.stored_source.collected_at) !== labCollectionMicros(head.collected_at)) invalid();
     }
-  } else if (value.receipt !== null || value.acknowledged_at !== null) {
-    ctx.addIssue({ code: 'custom', message: 'Unapplied registration cannot have a receipt or acknowledgement.' });
-  }
+  } else if (value.receipt !== null || value.acknowledged_at !== null) invalid();
 });
 export const observationPendingPageSchema = z.object({
   items: z.array(observationStateSchema).max(25), next_cursor: guid.nullable(),
@@ -53,8 +105,8 @@ export type ObservationPendingPage = z.infer<typeof observationPendingPageSchema
 export function observationInputFromState(state: ObservationState): ObservationInput {
   const { actor_id, organization_id, patient_id, request_id, root_id, original_lab_result_id, analyte,
     command, expected_revision, payload } = state;
-  return { actor_id, organization_id, patient_id, request_id, root_id, original_lab_result_id, analyte,
-    command, expected_revision, payload: observationPayloadSchema.parse(payload) };
+  return observationInputSchema.parse({ actor_id, organization_id, patient_id, request_id, root_id, original_lab_result_id, analyte,
+    command, expected_revision, payload });
 }
 export function observationMatches(state: ObservationState, input: ObservationInput): boolean {
   const actual = observationInputFromState(state);
