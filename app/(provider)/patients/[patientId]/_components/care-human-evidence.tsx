@@ -22,13 +22,37 @@ export function CareHumanEvidence({ input }: { input: HumanInput }) {
       <p className="break-all">Review reference: {command.payload.details.review_event_id ?? 'None supplied'}</p>
       {command.payload.details.reason && <p>Contact barrier: {command.payload.details.reason}</p>}
       <p className="mt-2">This records a human statement; it does not certify delivery, comprehension or completed care.</p>
-    </div> : <div className="space-y-2 rounded-lg bg-amber-50 p-3">
+    </div> : command.command === 'resolve_exception' ? <div className="space-y-2 rounded-lg bg-amber-50 p-3">
       <CareExceptionSnapshot exception={command.payload.details.exception} />
       <p>Declared disposition: {label(command.payload.details.disposition)}</p>
       <p>Resolution reason: {command.payload.details.resolution_reason}</p>
       <p>Application state is shown separately. Resolving this barrier does not confirm delivery, resolve source invalidations or complete care.</p>
+    </div> : <div className="space-y-2 rounded-lg bg-amber-50 p-3">
+      <CareSourceSnapshot target={command.payload.details.invalidation} />
+      <p>Declared disposition: {label(command.payload.details.disposition)}</p><p>Resolution reason: {command.payload.details.resolution_reason}</p>
+      <p className="break-all">Referenced review: {command.payload.details.review_event_id}</p>
+      <p>New source-specific review declaration: {command.payload.details.source_review_evidence}</p>
+      <p className="break-all">Referenced contact: {command.payload.details.contact_event_id}</p>
+      <p>New source-specific contact declaration: {command.payload.details.source_communication_evidence}</p>
+      <p>Prior review and contact records remain unchanged. Application state is shown separately; this declaration does not certify delivery, comprehension, usable results or completed care.</p>
     </div>}
     <CareHumanBasis basis={input.basis} signature={input.basis_signature} />
+  </div>;
+}
+export function CareSourceSnapshot({ target }: { target: Extract<HumanInput['payload']['details'], { invalidation: unknown }>['invalidation'] }) {
+  return <div aria-label="Exact changed-source origin" className="space-y-1 break-words">
+    <p className="font-semibold">Changed source: {LAB_OBSERVATION_FIELDS[target.analyte].label} — {label(target.change_status)}</p>
+    <p>Change recorded: {target.change_recorded_at}</p><p>Follow-up obligation recorded: {target.recorded_at}</p>
+    <p>Latest version recorded when loaded: {target.head_recorded_at}</p>
+    <p>{target.head.status === 'cancelled' ? 'Cancelled source; no usable value' : `Source value at this snapshot: ${target.head.value} ${LAB_OBSERVATION_FIELDS[target.analyte].unit}`}</p>
+    <p>Collected: {target.head.collected_at} · Version revision: {target.head.revision}</p>
+    <details className="text-xs"><summary>Exact source-change identity</summary>
+      <p className="break-all">Obligation: {target.invalidation_id} · Entry: {target.entry_id}</p>
+      <p className="break-all">Original composition: {target.composition_event_id} · Revision: {target.composition_revision}</p>
+      <p className="break-all">Root: {target.root_id} · Observed version: {target.observed_version_id}</p>
+      <p className="break-all">Changed version: {target.change_version_id} · Revision: {target.change_revision}</p>
+      <p className="break-all">Head version: {target.head.version_id} · Effective result: {target.head.effective_lab_result_id ?? 'None'}</p>
+    </details>
   </div>;
 }
 export function CareExceptionSnapshot({ exception }: { exception: Extract<HumanInput['payload']['details'], { exception: unknown }>['exception'] }) {

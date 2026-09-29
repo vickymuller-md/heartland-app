@@ -46,7 +46,7 @@ export async function applyHuman(input: HumanInput) { return operation('apply', 
 export async function cancelHuman(input: HumanInput) { return operation('cancel', input); }
 export async function acknowledgeHuman(input: HumanInput) { return operation('acknowledge', input); }
 
-const readSchema = careScopeSchema.extend({ work_item_id: z.guid(), command: humanCommandNameSchema }).strict();
+const readSchema = careScopeSchema.extend({ work_item_id: z.guid(), command: humanCommandNameSchema.exclude(['resolve_source_invalidation']) }).strict();
 export async function loadHumanContext(input: z.infer<typeof readSchema>): Promise<{ data: HumanContext | null; error: string | null }> {
   if (!readSchema.safeParse(input).success) return failure;
   try {
@@ -56,6 +56,20 @@ export async function loadHumanContext(input: z.infer<typeof readSchema>): Promi
     const result = humanContextSchema.safeParse(response.data);
     if (response.error || !result.success || result.data.command !== input.command || !(['actor_id', 'organization_id', 'patient_id', 'work_item_id'] as const)
       .every((key) => same(result.data[key], input[key]))) return failure;
+    return { data: result.data, error: null };
+  } catch { return failure; }
+}
+const sourceReadSchema = careScopeSchema.extend({ work_item_id: z.guid(), invalidation_id: z.guid() }).strict();
+export async function loadSourceResolutionContext(input: z.infer<typeof sourceReadSchema>): Promise<{ data: HumanContext | null; error: string | null }> {
+  if (!sourceReadSchema.safeParse(input).success) return failure;
+  try {
+    const auth = await authorize('provider');
+    if (!auth.authorized || !same(auth.user.id, input.actor_id)) return failure;
+    const response = await auth.supabase.rpc('get_care_source_resolution_context', { p_work_item_id: input.work_item_id, p_invalidation_id: input.invalidation_id });
+    const result = humanContextSchema.safeParse(response.data);
+    if (response.error || !result.success || result.data.command !== 'resolve_source_invalidation'
+      || !same(result.data.invalidation.invalidation_id, input.invalidation_id)
+      || !(['actor_id', 'organization_id', 'patient_id', 'work_item_id'] as const).every((key) => same(result.data[key], input[key]))) return failure;
     return { data: result.data, error: null };
   } catch { return failure; }
 }

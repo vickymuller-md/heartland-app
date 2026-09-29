@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { authorize, rpc } = vi.hoisted(() => ({ authorize: vi.fn(), rpc: vi.fn() }));
 vi.mock('@/lib/auth/authorization', () => ({ authorize }));
-import { acknowledgeHuman, applyHuman, cancelHuman, loadHumanContext, loadPendingHuman, prepareHuman, recoverHuman } from '@/lib/care-workflow/human-actions';
+import { acknowledgeHuman, applyHuman, cancelHuman, loadHumanContext, loadSourceResolutionContext, loadPendingHuman, prepareHuman, recoverHuman } from '@/lib/care-workflow/human-actions';
 import { humanInputSchema } from '@/lib/care-workflow/human-types';
 
 const id = (n: number) => `ab000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -80,6 +80,66 @@ describe('exact human evidence server actions', () => {
   it('uses one authorized client and reads no current workflow or clinical capability for recovery', async () => {
     expect((await recoverHuman(input)).data).toEqual(prepared);
     expect(authorize).toHaveBeenCalledExactlyOnceWith('provider'); expect(rpc).toHaveBeenCalledExactlyOnceWith('get_care_human_request', { p_request_id: id(10) });
+  });
+});
+describe('exact changed-source server actions', () => {
+  const head = { version_id: id(46), revision: '2', status: 'corrected', effective_lab_result_id: id(47), value: '4.2', collected_at: at };
+  const target = { invalidation_id: id(50), entry_id: id(41), composition_event_id: id(40), composition_revision: '2', analyte: 'potassium',
+    root_id: id(42), observed_version_id: id(44), change_version_id: id(46), change_revision: '2', change_status: 'corrected',
+    change_recorded_at: at, recorded_at: at, head, head_recorded_at: at };
+  const basis = { kind: 'laboratory_order', composition_event_id: id(40), operational_event: null,
+    sources: [{ analyte: 'potassium', entry_id: id(41), root_id: id(42), authority_organization_id: id(3), original_lab_result_id: id(43),
+      observed_version_id: id(44), head, evaluation_status: null, quality: 'available' }], processing: [{ lab_result_id: id(47), evaluation: null }] };
+  const value = humanInputSchema.parse({ ...input, basis, expected_revision: '4', command: 'resolve_source_invalidation', payload: { ...common, details: {
+    invalidation: target, review_event_id: id(70), contact_event_id: id(71), disposition: 'retained_in_current_composition',
+    resolution_reason: 'Source explicitly reconciled', source_reviewed: true, change_addressed_in_contact: true,
+    source_review_evidence: 'Reviewed this exact source', source_communication_evidence: 'Discussed this exact source' } } });
+  const frozen = { ...prepared, ...value };
+  const done = { ...frozen, state: 'applied', receipt: { ...applied.receipt, command: value.command, stage: 'result_received', basis,
+    workflow_revision: '5', clinical_review_recorded: false, resolved_invalidation_id: id(50), resolution_event_id: id(20),
+    source_review_attested: true, source_contact_attested: true } };
+  const data = { ...context, kind: 'laboratory_order', stage: 'result_received', command: value.command, basis,
+    workflow_revision: '4', invalidation: target, latest_review: null, contact: null };
+  const read = { ...scope, work_item_id: id(5), invalidation_id: id(50) };
+  it('uses only the dedicated authorized reader and allows honest missing prerequisites', async () => {
+    rpc.mockResolvedValue(ok(data)); expect((await loadSourceResolutionContext(read)).data).toEqual(data);
+    expect(rpc).toHaveBeenCalledExactlyOnceWith('get_care_source_resolution_context', { p_work_item_id: id(5), p_invalidation_id: id(50) });
+  });
+  it.each(['actor_id', 'patient_id', 'organization_id', 'work_item_id', 'invalidation'])('rejects changed target context %s', async (key) => {
+    rpc.mockResolvedValue(ok({ ...data, [key]: key === 'invalidation' ? { ...target, invalidation_id: id(99) } : id(99) }));
+    expect((await loadSourceResolutionContext(read)).data).toBeNull();
+  });
+  it('denies malformed, generic fourth-command and changed-actor reads before RPC', async () => {
+    expect((await loadSourceResolutionContext({ ...read, invalidation_id: 'bad' })).data).toBeNull();
+    expect((await loadHumanContext({ ...scope, work_item_id: id(5), command: 'resolve_source_invalidation' } as never)).data).toBeNull();
+    expect(authorize).not.toHaveBeenCalled();
+    authorize.mockResolvedValue({ authorized: true, user: { id: id(99) }, supabase: { rpc } });
+    expect((await loadSourceResolutionContext(read)).data).toBeNull(); expect(rpc).not.toHaveBeenCalled();
+  });
+  it('keeps private error details out of the target reader', async () => {
+    rpc.mockRejectedValue(new Error('private diagnostic')); expect(JSON.stringify(await loadSourceResolutionContext(read))).not.toContain('private diagnostic');
+  });
+  it('prepares exactly the frozen source attestation after same-ID lookup', async () => {
+    rpc.mockResolvedValueOnce(failure).mockResolvedValueOnce(ok(frozen)); expect((await prepareHuman(value)).data).toEqual(frozen);
+    expect(rpc.mock.calls[1]).toEqual(['prepare_care_human_request', expect.objectContaining({ p_command: value.command, p_payload: value.payload })]);
+  });
+  it.each(actions)('preserves expected actor for source operation %#', async (action) => {
+    authorize.mockResolvedValue({ authorized: true, user: { id: id(99) }, supabase: { rpc } });
+    expect((await action(value)).data).toBeNull(); expect(rpc).not.toHaveBeenCalled();
+  });
+  it.each(['source_review_evidence', 'source_communication_evidence', 'resolution_reason', 'contact_event_id'])('rejects replaced frozen %s', async (key) => {
+    const changed = structuredClone(frozen); Object.assign(changed.payload.details, { [key]: key === 'contact_event_id' ? id(99) : 'Changed statement' });
+    rpc.mockResolvedValue(ok(changed)); expect((await applyHuman(value)).data).toBeNull(); expect(rpc).toHaveBeenCalledTimes(1);
+  });
+  it('recovers terminal source receipts with expired deadlines and no fresh context', async () => {
+    const old = { ...value, payload: { ...value.payload, next_review_at: '2020-01-01T00:00:00Z' } };
+    rpc.mockResolvedValue(ok({ ...done, payload: old.payload })); expect((await prepareHuman(old)).data?.state).toBe('applied');
+    expect(rpc).toHaveBeenCalledExactlyOnceWith('get_care_human_request', { p_request_id: value.request_id });
+  });
+  it('keeps lost cancellation/ACK distinct and includes the fourth variant in recovery', async () => {
+    rpc.mockResolvedValue(ok(done)); expect((await cancelHuman(value)).data?.state).toBe('applied'); expect((await acknowledgeHuman(value)).data).toBeNull();
+    rpc.mockResolvedValue(ok({ ...done, acknowledged_at: at })); expect((await acknowledgeHuman(value)).data?.acknowledged_at).toBe(at);
+    rpc.mockResolvedValue(ok({ items: [frozen], next_cursor: null })); expect((await loadPendingHuman({ ...scope, after: null })).data?.items[0].command).toBe(value.command);
   });
 });
 describe('human evidence and recovery reads', () => {

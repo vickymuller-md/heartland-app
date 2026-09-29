@@ -170,7 +170,8 @@ function WorkflowState({ actorId, patientId, organizationId, workId, initial }: 
         </li>
         {careWorkflowTimeline(detail).map((item) => <li key={item.id} className="min-w-0 space-y-2 break-words rounded-xl border bg-white p-4">
           <h3 className="font-semibold">{item.revision} · {item.kind === 'step' ? CARE_STEP_LABELS[item.event.command as CareStepCommand['command']]
-            : item.kind === 'human' ? item.event.request.command === 'record_review' ? 'Human review recorded' : item.event.request.command === 'record_contact' ? 'Human contact documented' : 'Barrier resolution recorded' : 'Laboratory source composition recorded'}</h3>
+            : item.kind === 'human' ? item.event.request.command === 'record_review' ? 'Human review recorded' : item.event.request.command === 'record_contact' ? 'Human contact documented'
+              : item.event.request.command === 'resolve_exception' ? 'Barrier resolution recorded' : 'Source-change resolution recorded' : 'Laboratory source composition recorded'}</h3>
           <p>{CARE_STAGE_LABELS[item.event.from_stage]} → {CARE_STAGE_LABELS[item.event.to_stage]}</p>
           {item.kind === 'step' ? <StepEvidence command={careStepCommandSchema.parse({ command: item.event.command, payload: item.event.payload })} />
             : item.kind === 'human' ? <>

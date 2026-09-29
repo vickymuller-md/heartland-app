@@ -1,9 +1,10 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ prepare: vi.fn(), recover: vi.fn(), apply: vi.fn(), cancel: vi.fn(), ack: vi.fn(), context: vi.fn(),
-  list: vi.fn(), subscribe: vi.fn(), unsubscribe: vi.fn(), ready: vi.fn(), changed: vi.fn() }));
+  list: vi.fn(), sourceContext: vi.fn(), changes: vi.fn(), subscribe: vi.fn(), unsubscribe: vi.fn(), ready: vi.fn(), changed: vi.fn() }));
 vi.mock('@/lib/care-workflow/human-actions', () => ({ prepareHuman: mocks.prepare, recoverHuman: mocks.recover,
-  applyHuman: mocks.apply, cancelHuman: mocks.cancel, acknowledgeHuman: mocks.ack, loadHumanContext: mocks.context, loadPendingHuman: mocks.list }));
+  applyHuman: mocks.apply, cancelHuman: mocks.cancel, acknowledgeHuman: mocks.ack, loadHumanContext: mocks.context, loadSourceResolutionContext: mocks.sourceContext, loadPendingHuman: mocks.list }));
+vi.mock('@/lib/care-workflow/composition-actions', () => ({ loadCompositionInvalidations: mocks.changes }));
 vi.mock('@/lib/supabase/client', () => ({ createClient: () => ({ auth: { onAuthStateChange: mocks.subscribe } }) }));
 import { CareHumanPanel } from '@/app/(provider)/patients/[patientId]/_components/care-human-panel';
 import { humanCommandSchema, humanStateSchema, type HumanContext, type HumanInput, type HumanState } from '@/lib/care-workflow/human-types';
@@ -44,6 +45,8 @@ function saved(value = input, state: HumanState['state'] = 'prepared'): HumanSta
     clinical_review_recorded: value.command === 'record_review', addresses_current_review: command.command === 'record_contact' && command.payload.details.review_addressed,
     communication_confirmed: false, care_completed: false,
     ...(command.command === 'resolve_exception' ? { resolved_exception_id: command.payload.details.exception.exception_id, resolution_event_id: id(20) } : {}),
+    ...(command.command === 'resolve_source_invalidation' ? { resolved_invalidation_id: command.payload.details.invalidation.invalidation_id,
+      resolution_event_id: id(20), source_review_attested: true, source_contact_attested: true } : {}),
   } : null });
 }
 const props = { scope, workId: id(5), workflow: workflow(), peersReady: true, refreshToken: 0, onReadiness: mocks.ready, onChanged: mocks.changed };
@@ -57,6 +60,115 @@ beforeEach(() => {
   mocks.prepare.mockImplementation(async (value) => ok(saved(value))); mocks.recover.mockImplementation(async (value) => ok(saved(value)));
   mocks.apply.mockImplementation(async (value) => ok(saved(value, 'applied'))); mocks.cancel.mockImplementation(async (value) => ok(saved(value, 'cancelled')));
   mocks.ack.mockImplementation(async (value) => ok({ ...saved(value, 'applied'), acknowledged_at: at }));
+});
+
+function sourceContext(): Extract<HumanContext, { command: 'resolve_source_invalidation' }> {
+  const basis = structuredClone(context.basis), head = { ...basis.sources[0].head!, revision: '2', version_id: id(46), status: 'corrected' as const, effective_lab_result_id: id(47), value: '4.20' };
+  basis.sources[0].head = head; basis.processing[0].lab_result_id = id(47);
+  return { ...context, command: 'resolve_source_invalidation', kind: 'laboratory_order', workflow_revision: '4', basis,
+    latest_review: latest, contact: { event_id: id(101), revision: '4', actor_id: id(1), occurred_at: at, recorded_at: at, review_event_id: latest.event_id,
+      basis_signature: context.basis_signature, channel: 'phone', recipient_type: 'patient', recipient_reference: 'Synthetic source recipient' },
+    invalidation: { invalidation_id: id(50), entry_id: id(41), composition_event_id: id(40), composition_revision: '2', analyte: 'potassium',
+      root_id: id(42), observed_version_id: id(44), change_version_id: id(46), change_revision: '2', change_status: 'corrected',
+      change_recorded_at: at, recorded_at: at, head, head_recorded_at: at } };
+}
+function sourceRow(current = sourceContext()) { const t = current.invalidation; return { id: t.invalidation_id, entry_id: t.entry_id,
+  change_version_id: t.change_version_id, recorded_at: t.recorded_at, analyte: t.analyte, root_id: t.root_id, event_id: t.composition_event_id, resolution: null }; }
+async function startSource(current = sourceContext()) {
+  mocks.sourceContext.mockResolvedValue(ok(current)); mocks.changes.mockResolvedValue(ok({ work_item_id: id(5), items: [sourceRow(current), { ...sourceRow(current), id: id(51) }], next_cursor: null }));
+  const view = render(<CareHumanPanel {...props} workflow={workflow(current)} />); refresh(); await waitFor(() => expect(mocks.ready).toHaveBeenLastCalledWith(true));
+  change('Human record type', 'resolve_source_invalidation'); click('Load source-change history'); await screen.findByLabelText('Source change to reconcile');
+  expect(screen.getByLabelText('Source change to reconcile')).toHaveValue(''); change('Source change to reconcile', current.invalidation.invalidation_id); evidence();
+  await screen.findByLabelText('Exact changed-source origin'); return view;
+}
+function fillSource() {
+  change('Source resolution disposition', 'retained_in_current_composition'); change('Source resolution reason', 'Reconciled corrected potassium');
+  fireEvent.click(screen.getByRole('checkbox', { name: 'I explicitly attest that this exact source change was reviewed' }));
+  change('Evidence of this source-specific review', 'Explicit review of corrected potassium');
+  fireEvent.click(screen.getByRole('checkbox', { name: 'I explicitly attest that this exact source change was addressed in the referenced contact' }));
+  change('Evidence of this source-specific contact', 'Explicit discussion of corrected potassium');
+  change('Human record evidence', 'Synthetic source reconciliation'); change('Human occurrence at (UTC)', '2026-09-29T12:10');
+  change('Human follow-up next action', 'Review remaining evidence'); change('Human next review at (UTC)', '2026-10-01T12:00');
+}
+describe('explicit recoverable source-change reconciliation UI', () => {
+  it('requires an exact target, disposition and two unselected attestations, then freezes and acknowledges separately', async () => {
+    await startSource(); expect(mocks.sourceContext).toHaveBeenCalledWith({ ...scope, work_item_id: id(5), invalidation_id: id(50) });
+    expect(screen.getByLabelText('Source resolution disposition')).toHaveValue(''); expect(screen.queryByLabelText('Source resolution reason')).toBeNull();
+    change('Source resolution disposition', 'retained_in_current_composition'); for (const checkbox of screen.getAllByRole('checkbox')) expect(checkbox).not.toBeChecked();
+    fillSource(); submit(); await screen.findByText('Frozen source-change resolution');
+    const sent = mocks.prepare.mock.calls[0][0]; expect(sent.payload.details).toMatchObject({ invalidation: sourceContext().invalidation,
+      review_event_id: id(100), contact_event_id: id(101), source_reviewed: true, change_addressed_in_contact: true });
+    expect(mocks.apply).not.toHaveBeenCalled(); click('Confirm human record'); await screen.findByText(/Human record saved at revision/);
+    expect(mocks.apply).toHaveBeenCalledWith(sent); expect(mocks.ack).not.toHaveBeenCalled();
+    click('Acknowledge human receipt'); await screen.findByRole('button', { name: 'Return to human recovery' });
+  });
+  it.each(['review', 'contact', 'later-head'] as const)('shows %s prerequisite failure and blocks new preparation', async (kind) => {
+    const c = sourceContext(); if (kind === 'review') { c.latest_review = null; c.contact = null; }
+    if (kind === 'contact') c.contact = null; if (kind === 'later-head') c.invalidation.head_recorded_at = '2026-09-29T12:01:00Z';
+    await startSource(c); expect(screen.queryByRole('form')).toBeNull(); expect(screen.getByText(/Record those first, then reload/)).toBeInTheDocument(); expect(mocks.prepare).not.toHaveBeenCalled();
+  });
+  it('does not treat missing attestation or a wrong disposition as a valid preparation', async () => {
+    await startSource(); fillSource(); fireEvent.click(screen.getByRole('checkbox', { name: 'I explicitly attest that this exact source change was reviewed' }));
+    submit(); expect(mocks.prepare).not.toHaveBeenCalled(); expect(screen.getByRole('alert')).toBeInTheDocument();
+    change('Source resolution disposition', 'no_longer_used'); expect(screen.getByLabelText('Source resolution reason')).toHaveValue('');
+    for (const checkbox of screen.getAllByRole('checkbox')) expect(checkbox).not.toBeChecked();
+  });
+  it('clears unsaved evidence on target switch and ignores an A to B to A stale context', async () => {
+    await startSource(); fillSource(); const read = deferred(); mocks.sourceContext.mockReturnValueOnce(read.promise); evidence();
+    change('Source change to reconcile', id(51)); change('Source change to reconcile', id(50));
+    await act(async () => read.resolve(ok(sourceContext()))); expect(screen.queryByRole('form')).toBeNull();
+    evidence(); await screen.findByLabelText('Source resolution disposition'); expect(screen.getByLabelText('Source resolution disposition')).toHaveValue('');
+    expect(mocks.prepare).not.toHaveBeenCalled();
+  });
+  it('preserves the exact lost-response request across workflow and peer changes', async () => {
+    const c = sourceContext(), view = await startSource(c), pending = deferred(); mocks.prepare.mockReturnValueOnce(pending.promise); fillSource(); submit();
+    const sent = mocks.prepare.mock.calls[0][0]; view.rerender(<CareHumanPanel {...props} workflow={{ ...workflow(c), assigned_to: id(99) }} peersReady={false} refreshToken={1} />);
+    await act(async () => pending.resolve({ data: null, error: 'Unconfirmed' })); expect(screen.getByText('Frozen source-change resolution')).toBeInTheDocument();
+    click('Check saved human request'); await screen.findByText('Human record prepared and recoverable; not yet recorded.'); expect(mocks.recover).toHaveBeenCalledWith(sent);
+    click('Cancel human preparation'); await screen.findByText('Human preparation cancelled; this request recorded no human event.'); expect(mocks.cancel).toHaveBeenCalledWith(sent);
+  });
+  it('fences the selected-source response after a session change', async () => {
+    await startSource(); const read = deferred(); mocks.sourceContext.mockReturnValueOnce(read.promise); evidence();
+    const listener = mocks.subscribe.mock.calls[0][0]; act(() => { listener('SIGNED_IN', { user: { id: id(99) } }); listener('SIGNED_IN', { user: { id: id(1) } }); });
+    await act(async () => read.resolve(ok(sourceContext()))); expect(screen.getByRole('alert')).toHaveTextContent('Your session changed'); expect(screen.queryByRole('form')).toBeNull();
+  });
+  it('retains cancellation and removed-root evidence without declaring usable results or complete care', async () => {
+    const c = sourceContext(); c.basis.sources[0].root_id = id(99); c.basis.composition_event_id = id(98);
+    c.invalidation.head = { ...c.invalidation.head, status: 'cancelled', value: null, effective_lab_result_id: null }; c.invalidation.change_status = 'cancelled';
+    await startSource(c); expect(screen.getByText('Cancelled source; no usable value')).toBeInTheDocument(); expect(screen.getByText(/source was removed/)).toBeInTheDocument();
+    fillSource(); change('Source resolution disposition', 'no_longer_used'); expect(screen.getByLabelText('Source resolution reason')).toHaveValue('');
+  });
+  it('does not start a source context after a failed list or with only resolved targets', async () => {
+    render(<CareHumanPanel {...props} />); change('Human record type', 'resolve_source_invalidation');
+    mocks.changes.mockResolvedValueOnce({ data: null, error: 'Unavailable' }); click('Load source-change history'); await screen.findByRole('alert');
+    expect(screen.getByRole('button', { name: 'Load evidence for this human record' })).toBeDisabled(); expect(mocks.sourceContext).not.toHaveBeenCalled();
+    mocks.changes.mockResolvedValueOnce(ok({ work_item_id: id(5), items: [{ ...sourceRow(), resolution: { event_id: id(90), revision: '5', recorded_at: at, disposition: 'no_longer_used' } }], next_cursor: null }));
+    click('Load source-change history'); await screen.findByText(/No unresolved change appeared/); expect(screen.queryByRole('form')).toBeNull();
+    expect(screen.getByText(/Recorded source resolutions/)).toBeInTheDocument();
+  });
+  it.each(['empty', 'failed'] as const)('requires the source list tail after 25 records: %s', async (tail) => {
+    render(<CareHumanPanel {...props} />); change('Human record type', 'resolve_source_invalidation');
+    const rows = Array.from({ length: 25 }, (_, n) => ({ ...sourceRow(), id: id(500 + n) })), last = deferred();
+    mocks.changes.mockResolvedValueOnce(ok({ work_item_id: id(5), items: rows, next_cursor: id(524) })).mockReturnValueOnce(last.promise);
+    click('Load source-change history'); await waitFor(() => expect(mocks.changes).toHaveBeenCalledTimes(2));
+    expect(mocks.changes).toHaveBeenLastCalledWith({ ...scope, work_item_id: id(5), after: id(524) });
+    expect(screen.queryByLabelText('Source change to reconcile')).toBeNull();
+    await act(async () => last.resolve(tail === 'empty' ? ok({ work_item_id: id(5), items: [], next_cursor: null }) : { data: null, error: 'Unavailable' }));
+    if (tail === 'empty') expect(screen.getByLabelText('Source change to reconcile')).toHaveValue(''); else expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(mocks.sourceContext).not.toHaveBeenCalled(); expect(mocks.prepare).not.toHaveBeenCalled();
+  });
+  it('recovers an expired applied source request without a current workflow or source context', async () => {
+    await startSource(); fillSource(); submit(); await screen.findByText('Frozen source-change resolution');
+    const sent = mocks.prepare.mock.calls[0][0] as HumanInput; cleanup(); mocks.prepare.mockClear(); mocks.sourceContext.mockClear(); mocks.changes.mockClear();
+    const old = { ...sent, payload: { ...sent.payload, next_review_at: '2020-01-01T00:00:00Z' } };
+    mocks.list.mockResolvedValue(ok({ items: [saved(old, 'applied')], next_cursor: null })); mocks.recover.mockResolvedValue(ok(saved(old, 'applied')));
+    render(<CareHumanPanel {...props} workflow={null} peersReady={false} />); refresh();
+    fireEvent.click(await screen.findByRole('button', { name: 'Recover human request ' + old.request_id }));
+    await screen.findByText(/Human record saved at revision/); expect(mocks.recover).toHaveBeenCalledWith(old);
+    expect(screen.getByText('Frozen source-change resolution')).toBeInTheDocument(); click('Acknowledge human receipt');
+    await screen.findByRole('button', { name: 'Return to human recovery' }); expect(mocks.ack).toHaveBeenCalledWith(old);
+    expect(mocks.prepare).not.toHaveBeenCalled(); expect(mocks.sourceContext).not.toHaveBeenCalled(); expect(mocks.changes).not.toHaveBeenCalled();
+  });
 });
 
 const barrier = { exception_id: id(300), origin_event_id: id(301), human_origin_event_id: null, origin_revision: '2', origin_occurred_at: at,

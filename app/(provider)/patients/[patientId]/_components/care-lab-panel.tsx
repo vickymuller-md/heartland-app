@@ -170,16 +170,20 @@ function LabState({ scope, workId, workflow, stepsReady, refreshToken, onReadine
     <p>Refresh workflow and pending steps above as well before a new preparation. Private receipt recovery remains separate from current work visibility.</p>
     {detail && <div className="space-y-2 rounded-lg bg-slate-50 p-3">
       <h3 className="font-semibold">Last loaded source composition</h3>
-      <p>Workflow revision {detail.workflow_revision}; {detail.pending_intent_count} pending intentions; {detail.invalidation_count} source-change records. These counts are not successful care.</p>
+      <p>Workflow revision {detail.workflow_revision}; {detail.pending_intent_count} pending intentions; {detail.invalidation_count} unresolved source-change records. These counts are not successful care.</p>
       <ul>{detail.sources.map((row) => <li key={row.analyte} className="break-words py-2">
         <p>{LAB_OBSERVATION_FIELDS[row.analyte].label}: {row.quality === 'missing' ? 'Missing' : row.quality === 'cancelled' ? 'Cancelled; no current value'
           : `${row.head?.value} ${LAB_OBSERVATION_FIELDS[row.analyte].unit} — ${row.quality}`}</p>
         {row.head && <p>Collected: {row.head.collected_at}; source revision {row.head.revision}; evaluation {row.evaluation_status ?? 'not applicable'}.</p>}
       </li>)}</ul>
     </div>}
-    {invalidations.length > 0 && <details className="rounded-lg border border-amber-300 p-3"><summary>Source changes requiring follow-up ({invalidations.length} loaded)</summary>
-      <p>Live paginated history, not proof of an unchanged or resolved composition. No source change is resolved by this screen.</p>
-      <ul>{invalidations.map((row) => <li key={row.id} className="break-all py-1">{LAB_OBSERVATION_FIELDS[row.analyte].label} · {row.recorded_at} · Change: {row.change_version_id} · Composition: {row.event_id}</li>)}</ul>
+    {invalidations.length > 0 && <details className="rounded-lg border border-amber-300 p-3"><summary>Source-change history ({invalidations.length} loaded)</summary>
+      <p>Live paginated history, not an atomic current-state or closure check. Use the human record controls to reconcile an exact open change; original changes remain in history.</p>
+      <ul>{invalidations.map((row) => <li key={row.id} className="break-all py-2">
+        <p>{LAB_OBSERVATION_FIELDS[row.analyte].label} · {row.recorded_at} · Obligation: {row.id} · Change: {row.change_version_id} · Composition: {row.event_id}</p>
+        {row.resolution ? <p>Resolution recorded: {row.resolution.recorded_at} · Revision: {row.resolution.revision} · {row.resolution.disposition.replaceAll('_', ' ')} · Event: {row.resolution.event_id}. Not completed care.</p>
+          : <p>Unresolved when loaded — requires explicit review and contact evidence.</p>}
+      </li>)}</ul>
     </details>}
     {!saveOpen && !selected && <div className="space-y-3">
       <button className={button} disabled={!maySave} onClick={() => { setSaveOpen({ input: null, mayStart: maySave }); callbacks.current.onReadiness(false); }}>Save a new exam for this follow-up</button>

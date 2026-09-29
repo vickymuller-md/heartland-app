@@ -107,8 +107,19 @@ const routingItem = z.object({ intent_id: guid, recorded_at: instant, intended_a
 export const compositionRoutingPageSchema = z.object({ work_item_id: guid, items: z.array(routingItem).max(25), next_cursor: guid.nullable() }).strict()
   .refine((value) => ordered(value.items.map((row) => row.intent_id.toLowerCase()))
     && (value.next_cursor === null || value.items.length === 25 && same(value.next_cursor, value.items[24].intent_id)));
+export const sourceResolutionDispositionSchema = z.enum(['retained_in_current_composition', 'no_longer_used']);
+export const sourceInvalidationSnapshotSchema = z.object({ invalidation_id: guid, entry_id: guid, composition_event_id: guid,
+  composition_revision: revision(BigInt(2)), analyte: careAnalyteSchema, root_id: guid, observed_version_id: guid,
+  change_version_id: guid, change_revision: revision(BigInt(2)), change_status: z.enum(['corrected', 'cancelled']),
+  change_recorded_at: instant, recorded_at: instant, head: detailHead, head_recorded_at: instant,
+}).strict().refine((value) => validRevision(value.head.revision) && validRevision(value.change_revision)
+  && BigInt(value.head.revision) >= BigInt(value.change_revision) && !same(value.change_version_id, value.observed_version_id)
+  && (value.head.revision === value.change_revision ? same(value.head.version_id, value.change_version_id) && value.head.status === value.change_status
+    : !same(value.head.version_id, value.change_version_id))
+  && (labCollectionMicros(value.recorded_at) ?? BigInt(-1)) >= (labCollectionMicros(value.change_recorded_at) ?? BigInt(0)));
 const invalidationItem = z.object({ id: guid, entry_id: guid, change_version_id: guid, recorded_at: instant, analyte: careAnalyteSchema,
-  root_id: guid, event_id: guid }).strict();
+  root_id: guid, event_id: guid, resolution: z.object({ event_id: guid, revision: revision(BigInt(2)), recorded_at: instant,
+    disposition: sourceResolutionDispositionSchema }).strict().nullable() }).strict();
 export const compositionInvalidationPageSchema = z.object({ work_item_id: guid, items: z.array(invalidationItem).max(25), next_cursor: guid.nullable() }).strict()
   .refine((value) => ordered(value.items.map((row) => row.id.toLowerCase()))
     && (value.next_cursor === null || value.items.length === 25 && same(value.next_cursor, value.items[24].id)));

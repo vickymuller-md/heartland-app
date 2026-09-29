@@ -82,6 +82,15 @@ function fill() {
 function submit() { fireEvent.submit(screen.getByRole('form', { name: 'New laboratory source composition' })); }
 async function prepare() { await start(); fill(); submit(); await screen.findByText('Prepared and recoverable; no association applied.'); }
 describe('exact laboratory source association', () => {
+  it('labels unresolved counts and retains both original open and resolved source-change records', async () => {
+    const row = { id: id(810), entry_id: id(811), change_version_id: id(812), recorded_at: at, analyte: 'potassium', root_id: id(400), event_id: id(300), resolution: null };
+    mocks.detail.mockResolvedValue(ok({ ...detail, invalidation_count: '1' })); mocks.changes.mockResolvedValue(ok({ work_item_id: id(100), next_cursor: null, items: [row,
+      { ...row, id: id(820), resolution: { event_id: id(821), revision: '5', recorded_at: at, disposition: 'no_longer_used' } }] }));
+    await start(); expect(screen.getByText(/1 unresolved source-change records/)).toBeInTheDocument();
+    expect(screen.getByText('Source-change history (2 loaded)')).toBeInTheDocument(); expect(screen.getByText(/Unresolved when loaded/)).toBeInTheDocument();
+    expect(screen.getByText(/Resolution recorded:/)).toHaveTextContent(id(821)); expect(screen.getByText(/Resolution recorded:/)).toHaveTextContent('Not completed care');
+    expect(screen.getByText(/Live paginated history, not an atomic/)).toBeInTheDocument();
+  });
   it('requires explicit complete recovery and never prepares automatically', async () => {
     render(<CareLabPanel {...props} />); expect(mocks.detail).not.toHaveBeenCalled(); expect(screen.queryByRole('form')).toBeNull();
     refresh(); await screen.findByRole('form'); expect(mocks.ready).toHaveBeenLastCalledWith(true); expect(mocks.prepare).not.toHaveBeenCalled();

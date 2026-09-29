@@ -129,6 +129,25 @@ function humanDetail(): CareWorkflowDetail {
       next_action: input.payload.next_action, next_review_at: due, recorded_at: at }] };
 }
 describe('historical human evidence', () => {
+  it('labels a source-change attestation separately and retains source, review and contact identities', () => {
+    const current = humanDetail(), prior = current.humans[0], source = prior.request.basis.sources.find((row) => row.analyte === 'potassium')!;
+    const target = { invalidation_id: id(200), entry_id: source.entry_id!, composition_event_id: current.compositions[0].id, composition_revision: '2', analyte: 'potassium' as const,
+      root_id: source.root_id!, observed_version_id: source.observed_version_id!, change_version_id: source.head!.version_id, change_revision: '2', change_status: 'corrected' as const,
+      change_recorded_at: at, recorded_at: at, head: source.head!, head_recorded_at: at };
+    const resolution: CareWorkflowDetail['humans'][number] = { ...prior, id: id(160), revision: '6', request: { ...prior.request,
+      request_id: id(161), command: 'resolve_source_invalidation', expected_revision: '5', payload: { ...input.payload, details: { invalidation: target,
+        review_event_id: prior.id, contact_event_id: current.humans[1].id, disposition: 'retained_in_current_composition', resolution_reason: 'Source resolution statement',
+        source_reviewed: true, change_addressed_in_contact: true, source_review_evidence: 'Exact_source_review', source_communication_evidence: 'Exact_source_contact' } } },
+      receipt: { ...prior.receipt, command: 'resolve_source_invalidation', request_id: id(161), event_id: id(160), workflow_revision: '6', clinical_review_recorded: false,
+        resolved_invalidation_id: id(200), resolution_event_id: id(160), source_review_attested: true, source_contact_attested: true } };
+    // Rendering test uses a controlled action result; the contract suite separately checks causality.
+    render(<CareWorkflowPanel {...props} initial={{ ...current, revision: '6', humans: [...current.humans, resolution] }} />);
+    expect(screen.getByRole('heading', { name: '6 · Source-change resolution recorded' })).toBeInTheDocument();
+    expect(screen.getByText(/New source-specific review declaration:/)).toHaveTextContent('Exact_source_review');
+    expect(screen.getByText(/New source-specific contact declaration:/)).toHaveTextContent('Exact_source_contact');
+    expect(screen.getByLabelText('Exact changed-source origin')).toHaveTextContent(id(200));
+    expect(screen.getByText(/Prior review and contact records remain unchanged/)).toBeInTheDocument();
+  });
   it('separates a resolved barrier from a remaining open barrier without removing either origin', () => {
     const current = humanDetail(), prior = current.humans[0], target = current.exceptions[1];
     const resolution: CareWorkflowDetail['humans'][number] = { ...prior, id: id(160), revision: '6',

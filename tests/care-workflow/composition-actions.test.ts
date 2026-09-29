@@ -103,4 +103,16 @@ describe('recoverable composition server actions', () => {
     expect((await read({ ...work, after: null })).data?.items).toEqual([]);
     expect(authorize).toHaveBeenCalledWith('provider');
   });
+  it('requires explicit null or exact recorded resolution on every invalidation', async () => {
+    const row = { id: id(800), entry_id: id(700), change_version_id: id(501), recorded_at: at, analyte: 'potassium', root_id: id(400), event_id: id(300), resolution: null };
+    const resolution = { event_id: id(801), revision: '5', recorded_at: at, disposition: 'no_longer_used' };
+    for (const value of [null, resolution]) {
+      const page = { work_item_id: input.work_item_id, items: [{ ...row, resolution: value }], next_cursor: null };
+      rpc.mockResolvedValueOnce(ok(work)).mockResolvedValueOnce(ok(page)); expect((await loadCompositionInvalidations({ ...work, after: null })).data).toEqual(page);
+    }
+    for (const value of [undefined, { ...resolution, care_completed: true }, { ...resolution, revision: 'bad' }]) {
+      rpc.mockResolvedValueOnce(ok(work)).mockResolvedValueOnce(ok({ work_item_id: input.work_item_id, items: [{ ...row, resolution: value }], next_cursor: null }));
+      expect((await loadCompositionInvalidations({ ...work, after: null })).data).toBeNull();
+    }
+  });
 });

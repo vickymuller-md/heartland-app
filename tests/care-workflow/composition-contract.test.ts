@@ -133,11 +133,16 @@ describe('versioned laboratory composition contract', () => {
     }
   });
   it('ties invalidation to exact composition entry and source-change version, never an auto-resolution', () => {
-    const row = { id: id(800), entry_id: id(700), change_version_id: id(501), recorded_at: at, analyte: 'potassium', root_id: id(400), event_id: id(300) };
+    const row = { id: id(800), entry_id: id(700), change_version_id: id(501), recorded_at: at, analyte: 'potassium', root_id: id(400), event_id: id(300), resolution: null };
     const page = { work_item_id: id(100), items: [row], next_cursor: null };
     expect(compositionInvalidationPageSchema.parse(page)).toEqual(page);
     expect(compositionInvalidationPageSchema.safeParse({ ...page, items: [{ ...row, resolved: true }] }).success).toBe(false);
     expect(compositionInvalidationPageSchema.safeParse({ ...page, items: [row, row] }).success).toBe(false);
+    const resolution = { event_id: id(801), revision: '5', recorded_at: at, disposition: 'no_longer_used' };
+    expect(compositionInvalidationPageSchema.parse({ ...page, items: [{ ...row, resolution }] }).items[0].resolution).toEqual(resolution);
+    for (const changed of [undefined, {}, { ...resolution, disposition: 'complete' }, { ...resolution, revision: 'bad' }, { ...resolution, private_reason: 'Private' }]) {
+      expect(compositionInvalidationPageSchema.safeParse({ ...page, items: [{ ...row, resolution: changed }] }).success).toBe(false);
+    }
   });
   it('validates fresh deadlines without rewriting historical receipts', () => {
     const now = Date.parse('2026-09-29T12:00:00Z'); expect(validateNewComposition(input, now)).toEqual(input);

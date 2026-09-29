@@ -124,6 +124,7 @@ export const careWorkflowDetailSchema = z.object({
   let latestReview: z.infer<typeof humanEventSchema> | null = null;
   const reviews = new Map<string, z.infer<typeof humanEventSchema>>();
   const resolved = new Set<string>();
+  const resolvedSources = new Set<string>();
   type Head = NonNullable<z.infer<typeof compositionReceiptSchema>['sources'][number]['observed_head']>;
   const observedHeads = new Map<string, Head>();
   const observeHead = (root: string | null, head: Head | null) => {
@@ -219,7 +220,7 @@ export const careWorkflowDetailSchema = z.object({
             || labCollectionMicros(barrier.next_review_at) !== labCollectionMicros(request.payload.next_review_at)
             || !sameId(receipt.exception_id, barrier.id)) reject();
         }
-      } else {
+      } else if (command.data.command === 'resolve_exception') {
         const target = command.data.payload.details.exception;
         const barrier = value.exceptions.find((row) => sameId(row.id, target.exception_id));
         const origin = target.origin_event_id !== null ? value.steps.find((row) => sameId(row.id, target.origin_event_id))
@@ -231,6 +232,33 @@ export const careWorkflowDetailSchema = z.object({
           || labCollectionMicros(target.next_review_at) !== labCollectionMicros(barrier.next_review_at)
           || labCollectionMicros(target.recorded_at) !== labCollectionMicros(barrier.recorded_at)) reject();
         resolved.add(target.exception_id.toLowerCase());
+      } else {
+        const d = command.data.payload.details, target = d.invalidation;
+        const origin = value.compositions.find((row) => sameId(row.id, target.composition_event_id));
+        const source = origin?.receipt.sources.find((row) => sameId(row.root_id, target.root_id) && row.analyte === target.analyte);
+        const contact = value.humans.find((row) => sameId(row.id, d.contact_event_id));
+        const c = contact && humanCommandSchema.safeParse({ command: contact.request.command, payload: contact.request.payload });
+        const before = (a: string, b: string) => (labCollectionMicros(a) ?? BigInt(-1)) < (labCollectionMicros(b) ?? BigInt(0));
+        if (!origin || !ids.has(origin.id.toLowerCase()) || origin.revision !== target.composition_revision || !source?.observed_head
+          || !sameId(source.observed_head.version_id, target.observed_version_id)
+          || !revision(BigInt(2)).safeParse(target.change_revision).success || !revision(BigInt(1)).safeParse(source.observed_head.revision).success
+          || BigInt(target.change_revision) <= BigInt(source.observed_head.revision)
+          || before(target.recorded_at, origin.recorded_at) || resolvedSources.has(target.invalidation_id.toLowerCase())
+          || !latestComposition || !latestReview || !sameId(latestReview.id, d.review_event_id)
+          || !jsonEqual(latestReview.request.basis, basis) || latestReview.request.basis_signature !== request.basis_signature
+          || !revision(BigInt(2)).safeParse(latestReview.revision).success || !revision(BigInt(2)).safeParse(latestComposition.revision).success
+          || BigInt(latestReview.revision) <= BigInt(latestComposition.revision)
+          || before(latestReview.occurred_at, target.recorded_at) || before(latestReview.occurred_at, target.head_recorded_at)
+          || d.disposition === 'no_longer_used' && (before(latestComposition.recorded_at, target.recorded_at)
+            || !revision(BigInt(2)).safeParse(target.composition_revision).success || BigInt(latestComposition.revision) <= BigInt(target.composition_revision))
+          || !contact || !ids.has(contact.id.toLowerCase()) || !c?.success || c.data.command !== 'record_contact'
+          || c.data.payload.details.outcome !== 'human_reached' || !c.data.payload.details.review_addressed
+          || !sameId(c.data.payload.details.review_event_id, d.review_event_id) || !jsonEqual(contact.request.basis, basis)
+          || contact.request.basis_signature !== request.basis_signature
+          || !revision(BigInt(2)).safeParse(contact.revision).success || BigInt(contact.revision) <= BigInt(latestReview.revision)
+          || before(contact.occurred_at, latestReview.occurred_at) || before(request.payload.occurred_at, contact.occurred_at)) reject();
+        observeHead(target.root_id, target.head);
+        resolvedSources.add(target.invalidation_id.toLowerCase());
       }
     }
     ids.add(item.id.toLowerCase()); stage = event.to_stage;
