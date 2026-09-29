@@ -113,6 +113,7 @@ function WorkItemCard({
   const [pending, startTransition] = useTransition();
   const [mode, setMode] = useState<'none' | 'actioned' | 'awaiting' | 'closed'>('none');
   const [error, setError] = useState<string | null>(null);
+  const isCareWorkflow = item.source_type === 'care_workflow';
 
   const dueLabel = item.due_at
     ? formatDistanceToNow(new Date(item.due_at), { addSuffix: true })
@@ -132,6 +133,7 @@ function WorkItemCard({
     status: 'reviewed' | 'actioned' | 'awaiting' | 'closed',
     extra: Omit<WorkItemTransitionInput, 'workItemId' | 'patientId' | 'status'> = {},
   ) => {
+    if (isCareWorkflow) return;
     setError(null);
     startTransition(async () => {
       const result = await transitionWorkItem({
@@ -182,7 +184,7 @@ function WorkItemCard({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            {(item.status === 'new' || item.status === 'due') && (
+            {!isCareWorkflow && (item.status === 'new' || item.status === 'due') && (
               <label className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border bg-white" title="Select for bulk review">
                 <span className="sr-only">Select {item.title} for bulk review</span>
                 <input type="checkbox" checked={selected} onChange={(event) => onSelectionChange(event.target.checked)} className="size-4" />
@@ -225,12 +227,15 @@ function WorkItemCard({
           <h3 className="mt-2 text-base font-semibold text-slate-950">{item.title}</h3>
           {item.change_summary && <p className="mt-1 text-sm text-slate-700">{item.change_summary}</p>}
         </div>
-        <Link
+        {isCareWorkflow ? <a href={`/patients/${item.patient_id}/care/${item.id}?organization=${item.organization_id}`}
+          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1 rounded-lg bg-slate-900 px-3 text-sm font-medium text-white">
+          Open follow-up <ChevronRight className="size-4" />
+        </a> : <Link
           href={`/patients/${item.patient_id}`}
           className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1 rounded-lg bg-slate-900 px-3 text-sm font-medium text-white"
         >
           Open case <ChevronRight className="size-4" />
-        </Link>
+        </Link>}
       </div>
 
       <dl className="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-3">
@@ -253,7 +258,7 @@ function WorkItemCard({
 
       {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
 
-      {mode === 'awaiting' && (
+      {!isCareWorkflow && mode === 'awaiting' && (
         <form
           className="mt-3 grid gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 sm:grid-cols-2"
           onSubmit={(event) => {
@@ -286,7 +291,7 @@ function WorkItemCard({
         </form>
       )}
 
-      {mode === 'actioned' && (
+      {!isCareWorkflow && mode === 'actioned' && (
         <form
           className="mt-3 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3"
           onSubmit={(event) => {
@@ -317,7 +322,7 @@ function WorkItemCard({
         </form>
       )}
 
-      {mode === 'closed' && (
+      {!isCareWorkflow && mode === 'closed' && (
         <form
           className="mt-3 space-y-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3"
           onSubmit={(event) => {
@@ -348,25 +353,26 @@ function WorkItemCard({
               <UserRoundCheck className="mr-1 size-3.5" /> Accept
             </Button>
           )}
-          {(item.status === 'new' || item.status === 'due') && (
+          {!isCareWorkflow && (item.status === 'new' || item.status === 'due') && (
             <Button className="min-h-11" size="sm" variant="outline" disabled={pending} onClick={() => transition('reviewed')}>
               <CircleDot className="mr-1 size-3.5" /> Review
             </Button>
           )}
-          {item.status !== 'actioned' && (
+          {!isCareWorkflow && item.status !== 'actioned' && (
             <Button className="min-h-11" size="sm" variant="outline" disabled={pending} onClick={() => setMode('actioned')}>
               <ShieldCheck className="mr-1 size-3.5" /> Action taken
             </Button>
           )}
-          <Button className="min-h-11" size="sm" variant="outline" disabled={pending} onClick={() => setMode('awaiting')}>
+          {!isCareWorkflow && <><Button className="min-h-11" size="sm" variant="outline" disabled={pending} onClick={() => setMode('awaiting')}>
             <Clock3 className="mr-1 size-3.5" /> Awaiting
           </Button>
           <Button className="min-h-11" size="sm" disabled={pending} onClick={() => setMode('closed')}>
             {pending ? <Loader2 className="mr-1 size-3.5 animate-spin" /> : <CheckCircle2 className="mr-1 size-3.5" />}
             Close
-          </Button>
+          </Button></>}
         </div>
       )}
+      {isCareWorkflow && <p className="mt-3 text-sm text-slate-600">Use follow-up history to record evidence-backed steps. Generic review and closure do not complete this workflow.</p>}
       {mode === 'none' && <OwnershipSelector scopeKey={scopeKey} kind="offer" workItemId={item.id} />}
       {mode === 'none' && canManage && !isLegacyAccountability && <WorkReassignment scopeKey={scopeKey} workItemId={item.id} />}
     </article>
@@ -444,6 +450,9 @@ export function DailyLoop({
   const [bulkPending, startBulkTransition] = useTransition();
   const [bulkMessage, setBulkMessage] = useState<string | null>(null);
   const loadedCount = useMemo(() => Object.values(sections).reduce((sum, items) => sum + items.length, 0), [sections]);
+  const bulkEligible = new Set(Object.values(sections).flat().filter((item) => item.source_type !== 'care_workflow'
+    && (item.status === 'new' || item.status === 'due')).map((item) => item.id));
+  const currentSelected = [...selectedIds].filter((id) => bulkEligible.has(id));
   const setSelected = (itemId: string, selected: boolean) => {
     setSelectedIds((current) => {
       const next = new Set(current);
@@ -452,9 +461,10 @@ export function DailyLoop({
     });
   };
   const reviewSelected = () => {
+    if (!currentSelected.length) return;
     setBulkMessage(null);
     startBulkTransition(async () => {
-      const result = await bulkReviewWorkItems([...selectedIds]);
+      const result = await bulkReviewWorkItems(currentSelected);
       if (!result.success) setBulkMessage(result.error ?? 'Bulk review failed.');
       else {
         setBulkMessage(`${result.updated ?? 0} item(s) marked reviewed.`);
@@ -487,9 +497,9 @@ export function DailyLoop({
           )}
         </div>
       )}
-      {selectedIds.size > 0 && (
+      {currentSelected.length > 0 && (
         <div className="sticky top-2 z-20 flex flex-wrap items-center gap-3 rounded-xl border border-blue-300 bg-blue-50 p-3 shadow-lg" role="region" aria-label="Bulk work actions">
-          <span className="mr-auto text-sm font-bold text-blue-950">{selectedIds.size} selected</span>
+          <span className="mr-auto text-sm font-bold text-blue-950">{currentSelected.length} selected</span>
           <Button className="min-h-11" disabled={bulkPending} onClick={reviewSelected}>{bulkPending ? 'Reviewing…' : 'Confirm review selected'}</Button>
           <Button className="min-h-11" variant="ghost" onClick={() => setSelectedIds(new Set())}>Clear selection</Button>
         </div>

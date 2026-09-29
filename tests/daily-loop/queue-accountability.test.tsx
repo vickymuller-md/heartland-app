@@ -122,6 +122,32 @@ beforeEach(() => {
   mockBulkReview.mockResolvedValue({ success: true, updated: 0 });
 });
 
+describe('typed care workflow queue controls', () => {
+  it('retains acceptance but removes generic transitions and bulk selection', async () => {
+    renderQueue(workItem({ source_type: 'care_workflow', accountability_source: 'self_requested' }));
+    const card = within(screen.getByTestId('work-item-card'));
+    expect(card.queryByRole('checkbox')).toBeNull();
+    for (const name of ['Review', 'Action taken', 'Awaiting', 'Close']) expect(card.queryByRole('button', { name, exact: true })).toBeNull();
+    expect(card.getByRole('link', { name: 'Open follow-up' })).toHaveAttribute('href', `/patients/${PATIENT_ID}/care/${WORK_ITEM_ID}?organization=${ORGANIZATION_ID}`);
+    await userEvent.click(card.getByRole('button', { name: 'Accept', exact: true })); expect(mockAcceptWorkItem).toHaveBeenCalledOnce();
+    expect(mockTransitionWorkItem).not.toHaveBeenCalled();
+  });
+  it('filters stale selected IDs again before bulk submission after a care rerender', async () => {
+    const first = workItem(); const second = workItem({ id: '00000000-0000-4000-a000-000000000099', title: 'Second ordinary item' });
+    const view = (item: WorkItem) => <DailyLoop scopeKey="same" sections={{ now: [item, second], today: [], week: [], watching: [] }}
+      metrics={METRICS} pagination={{ total: 2, limit: 20, offset: 0, hasNext: false, hasPrevious: false }} page={1} queryString="" timeZone="UTC" />;
+    const rendered = render(view(first)); for (const box of screen.getAllByRole('checkbox')) await userEvent.click(box);
+    rendered.rerender(view({ ...first, source_type: 'care_workflow' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm review selected' }));
+    expect(mockBulkReview).toHaveBeenCalledExactlyOnceWith([second.id]);
+  });
+  it('hides a legacy close form if the current item becomes typed care', async () => {
+    const rendered = renderQueue(workItem()); await userEvent.click(screen.getByRole('button', { name: 'Close', exact: true }));
+    rendered.rerender(queue(workItem({ source_type: 'care_workflow' })));
+    expect(screen.queryByLabelText('Outcome required to close')).toBeNull(); expect(screen.queryByRole('button', { name: 'Close item' })).toBeNull();
+  });
+});
+
 describe('transfers awaiting a response', () => {
   const transfer: PendingTransfer = {
     id: WORK_ITEM_ID,

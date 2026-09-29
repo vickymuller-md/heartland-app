@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { careAnalyteSchema, careKindSchema, careRequestPayloadSchema, careScopeSchema, type CareScope } from './types';
 
 const guid = z.guid();
 const instant = z.iso.datetime({ offset: true }).refine((value) =>
@@ -64,3 +65,124 @@ export const careStepStateSchema = z.object({
 });
 export type CareStepCommand = z.infer<typeof careStepCommandSchema>;
 export type CareStepState = z.infer<typeof careStepStateSchema>;
+
+export type CareStepInput = CareScope & CareStepCommand & {
+  request_id: string; work_item_id: string; expected_revision: string; expected_ownership_revision: string;
+};
+export const careStepInputSchema = careScopeSchema.extend({ request_id: guid, work_item_id: guid,
+  expected_revision: revision(BigInt(1), BigInt('9223372036854775806')), expected_ownership_revision: revision(BigInt(0)),
+  command: z.string(), payload: z.unknown(),
+}).strict().refine((value) => careStepCommandSchema.safeParse({ command: value.command, payload: value.payload }).success);
+export const careStepPageSchema = z.object({ items: z.array(careStepStateSchema).max(25), next_cursor: guid.nullable() }).strict();
+export type CareStepPage = z.infer<typeof careStepPageSchema>;
+export type CareStepResult = { data: CareStepState; error: null } | { data: null; error: string };
+export const CARE_STEP_UNCONFIRMED = 'The step could not be confirmed. Check its saved state with the same request ID. Do not create a replacement or change its frozen revisions.';
+export const CARE_STEP_READ_UNAVAILABLE = 'The complete follow-up state could not be verified. New steps remain unavailable until it can be loaded.';
+export const careWorkflowReadSchema = z.object({ actor_id: guid, patient_id: guid, work_item_id: guid }).strict();
+export type CareWorkflowRead = z.infer<typeof careWorkflowReadSchema>;
+
+const eventSchema = z.object({ id: guid, actor_id: guid, revision: revision(BigInt(2)),
+  ownership_revision: revision(BigInt(0)), from_stage: careStepStageSchema, to_stage: careStepStageSchema,
+  occurred_at: instant, recorded_at: instant, command: z.string(), payload: z.unknown(),
+}).strict().refine((value) => careStepCommandSchema.safeParse({ command: value.command, payload: value.payload }).success);
+export const careWorkflowDetailSchema = z.object({
+  work_item_id: guid, patient_id: guid, organization_id: guid, assigned_to: guid.nullable(),
+  accepted_at: instant.nullable(), accepted_by: guid.nullable(), transfer_pending_to: guid.nullable(),
+  ownership_revision: revision(BigInt(0)), due_at: instant, kind: careKindSchema, stage: careStepStageSchema,
+  revision: revision(BigInt(1)), requested_analytes: z.array(careAnalyteSchema), request: careRequestPayloadSchema,
+  events: z.array(z.object({ id: guid, actor_id: guid, revision: z.literal('1'), event_type: z.literal('request_recorded'),
+    occurred_at: instant, recorded_at: instant }).strict()).length(1),
+  // The initializer copies the original purpose (up to 1,000 characters), not a step's 500-character action.
+  next_action: text(1000), next_review_at: instant,
+  work_status: z.enum(['new', 'reviewed', 'actioned', 'awaiting', 'due', 'closed']), steps: z.array(eventSchema),
+  exceptions: z.array(z.object({ id: guid, origin_event_id: guid, code: z.enum([...careExceptionCodeSchema.options, 'assistance_denied']),
+    reason: text(1000), next_action: text(500), next_review_at: instant, recorded_at: instant }).strict()),
+}).strict().superRefine((value, ctx) => {
+  if (value.request.kind !== value.kind || JSON.stringify(value.request.analytes) !== JSON.stringify(value.requested_analytes)
+    || value.revision !== String(value.steps.length + 1)) ctx.addIssue({ code: 'custom', message: 'Inconsistent workflow history.' });
+  let stage: z.infer<typeof careStepStageSchema> = 'requested';
+  const ids = new Set<string>(value.events.map((event) => event.id));
+  for (const [index, event] of value.steps.entries()) {
+    const command = careStepCommandSchema.safeParse({ command: event.command, payload: event.payload });
+    if (event.revision !== String(index + 2) || event.from_stage !== stage || ids.has(event.id)
+      || !command.success || !availableCareCommands(value.kind, stage).includes(command.data.command)
+      || (command.success && event.to_stage !== (command.data.command === 'record_exception' ? stage : CARE_STEP_TARGET[command.data.command]))) {
+      ctx.addIssue({ code: 'custom', message: 'Inconsistent step history.' });
+    }
+    ids.add(event.id); stage = event.to_stage;
+  }
+  if (stage !== value.stage || new Set(value.exceptions.map((item) => item.id)).size !== value.exceptions.length
+    || value.exceptions.some((item) => !value.steps.some((event) => event.id === item.origin_event_id))) {
+    ctx.addIssue({ code: 'custom', message: 'Inconsistent stage or exception origin.' });
+  }
+});
+export type CareWorkflowDetail = z.infer<typeof careWorkflowDetailSchema>;
+export const CARE_STEP_LABELS: Record<CareStepCommand['command'], string> = {
+  record_schedule: 'Record appointment', record_collection: 'Record specimen collection',
+  record_destination_acceptance: 'Record destination acceptance', record_attendance: 'Record attendance',
+  record_report: 'Record report received', record_assistance_request: 'Record assistance request',
+  record_assistance_response: 'Record assistance response', record_obtained: 'Record medication obtained',
+  record_exception: 'Record a barrier',
+};
+export const CARE_STAGE_LABELS: Record<z.infer<typeof careStepStageSchema>, string> = {
+  requested: 'Requested', scheduled: 'Appointment recorded', collected: 'Collection recorded',
+  accepted: 'Destination accepted', attended: 'Attendance recorded', report_received: 'Report received',
+  assistance_requested: 'Assistance requested', response_received: 'Assistance response recorded', obtained: 'Obtained (documented source)',
+};
+const CARE_STEP_TARGET = { record_schedule: 'scheduled', record_collection: 'collected', record_destination_acceptance: 'accepted',
+  record_attendance: 'attended', record_report: 'report_received', record_assistance_request: 'assistance_requested',
+  record_assistance_response: 'response_received', record_obtained: 'obtained' } as const;
+export function availableCareCommands(kind: z.infer<typeof careKindSchema>, stage: z.infer<typeof careStepStageSchema>): CareStepCommand['command'][] {
+  const commands: CareStepCommand['command'][] = [];
+  if ((kind === 'laboratory_order' && stage === 'requested') || (kind === 'referral' && stage === 'accepted')) commands.push('record_schedule');
+  if (kind === 'laboratory_order' && ['requested', 'scheduled'].includes(stage)) commands.push('record_collection');
+  if (kind === 'referral') {
+    if (stage === 'requested') commands.push('record_destination_acceptance');
+    if (stage === 'scheduled') commands.push('record_attendance');
+    if (stage === 'attended') commands.push('record_report');
+  }
+  if (kind === 'medication_access') {
+    if (stage === 'requested') commands.push('record_assistance_request');
+    if (['assistance_requested', 'response_received'].includes(stage)) commands.push('record_assistance_response');
+    if (stage === 'response_received') commands.push('record_obtained');
+  }
+  return [...commands, 'record_exception'];
+}
+export function canRecordCareStep(detail: CareWorkflowDetail, actorId: string): boolean {
+  return detail.assigned_to === actorId && detail.accepted_by === actorId && detail.accepted_at !== null
+    && detail.transfer_pending_to === null && detail.work_status !== 'closed';
+}
+export function careStepInputFromState(state: CareStepState): CareStepInput {
+  const { actor_id, organization_id, patient_id, request_id, work_item_id, expected_revision, expected_ownership_revision } = state;
+  return { actor_id, organization_id, patient_id, request_id, work_item_id, expected_revision, expected_ownership_revision,
+    ...careStepCommandSchema.parse({ command: state.command, payload: state.payload }) };
+}
+export function careStepMatches(state: CareStepState, input: CareStepInput): boolean {
+  // Parsing both commands imposes the same property order without rewriting evidence or timestamps.
+  const actual = careStepInputFromState(state);
+  const expected = { ...input, ...careStepCommandSchema.parse({ command: input.command, payload: input.payload }) };
+  return (['actor_id', 'organization_id', 'patient_id', 'request_id', 'work_item_id', 'expected_revision',
+    'expected_ownership_revision', 'command'] as const).every((key) => actual[key] === expected[key])
+    && JSON.stringify(actual.payload) === JSON.stringify(expected.payload);
+}
+export function validateNewCareStep(input: unknown, now = Date.now()): CareStepCommand | null {
+  const parsed = careStepCommandSchema.safeParse(input);
+  if (!parsed.success || !Number.isFinite(now)) return null;
+  const result = parsed.data;
+  const micros = (value: string) => BigInt(Date.parse(value)) * BigInt(1000)
+    + BigInt((/\.(\d+)(?:Z|[+-]\d{2}:\d{2})$/.exec(value)?.[1] ?? '').padEnd(6, '0').slice(3));
+  if (micros(result.payload.occurred_at) > BigInt(now) * BigInt(1000)
+    || micros(result.payload.next_review_at) <= BigInt(now) * BigInt(1000)) return null;
+  if (result.command === 'record_schedule' && result.payload.details.appointment_at !== null) {
+    const { appointment_at: at, appointment_date: date, appointment_timezone: zone } = result.payload.details;
+    try {
+      if (!zone || (zone !== 'UTC' && !zone.includes('/'))) return null;
+      const parts = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(at));
+      const part = (type: string) => parts.find((item) => item.type === type)?.value;
+      const wall = `${part('year')}-${part('month')}-${part('day')}T${part('hour')}:${part('minute')}:${part('second')}`;
+      if (wall !== at.slice(0, 19) || wall.slice(0, 10) !== date) return null;
+    } catch { return null; }
+  }
+  return result;
+}

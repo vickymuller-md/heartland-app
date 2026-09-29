@@ -165,6 +165,7 @@ function RequestState({ scope }: { scope: CareScope }) {
         {saved?.state === 'applied' && !saved.acknowledged_at && <button type="button" className={button} disabled={busy}
           onClick={() => void operate(selected, acknowledgeCareRequest)}>Acknowledge receipt (not care completion)</button>}
         {saved?.state === 'applied' && <a className={button} href="/dashboard">Open Daily Loop to review responsibility</a>}
+        {saved?.state === 'applied' && <a className={button} href={`/patients/${selected.patient_id}/care/${selected.work_item_id}?organization=${selected.organization_id}`}>Open follow-up history and steps</a>}
         {(saved?.state === 'cancelled' || saved?.acknowledged_at) && <button type="button" className={button} disabled={busy}
           onClick={() => { setSelected(null); setSaved(null); void load(); }}>Return to pending requests</button>}
       </div>
