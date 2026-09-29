@@ -5,12 +5,14 @@ import { Phone, FlaskConical } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { TitrationFormData } from '@/lib/titration/schema';
+import type { SelectedLabs } from '@/lib/integration/types';
+import { LAB_ANALYTES, labCollectionUTC, type LabAnalyte } from '@/lib/labs/quality';
+import { differenceInDays, parseISO } from 'date-fns';
 
 interface PreCallVitalsProps {
   register: UseFormRegister<TitrationFormData>;
   errors: FieldErrors<TitrationFormData>;
-  labsStale?: boolean;
-  labDaysOld?: number | null;
+  laboratorySnapshots?: SelectedLabs | null;
 }
 
 const patientReportedFields = [
@@ -61,24 +63,29 @@ const labResultFields = [
   },
 ];
 
-export function PreCallVitals({ register, errors, labsStale, labDaysOld }: PreCallVitalsProps) {
+export function PreCallVitals({ register, errors, laboratorySnapshots }: PreCallVitalsProps) {
   return (
     <div className="space-y-6">
-      {labsStale && labDaysOld !== null && (
-        <div
-          role="alert"
-          className="mb-4 flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800"
-        >
-          <span className="mt-0.5 shrink-0 font-bold">!</span>
-          <div>
-            <p className="font-semibold">Lab values may be outdated</p>
-            <p className="mt-0.5 text-amber-700">
-              K+ and creatinine were collected {labDaysOld} days ago (older than 14 days).
-              Consider ordering updated labs before adjusting medications.
-            </p>
-          </div>
-        </div>
-      )}
+      {laboratorySnapshots && <section aria-label="Imported laboratory sources" className="space-y-2 rounded-lg border p-3">
+        <h3 className="font-semibold">Imported laboratory sources</h3>
+        <p className="text-xs">Source snapshots are separate from the editable entries below. Collection, alert processing and clinical review are different states.</p>
+        {(Object.keys(LAB_ANALYTES) as LabAnalyte[]).map((analyte) => {
+          const source = laboratorySnapshots[analyte]; const observation = source.observation;
+          const daysOld = observation ? differenceInDays(new Date(), parseISO(observation.collected_at)) : null;
+          return <div key={analyte} className="rounded border p-2 text-sm">
+            <p className="font-medium">{LAB_ANALYTES[analyte].label}: {source.state}</p>
+            {observation && <>
+              <p>{observation.status === 'cancelled' ? 'Cancelled; no current value' : `Recorded value: ${observation.value} ${LAB_ANALYTES[analyte].unit}`}</p>
+              <p>Collected: {labCollectionUTC(observation.collected_at)}</p>
+              <p>Source: {observation.status}; revision {observation.revision ?? 'unregistered'}; alert processing {observation.evaluation_status ?? 'not supplied'}.</p>
+            </>}
+            <p>{source.reason}</p>
+            {daysOld !== null && daysOld > 14 && <p role="alert" className="text-amber-800">
+              {LAB_ANALYTES[analyte].label} was collected {daysOld} complete days ago. Outside the legacy checklist advisory of14days; context-specific recency and clinical suitability require review.
+            </p>}
+          </div>;
+        })}
+      </section>}
 
       <div>
         <h2 className="text-lg font-semibold">Pre-Call Vitals</h2>
@@ -144,7 +151,9 @@ export function PreCallVitals({ register, errors, labsStale, labDaysOld }: PreCa
                 placeholder={field.placeholder}
                 aria-invalid={!!errors[field.name]}
                 className="bg-white"
-                {...register(field.name, { valueAsNumber: true })}
+                {...register(field.name, field.name === 'egfr' || field.name === 'creatinineBaseline'
+                  ? { setValueAs: (value) => value === '' ? undefined : Number(value) }
+                  : { valueAsNumber: true })}
               />
               {errors[field.name] && (
                 <p className="text-xs text-destructive">{errors[field.name]?.message}</p>

@@ -72,4 +72,12 @@ describe('PrintLayout', () => {
     expect(container.className).toContain('hidden');
     expect(container.className).toContain('print:block');
   });
+  it('includes eGFR and source provenance separately, without a confirmed-review or common-date assertion', () => {
+    render(<PrintLayout {...mockProps} vitals={{ ...mockProps.vitals, egfr: 65 }}
+      laboratoryProvenance={'Imported source K4.200, collected2026-09-20T12:00:00.000001Z\nClient-declared; not a current-source review.'} />);
+    expect(screen.getByText('65 mL/min/1.73m²')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Laboratory source provenance', hidden: true })).toHaveTextContent('2026-09-20T12:00:00.000001Z');
+    expect(screen.getByText('Decision selected in this draft:')).toBeInTheDocument();
+    expect(screen.queryByText('Provider-recorded final decision:')).toBeNull();
+  });
 });

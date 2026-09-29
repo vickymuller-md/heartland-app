@@ -1,12 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useFieldArray, type Control } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Plus, Trash2, AlertOctagon } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import {
   detectAceiInMedications,
   detectArniInMedications,
@@ -15,33 +13,18 @@ import type { TitrationFormData } from '@/lib/titration/schema';
 
 interface MedicationReviewProps {
   control: Control<TitrationFormData>;
-  patientId?: string | null;
+  patientMedications?: { name: string }[];
 }
 
-export function MedicationReview({ control, patientId }: MedicationReviewProps) {
+export function MedicationReview({ control, patientMedications = [] }: MedicationReviewProps) {
   const { fields, append, remove } = useFieldArray({
     control,
     name: 'medications',
   });
 
-  // Fetch active patient medications for ACEi/ARNI co-prescription detection
-  const [patientMeds, setPatientMeds] = useState<{ name: string }[]>([]);
-
-  useEffect(() => {
-    if (!patientId) return;
-    const supabase = createClient();
-    supabase
-      .from('medications')
-      .select('id, name')
-      .eq('patient_id', patientId)
-      .eq('active', true)
-      .then(({ data }) => {
-        if (data) setPatientMeds(data);
-      });
-  }, [patientId]);
-
-  const hasAcei = detectAceiInMedications(patientMeds);
-  const hasArni = detectArniInMedications(patientMeds);
+  // The selection boundary already verified this list; no second, unfenced patient read.
+  const hasAcei = detectAceiInMedications(patientMedications);
+  const hasArni = detectArniInMedications(patientMedications);
   const showWashoutWarning = hasAcei && hasArni;
 
   return (

@@ -8,6 +8,7 @@ interface PrintLayoutProps {
     potassium: number;
     creatinine: number;
     creatinineBaseline?: number;
+    egfr?: number;
   };
   medications: MedicationEntry[];
   safetyGateResults: SafetyGateResult[];
@@ -18,6 +19,7 @@ interface PrintLayoutProps {
     notes?: string;
   };
   timestamp: Date;
+  laboratoryProvenance?: string;
 }
 
 export function PrintLayout({
@@ -29,6 +31,7 @@ export function PrintLayout({
   providerNotes,
   followUpPlan,
   timestamp,
+  laboratoryProvenance,
 }: PrintLayoutProps) {
   return (
     <div className="hidden print:block" data-testid="print-layout">
@@ -74,8 +77,14 @@ export function PrintLayout({
                 <td>{vitals.creatinineBaseline} mg/dL</td>
               </tr>
             )}
+            {vitals.egfr !== undefined && <tr><td className="py-1 font-medium">eGFR:</td><td>{vitals.egfr} mL/min/1.73m²</td></tr>}
           </tbody>
         </table>
+
+        {laboratoryProvenance && <section aria-label="Laboratory source provenance" className="mb-4">
+          <h3 className="font-semibold">Laboratory source provenance</h3>
+          <p className="whitespace-pre-wrap break-words text-xs">{laboratoryProvenance}</p>
+        </section>}
 
         {/* Section 2: Medications */}
         <h2 className="font-semibold mt-4 mb-2 border-b pb-1">Current Medications</h2>
@@ -138,7 +147,7 @@ export function PrintLayout({
         {/* Section 4: Titration Decision */}
         <h2 className="font-semibold mt-4 mb-2 border-b pb-1">Titration Decision</h2>
         <p className="mb-1">
-          <span className="font-medium">Provider-recorded final decision:</span>{' '}
+          <span className="font-medium">Decision selected in this draft:</span>{' '}
           <span className="font-bold uppercase">{titrationAction.action}</span>
         </p>
         <p className="text-sm mb-2">{titrationAction.details}</p>

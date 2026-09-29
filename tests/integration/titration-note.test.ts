@@ -57,19 +57,18 @@ describe('formatTitrationNote (INTG-04)', () => {
     expect(noNotes).not.toContain('Notes:');
   });
 
-  it('total output length does not exceed 5000 characters', () => {
+  it('rejects provider text over the explicit limit rather than silently truncating it', () => {
     const longData: TitrationNoteData = {
       ...baseTitrationData,
       providerNotes: 'A'.repeat(4000),
     };
-    const result = formatTitrationNote(longData);
-    expect(result.length).toBeLessThanOrEqual(5000);
+    expect(() => formatTitrationNote(longData)).toThrow(/2,000/);
   });
 
-  it('provider notes truncated to 2000 chars before inclusion to prevent overflow', () => {
+  it('preserves all2000 allowed characters when the whole note fits', () => {
     const longData: TitrationNoteData = {
       ...baseTitrationData,
-      providerNotes: 'B'.repeat(3000),
+      providerNotes: 'B'.repeat(2000),
     };
     const result = formatTitrationNote(longData);
     // The notes section should not contain more than 2000 Bs
@@ -77,7 +76,7 @@ describe('formatTitrationNote (INTG-04)', () => {
     expect(notesLine).toBeDefined();
     // "Notes: " is 7 chars, so the B content should be at most 2000
     const bCount = (notesLine?.match(/B/g) ?? []).length;
-    expect(bCount).toBeLessThanOrEqual(2000);
+    expect(bCount).toBe(2000);
   });
 
   it('shows N/A for null potassium and creatinine', () => {
@@ -99,5 +98,13 @@ describe('formatTitrationNote (INTG-04)', () => {
     const data: TitrationNoteData = { ...baseTitrationData, nextCallDate: '' };
     const result = formatTitrationNote(data);
     expect(result).not.toContain('Next call:');
+  });
+  it('does not silently discard a required justification near the5000-character boundary', () => {
+    const minimal = { ...baseTitrationData, providerNotes: '', symptomsReported: '' };
+    const fixedLength = formatTitrationNote(minimal).length;
+    // The formatter alone is also guarded, even before action-schema bounds are considered.
+    const nearlyFull = { ...minimal, symptomsReported: 'S'.repeat(4999 - fixedLength - 'Symptoms: '.length - 1) };
+    expect(formatTitrationNote(nearlyFull)).toHaveLength(4999);
+    expect(() => formatTitrationNote({ ...nearlyFull, providerNotes: 'Required justification' })).toThrow(/complete note/);
   });
 });

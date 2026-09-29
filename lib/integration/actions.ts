@@ -17,7 +17,7 @@
 import { authorizeProviderForPatient } from '@/lib/auth/authorization';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import type { SaveResult, TitrationNoteData, GdmtMedicationInput } from './types';
+import { titrationNoteSchema, type SaveResult, type TitrationNoteData, type TitrationNoteSaveResult, type GdmtMedicationInput } from './types';
 import {
   TRACK_MAP,
   formatTitrationNote,
@@ -182,27 +182,34 @@ export async function saveTrackAssignment(
  */
 export async function saveTitrationNote(
   patientId: string,
-  data: TitrationNoteData
-): Promise<SaveResult> {
-  if (!patientId || !z.string().uuid().safeParse(patientId).success) {
-    return { success: false, error: 'Invalid patient ID' };
+  data: TitrationNoteData,
+  expectedActorId: string,
+): Promise<TitrationNoteSaveResult> {
+  if (!z.uuid().safeParse(patientId).success || !z.uuid().safeParse(expectedActorId).success) {
+    return { success: false, outcome: 'not_saved', error: 'Invalid patient or session identity' };
   }
-
-  const noteContent = formatTitrationNote(data);
-
-  const auth = await authorizeProviderForPatient(patientId);
-  if (!auth.authorized) return { success: false, error: auth.error };
-
-  const { error } = await auth.supabase.from('provider_notes').insert({
-    patient_id: patientId,
-    provider_id: auth.user.id,
-    content: noteContent,
-  });
-
-  if (error) return { success: false, error: 'Unable to save titration note' };
-
-  revalidatePath(`/patients/${patientId}`);
-  return { success: true };
+  let dispatched = false;
+  try {
+    const parsed = titrationNoteSchema.safeParse(data);
+    if (!parsed.success || parsed.data.vitals.potassium === null || parsed.data.vitals.creatinine === null
+      || Object.entries(parsed.data.laboratorySnapshots ?? {}).some(([analyte, snapshot]) => snapshot.observation
+        && (snapshot.observation.patient_id !== patientId || snapshot.observation.analyte !== analyte))) {
+      return { success: false, outcome: 'not_saved', error: 'Invalid titration note. Verify the draft before saving.' };
+    }
+    const noteContent = formatTitrationNote(parsed.data);
+    const auth = await authorizeProviderForPatient(patientId);
+    if (!auth.authorized || auth.user.id !== expectedActorId) return { success: false, outcome: 'not_saved', error: 'Patient or session authorization changed. Reload the page.' };
+    dispatched = true;
+    const { error } = await auth.supabase.from('provider_notes').insert({ patient_id: patientId, provider_id: auth.user.id, content: noteContent });
+    // The legacy insert has no durable request UUID: even a transport-shaped error may follow a commit.
+    if (error) return { success: false, outcome: 'unknown', error: 'The note may have been saved. Check the patient record before submitting another note.' };
+    revalidatePath(`/patients/${patientId}`);
+    return { success: true, outcome: 'saved' };
+  } catch {
+    return dispatched
+      ? { success: false, outcome: 'unknown', error: 'The note may have been saved. Check the patient record before submitting another note.' }
+      : { success: false, outcome: 'not_saved', error: 'The note could not be prepared or authorized. Verify the draft before saving.' };
+  }
 }
 
 /**

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { ChecklistWizard } from './checklist-wizard';
 import { ProviderPageDisclaimer } from '@/components/disclaimers/provider-page-disclaimer';
 import { authorize } from '@/lib/auth/authorization';
+import { randomUUID } from 'node:crypto';
 
 export const metadata: Metadata = {
   title: 'Telephone Titration Checklist | HEARTLAND Protocol',
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
  * Renders the client-side ChecklistWizard which handles all step logic.
  */
 export default async function TitrationChecklistPage() {
-  const clinicalIntegrationEnabled = (await authorize('provider')).authorized;
+  const auth = await authorize('provider');
   return (
     <div className="mx-auto max-w-4xl">
       <div className="mb-6 print:hidden">
@@ -29,7 +30,8 @@ export default async function TitrationChecklistPage() {
 
       <ProviderPageDisclaimer className="mb-6" />
 
-      <ChecklistWizard clinicalIntegrationEnabled={clinicalIntegrationEnabled} />
+      <ChecklistWizard clinicalIntegrationEnabled={auth.authorized}
+        expectedProviderId={auth.authorized ? auth.user.id : undefined} contextId={randomUUID()} />
     </div>
   );
 }
