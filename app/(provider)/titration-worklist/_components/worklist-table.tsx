@@ -10,7 +10,7 @@ interface WorklistTableProps {
   rows: TitrationWorklistRow[];
 }
 
-function LabValue({ value, label }: { value: number | null; label: string }) {
+function LabValue({ value, label }: { value: number | string | null; label: string }) {
   if (value === null) return <span className="text-gray-400 text-xs">--</span>;
   return (
     <span aria-label={label}>
@@ -29,6 +29,10 @@ function AnalyteCell({ quality, label }: { quality: LabQuality; label: string })
       {labCollectionUTC(quality.collectedAt)} (UTC)
     </time>}
     <p className="max-w-56 text-xs text-gray-600">{quality.reason}</p>
+    {quality.source && <p className="max-w-56 text-xs text-gray-600">
+      Source: {quality.source.status}{quality.source.revision ? ` · revision ${quality.source.revision}` : ' · authority not registered'}.
+      {quality.source.evaluationStatus === 'pending' && ' Alert processing pending.'}
+    </p>}
   </div>;
 }
 
@@ -39,7 +43,7 @@ export function WorklistTable({ rows }: WorklistTableProps) {
         Recency is checked separately for each analyte using the existing worklist advisory
         (stale after more than 14 complete days). This is not a medication-specific clearance,
         normal-range classification, clinical deadline, or confirmation of professional review.
-        Missing and invalid data appear first for reconciliation, not as clinical triage.
+        Missing, invalid and cancelled data appear first for reconciliation, not as clinical triage.
       </p>
       <table className="min-w-full divide-y divide-gray-200 text-sm">
         <thead className="bg-gray-50">

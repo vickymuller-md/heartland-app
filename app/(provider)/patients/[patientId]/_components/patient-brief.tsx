@@ -1,6 +1,7 @@
 import { formatDistanceToNow } from 'date-fns';
 import { AlertTriangle, Activity, FlaskConical, ListTodo, Pill, Stethoscope } from 'lucide-react';
 import type { OperationalBrief } from '@/lib/patient/operational';
+import { LAB_ANALYTES, LAB_QUALITY_LABELS, labCollectionUTC, type LabAnalyte } from '@/lib/labs/quality';
 
 function Delta({ value, unit }: { value: number | null; unit: string }) {
   if (value === null || value === 0) return <span className="text-slate-500">No prior delta</span>;
@@ -22,7 +23,7 @@ export function PatientBrief({ brief }: { brief: OperationalBrief }) {
       </div>
 
       <div className={`mt-4 rounded-lg border p-3 text-sm ${sourceIsStale ? 'border-amber-300 bg-amber-50 text-amber-950' : 'border-emerald-200 bg-emerald-50 text-emerald-950'}`}>
-        <strong>Source data:</strong>{' '}
+        <strong>Most recent source timestamp (not completeness):</strong>{' '}
         {brief.sourceDataAsOf
           ? `${formatDistanceToNow(new Date(brief.sourceDataAsOf), { addSuffix: true })}${sourceIsStale ? ' · stale—verify source records before acting' : ''}`
           : 'No dated clinical source is available.'}
@@ -56,11 +57,20 @@ export function PatientBrief({ brief }: { brief: OperationalBrief }) {
 
         <div className="rounded-xl border bg-white p-4">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-800"><FlaskConical className="size-4" /> Latest labs</div>
-          {brief.latestLabs ? (
+          {brief.labsUnavailable ? <p role="alert" className="mt-2 text-sm text-amber-800">Laboratory data unavailable. Reload the complete source view.</p>
+          : brief.latestLabs ? (
             <div className="mt-2 space-y-1 text-sm text-slate-700">
-              <p>K⁺ {brief.latestLabs.potassium ?? '—'} · eGFR {brief.latestLabs.egfr ?? '—'}</p>
-              <p>Creatinine {brief.latestLabs.creatinine ?? '—'}</p>
-              <p className="text-xs text-slate-500">{formatDistanceToNow(new Date(brief.latestLabs.collectedAt), { addSuffix: true })}</p>
+              {(Object.keys(LAB_ANALYTES) as LabAnalyte[]).map((key) => {
+                const lab = brief.latestLabs![key];
+                return <div key={key} aria-label={`${LAB_ANALYTES[key].label} source`} className="border-b py-2 last:border-0">
+                  <p>{LAB_ANALYTES[key].label}: {lab.value ?? '—'} {lab.value === null ? '' : lab.unit}</p>
+                  <p className="text-xs font-medium">{LAB_QUALITY_LABELS[lab.status]}</p>
+                  {lab.collectedAt && <time className="block text-xs" dateTime={lab.collectedAt}>{labCollectionUTC(lab.collectedAt)} (UTC)</time>}
+                  {lab.source && <p className="text-xs">Source: {lab.source.status}{lab.source.revision ? ` · revision ${lab.source.revision}` : ' · authority not registered'}.
+                    {lab.source.evaluationStatus === 'pending' && ' Alert processing pending.'}</p>}
+                  <p className="text-xs text-slate-500">{lab.reason}</p>
+                </div>;
+              })}
             </div>
           ) : <p className="mt-2 text-sm text-amber-800">Missing</p>}
         </div>

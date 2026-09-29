@@ -9,7 +9,8 @@
 
 import { differenceInDays, parseISO } from 'date-fns';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { assessLabAnalyte, labAttentionRank, worklistLabContext, type LabQuality, type QualityPanel } from '@/lib/labs/quality';
+import { assessEffectiveLab, labAttentionRank, worklistLabContext, type LabQuality } from '@/lib/labs/quality';
+import { getEffectiveLabObservations, type EffectiveLabObservation } from '@/lib/labs/effective';
 
 /** Number of days after which a titration is considered due. */
 const TITRATION_DUE_DAYS = 7;
@@ -74,7 +75,8 @@ async function readPages<T extends { id: string }>(
  * Returns all linked patients with their latest lab values and titration status.
  * Follows the batch-fetch + Map-join pattern from lib/dashboard/queries.ts.
  * Returns due patients, with missing/invalid analytes first, then stale data.
- * Reads are subject to RLS on each page; this is not a database snapshot.
+ * Laboratory pages share a signature within each <=500-patient scope, not across scopes.
+ * Other queries retain their own read snapshots. Any failed scope rejects the whole worklist.
  */
 export async function getTitrationWorklist(
   supabase: SupabaseClient,
@@ -111,16 +113,11 @@ export async function getTitrationWorklist(
 
   if (!patients || patients.length === 0) return [];
 
-  // 3. Batch fetch latest lab results per patient (K+, Cr, collected_at)
-  const labs = await readPages<QualityPanel & { patient_id: string }>((cursor) => {
-    let query = supabase
-    .from('lab_results')
-    .select('id, patient_id, potassium, creatinine, egfr, collected_at')
-    .in('patient_id', patientIds)
-    .order('id').limit(500);
-    if (cursor) query = query.gt('id', cursor);
-    return query;
-  });
+  // 3. Read the complete effective observation set; failures never fall back to raw panels.
+  const labs: EffectiveLabObservation[] = [];
+  for (let offset = 0; offset < patientIds.length; offset += 500) {
+    labs.push(...await getEffectiveLabObservations(supabase, patientIds.slice(offset, offset + 500), providerId));
+  }
 
   // 4. Batch fetch latest vitals per patient (SBP)
   type VitalRow = { id: string; patient_id: string; sbp: number | null; recorded_at: string };
@@ -148,7 +145,7 @@ export async function getTitrationWorklist(
   });
 
   // Build Maps for O(1) lookup (batch pattern from getLinkedPatients)
-  const labMap = new Map<string, QualityPanel[]>();
+  const labMap = new Map<string, EffectiveLabObservation[]>();
   labs.forEach((l) => {
     const bucket = labMap.get(l.patient_id) ?? [];
     bucket.push(l);
@@ -181,9 +178,9 @@ export async function getTitrationWorklist(
       risk_tier: p.risk_tier,
       last_sbp: vital?.sbp ?? null,
       labs: {
-        potassium: assessLabAnalyte(patientLabs, 'potassium', context),
-        creatinine: assessLabAnalyte(patientLabs, 'creatinine', context),
-        egfr: assessLabAnalyte(patientLabs, 'egfr', context),
+        potassium: assessEffectiveLab(patientLabs, p.id, 'potassium', context),
+        creatinine: assessEffectiveLab(patientLabs, p.id, 'creatinine', context),
+        egfr: assessEffectiveLab(patientLabs, p.id, 'egfr', context),
       },
       last_titration_at: lastTitrationAt,
       due_this_week: isDueTitration(lastTitrationAt),

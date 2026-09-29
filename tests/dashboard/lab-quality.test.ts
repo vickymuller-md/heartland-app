@@ -1,10 +1,44 @@
 import { describe, expect, it } from 'vitest';
-import { assessLabAnalyte, labAttentionRank, labCollectionUTC, worklistLabContext, type LabQualityContext, type QualityPanel } from '@/lib/labs/quality';
+import { assessLabAnalyte, assessEffectiveLab, labAttentionRank, labCollectionUTC, worklistLabContext, type LabQualityContext, type QualityPanel } from '@/lib/labs/quality';
+import type { EffectiveLabObservation } from '@/lib/labs/effective';
 
 const now = new Date('2026-09-29T12:00:00Z');
 const context = worklistLabContext(now);
 const panel = (changes: Partial<QualityPanel> = {}): QualityPanel => ({
   id: 'a', collected_at: '2026-09-28T12:00:00Z', potassium: 4.2, ...changes,
+});
+
+describe('Effective observation quality adapter', () => {
+  const source: EffectiveLabObservation = { id: 'source:potassium', original_lab_result_id: 'source', patient_id: 'patient',
+    analyte: 'potassium', root_id: 'root', version_id: 'version', revision: '2', status: 'corrected', effective_lab_result_id: 'amendment',
+    value: '4.6000000000000001', collected_at: '2026-09-28T12:00:00.123456Z', notes: null, lab_facility: null, evaluation_status: 'pending' };
+  const adapted = (items: EffectiveLabObservation[], rule = context) => assessEffectiveLab(items, 'patient', 'potassium', rule);
+  it('displays exact corrected decimal and explicit provenance, not a rounded original value', () => {
+    expect(adapted([source])).toMatchObject({ status: 'current', value: source.value, resultId: 'amendment',
+      collectedAt: source.collected_at, source: { rootId: 'root', revision: '2', status: 'corrected', evaluationStatus: 'pending' } });
+  });
+  it('retains cancelled collection/provenance with no replacement value', () => {
+    const old = { ...source, id: 'old:potassium', collected_at: '2026-09-01T12:00:00Z', value: '4.2' };
+    const cancelled = { ...source, status: 'cancelled' as const, value: null, effective_lab_result_id: null, evaluation_status: null };
+    expect(adapted([old, cancelled])).toMatchObject({ status: 'cancelled', value: null, resultId: null, collectedAt: source.collected_at });
+    expect(labAttentionRank([adapted([cancelled])])).toBe(0);
+  });
+  it('preserves missing per-analyte status without borrowing another analyte date', () => {
+    expect(assessEffectiveLab([source], 'patient', 'creatinine', context)).toMatchObject({ status: 'missing', value: null, collectedAt: null });
+    expect(assessEffectiveLab([source], 'another-patient', 'potassium', context).status).toBe('missing');
+  });
+  it.each([{ value: '-1', collected_at: source.collected_at }, { value: 'NaN', collected_at: source.collected_at },
+    { value: '4.6', collected_at: '2026-09-30T12:00:00Z' }])('does not present invalid evidence as available %#', (change) => {
+    expect(adapted([{ ...source, ...change }])).toMatchObject({ status: 'invalid', value: null });
+  });
+  it('avoids an invalid date in render metadata and rejects an invalid quality context', () => {
+    expect(adapted([{ ...source, collected_at: 'bad' }])).toMatchObject({ status: 'invalid', collectedAt: null });
+    expect(() => adapted([source], { ...context, id: '' })).toThrow();
+  });
+  it('does not invent a recency policy for the patient brief', () => {
+    expect(adapted([source], { id: 'brief', now })).toMatchObject({ status: 'recency_unassessed', value: source.value });
+    expect(adapted([{ ...source, collected_at: '2026-08-01T12:00:00Z' }]).status).toBe('stale');
+  });
 });
 const assess = (panels: QualityPanel[], rule: LabQualityContext = context) => assessLabAnalyte(panels, 'potassium', rule);
 

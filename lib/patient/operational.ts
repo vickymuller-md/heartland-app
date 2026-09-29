@@ -3,6 +3,8 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getPatientWorkItems } from '@/lib/daily-loop/queries';
 import type { WorkItem } from '@/lib/daily-loop/types';
+import { getEffectiveLabObservations, selectLatestEffectiveLab, type EffectiveLabObservation } from '@/lib/labs/effective';
+import { assessEffectiveLab, labCollectionMicros, LAB_ANALYTES, LAB_OBSERVATION_FIELDS, type LabAnalyte, type LabQuality } from '@/lib/labs/quality';
 
 export interface OperationalBrief {
   generatedAt: string;
@@ -25,12 +27,8 @@ export interface OperationalBrief {
     fatigue: number | null;
     redFlag: boolean | null;
   } | null;
-  latestLabs: {
-    collectedAt: string;
-    potassium: number | null;
-    egfr: number | null;
-    creatinine: number | null;
-  } | null;
+  latestLabs: Record<LabAnalyte, LabQuality> | null;
+  labsUnavailable: boolean;
   activeMedicationCount: number;
   openAlertCount: number | null;
   nextWork: WorkItem | null;
@@ -58,6 +56,14 @@ function numberDelta(current: number | null, previous: number | null): number | 
   return Math.round((current - previous) * 10) / 10;
 }
 
+/** Compare actual instants, including offset/microseconds; undated evidence goes last. */
+function newestSourceFirst(a: string, b: string): number {
+  const first = labCollectionMicros(a); const second = labCollectionMicros(b);
+  if (first === null) return second === null ? 0 : 1;
+  if (second === null) return -1;
+  return first === second ? 0 : first > second ? -1 : 1;
+}
+
 export async function getPatientOperationalView(
   supabase: SupabaseClient,
   providerId: string,
@@ -76,12 +82,9 @@ export async function getPatientOperationalView(
       .eq('patient_id', patientId)
       .order('recorded_at', { ascending: false })
       .limit(5),
-    supabase
-      .from('lab_results')
-      .select('id, collected_at, potassium, egfr, creatinine')
-      .eq('patient_id', patientId)
-      .order('collected_at', { ascending: false })
-      .limit(5),
+    getEffectiveLabObservations(supabase, [patientId], providerId)
+      .then((data) => ({ data, error: null }))
+      .catch(() => ({ data: null, error: 'Current laboratory results unavailable' })),
     supabase
       .from('medications')
       .select('id', { count: 'exact', head: true })
@@ -112,7 +115,12 @@ export async function getPatientOperationalView(
   const latestVital = vitals[0] ?? null;
   const previousVital = vitals[1] ?? null;
   const latestSymptom = symptomsResult.data?.[0] ?? null;
-  const latestLab = labsResult.data?.[0] ?? null;
+  const laboratoryContext = { id: 'patient-brief-no-recency-rule', now: new Date() };
+  const latestLabs = labsResult.data?.length ? {
+    potassium: assessEffectiveLab(labsResult.data, patientId, 'potassium', laboratoryContext),
+    creatinine: assessEffectiveLab(labsResult.data, patientId, 'creatinine', laboratoryContext),
+    egfr: assessEffectiveLab(labsResult.data, patientId, 'egfr', laboratoryContext),
+  } : null;
   const priorityRank = { now: 0, today: 1, week: 2, watching: 3 } as const;
   const openWork = workItems
     .filter((item) => item.status !== 'closed')
@@ -131,7 +139,11 @@ export async function getPatientOperationalView(
   if (symptomsResult.error) missingData.push('Symptoms query unavailable');
   else if (!latestSymptom) missingData.push('No symptom check-in available');
   if (labsResult.error) missingData.push('Labs query unavailable');
-  else if (!latestLab) missingData.push('No lab result available');
+  else if (!latestLabs) missingData.push('No lab result available');
+  else for (const key of Object.keys(LAB_ANALYTES) as LabAnalyte[]) {
+    const lab = latestLabs[key];
+    if (['missing', 'invalid', 'cancelled'].includes(lab.status)) missingData.push(`${LAB_ANALYTES[key].label}: ${lab.reason}`);
+  }
   if (medsResult.error) missingData.push('Medication query unavailable');
   else if ((medsResult.count ?? 0) === 0) missingData.push('No active medication list');
 
@@ -139,6 +151,17 @@ export async function getPatientOperationalView(
     vitalsResult.error || symptomsResult.error || labsResult.error || medsResult.error ||
     alertsResult.error || notesResult.error || messagesResult.error || workItemsResult.error,
   );
+
+  // Group once so a complete multi-page laboratory history does not require quadratic scans.
+  const collectionKey = (item: EffectiveLabObservation) => `${item.analyte}|${labCollectionMicros(item.collected_at)}`;
+  const collections = new Map<string, EffectiveLabObservation[]>();
+  for (const observation of labsResult.data ?? []) {
+    const key = collectionKey(observation);
+    const group = collections.get(key) ?? [];
+    group.push(observation); collections.set(key, group);
+  }
+  const collectionQuality = new Map([...collections].map(([key, observations]) =>
+    [key, selectLatestEffectiveLab(observations, patientId, observations[0].analyte, laboratoryContext.now)]));
 
   const timeline: TimelineEvent[] = [
     ...workItems.map((item) => ({
@@ -163,13 +186,21 @@ export async function getPatientOperationalView(
       title: symptom.red_flag ? 'Symptoms recorded · flagged' : symptom.red_flag === null ? 'Symptoms recorded · evaluation pending' : 'Symptoms recorded',
       detail: `Dyspnea ${symptom.dyspnea ?? '—'} · Edema ${symptom.edema ?? '—'} · Fatigue ${symptom.fatigue ?? '—'}`,
     })),
-    ...(labsResult.data ?? []).map((lab) => ({
-      id: `lab-${lab.id}`,
-      occurredAt: lab.collected_at,
+    ...(labsResult.data ?? []).map((observation) => {
+      const quality = collectionQuality.get(collectionKey(observation))!;
+      const invalid = quality.state === 'invalid';
+      return {
+      id: `lab-${observation.id}`,
+      occurredAt: observation.collected_at,
       type: 'lab' as const,
-      title: 'Lab result recorded',
-      detail: `K⁺ ${lab.potassium ?? '—'} · eGFR ${lab.egfr ?? '—'} · Cr ${lab.creatinine ?? '—'}`,
-    })),
+      title: `${LAB_OBSERVATION_FIELDS[observation.analyte].label} source · ${observation.status}${invalid ? ' · invalid — verify source' : ''}`,
+      detail: (invalid ? `${quality.reason} Recorded source value (not usable): ` : '')
+        + `${observation.value ?? 'No current value'} ${observation.value === null ? '' : LAB_OBSERVATION_FIELDS[observation.analyte].unit}`
+        + ` · ${observation.revision ? `revision ${observation.revision}` : 'authority not registered'}`
+        + ` · documented collection, not correction-processing time${observation.evaluation_status === 'pending' ? ' · alert processing pending' : ''}`
+        + ' · no clinical review or human communication inferred',
+      status: invalid ? 'invalid' : observation.status,
+    }; }),
     ...(notesResult.data ?? []).map((note) => ({
       id: `note-${note.id}`,
       occurredAt: note.created_at,
@@ -185,14 +216,16 @@ export async function getPatientOperationalView(
       detail: message.read_at ? 'Read by patient' : 'Awaiting patient read receipt',
       status: message.read_at ? 'read' : 'unread',
     })),
-  ].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)).slice(0, 30);
+  ].sort((a, b) => newestSourceFirst(a.occurredAt, b.occurredAt)).slice(0, 30);
 
   const generatedAt = new Date();
   const sourceDataAsOf = [
     latestVital?.recorded_at,
     latestSymptom?.recorded_at,
-    latestLab?.collected_at,
-  ].filter((value): value is string => Boolean(value)).sort().at(-1) ?? null;
+    ...Object.values(latestLabs ?? {}).filter((lab) => !['cancelled', 'invalid', 'missing'].includes(lab.status))
+      .map((lab) => lab.collectedAt),
+  ].filter((value): value is string => Boolean(value) && labCollectionMicros(value!) !== null)
+    .sort(newestSourceFirst)[0] ?? null;
 
   return {
     brief: {
@@ -218,12 +251,8 @@ export async function getPatientOperationalView(
         fatigue: latestSymptom.fatigue,
         redFlag: latestSymptom.red_flag,
       } : null,
-      latestLabs: latestLab ? {
-        collectedAt: latestLab.collected_at,
-        potassium: latestLab.potassium,
-        egfr: latestLab.egfr,
-        creatinine: latestLab.creatinine,
-      } : null,
+      latestLabs,
+      labsUnavailable: Boolean(labsResult.error),
       activeMedicationCount: medsResult.error ? 0 : (medsResult.count ?? 0),
       openAlertCount: alertsResult.error ? null : (alertsResult.count ?? 0),
       nextWork: openWork[0] ?? null,
