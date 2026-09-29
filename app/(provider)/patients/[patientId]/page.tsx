@@ -16,6 +16,7 @@ import { PatientBrief } from './_components/patient-brief';
 import { PatientTimeline } from './_components/patient-timeline';
 import { ActionCenter } from './_components/action-center';
 import { AccountabilityPanel } from './_components/accountability-panel';
+import { CareRequestPanel } from './_components/care-request-panel';
 import { ProductEventTracker } from '@/components/analytics/product-event-tracker';
 import { getTeamDirectory, hasCapabilityInAnyOrganization } from '@/lib/team/queries';
 import { getEducationTeachbackState } from '@/lib/education/queries';
@@ -201,6 +202,9 @@ export default async function PatientDetailPage({
       {teamDirectory.error ? <p role="alert">Team directory unavailable. Current responsibility has not been verified.</p>
         : <AccountabilityPanel scopeKey={`${user.id}:${randomUUID()}`} patientId={patientId} organizations={designationOrganizations} />}
       <ActionCenter patientId={patientId} />
+      {!teamDirectory.error && <CareRequestPanel actorId={user.id} patientId={patientId} scopeKey={randomUUID()}
+        organizations={teamDirectory.members.filter((member) => member.is_self)
+          .map((member) => ({ id: member.organization_id, name: member.organization_name }))} />}
       <PatientTimeline events={operationalView.timeline} />
 
       {/* Tabs */}
