@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { ClipboardCheck } from 'lucide-react';
-import { getTitrationWorklist } from '@/lib/dashboard/worklist-queries';
+import { getTitrationWorklist, type TitrationWorklistRow } from '@/lib/dashboard/worklist-queries';
 import { WorklistTable } from './_components/worklist-table';
 
 /**
@@ -17,7 +17,10 @@ export default async function TitrationWorklistPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const rows = await getTitrationWorklist(supabase, user.id);
+  let rows: TitrationWorklistRow[] = [];
+  let unavailable = false;
+  try { rows = await getTitrationWorklist(supabase, user.id); }
+  catch { unavailable = true; }
 
   return (
     <div className="space-y-6">
@@ -28,7 +31,12 @@ export default async function TitrationWorklistPage() {
       <p className="text-sm text-gray-500">
         Patients due for a titration call this week (no call in the last 7 days or never titrated).
       </p>
-      {rows.length === 0 ? (
+      {unavailable ? (
+        <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-4 text-red-900">
+          Worklist unavailable. Current laboratory data and follow-up needs could not be verified.
+          Reload the page; do not interpret this as no pending work.
+        </p>
+      ) : rows.length === 0 ? (
         <div className="rounded-lg border border-dashed border-gray-300 py-12 text-center">
           <ClipboardCheck className="mx-auto mb-3 size-8 text-gray-300" aria-hidden="true" />
           <p className="text-gray-500">No patients due for titration this week.</p>

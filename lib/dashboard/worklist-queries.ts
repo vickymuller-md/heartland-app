@@ -9,12 +9,10 @@
 
 import { differenceInDays, parseISO } from 'date-fns';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { assessLabAnalyte, labAttentionRank, worklistLabContext, type LabQuality, type QualityPanel } from '@/lib/labs/quality';
 
 /** Number of days after which a titration is considered due. */
 const TITRATION_DUE_DAYS = 7;
-
-/** Number of days after which K+/Cr labs are considered stale. */
-const LAB_STALE_DAYS = 14;
 
 /**
  * Pure function -- exported for unit testing.
@@ -27,6 +25,8 @@ const LAB_STALE_DAYS = 14;
  */
 export function isDueTitration(lastTitrationAt: string | null): boolean {
   if (!lastTitrationAt) return true;
+  const timestamp = Date.parse(lastTitrationAt);
+  if (!Number.isFinite(timestamp) || timestamp > Date.now()) return true;
   return differenceInDays(new Date(), parseISO(lastTitrationAt)) >= TITRATION_DUE_DAYS;
 }
 
@@ -37,7 +37,7 @@ export function isDueTitration(lastTitrationAt: string | null): boolean {
  */
 export function isLabStale(collectedAt: string | null): boolean {
   if (!collectedAt) return false;
-  return differenceInDays(new Date(), parseISO(collectedAt)) > LAB_STALE_DAYS;
+  return worklistLabContext().isStale!(collectedAt);
 }
 
 export interface TitrationWorklistRow {
@@ -45,90 +45,132 @@ export interface TitrationWorklistRow {
   full_name: string;
   risk_tier: string | null;
   last_sbp: number | null;
-  last_k: number | null;
-  last_cr: number | null;
-  last_labs_at: string | null;
+  labs: { potassium: LabQuality; creatinine: LabQuality; egfr: LabQuality };
   last_titration_at: string | null;
   due_this_week: boolean;
+}
+
+/** Continue through short pages too; PostgREST may impose a lower server-side cap. */
+async function readPages<T extends { id: string }>(
+  query: (cursor: string | null) => PromiseLike<{ data: unknown; error: unknown }>,
+): Promise<T[]> {
+  const rows: T[] = [];
+  let cursor: string | null = null;
+  for (;;) {
+    const { data, error } = await query(cursor);
+    if (error || !Array.isArray(data)) throw new Error('Worklist data could not be verified.');
+    if (data.length === 0) return rows;
+    const page = data as T[];
+    for (const row of page) {
+      if (!row.id || (cursor && row.id <= cursor)) throw new Error('Worklist pagination did not advance.');
+      cursor = row.id;
+    }
+    rows.push(...page);
+  }
 }
 
 /**
  * Batch query for the titration worklist page.
  * Returns all linked patients with their latest lab values and titration status.
  * Follows the batch-fetch + Map-join pattern from lib/dashboard/queries.ts.
- * Returns only patients due for titration, sorted: due-first, then by oldest labs.
+ * Returns due patients, with missing/invalid analytes first, then stale data.
+ * Reads are subject to RLS on each page; this is not a database snapshot.
  */
 export async function getTitrationWorklist(
   supabase: SupabaseClient,
   providerId: string
 ): Promise<TitrationWorklistRow[]> {
   // 1. Get linked patient IDs
-  const { data: links } = await supabase
+  const links = await readPages<{ id: string; patient_id: string }>((cursor) => {
+    let query = supabase
     .from('provider_patient_links')
-    .select('patient_id')
+    .select('id, patient_id')
     .eq('provider_id', providerId)
-    .eq('status', 'active');
+    .eq('status', 'active').order('id').limit(500);
+    if (cursor) query = query.gt('id', cursor);
+    return query;
+  });
 
   if (!links || links.length === 0) return [];
-  const patientIds = links.map((l: { patient_id: string }) => l.patient_id);
+  const patientIds = [...new Set(links.map((l) => l.patient_id))];
 
   // 2. Batch fetch patient profiles
-  const { data: patients } = await supabase
-    .from('patients')
-    .select('id, risk_tier, profiles!patients_id_fkey(full_name)')
-    .in('id', patientIds);
-
-  if (!patients || patients.length === 0) return [];
-
-  // 3. Batch fetch latest lab results per patient (K+, Cr, collected_at)
-  const { data: labs } = await supabase
-    .from('lab_results')
-    .select('patient_id, potassium, creatinine, collected_at')
-    .in('patient_id', patientIds)
-    .order('collected_at', { ascending: false });
-
-  // 4. Batch fetch latest vitals per patient (SBP)
-  const { data: vitals } = await supabase
-    .from('vitals')
-    .select('patient_id, sbp, recorded_at')
-    .in('patient_id', patientIds)
-    .order('recorded_at', { ascending: false });
-
-  // 5. Batch fetch latest titration note per patient
-  const { data: notes } = await supabase
-    .from('provider_notes')
-    .select('patient_id, created_at')
-    .in('patient_id', patientIds)
-    .ilike('content', '[TITRATION CHECKLIST%')
-    .order('created_at', { ascending: false });
-
-  // Build Maps for O(1) lookup (batch pattern from getLinkedPatients)
-  type LabRow = { patient_id: string; potassium: number | null; creatinine: number | null; collected_at: string };
-  const labMap = new Map<string, LabRow>();
-  ((labs ?? []) as LabRow[]).forEach((l) => {
-    if (!labMap.has(l.patient_id)) labMap.set(l.patient_id, l);
-  });
-
-  type VitalRow = { patient_id: string; sbp: number | null; recorded_at: string };
-  const vitalsMap = new Map<string, VitalRow>();
-  ((vitals ?? []) as VitalRow[]).forEach((v) => {
-    if (!vitalsMap.has(v.patient_id)) vitalsMap.set(v.patient_id, v);
-  });
-
-  type NoteRow = { patient_id: string; created_at: string };
-  const notesMap = new Map<string, NoteRow>();
-  ((notes ?? []) as NoteRow[]).forEach((n) => {
-    if (!notesMap.has(n.patient_id)) notesMap.set(n.patient_id, n);
-  });
-
-  // 6. Build worklist rows
   type PatientRow = {
     id: string;
     risk_tier: string | null;
     profiles: { full_name?: string | null } | { full_name?: string | null }[] | null;
   };
+  const patients = await readPages<PatientRow>((cursor) => {
+    let query = supabase
+    .from('patients')
+    .select('id, risk_tier, profiles!patients_id_fkey(full_name)')
+    .in('id', patientIds).order('id').limit(500);
+    if (cursor) query = query.gt('id', cursor);
+    return query;
+  });
+
+  if (!patients || patients.length === 0) return [];
+
+  // 3. Batch fetch latest lab results per patient (K+, Cr, collected_at)
+  const labs = await readPages<QualityPanel & { patient_id: string }>((cursor) => {
+    let query = supabase
+    .from('lab_results')
+    .select('id, patient_id, potassium, creatinine, egfr, collected_at')
+    .in('patient_id', patientIds)
+    .order('id').limit(500);
+    if (cursor) query = query.gt('id', cursor);
+    return query;
+  });
+
+  // 4. Batch fetch latest vitals per patient (SBP)
+  type VitalRow = { id: string; patient_id: string; sbp: number | null; recorded_at: string };
+  const vitals = await readPages<VitalRow>((cursor) => {
+    let query = supabase
+    .from('vitals')
+    .select('id, patient_id, sbp, recorded_at')
+    .in('patient_id', patientIds)
+    .order('id').limit(500);
+    if (cursor) query = query.gt('id', cursor);
+    return query;
+  });
+
+  // 5. Batch fetch latest titration note per patient
+  type NoteRow = { id: string; patient_id: string; created_at: string };
+  const notes = await readPages<NoteRow>((cursor) => {
+    let query = supabase
+    .from('provider_notes')
+    .select('id, patient_id, created_at')
+    .in('patient_id', patientIds)
+    .ilike('content', '[TITRATION CHECKLIST%')
+    .order('id').limit(500);
+    if (cursor) query = query.gt('id', cursor);
+    return query;
+  });
+
+  // Build Maps for O(1) lookup (batch pattern from getLinkedPatients)
+  const labMap = new Map<string, QualityPanel[]>();
+  labs.forEach((l) => {
+    const bucket = labMap.get(l.patient_id) ?? [];
+    bucket.push(l);
+    labMap.set(l.patient_id, bucket);
+  });
+
+  const vitalsMap = new Map<string, VitalRow>();
+  vitals.forEach((v) => {
+    const previous = vitalsMap.get(v.patient_id);
+    if (!previous || Date.parse(v.recorded_at) > Date.parse(previous.recorded_at)) vitalsMap.set(v.patient_id, v);
+  });
+
+  const notesMap = new Map<string, NoteRow>();
+  notes.forEach((n) => {
+    const previous = notesMap.get(n.patient_id);
+    if (!previous || Date.parse(n.created_at) > Date.parse(previous.created_at)) notesMap.set(n.patient_id, n);
+  });
+
+  // 6. Build worklist rows
+  const context = worklistLabContext();
   const rows: TitrationWorklistRow[] = ((patients ?? []) as PatientRow[]).map((p) => {
-    const lab = labMap.get(p.id) ?? null;
+    const patientLabs = labMap.get(p.id) ?? [];
     const vital = vitalsMap.get(p.id) ?? null;
     const note = notesMap.get(p.id) ?? null;
     const lastTitrationAt = note?.created_at ?? null;
@@ -138,21 +180,24 @@ export async function getTitrationWorklist(
       full_name: (Array.isArray(p.profiles) ? p.profiles[0]?.full_name : p.profiles?.full_name) ?? 'Unknown',
       risk_tier: p.risk_tier,
       last_sbp: vital?.sbp ?? null,
-      last_k: lab?.potassium ?? null,
-      last_cr: lab?.creatinine ?? null,
-      last_labs_at: lab?.collected_at ?? null,
+      labs: {
+        potassium: assessLabAnalyte(patientLabs, 'potassium', context),
+        creatinine: assessLabAnalyte(patientLabs, 'creatinine', context),
+        egfr: assessLabAnalyte(patientLabs, 'egfr', context),
+      },
       last_titration_at: lastTitrationAt,
       due_this_week: isDueTitration(lastTitrationAt),
     };
   });
 
-  // Filter to due-only, sort: oldest labs first (patients with no labs come last)
+  // Data attention only, not a clinical severity/response-time policy.
   return rows
     .filter((r) => r.due_this_week)
     .sort((a, b) => {
-      if (!a.last_labs_at && b.last_labs_at) return 1;
-      if (a.last_labs_at && !b.last_labs_at) return -1;
-      if (!a.last_labs_at || !b.last_labs_at) return 0;
-      return a.last_labs_at.localeCompare(b.last_labs_at); // oldest first
+      const quality = labAttentionRank(Object.values(a.labs)) - labAttentionRank(Object.values(b.labs));
+      if (quality) return quality;
+      const oldest = (row: TitrationWorklistRow) => Math.min(...Object.values(row.labs)
+        .map((lab) => lab.collectedAt ? Date.parse(lab.collectedAt) : -Infinity));
+      return oldest(a) - oldest(b) || a.patient_id.localeCompare(b.patient_id);
     });
 }

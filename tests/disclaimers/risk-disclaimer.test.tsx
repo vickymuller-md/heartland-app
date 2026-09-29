@@ -98,9 +98,10 @@ describe('WorklistTable risk tier caveat', () => {
             full_name: 'Alice Green',
             risk_tier: 'high',
             last_sbp: 118,
-            last_k: 4.2,
-            last_cr: 1.1,
-            last_labs_at: '2026-09-01T10:00:00Z',
+            labs: Object.fromEntries(['potassium', 'creatinine', 'egfr'].map((key) => [key, {
+              status: 'missing', value: null, collectedAt: null, resultId: null,
+              unit: '', contextId: 'test', reason: 'No recorded value for this analyte.',
+            }])) as import('@/lib/dashboard/worklist-queries').TitrationWorklistRow['labs'],
             last_titration_at: null,
             due_this_week: true,
           },
