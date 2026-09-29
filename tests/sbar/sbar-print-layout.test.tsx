@@ -60,10 +60,9 @@ describe('SbarPrintLayout', () => {
     expect(screen.getByText(defaultProps.recommendation)).toBeInTheDocument();
   });
 
-  it('renders generation timestamp formatted as a date string', () => {
+  it('renders a fixed UTC source-read instant, not an assertion of clinical review', () => {
     render(<SbarPrintLayout {...defaultProps} />);
-    // date-fns format(date, 'PPP p') produces something like "March 27th, 2026 at 12:00 PM"
-    // We just check that a date-related string is present
-    expect(screen.getByText(/March 27/)).toBeInTheDocument();
+    expect(screen.getByText(/Source read started: 2026-03-27T12:00:00.000Z/)).toBeInTheDocument();
+    expect(screen.getByText(/Not sent; clinical review and receiving-team acknowledgement are not confirmed/)).toBeInTheDocument();
   });
 });

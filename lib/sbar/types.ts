@@ -6,7 +6,10 @@
  * SbarData: the 4 pre-filled text sections returned by populateSbar.
  */
 
-export interface SbarInput {
+import type { EffectiveLabObservation } from '@/lib/labs/effective';
+
+/** Shared text-section context; carries no claim of authenticated laboratory provenance. */
+export interface SbarContext {
   patient_name: string;
   vitals: {
     recorded_at: string;
@@ -17,19 +20,18 @@ export interface SbarInput {
     spo2: number | null;
   } | null;
   medications: Array<{ name: string; dosage: string; frequency: string }>;
-  labs: Array<{
-    collected_at: string;
-    potassium: number | null;
-    creatinine: number | null;
-    egfr: number | null;
-    bnp: number | null;
-    nt_probnp: number | null;
-    sodium: number | null;
-  }>;
   risk_tier: 'low' | 'moderate' | 'high' | null;
   track_assignment: 'A' | 'B' | 'hybrid' | null;
   facility_tier: number | null;
 }
+
+/** Authenticated source projection only. Synthetic fixtures use their own explicit adapter. */
+export interface SbarInput extends SbarContext {
+  patient_id: string;
+  labs: EffectiveLabObservation[];
+}
+
+export const SBAR_DRAFT_NOTICE = 'Editable draft; manual changes may differ from source records. Not sent; clinical review and receiving-team acknowledgement are not confirmed. Source data are not refreshed when editing or printing.';
 
 export interface SbarData {
   situation: string;

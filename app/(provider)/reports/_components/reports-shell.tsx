@@ -10,13 +10,12 @@
  *               REPT-03 (CSV Export), REPT-04 (Date Range), REPT-05 (Navigation)
  */
 
-import { useRef, useState, useEffect, useCallback } from 'react';
-import { useReactToPrint } from 'react-to-print';
+import { useRef, useState, useEffect } from 'react';
+import { useSessionBoundExport } from '@/lib/exports/use-session-bound-export';
 import { DateRangePicker } from './date-range-picker';
 import { MonthlyReportPrint } from './monthly-report-print';
 import { PatientSummaryPrint } from './patient-summary-print';
 import { fetchPatientSummary } from '@/lib/reports/actions';
-import { createClient } from '@/lib/supabase/client';
 import {
   downloadCSV,
   buildVitalsCSV,
@@ -36,28 +35,16 @@ interface ReportsShellProps {
   to: string;
 }
 
-interface ReportPrintTicket {
-  epoch: number;
-  kind: 'monthly' | 'patient';
-  token: string;
-  frame: HTMLIFrameElement | null;
-  observer: MutationObserver | null;
-}
-
 export function ReportsShell(props: ReportsShellProps) {
   // A new server context creates an isolated lifetime; old requests cannot populate it.
   return <SessionBoundReports key={JSON.stringify([props.providerId, props.from, props.to, props.patients.map((p) => p.id)])} {...props} />;
 }
 
 function SessionBoundReports({ data, patients, from, to, providerId }: ReportsShellProps) {
-  const [supabase] = useState(() => createClient());
+  const { supabase, alive, epoch, sessionReady, sessionError, isCurrent, verifySession,
+    invalidateSession, invalidateContent, beginPrint: printDocument, printBusy, printError } = useSessionBoundExport(providerId);
   const monthlyPrintRef = useRef<HTMLDivElement>(null);
   const patientPrintRef = useRef<HTMLDivElement>(null);
-  const alive = useRef(false);
-  const blocked = useRef(false);
-  const epoch = useRef(0);
-  const [sessionReady, setSessionReady] = useState(false);
-  const [sessionError, setSessionError] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [patientSummaryData, setPatientSummaryData] = useState<PatientSummaryData | null>(null);
   const [patientSummaryError, setPatientSummaryError] = useState<string | null>(null);
@@ -66,79 +53,10 @@ function SessionBoundReports({ data, patients, from, to, providerId }: ReportsSh
   const [deidentify, setDeidentify] = useState(false);
   const [csvLoading, setCsvLoading] = useState(false);
   const [csvError, setCsvError] = useState<string | null>(null);
-  const [printBusy, setPrintBusy] = useState(false);
-  const [printError, setPrintError] = useState<string | null>(null);
-  const printTicket = useRef<ReportPrintTicket | null>(null);
   const linkedPatientIds = patients.map((p) => p.id);
   const printablePatientSummary = patientSummaryData?.patient.id === selectedPatientId
     && patientSummaryData?.dateRange.from === from && patientSummaryData?.dateRange.to === to
     ? patientSummaryData : null;
-
-  const isCurrent = useCallback((ticket: number) =>
-    alive.current && !blocked.current && epoch.current === ticket, []);
-  const ownsFrame = useCallback((ticket: ReportPrintTicket, frame: HTMLIFrameElement) => {
-    try { return Boolean(frame.contentDocument?.querySelector(`[data-heartland-print-ticket="${ticket.token}"]`)); }
-    catch { return false; }
-  }, []);
-  const watchPrintFrame = useCallback((ticket: ReportPrintTicket, frame: HTMLIFrameElement) => {
-    const claim = () => {
-      if (!ownsFrame(ticket, frame)) return;
-      ticket.frame = frame;
-      if (printTicket.current !== ticket || !isCurrent(ticket.epoch)) frame.remove();
-    };
-    claim(); frame.addEventListener('load', claim, { once: true });
-  }, [ownsFrame, isCurrent]);
-  const finishPrint = useCallback((ticket: ReportPrintTicket | null, removeClone = false) => {
-    if (!ticket) return;
-    // A queued append record must not be lost when disconnecting before the iframe's first load.
-    for (const record of ticket.observer?.takeRecords() ?? []) for (const node of record.addedNodes) {
-      if (node instanceof HTMLIFrameElement && node.id === 'printWindow') watchPrintFrame(ticket, node);
-    }
-    ticket.observer?.disconnect();
-    if (removeClone) {
-      ticket.frame?.remove();
-      // Also cover invalidation in the same task, before MutationObserver has delivered appendChild.
-      const candidate = document.getElementById('printWindow');
-      if (candidate instanceof HTMLIFrameElement) {
-        if (ownsFrame(ticket, candidate)) candidate.remove();
-        else watchPrintFrame(ticket, candidate); // Empty iframe: remove on load only if this ticket's clone appears.
-      }
-    }
-    const root = ticket.kind === 'monthly' ? monthlyPrintRef.current : patientPrintRef.current;
-    if (root?.dataset.heartlandPrintTicket === ticket.token) delete root.dataset.heartlandPrintTicket;
-    if (printTicket.current === ticket) {
-      printTicket.current = null;
-      if (alive.current) setPrintBusy(false);
-    }
-  }, [ownsFrame, watchPrintFrame]);
-  const invalidateSession = useCallback(() => {
-    blocked.current = true; epoch.current += 1;
-    finishPrint(printTicket.current, true);
-    if (alive.current) {
-      setSessionReady(false); setSessionError(true); setPatientSummaryData(null);
-    }
-  }, [finishPrint]);
-  const verifySession = useCallback(async (ticket: number) => {
-    if (!isCurrent(ticket)) throw new Error('Report context changed');
-    const { data: auth, error } = await supabase.auth.getUser();
-    if (!isCurrent(ticket)) throw new Error('Report context changed');
-    if (error || auth.user?.id !== providerId) {
-      invalidateSession(); throw new Error('Report session changed');
-    }
-    if (!isCurrent(ticket)) throw new Error('Report context changed');
-  }, [isCurrent, supabase, providerId, invalidateSession]);
-
-  useEffect(() => {
-    alive.current = true;
-    const ticket = epoch.current;
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT' || session?.user.id !== providerId) invalidateSession();
-    });
-    void verifySession(ticket).then(() => {
-      if (isCurrent(ticket)) setSessionReady(true);
-    }).catch(() => { if (isCurrent(ticket)) invalidateSession(); });
-    return () => { alive.current = false; epoch.current += 1; finishPrint(printTicket.current, true); listener.subscription.unsubscribe(); };
-  }, [supabase, providerId, isCurrent, verifySession, invalidateSession, finishPrint]);
 
   useEffect(() => {
     let obsolete = false;
@@ -164,65 +82,12 @@ function SessionBoundReports({ data, patients, from, to, providerId }: ReportsSh
     };
     void loadSummary();
     return () => { obsolete = true; };
-  }, [selectedPatientId, from, to, sessionReady, verifySession, isCurrent]);
+  }, [selectedPatientId, from, to, sessionReady, verifySession, isCurrent, epoch]);
 
-  const beforePrint = async () => {
-    const ticket = printTicket.current;
-    try {
-      if (!ticket) throw new Error('No current print request');
-      await verifySession(ticket.epoch);
-      if (ticket !== printTicket.current) throw new Error('Print request changed');
-    } catch (error) {
-      finishPrint(ticket, true);
-      if (ticket && isCurrent(ticket.epoch)) setPrintError('Printing stopped because the report session could not be verified.');
-      throw error;
-    }
-  };
-  const guardedPrint = async (iframe: HTMLIFrameElement) => {
-    // Bind the callback to the actual clone, not to a newer print that may have started meanwhile.
-    const candidate = printTicket.current;
-    const ticket = candidate && ownsFrame(candidate, iframe) ? candidate : null;
-    try {
-      if (!ticket) throw new Error('No current print request');
-      await verifySession(ticket.epoch);
-      if (!isCurrent(ticket.epoch) || ticket !== printTicket.current || !iframe.contentWindow) throw new Error('Print context changed');
-      // No await between this final fence and handing the document to the browser.
-      iframe.contentDocument!.title = ticket.kind === 'monthly' ? `HEARTLAND-Monthly-${data.month}` : 'HEARTLAND-Patient-Summary';
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-    } catch (error) {
-      iframe.remove(); // A rejected clone must not retain hidden patient data.
-      if (ticket && isCurrent(ticket.epoch)) setPrintError('Printing stopped because the report could not be verified.');
-      throw error;
-    } finally {
-      finishPrint(ticket);
-    }
-  };
-  const printOptions = {
-    onBeforePrint: beforePrint, print: guardedPrint,
-    // Each failing callback handles its captured ticket; stale errors cannot clear a newer job.
-    onPrintError: () => {},
-  };
-  const handleMonthlyPrint = useReactToPrint({ contentRef: monthlyPrintRef, ...printOptions });
-  const handlePatientPrint = useReactToPrint({ contentRef: patientPrintRef, ...printOptions });
   const beginPrint = (kind: 'monthly' | 'patient') => {
-    if (!sessionReady || !isCurrent(epoch.current) || printTicket.current || (kind === 'patient' && !printablePatientSummary)) return;
-    const ticket: ReportPrintTicket = { epoch: epoch.current, kind, token: crypto.randomUUID(), frame: null, observer: null };
-    const root = kind === 'monthly' ? monthlyPrintRef.current : patientPrintRef.current;
-    if (!root) return;
-    root.dataset.heartlandPrintTicket = ticket.token;
-    printTicket.current = ticket; setPrintBusy(true); setPrintError(null);
-    ticket.observer = new MutationObserver((records) => {
-      for (const record of records) for (const node of record.addedNodes) {
-        if (!(node instanceof HTMLIFrameElement) || node.id !== 'printWindow') continue;
-        watchPrintFrame(ticket, node);
-      }
-    });
-    ticket.observer.observe(document.body, { childList: true });
-    // The library awaits onBeforePrint before obtaining/cloning content. Fence that gap too.
-    const currentContent = () => isCurrent(ticket.epoch) && printTicket.current === ticket
-      && root.dataset.heartlandPrintTicket === ticket.token ? root : null;
-    if (kind === 'monthly') handleMonthlyPrint(currentContent); else handlePatientPrint(currentContent);
+    if (kind === 'patient' && !printablePatientSummary) return;
+    printDocument(kind === 'monthly' ? monthlyPrintRef.current : patientPrintRef.current,
+      kind === 'monthly' ? `HEARTLAND-Monthly-${data.month}` : 'HEARTLAND-Patient-Summary');
   };
 
   const handleCsvDownload = async () => {
@@ -345,7 +210,7 @@ function SessionBoundReports({ data, patients, from, to, providerId }: ReportsSh
             className="rounded border border-gray-300 px-3 py-2 text-sm"
             value={selectedPatientId ?? ''}
             onChange={(e) => {
-              epoch.current += 1; finishPrint(printTicket.current, true); setPatientSummaryData(null);
+              invalidateContent(); setPatientSummaryData(null);
               setSelectedPatientId(e.target.value || null);
             }}
           >

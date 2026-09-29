@@ -5,7 +5,10 @@
  * No Supabase, no React imports. Unit-testable.
  */
 
-import type { SbarInput, SbarData } from './types';
+import { z } from 'zod';
+import { effectiveLabObservationSchema, selectLatestEffectiveLab } from '@/lib/labs/effective';
+import { LAB_OBSERVATION_FIELDS, labCollectionUTC } from '@/lib/labs/quality';
+import type { SbarInput, SbarContext, SbarData } from './types';
 
 // ── Track assignment label mapping ───────────────────────────
 
@@ -56,28 +59,34 @@ function formatMeds(meds: SbarInput['medications']): string {
 
 // ── Labs formatting ──────────────────────────────────────────
 
-function formatLabs(labs: SbarInput['labs']): string {
-  if (labs.length === 0) return 'Recent labs: no recent labs.';
-
-  // Use first element (most recent, already sorted by Server Component)
-  const lab = labs[0];
-  const parts: string[] = [];
-
-  if (lab.potassium !== null) parts.push(`K+ ${lab.potassium} mEq/L`);
-  if (lab.creatinine !== null) parts.push(`Creatinine ${lab.creatinine} mg/dL`);
-  if (lab.egfr !== null) parts.push(`eGFR ${lab.egfr} mL/min`);
-  if (lab.bnp !== null) parts.push(`BNP ${lab.bnp} pg/mL`);
-  if (lab.nt_probnp !== null) parts.push(`NT-proBNP ${lab.nt_probnp} pg/mL`);
-  if (lab.sodium !== null) parts.push(`Na ${lab.sodium} mEq/L`);
-
-  if (parts.length === 0) return 'Recent labs: no recent labs.';
-
-  return `Most recent labs (${lab.collected_at}):\n  ${parts.join(', ')}.`;
+function formatLabs(input: SbarInput, now: Date): string {
+  const patientId = z.guid().parse(input.patient_id).toLowerCase();
+  const labs = z.array(effectiveLabObservationSchema).parse(input.labs);
+  if (labs.some((lab) => lab.patient_id.toLowerCase() !== patientId)
+    || new Set(labs.map((lab) => lab.id)).size !== labs.length) throw new Error('Invalid SBAR laboratory scope');
+  if (labs.length === 0) return 'Recorded laboratory sources: none available. No recency or clinical suitability assessed.';
+  const lines = Object.entries(LAB_OBSERVATION_FIELDS).map(([field, { label, unit }]) => {
+    const selected = selectLatestEffectiveLab(labs, patientId, field as SbarInput['labs'][number]['analyte'], now);
+    if (selected.state === 'missing') return `  - ${label}: no recorded source.`;
+    const source = selected.observation;
+    const value = selected.state === 'available' ? `${source.value} ${unit}`
+      : selected.state === 'cancelled' ? 'cancelled; no current value' : `not usable; ${selected.reason}`;
+    const version = source.revision ? `revision ${source.revision}` : 'unregistered source';
+    const processing = source.evaluation_status === 'pending' ? '; alert processing pending'
+      : source.evaluation_status ? `; alert processing: ${source.evaluation_status}` : '';
+    return `  - ${label}: ${value}; collected ${labCollectionUTC(source.collected_at)}; ${source.status}, ${version}${processing}.`;
+  });
+  return `Recorded laboratory sources (latest collection per analyte; recency and clinical suitability not assessed):\n${lines.join('\n')}`;
 }
 
 // ── Main populate function ───────────────────────────────────
 
-export function populateSbar(input: SbarInput): SbarData {
+export function populateSbar(input: SbarInput, now = new Date()): SbarData {
+  return formatSbarSections(input, formatLabs(input, now));
+}
+
+/** Text formatting only. Authenticated callers must use populateSbar's validated projection. */
+export function formatSbarSections(input: SbarContext, laboratoryText: string): SbarData {
   const riskLabel = formatRiskTier(input.risk_tier);
   const trackLabel = formatTrack(input.track_assignment);
   const facilityLabel =
@@ -85,7 +94,7 @@ export function populateSbar(input: SbarInput): SbarData {
 
   // Situation
   const situation = [
-    `${input.patient_name} is a patient at risk tier ${riskLabel} being referred/transferred.`,
+    `Draft handoff for ${input.patient_name}, risk tier ${riskLabel}; referral/transfer not confirmed.`,
     formatVitals(input.vitals),
     'Reason for handoff: [ Provider to specify ]',
   ].join('\n');
@@ -95,7 +104,7 @@ export function populateSbar(input: SbarInput): SbarData {
     `Monitoring track: ${trackLabel}.`,
     `Facility tier: ${facilityLabel}.`,
     formatMeds(input.medications),
-    formatLabs(input.labs),
+    laboratoryText,
   ].join('\n');
 
   // Assessment

@@ -7,8 +7,8 @@
  * source values.
  */
 
-import { populateSbar } from '@/lib/sbar/populate';
-import type { SbarData, SbarInput } from '@/lib/sbar/types';
+import { formatSbarSections } from '@/lib/sbar/populate';
+import type { SbarData, SbarContext } from '@/lib/sbar/types';
 import type { SandboxPatient } from '@/lib/sandbox/types';
 import type { CheckInExtraction } from './types';
 
@@ -23,23 +23,22 @@ function parseDose(dose: string): { dosage: string; frequency: string } {
   };
 }
 
-function labNumber(patient: SandboxPatient, name: string): number | null {
-  const lab = patient.labs.find((entry) => entry.name.toLowerCase() === name.toLowerCase());
-  if (!lab) return null;
-  const value = Number.parseFloat(lab.value);
-  return Number.isFinite(value) ? value : null;
+interface SyntheticSbarInput extends SbarContext {
+  source_kind: 'synthetic-fixture';
+  synthetic_labs: SandboxPatient['labs'];
 }
 
-function trackLetter(track: string): SbarInput['track_assignment'] {
+function trackLetter(track: string): SbarContext['track_assignment'] {
   if (/track a/i.test(track)) return 'A';
   if (/track b/i.test(track)) return 'B';
   return 'hybrid';
 }
 
-export function checkInToSbarInput(patient: SandboxPatient, extraction: CheckInExtraction): SbarInput {
+export function checkInToSbarInput(patient: SandboxPatient, extraction: CheckInExtraction): SyntheticSbarInput {
   const lastSynthetic = patient.vitals.at(-1);
   const tierMatch = /tier (\d)/i.exec(patient.facilityTier);
   return {
+    source_kind: 'synthetic-fixture',
     patient_name: patient.name,
     vitals: {
       recorded_at: 'Today (automated check-in)',
@@ -53,21 +52,17 @@ export function checkInToSbarInput(patient: SandboxPatient, extraction: CheckInE
       name: medication.name,
       ...parseDose(medication.dose),
     })),
-    labs: [{
-      collected_at: patient.labs[0]?.collected ?? 'not recorded',
-      potassium: labNumber(patient, 'Potassium'),
-      creatinine: labNumber(patient, 'Creatinine'),
-      egfr: labNumber(patient, 'eGFR'),
-      bnp: labNumber(patient, 'BNP'),
-      nt_probnp: labNumber(patient, 'NT-proBNP'),
-      sodium: labNumber(patient, 'Sodium'),
-    }],
-    risk_tier: patient.riskTier.toLowerCase() as SbarInput['risk_tier'],
+    synthetic_labs: patient.labs.map((lab) => ({ ...lab })),
+    risk_tier: patient.riskTier.toLowerCase() as SbarContext['risk_tier'],
     track_assignment: trackLetter(patient.track),
     facility_tier: tierMatch ? Number(tierMatch[1]) : null,
   };
 }
 
 export function draftSbarFromCheckIn(patient: SandboxPatient, extraction: CheckInExtraction): SbarData {
-  return populateSbar(checkInToSbarInput(patient, extraction));
+  const input = checkInToSbarInput(patient, extraction);
+  const laboratoryText = ['Synthetic fixture labs — demonstration only; not registered laboratory sources.',
+    ...input.synthetic_labs.map((lab) => `  - ${lab.name}: ${lab.value}; fixture collection: ${lab.collected}.`),
+  ].join('\n');
+  return formatSbarSections(input, laboratoryText);
 }

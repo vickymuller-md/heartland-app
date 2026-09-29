@@ -6,7 +6,7 @@
  * Visible only when browser print dialog is triggered via react-to-print.
  */
 
-import { format } from 'date-fns';
+import { SBAR_DRAFT_NOTICE } from '@/lib/sbar/types';
 
 interface SbarPrintLayoutProps {
   situation: string;
@@ -50,10 +50,11 @@ export function SbarPrintLayout({
           Patient: {patientName}
         </p>
         <p className="text-xs text-gray-500 mb-4">
-          Generated: {format(generatedAt, 'PPP p')}
+          Source read started: {generatedAt.toISOString()} (UTC)
         </p>
 
         {/* Disclaimer */}
+        <p className="text-xs border border-gray-300 rounded p-2 mb-2">{SBAR_DRAFT_NOTICE}</p>
         <p className="text-xs italic border border-gray-300 rounded p-2 mb-6">
           Controlled-evaluation implementation support. Verify every handoff
           against source records; this output does not replace clinical judgment,
@@ -64,7 +65,7 @@ export function SbarPrintLayout({
         {SECTIONS.map(({ label, key }) => (
           <section key={key} className="mb-6">
             <h2 className="font-bold text-base mb-2 border-b pb-1">{label}</h2>
-            <p className="whitespace-pre-wrap leading-relaxed">
+            <p className="whitespace-pre-wrap break-words leading-relaxed">
               {content[key]}
             </p>
           </section>

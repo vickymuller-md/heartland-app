@@ -28,7 +28,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('react-to-print', () => ({ useReactToPrint: (options: {
-  contentRef: { current: HTMLElement | null };
+  contentRef?: { current: HTMLElement | null };
   onBeforePrint: () => Promise<void>; print: (frame: HTMLIFrameElement) => Promise<void>;
   onAfterPrint?: () => void; onPrintError: (location: string, error: Error) => void;
 }) => (currentContent?: () => HTMLElement | null) => {
@@ -38,7 +38,7 @@ vi.mock('react-to-print', () => ({ useReactToPrint: (options: {
       await options.onBeforePrint();
       mocks.beforeClone();
       if (mocks.cloneGate) await mocks.cloneGate;
-      const root = currentContent ? currentContent() : options.contentRef.current;
+      const root = currentContent ? currentContent() : options.contentRef?.current;
       if (!root) return;
       const clone = root.cloneNode(true);
       frame = document.createElement('iframe'); frame.id = 'printWindow'; document.body.append(frame);

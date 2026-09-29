@@ -29,12 +29,13 @@ describe('checkInToSbarInput', () => {
     expect(gap.dosage).toBe('Not documented');
   });
 
-  it('parses fixture labs into numeric values and treats non-numeric as missing', () => {
-    const labs = checkInToSbarInput(maria, mariaExtraction).labs[0];
-    expect(labs.potassium).toBe(4.7);
-    expect(labs.creatinine).toBe(1.42);
-    expect(labs.egfr).toBe(41);
-    expect(labs.nt_probnp).toBeNull(); // fixture value is "Not available"
+  it('preserves individual synthetic fixture values/dates without inventing registered sources', () => {
+    const input = checkInToSbarInput(maria, mariaExtraction);
+    expect(input.source_kind).toBe('synthetic-fixture');
+    expect(input.synthetic_labs).toEqual(maria.labs);
+    expect(input).not.toHaveProperty('labs');
+    expect(input).not.toHaveProperty('patient_id');
+    expect(input.synthetic_labs.every((lab) => !('root_id' in lab))).toBe(true);
   });
 
   it('maps the analog-track patient to Track B', () => {
@@ -48,6 +49,8 @@ describe('draftSbarFromCheckIn', () => {
     expect(draft.situation).toContain('Maria Santos');
     expect(draft.situation).toContain('Weight 179.5 lbs');
     expect(draft.background).toContain('Digital Track (Track A)');
+    expect(draft.background).toContain('Synthetic fixture labs — demonstration only; not registered laboratory sources.');
+    for (const lab of maria.labs) expect(draft.background).toContain(`${lab.name}: ${lab.value}; fixture collection: ${lab.collected}`);
     expect(draft.assessment).toContain('Provider to add clinical assessment');
     expect(draft.recommendation).toContain('Provider to complete');
   });
