@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { StrictMode } from 'react';
+import type { EffectiveLabObservation } from '@/lib/labs/effective';
+import { LAB_OBSERVATION_FIELDS } from '@/lib/labs/quality';
 
-const { mockSave, mockRetry, mockLabs, mockEvaluations, mockGet, mockPrepare, mockAck, mockCancel, mockUser, authListeners } = vi.hoisted(() => ({
+const { mockSave, mockRetry, mockLabs, mockEvaluations, mockGet, mockPrepare, mockAck, mockCancel, mockUser, authListeners, readerScope } = vi.hoisted(() => ({
   mockSave: vi.fn(), mockRetry: vi.fn(), mockLabs: vi.fn(), mockEvaluations: vi.fn(),
   mockGet: vi.fn(), mockPrepare: vi.fn(), mockAck: vi.fn(), mockCancel: vi.fn(), mockUser: vi.fn(),
   authListeners: new Set<(event: string, session: { user: { id: string } } | null) => void>(),
+  readerScope: { actor: '', calls: [] as unknown[] },
 }));
 vi.mock('@/lib/dashboard/actions', () => ({ saveLabResult: mockSave, retryLabAlerts: mockRetry,
   getLabSubmission: mockGet, prepareLabSubmission: mockPrepare,
@@ -14,13 +17,26 @@ vi.mock('@/lib/dashboard/actions', () => ({ saveLabResult: mockSave, retryLabAle
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({
     auth: {
-      getUser: mockUser,
+      getUser: async () => {
+        const result = await mockUser(); readerScope.actor = result.data?.user?.id ?? ''; return result;
+      },
       onAuthStateChange: (listener: (event: string, session: { user: { id: string } } | null) => void) => {
         authListeners.add(listener);
         return { data: { subscription: { unsubscribe: () => authListeners.delete(listener) } } };
       },
     },
+    rpc: async (name: string, args: { p_patient_ids: string[]; p_after: string | null }) => {
+      if (name !== 'get_effective_lab_observations') throw new Error('Unexpected RPC');
+      readerScope.calls.push(args);
+      const result = await mockLabs(args.p_patient_ids[0]);
+      if (result.error) return { data: null, error: result.error };
+      const items = [...result.data].sort((a: EffectiveLabObservation, b: EffectiveLabObservation) => a.id.localeCompare(b.id))
+        .filter((item) => !args.p_after || item.id > args.p_after).slice(0, 250);
+      return { data: { actor_id: readerScope.actor, patient_ids: args.p_patient_ids, items,
+        snapshot: 'a'.repeat(64), next_cursor: items.length === 250 ? items.at(-1).id : null }, error: null };
+    },
     from: (table: string) => {
+      if (table !== 'lab_alert_evaluations') throw new Error('Unexpected raw-table laboratory reader');
       let patientId = '';
       let cursor: string | undefined;
       const query = {
@@ -29,7 +45,7 @@ vi.mock('@/lib/supabase/client', () => ({
         order: () => query, limit: () => query,
         gt: (_key: string, value: string) => { cursor = value; return query; },
         then: (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) =>
-          Promise.resolve(table === 'lab_results' ? mockLabs(patientId) : mockEvaluations(patientId, cursor)).then(resolve, reject),
+          Promise.resolve(mockEvaluations(patientId, cursor)).then(resolve, reject),
       };
       return query;
     },
@@ -69,11 +85,10 @@ function deferred<T = unknown>() {
   return { promise, resolve };
 }
 
-function savedLab(id = labId, notes: string | null = null) {
-  return { id, collected_at: '2025-08-01T13:15:00.000Z', potassium: 4.5,
-    creatinine: null, egfr: null, bun: null, bnp: null, nt_probnp: null,
-    hba1c: null, glucose: null, sodium: null, hemoglobin: null,
-    ferritin: null, tsat: null, ldl: null, lab_facility: null, notes };
+function savedLab(id = labId, notes: string | null = null, owner = patientId): EffectiveLabObservation {
+  return { id: `${id}:potassium`, patient_id: owner, original_lab_result_id: id, analyte: 'potassium',
+    root_id: null, version_id: null, revision: null, status: 'original', effective_lab_result_id: id,
+    value: '4.5', collected_at: '2025-08-01T13:15:00.000Z', evaluation_status: null, lab_facility: null, notes };
 }
 
 function fillAndSubmit(input: HTMLInputElement) {
@@ -98,6 +113,7 @@ describe('lab collection form', () => {
   beforeEach(() => {
     vi.stubEnv('TZ', 'America/New_York');
     currentSubmission = null;
+    readerScope.actor = actorId; readerScope.calls = [];
     authListeners.clear();
     mockUser.mockReset().mockResolvedValue({ data: { user: { id: actorId } }, error: null });
     mockGet.mockReset().mockImplementation(async () => response(currentSubmission && { ...currentSubmission, isNew: false }));
@@ -191,24 +207,14 @@ describe('lab collection form', () => {
       '2025-11-02T06:30:00.000Z',
     ];
     mockLabs.mockResolvedValue({ data: instants.map((collectedAt, index) => ({
-      id: String(index), collected_at: collectedAt, potassium: 4.5,
-      creatinine: null, egfr: null, bun: null, bnp: null, nt_probnp: null,
-      hba1c: null, glucose: null, sodium: null, hemoglobin: null,
-      ferritin: null, tsat: null, ldl: null, lab_facility: null, notes: null,
+      ...savedLab(`10000000-0000-4000-a000-00000000001${index}`), collected_at: collectedAt,
     })) });
     render(<LabResultsTab patientId="00000000-0000-4000-a000-000000000001" />);
 
-    const expected = [
-      /Aug 1, 2026.*9:15:00 AM GMT-04:00/,
-      /Aug 1, 2026.*12:45:30 PM GMT-04:00/,
-      /Aug 1, 2025.*9:15:00 AM GMT-04:00/,
-      /Nov 2, 2025.*1:30:00 AM GMT-04:00/,
-      /Nov 2, 2025.*1:30:00 AM GMT-05:00/,
-    ];
-    for (const [index, name] of expected.entries()) {
-      const header = await screen.findByRole('columnheader', { name });
-      expect(header).toBeVisible();
-      expect(header.querySelector('time')).toHaveAttribute('datetime', instants[index]);
+    for (const instant of instants) {
+      const time = await screen.findByText(instant);
+      expect(time).toBeVisible();
+      expect(time).toHaveAttribute('datetime', instant);
     }
   });
 
@@ -332,7 +338,7 @@ describe('lab collection form', () => {
     mockEvaluations.mockResolvedValue({ data: null, error: { message: 'Private RLS detail' } });
     render(<LabResultsTab patientId={patientId} />);
     expect(await screen.findByText(/Unable to load alert evaluation status/)).toBeVisible();
-    expect(screen.getByRole('columnheader', { name: /Aug 1, 2025/ })).toBeVisible();
+    expect(screen.getByText('2025-08-01T13:15:00.000Z')).toBeVisible();
     expect(screen.queryByText('Private RLS detail')).not.toBeInTheDocument();
   });
 
@@ -364,7 +370,7 @@ describe('lab collection form', () => {
   it('does not expose old lab data or old pending events after switching patients', async () => {
     let finishOld!: (value: unknown) => void;
     mockLabs.mockImplementation((id: string) => id === patientId
-      ? new Promise((resolve) => { finishOld = resolve; }) : { data: [savedLab('lab-b', 'Current patient note')] });
+      ? new Promise((resolve) => { finishOld = resolve; }) : { data: [savedLab('10000000-0000-4000-a000-000000000002', 'Current patient note', otherPatientId)] });
     const { rerender } = render(<LabResultsTab patientId={patientId} />);
     await waitFor(() => expect(mockLabs).toHaveBeenCalledWith(patientId));
     rerender(<LabResultsTab patientId={otherPatientId} />);
@@ -414,7 +420,7 @@ describe('lab collection form', () => {
     render(<LabResultsTab patientId={patientId} />);
     expect(await screen.findByText(/Unable to check submission status/)).toBeVisible();
     expect(screen.getByRole('button', { name: 'Add Lab Result' })).toBeDisabled();
-    expect(screen.getByRole('columnheader', { name: /Aug 1, 2025/ })).toBeVisible();
+    expect(screen.getByText('2025-08-01T13:15:00.000Z')).toBeVisible();
     expect(screen.queryByText('Private receipt query detail')).not.toBeInTheDocument();
     expect(mockPrepare).not.toHaveBeenCalled();
   });
@@ -674,5 +680,127 @@ describe('lab collection form', () => {
     await act(async () => oldAuth.resolve({ data: { user: { id: actorId } }, error: null }));
     expect(screen.getByText('Current account saved note')).toBeVisible();
     expect(mockGet).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the complete effective projection without the former ten-panel limit', async () => {
+    const sources = Array.from({ length: 251 }, (_, index) => savedLab(
+      `10000000-0000-4000-a000-${String(index).padStart(12, '0')}`,
+    ));
+    mockLabs.mockResolvedValue({ data: sources });
+    render(<LabResultsTab patientId={patientId} />);
+    await waitFor(() => expect(screen.getAllByTestId('effective-lab-row')).toHaveLength(251));
+    expect(readerScope.calls).toHaveLength(2);
+    expect(readerScope.calls[0]).toEqual({ p_patient_ids: [patientId], p_after: null, p_snapshot: null });
+    expect(readerScope.calls[1]).toMatchObject({ p_snapshot: 'a'.repeat(64) });
+  });
+
+  it('discards a whole projection when its later page fails, not showing the first page', async () => {
+    mockLabs.mockResolvedValueOnce({ data: Array.from({ length: 250 }, (_, index) => savedLab(
+      `10000000-0000-4000-a000-${String(index).padStart(12, '0')}`, 'Partial private note',
+    )) }).mockResolvedValue({ data: null, error: { message: 'Private second page failure' } });
+    render(<LabResultsTab patientId={patientId} />);
+    expect(await screen.findByText(/Unable to load current lab results/)).toBeVisible();
+    expect(screen.queryByTestId('effective-lab-row')).not.toBeInTheDocument();
+    expect(screen.queryByText('Partial private note')).not.toBeInTheDocument();
+    expect(screen.queryByText('No recorded laboratory sources')).not.toBeInTheDocument();
+  });
+
+  it('keeps all thirteen analytes and exact decimal/microsecond values without inferred Normal', async () => {
+    const sources = (Object.keys(LAB_OBSERVATION_FIELDS) as EffectiveLabObservation['analyte'][]).map((analyte) => ({
+      ...savedLab(), id: `${labId}:${analyte}`, analyte, value: '4.20000000000000001',
+      collected_at: '2025-08-01T09:15:00.123456-04:00',
+    }));
+    mockLabs.mockResolvedValue({ data: sources });
+    render(<LabResultsTab patientId={patientId} />);
+    const rows = await screen.findAllByTestId('effective-lab-row'); expect(rows).toHaveLength(13);
+    for (const row of rows) {
+      expect(row).toHaveTextContent('4.20000000000000001');
+      expect(row).toHaveTextContent('2025-08-01T13:15:00.123456Z');
+    }
+    expect(screen.queryByRole('columnheader', { name: 'Normal' })).not.toBeInTheDocument();
+    expect(screen.getByText(/No laboratory classification is recorded here/)).toBeVisible();
+  });
+
+  it('preserves corrected provenance and cancellation without using an older value in the cancelled row', async () => {
+    const corrected = { ...savedLab(), root_id: requestId, version_id: labId, revision: '2', status: 'corrected',
+      effective_lab_result_id: '10000000-0000-4000-a000-000000000099', evaluation_status: 'pending', value: '4.8' };
+    const cancelled = { ...savedLab('10000000-0000-4000-a000-000000000002'), root_id: labId,
+      version_id: requestId, revision: '3', status: 'cancelled', value: null, effective_lab_result_id: null,
+      collected_at: '2025-09-01T00:00:00Z' };
+    mockLabs.mockResolvedValue({ data: [corrected, cancelled] });
+    render(<LabResultsTab patientId={patientId} />);
+    const [first, second] = await screen.findAllByTestId('effective-lab-row');
+    expect(first).toHaveTextContent('cancelled; revision 3'); expect(first).toHaveTextContent('No current value');
+    expect(first).not.toHaveTextContent('4.8');
+    expect(second).toHaveTextContent('corrected; revision 2'); expect(second).toHaveTextContent('Alert processing: pending');
+    fireEvent.click(within(second).getByText('Source details'));
+    expect(within(second).getByText('10000000-0000-4000-a000-000000000099')).toBeVisible();
+    expect(screen.getByRole('heading', { name: /including historical collections/ })).toBeVisible();
+  });
+
+  it.each(Object.keys(LAB_OBSERVATION_FIELDS) as EffectiveLabObservation['analyte'][])('labels negative %s as recorded but not usable', async (analyte) => {
+    mockLabs.mockResolvedValue({ data: [{ ...savedLab(), id: `${labId}:${analyte}`, analyte, value: '-1' }] });
+    render(<LabResultsTab patientId={patientId} />);
+    const row = await screen.findByTestId('effective-lab-row');
+    expect(row).toHaveTextContent('Recorded value (not usable):');
+    expect(row).toHaveTextContent('Invalid recorded value; verify the source.');
+  });
+
+  it('flags conflicting same-instant sources and future collection without hiding their distinct notes', async () => {
+    mockLabs.mockResolvedValue({ data: [
+      { ...savedLab(labId, 'First source'), collected_at: '2025-08-01T09:15:00-04:00', value: '4.2' },
+      { ...savedLab('10000000-0000-4000-a000-000000000002', 'Second source'), patient_id: patientId.toUpperCase(), value: '4.20000000000000001' },
+      { ...savedLab('10000000-0000-4000-a000-000000000003'), collected_at: '2099-01-01T00:00:00Z' },
+    ] });
+    render(<LabResultsTab patientId={patientId} />);
+    const rows = await screen.findAllByTestId('effective-lab-row'); expect(rows).toHaveLength(3);
+    expect(rows[0]).toHaveTextContent('Future collection time');
+    expect(rows[1]).toHaveTextContent('Conflicting current sources');
+    expect(rows[2]).toHaveTextContent('Conflicting current sources');
+    expect(screen.getByText('First source')).toBeVisible(); expect(screen.getByText('Second source')).toBeVisible();
+  });
+
+  it('hides stale sources during refresh and after failure without hiding the saved receipt', async () => {
+    currentSubmission = committed({ alertStatus: 'not_required' });
+    mockLabs.mockResolvedValue({ data: [savedLab(labId, 'Earlier source note')] });
+    render(<LabResultsTab patientId={patientId} />);
+    await screen.findByRole('heading', { name: 'Saved lab receipt' });
+    await waitFor(() => expect(mockLabs).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText('Earlier source note')).toBeVisible();
+    const load = deferred(); mockLabs.mockReturnValue(load.promise);
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh laboratory sources' }));
+    expect(screen.queryByText('Earlier source note')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Saved lab receipt' })).toBeVisible();
+    expect(mockGet).toHaveBeenCalledTimes(1);
+    await act(async () => load.resolve({ data: null, error: { message: 'Private read failure' } }));
+    expect(screen.getByText(/Unable to load current lab results/)).toBeVisible();
+    expect(screen.queryByText('Earlier source note')).not.toBeInTheDocument();
+    expect(screen.getByText(/Historical receipt of the original saved record/)).toBeVisible();
+    expect(mockGet).toHaveBeenCalledTimes(1); expect(mockSave).not.toHaveBeenCalled();
+  });
+
+  it('preserves prepared form identity and unsaved values during observation refresh', async () => {
+    const input = await openForm();
+    fireEvent.change(input, { target: { value: '2025-08-01T09:15' } });
+    fireEvent.change(screen.getByLabelText('K+ (mEq/L)'), { target: { value: '4.8' } });
+    const load = deferred(); mockLabs.mockReturnValue(load.promise);
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh laboratory sources' }));
+    expect(screen.getByLabelText('Collection date and time')).toBe(input);
+    expect(input).toHaveValue('2025-08-01T09:15'); expect(screen.getByLabelText('K+ (mEq/L)')).toHaveValue(4.8);
+    await act(async () => load.resolve({ data: [] }));
+    expect(screen.getByLabelText('Collection date and time')).toBe(input);
+    expect(document.querySelector('input[name="requestId"]')).toHaveValue(requestId);
+    expect(mockGet).toHaveBeenCalledTimes(1); expect(mockPrepare).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails closed on wrong-patient or malformed effective observations', async () => {
+    mockLabs.mockResolvedValueOnce({ data: [savedLab(labId, 'Other patient source', otherPatientId)] });
+    render(<LabResultsTab patientId={patientId} />);
+    expect(await screen.findByText(/Unable to load current lab results/)).toBeVisible();
+    expect(screen.queryByText('Other patient source')).not.toBeInTheDocument();
+    mockLabs.mockResolvedValue({ data: [{ ...savedLab(), value: 'NaN' }] });
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh laboratory sources' }));
+    expect(await screen.findByText(/Unable to load current lab results/)).toBeVisible();
+    expect(screen.queryByTestId('effective-lab-row')).not.toBeInTheDocument();
   });
 });

@@ -2,80 +2,72 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { FlaskConical, Loader2, TrendingUp, TrendingDown, Minus, Plus } from 'lucide-react';
+import { FlaskConical, Loader2, Plus } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { getEffectiveLabObservations, selectLatestEffectiveLab, type EffectiveLabObservation } from '@/lib/labs/effective';
+import { LAB_OBSERVATION_FIELDS, labCollectionMicros, labCollectionUTC } from '@/lib/labs/quality';
 import { acknowledgeLabSubmission, cancelLabSubmission, getLabSubmission, prepareLabSubmission, retryLabAlerts, saveLabResult } from '@/lib/dashboard/actions';
 import type { LabActionState, LabSubmission, LabSubmissionState } from '@/lib/dashboard/actions';
 
-interface LabResult {
-  id: string;
-  collected_at: string;
-  potassium: number | null;
-  creatinine: number | null;
-  egfr: number | null;
-  bun: number | null;
-  bnp: number | null;
-  nt_probnp: number | null;
-  hba1c: number | null;
-  glucose: number | null;
-  sodium: number | null;
-  hemoglobin: number | null;
-  ferritin: number | null;
-  tsat: number | null;
-  ldl: number | null;
-  lab_facility: string | null;
-  notes: string | null;
-}
-
-interface LabField {
-  key: keyof LabResult;
-  label: string;
-  unit: string;
-  normalLow: number;
-  normalHigh: number;
-  category: string;
-}
-
-const LAB_FIELDS: LabField[] = [
-  { key: 'potassium', label: 'Potassium', unit: 'mEq/L', normalLow: 3.5, normalHigh: 5.0, category: 'Renal Panel' },
-  { key: 'creatinine', label: 'Creatinine', unit: 'mg/dL', normalLow: 0.7, normalHigh: 1.3, category: 'Renal Panel' },
-  { key: 'egfr', label: 'eGFR', unit: 'mL/min', normalLow: 60, normalHigh: 120, category: 'Renal Panel' },
-  { key: 'bun', label: 'BUN', unit: 'mg/dL', normalLow: 7, normalHigh: 20, category: 'Renal Panel' },
-  { key: 'bnp', label: 'BNP', unit: 'pg/mL', normalLow: 0, normalHigh: 100, category: 'Cardiac Biomarkers' },
-  { key: 'nt_probnp', label: 'NT-proBNP', unit: 'pg/mL', normalLow: 0, normalHigh: 300, category: 'Cardiac Biomarkers' },
-  { key: 'sodium', label: 'Sodium', unit: 'mEq/L', normalLow: 136, normalHigh: 145, category: 'Metabolic' },
-  { key: 'glucose', label: 'Glucose', unit: 'mg/dL', normalLow: 70, normalHigh: 100, category: 'Metabolic' },
-  { key: 'hba1c', label: 'HbA1c', unit: '%', normalLow: 4.0, normalHigh: 5.7, category: 'Metabolic' },
-  { key: 'hemoglobin', label: 'Hemoglobin', unit: 'g/dL', normalLow: 12.0, normalHigh: 17.5, category: 'Hematology' },
-  { key: 'ferritin', label: 'Ferritin', unit: 'ng/mL', normalLow: 30, normalHigh: 400, category: 'Hematology' },
-  { key: 'tsat', label: 'TSAT', unit: '%', normalLow: 20, normalHigh: 50, category: 'Hematology' },
-  { key: 'ldl', label: 'LDL', unit: 'mg/dL', normalLow: 0, normalHigh: 100, category: 'Lipids' },
-];
-
-function getStatus(value: number | null, low: number, high: number): 'normal' | 'low' | 'high' | null {
-  if (value === null) return null;
-  if (value < low) return 'low';
-  if (value > high) return 'high';
-  return 'normal';
-}
-
-function StatusIcon({ status }: { status: 'normal' | 'low' | 'high' | null }) {
-  if (!status) return null;
-  if (status === 'high') return <TrendingUp className="h-3.5 w-3.5 text-red-500" />;
-  if (status === 'low') return <TrendingDown className="h-3.5 w-3.5 text-amber-500" />;
-  return <Minus className="h-3.5 w-3.5 text-green-500" />;
-}
-
-function ValueCell({ value, unit, low, high }: { value: number | null; unit: string; low: number; high: number }) {
-  if (value === null) return <span className="text-gray-300">—</span>;
-  const status = getStatus(value, low, high);
-  const color = status === 'high' ? 'text-red-700 font-semibold' : status === 'low' ? 'text-amber-700 font-semibold' : 'text-gray-900';
-  return (
-    <span className={`flex items-center gap-1 ${color}`}>
-      {value} <span className="text-xs text-gray-400">{unit}</span>
-      <StatusIcon status={status} />
-    </span>
-  );
+function EffectiveLabSources({ labs, patientId, readAt }: {
+  labs: EffectiveLabObservation[]; patientId: string; readAt: Date;
+}) {
+  const groups = new Map<string, EffectiveLabObservation[]>();
+  const groupKey = (lab: EffectiveLabObservation) => `${lab.patient_id.toLowerCase()}|${lab.analyte}|${labCollectionMicros(lab.collected_at)}`;
+  for (const lab of labs) {
+    const group = groups.get(groupKey(lab)) ?? [];
+    group.push(lab); groups.set(groupKey(lab), group);
+  }
+  const qualities = new Map([...groups].map(([key, group]) => [
+    key, selectLatestEffectiveLab(group, patientId, group[0].analyte, readAt),
+  ]));
+  return <section aria-label="Effective laboratory sources" className="space-y-3">
+    <h3 className="font-semibold">Current source versions, including historical collections</h3>
+    <p className="text-sm text-gray-600">
+      {labs.length} analyte observation{labs.length !== 1 ? 's' : ''}, latest collection first.
+      Each row retains its own collection time. No laboratory classification is recorded here;
+      recency and clinical suitability are not assessed. Version and alert-processing states do not confirm clinical review.
+    </p>
+    <div className="overflow-x-auto rounded-lg border">
+      <table className="w-full text-sm">
+        <thead><tr>
+          {['Test', 'Recorded value', 'Collection (UTC)', 'Source and quality', 'Provenance'].map((label) =>
+            <th key={label} className="text-left px-3 py-2 bg-gray-50">{label}</th>)}
+        </tr></thead>
+        <tbody>{labs.map((lab) => {
+          const field = LAB_OBSERVATION_FIELDS[lab.analyte];
+          const quality = qualities.get(groupKey(lab))!;
+          return <tr key={lab.id} data-testid="effective-lab-row" className="border-t align-top">
+            <th scope="row" className="px-3 py-2 text-left font-medium">{field.label}</th>
+            <td className="px-3 py-2 break-all">
+              {lab.status === 'cancelled' ? 'No current value' : <>
+                {quality.state !== 'available' && <span className="block font-medium">Recorded value (not usable):</span>}
+                {lab.value} <span className="text-gray-600">{field.unit}</span>
+              </>}
+            </td>
+            <td className="px-3 py-2 whitespace-nowrap"><time dateTime={lab.collected_at}>{labCollectionUTC(lab.collected_at)}</time></td>
+            <td className="px-3 py-2 min-w-64">
+              <p>{lab.status}; {lab.revision ? `revision ${lab.revision}` : 'unregistered source'}</p>
+              <p>{quality.reason}</p>
+              {lab.evaluation_status && <p>Alert processing: {lab.evaluation_status}. Not clinical review.</p>}
+            </td>
+            <td className="px-3 py-2">
+              <details><summary className="cursor-pointer">Source details</summary>
+                <dl className="text-xs break-all space-y-1">
+                  <dt>Original result</dt><dd>{lab.original_lab_result_id}</dd>
+                  <dt>Effective result</dt><dd>{lab.effective_lab_result_id ?? 'None — cancelled'}</dd>
+                  <dt>Source root</dt><dd>{lab.root_id ?? 'Not registered'}</dd>
+                  <dt>Version</dt><dd>{lab.version_id ?? 'Not registered'}</dd>
+                </dl>
+              </details>
+                {lab.lab_facility && <p className="mt-2">Recorded facility: {lab.lab_facility}</p>}
+                {lab.notes && <p className="mt-2 whitespace-pre-wrap">{lab.notes}</p>}
+            </td>
+          </tr>;
+        })}</tbody>
+      </table>
+    </div>
+  </section>;
 }
 
 /** Resolve browser-local wall time without silently normalizing a DST gap or overlap. */
@@ -142,7 +134,7 @@ function PendingLabEvaluation({ patientId, labResultId, collectedAt, onResolved,
   return (
     <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
       <p role="status" className="text-sm font-medium text-amber-900">Lab result saved. Alert evaluation pending.</p>
-      <p className="text-sm text-amber-900">The saved exam will not be inserted again. This status does not confirm notification delivery or clinical review.</p>
+      <p className="text-sm text-amber-900">Historical saved exam; its values may have been superseded. Retrying does not insert it again. This status does not confirm notification delivery or clinical review.</p>
       <p className="text-xs text-amber-900">Collection (UTC): {collectedAt
         ? <time dateTime={collectedAt}>{collectionUTC(collectedAt)}</time> : 'Unavailable; verify the saved lab record.'}</p>
       {retryError && <p role="alert" className="text-sm text-red-700">Unable to complete alert evaluation. The saved lab result is unchanged.</p>}
@@ -281,7 +273,7 @@ function AddLabForm({ patientId, requestId, editable, onResult, onStart, isCurre
         </div>
         <div>
           <label htmlFor="egfr" className="block text-sm font-medium text-gray-700 mb-1">
-            eGFR (mL/min)
+            eGFR (mL/min/1.73m²)
           </label>
           <input
             id="egfr"
@@ -485,12 +477,12 @@ function LabSubmissionFlow({ patientId, actorId, isCurrent, onSaved, onPendingCh
         <p className="text-sm">Collection (UTC): <time dateTime={submission.collectedAt!}>{collectionUTC(submission.collectedAt!)}</time></p>
         <dl className="grid grid-cols-2 gap-2 text-sm">
           {(['potassium', 'egfr', 'creatinine', 'sodium'] as const).map((key) => {
-            const field = LAB_FIELDS.find((item) => item.key === key)!;
+            const field = LAB_OBSERVATION_FIELDS[key];
             return <div key={key}><dt className="font-medium">{field.label}</dt><dd>{submission[key] === null ? 'Not recorded' : `${submission[key]} ${field.unit}`}</dd></div>;
           })}
         </dl>
         {submission.notes && <p className="text-sm">{submission.notes}</p>}
-        <p className="text-sm">Acknowledgment only confirms receipt of this saved record. It does not document clinical review, alert resolution, or notification delivery.</p>
+        <p className="text-sm">Historical receipt of the original saved record; values may have been superseded. Acknowledgment only confirms receipt of this saved record. It does not document clinical review, alert resolution, or notification delivery.</p>
         {submission.status === 'committed' && <button type="button" disabled={loading}
           onClick={() => void run('acknowledge')} className="rounded-md border border-green-700 px-3 py-2 text-sm disabled:opacity-50">Acknowledge saved receipt</button>}
         {submission.status === 'acknowledged' && <p role="status" className="text-sm font-medium">Receipt acknowledged. Start another entry only for a different exam.</p>}
@@ -562,7 +554,9 @@ export function LabResultsTab({ patientId }: { patientId: string }) {
 function PatientLabResults({ patientId, actorId, isCurrent: sessionIsCurrent }: {
   patientId: string; actorId: string; isCurrent: () => boolean;
 }) {
-  const [labs, setLabs] = useState<LabResult[]>([]);
+  const [labs, setLabs] = useState<EffectiveLabObservation[]>([]);
+  const [labsReadAt, setLabsReadAt] = useState(() => new Date());
+  const [labsRefreshing, setLabsRefreshing] = useState(true);
   const [loading, setLoading] = useState(true);
   const [labsError, setLabsError] = useState(false);
   const [evaluations, setEvaluations] = useState<PendingEvaluation[]>([]);
@@ -577,19 +571,22 @@ function PatientLabResults({ patientId, actorId, isCurrent: sessionIsCurrent }: 
     const isCurrent = () => alive.current && sessionIsCurrent() && version === readVersion.current;
     const supabase = createClient();
     setEvaluationsLoading(true);
+    setLabsRefreshing(true); setLabs([]); setLabsError(false);
     // A status read failure must not hide successfully loaded laboratory values.
     void (async () => {
       try {
-        const { data, error } = await supabase.from('lab_results').select('*')
-          .eq('patient_id', patientId).order('collected_at', { ascending: false }).limit(10);
+        const sources = await getEffectiveLabObservations(supabase, [patientId], actorId);
         if (!isCurrent()) return;
-        if (error) throw error;
-        setLabs(data ?? []);
+        sources.sort((a, b) => {
+          const first = labCollectionMicros(a.collected_at)!; const second = labCollectionMicros(b.collected_at)!;
+          return first === second ? a.id.localeCompare(b.id) : first > second ? -1 : 1;
+        });
+        setLabs(sources); setLabsReadAt(new Date());
         setLabsError(false);
       } catch {
-        if (isCurrent()) setLabsError(true);
+        if (isCurrent()) { setLabs([]); setLabsError(true); }
       } finally {
-        if (isCurrent()) setLoading(false);
+        if (isCurrent()) { setLoading(false); setLabsRefreshing(false); }
       }
     })();
     void (async () => {
@@ -621,7 +618,7 @@ function PatientLabResults({ patientId, actorId, isCurrent: sessionIsCurrent }: 
         if (isCurrent()) setEvaluationsLoading(false);
       }
     })();
-  }, [patientId, sessionIsCurrent]);
+  }, [patientId, actorId, sessionIsCurrent]);
 
   useEffect(() => {
     alive.current = true;
@@ -637,9 +634,6 @@ function PatientLabResults({ patientId, actorId, isCurrent: sessionIsCurrent }: 
     );
   }
 
-  // Group fields by category
-  const categories = [...new Set(LAB_FIELDS.map(f => f.category))];
-
   return (
     <div className="space-y-6">
       <LabSubmissionFlow patientId={patientId} actorId={actorId} isCurrent={sessionIsCurrent}
@@ -653,94 +647,21 @@ function PatientLabResults({ patientId, actorId, isCurrent: sessionIsCurrent }: 
           fetchLabs();
         }} />
       ))}
-      {labsError && <p role="alert" className="text-sm text-red-700">Unable to load lab results. Previously displayed values may be outdated; refresh to check again.</p>}
-      {!labsError && labs.length === 0 && (
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">Laboratory sources</h2>
+        <button type="button" onClick={fetchLabs} disabled={labsRefreshing}
+          className="rounded-md border px-3 py-2 text-sm disabled:opacity-50">Refresh laboratory sources</button>
+      </div>
+      {labsRefreshing && <p role="status">Refreshing current laboratory sources…</p>}
+      {labsError && <p role="alert" className="text-sm text-red-700">Unable to load current lab results. No previous values are displayed; refresh to check again.</p>}
+      {!labsRefreshing && !labsError && labs.length === 0 && (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <FlaskConical className="h-10 w-10 text-gray-300 mb-3" />
-          <p className="text-gray-600">No recent lab results recorded</p>
+          <p className="text-gray-600">No recorded laboratory sources</p>
         </div>
       )}
-
-      <p className="text-sm text-gray-500">
-        {labs.length} lab result{labs.length !== 1 ? 's' : ''} — most recent first
-      </p>
-
-      {categories.map(cat => {
-        const fields = LAB_FIELDS.filter(f => f.category === cat);
-        // Only show category if at least one lab has data for it
-        const hasData = fields.some(f => labs.some(l => l[f.key] !== null));
-        if (!hasData) return null;
-
-        return (
-          <div key={cat} className="rounded-lg border bg-white overflow-hidden">
-            <div className="bg-gray-50 px-4 py-2 border-b">
-              <h3 className="text-sm font-semibold text-gray-700">{cat}</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-gray-50/50">
-                    <th className="text-left px-4 py-2 font-medium text-gray-600 sticky left-0 bg-gray-50/50">Test</th>
-                    <th className="text-left px-3 py-2 font-medium text-gray-400 text-xs">Normal</th>
-                    {labs.map(l => (
-                      <th key={l.id} className="text-left px-3 py-2 font-medium text-gray-600 whitespace-nowrap min-w-[100px]">
-                        <time dateTime={l.collected_at}>
-                          <span className="block">
-                            {new Date(l.collected_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                          </span>
-                          <span className="block text-xs font-normal">
-                            {new Date(l.collected_at).toLocaleTimeString('en-US', {
-                              hour: 'numeric', minute: '2-digit', second: '2-digit', timeZoneName: 'longOffset',
-                            })}
-                          </span>
-                        </time>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {fields.map(field => (
-                    <tr key={field.key} className="border-b last:border-0 hover:bg-gray-50">
-                      <td className="px-4 py-2 font-medium text-gray-900 sticky left-0 bg-white whitespace-nowrap">
-                        {field.label}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-gray-400 whitespace-nowrap">
-                        {field.normalLow}–{field.normalHigh}
-                      </td>
-                      {labs.map(l => (
-                        <td key={l.id} className="px-3 py-2">
-                          <ValueCell
-                            value={l[field.key] as number | null}
-                            unit={field.unit}
-                            low={field.normalLow}
-                            high={field.normalHigh}
-                          />
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        );
-      })}
-
-      {/* Lab notes */}
-      {labs.some(l => l.notes || l.lab_facility) && (
-        <div className="rounded-lg border bg-white p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-gray-700">Lab Details</h3>
-          {labs.filter(l => l.notes || l.lab_facility).map(l => (
-            <div key={l.id} className="text-sm border-b last:border-0 pb-2">
-              <p className="font-medium text-gray-900">
-                {new Date(l.collected_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                {l.lab_facility && <span className="text-gray-500 font-normal"> — {l.lab_facility}</span>}
-              </p>
-              {l.notes && <p className="text-gray-600 mt-0.5">{l.notes}</p>}
-            </div>
-          ))}
-        </div>
-      )}
+      {!labsRefreshing && !labsError && labs.length > 0 &&
+        <EffectiveLabSources labs={labs} patientId={patientId} readAt={labsReadAt} />}
     </div>
   );
 }
