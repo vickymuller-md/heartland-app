@@ -27,6 +27,12 @@ const changeReceipt = { request_id: id(8000), root_id: id(2100), version_id: id(
 const changeApplied = { ...changePrepared, state: 'applied', receipt: changeReceipt };
 
 describe('source amendment contract', () => {
+  it('decodes legacy global-only and integrated fan-out receipts without inventing human review', () => {
+    for (const work_invalidation_recorded of [false, true]) {
+      const value = { ...changeApplied, receipt: { ...changeReceipt, work_invalidation_recorded } };
+      expect(observationStateSchema.parse(value)).toEqual(value);
+    }
+  });
   it('preserves exact frozen spelling but accepts the numerically equal stored scale and timezone', () => {
     expect(observationStateSchema.parse(changeApplied)).toEqual(changeApplied);
     expect(observationInputFromState(observationStateSchema.parse(changePrepared))).toEqual(changeInput);
@@ -48,7 +54,7 @@ describe('source amendment contract', () => {
   });
   it.each([{ previous_version_id: id(999) }, { version_id: head.version_id }, { revision: '3' }, { request_id: id(999) },
     { status: 'cancelled' }, { effective_lab_result_id: id(100) }, { effective_lab_result_id: null }, { evaluation_status: null },
-    { work_invalidation_recorded: true }, { clinical_review_recorded: true }, { care_completed: true }, { delivered: true }])('rejects mismatched or overclaiming amendment receipt %#', (change) => {
+    { work_invalidation_recorded: 'true' }, { clinical_review_recorded: true }, { care_completed: true }, { delivered: true }])('rejects mismatched or overclaiming amendment receipt %#', (change) => {
     expect(observationStateSchema.safeParse({ ...changeApplied, receipt: { ...changeReceipt, ...change } }).success).toBe(false);
   });
   it.each([{ effective_lab_result_id: null }, { value: null }, { revision: '2' }, { status: 'corrected' }, { status: 'cancelled' }])('rejects inconsistent frozen head %#', (change) => {

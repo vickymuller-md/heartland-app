@@ -5,12 +5,25 @@ import { submissionIntentInputFromState, submissionIntentInputSchema, submission
 const id = (n: number) => `67000000-0000-4000-8000-${String(n).padStart(12, '0')}`; const at = '2026-09-01T12:00:00.123456-04:00';
 const input = { intent_id: id(200), actor_id: id(1), organization_id: id(90), patient_id: id(11), work_item_id: id(100), submission_request_id: id(300),
   expected_revision: '1', expected_ownership_revision: '1', payload: { analytes: ['potassium', 'egfr'], evidence: '  Original source  ', occurred_at: at } };
-const prepared = { ...input, state: 'prepared', recorded_at: at, cancelled_at: null, result_linked: false, clinical_review_recorded: false, care_completed: false,
+const prepared = { ...input, state: 'prepared', recorded_at: at, cancelled_at: null, reconciled_at: null, reconciliation: null, result_linked: false, clinical_review_recorded: false, care_completed: false,
   submission: { status: 'awaiting_save', lab_result_id: null, event_id: null, evaluation_status: null, saved_at: null, acknowledged_at: null,
     recorded_analytes: [], missing_analytes: ['potassium', 'egfr'] } };
 const saved = { ...prepared, submission: { status: 'saved_not_linked', lab_result_id: id(400), event_id: id(500), evaluation_status: 'pending', saved_at: at,
   acknowledged_at: null, recorded_analytes: ['creatinine', 'potassium'], missing_analytes: ['egfr'] } };
 describe('pre-save follow-up intention contract', () => {
+  it.each(['linked', 'not_used'])('retains the minimized historical %s resolution and releases only pending recovery', (disposition) => {
+    const resolved = { ...saved, state: 'reconciled', reconciled_at: at, result_linked: disposition === 'linked',
+      submission: { ...saved.submission, status: 'saved_reconciled' }, reconciliation: { event_id: id(900), disposition,
+        matched_analytes: disposition === 'linked' ? ['potassium'] : [], missing_analytes: ['egfr'], recorded_at: at } };
+    expect(submissionIntentStateSchema.parse(resolved)).toEqual(resolved);
+    expect(submissionIntentInputFromState(submissionIntentStateSchema.parse(resolved))).toEqual(input);
+    expect(submissionIntentPageSchema.safeParse({ items: [resolved], next_cursor: null }).success).toBe(false);
+    for (const change of [{ result_linked: disposition !== 'linked' }, { state: 'prepared' }, { reconciliation: null }, { reconciled_at: null },
+      { submission: saved.submission }, { reconciliation: { ...resolved.reconciliation, reason: 'Private other-owner rationale' } },
+      { reconciliation: { ...resolved.reconciliation, matched_analytes: ['egfr'] } }, { reconciliation: { ...resolved.reconciliation, missing_analytes: [] } }]) {
+      expect(submissionIntentStateSchema.safeParse({ ...resolved, ...change }).success).toBe(false);
+    }
+  });
   it('preserves exact payload/microseconds and separates source intention from saved evidence', () => {
     expect(submissionIntentStateSchema.parse(prepared)).toEqual(prepared);
     expect(submissionIntentStateSchema.parse(saved)).toEqual(saved);

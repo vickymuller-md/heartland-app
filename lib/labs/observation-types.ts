@@ -26,6 +26,7 @@ const headSchema = z.object({
 }).strict().refine((value) => (value.status === 'original') === (value.revision === '1')
   && (value.status === 'cancelled') === (value.value === null)
   && (value.status === 'cancelled') === (value.effective_lab_result_id === null));
+export const observationHeadSchema = headSchema;
 const identity = careScopeSchema.extend({ request_id: guid, root_id: guid, original_lab_result_id: guid, analyte: careAnalyteSchema }).strict();
 const registrationInput = identity.extend({
   command: z.literal('register_source'), expected_revision: z.literal('0'), payload: observationPayloadSchema,
@@ -51,8 +52,8 @@ const changeReceipt = receiptIdentity.extend({
   revision: revision(BigInt(2)), previous_version_id: guid, status: z.enum(['corrected', 'cancelled']),
   effective_lab_result_id: guid.nullable(), stored_source: z.object({ value: decimal.nullable(), collected_at: instant }).strict(),
   evaluation_status: z.literal('pending').nullable(), source_change_recorded: z.literal(true),
-  // Global change evidence is not yet an integrated per-work invalidation receipt.
-  work_invalidation_recorded: z.literal(false),
+  // Older receipts remain false; true records fan-out, never human review.
+  work_invalidation_recorded: z.boolean(),
 }).strict().refine((value) => (value.status === 'cancelled') === (value.effective_lab_result_id === null)
   && (value.status === 'cancelled') === (value.stored_source.value === null)
   && (value.status === 'cancelled') === (value.evaluation_status === null));

@@ -79,7 +79,7 @@ INSERT INTO changes VALUES('corrected',public.apply_lab_observation(pg_temp.lo(8
 SELECT is((SELECT value#>>'{receipt,revision}' FROM changes WHERE label='corrected'),'2','correction appends revision2');
 SELECT is((SELECT value#>>'{receipt,stored_source,value}' FROM changes WHERE label='corrected'),'4.2','receipt distinguishes stored scale');
 SELECT is((SELECT value#>>'{receipt,evaluation_status}' FROM changes WHERE label='corrected'),'pending','new source evaluation only pending');
-SELECT is((SELECT value#>>'{receipt,work_invalidation_recorded}' FROM changes WHERE label='corrected'),'false','global change is not per-work invalidation');
+SELECT is((SELECT value#>>'{receipt,work_invalidation_recorded}' FROM changes WHERE label='corrected'),'true','integrated fan-out recorded, even with zero dependent works');
 SELECT is((SELECT value#>>'{receipt,clinical_review_recorded}' FROM changes WHERE label='corrected'),'false','change is not review');
 SELECT is((SELECT value#>>'{receipt,care_completed}' FROM changes WHERE label='corrected'),'false','change is not completed care');
 SELECT is(public.apply_lab_observation(pg_temp.lo(8000)),(SELECT value FROM changes WHERE label='corrected'),'applied replay exact');

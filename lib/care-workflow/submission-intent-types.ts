@@ -17,23 +17,34 @@ export const submissionIntentPayloadSchema = z.object({
 }).strict();
 export const submissionIntentInputSchema = careScopeSchema.extend({ intent_id: guid, work_item_id: guid, submission_request_id: guid,
   expected_revision: revision(BigInt(1)), expected_ownership_revision: revision(BigInt(0)), payload: submissionIntentPayloadSchema }).strict();
-const submission = z.object({ status: z.enum(['awaiting_save', 'saved_not_linked', 'submission_cancelled']),
+const submission = z.object({ status: z.enum(['awaiting_save', 'saved_not_linked', 'saved_reconciled', 'submission_cancelled']),
   lab_result_id: guid.nullable(), event_id: guid.nullable(), evaluation_status: labEvaluationStatusSchema.nullable(),
   saved_at: instant.nullable(), acknowledged_at: instant.nullable(), recorded_analytes: analytes, missing_analytes: analytes,
 }).strict().superRefine((value, ctx) => {
-  const saved = value.status === 'saved_not_linked';
+  const saved = value.status === 'saved_not_linked' || value.status === 'saved_reconciled';
   if (saved ? value.lab_result_id === null || value.event_id === null || value.evaluation_status === null || value.saved_at === null || value.recorded_analytes.length === 0
     : value.lab_result_id !== null || value.event_id !== null || value.evaluation_status !== null || value.saved_at !== null || value.acknowledged_at !== null || value.recorded_analytes.length !== 0) {
     ctx.addIssue({ code: 'custom', message: 'Submission state and saved evidence disagree.' });
   }
   if (value.recorded_analytes.some((key, n, all) => n > 0 && key <= all[n - 1])) ctx.addIssue({ code: 'custom', message: 'Noncanonical recorded analytes.' });
 });
-export const submissionIntentStateSchema = submissionIntentInputSchema.extend({ state: z.enum(['prepared', 'cancelled']),
-  recorded_at: instant, cancelled_at: instant.nullable(), submission,
-  result_linked: z.literal(false), clinical_review_recorded: z.literal(false), care_completed: z.literal(false),
+const reconciliation = z.object({ event_id: guid, disposition: z.enum(['linked', 'not_used']),
+  matched_analytes: analytes, missing_analytes: analytes, recorded_at: instant }).strict();
+export const submissionIntentSubmissionSchema = submission;
+export const submissionIntentStateSchema = submissionIntentInputSchema.extend({ state: z.enum(['prepared', 'cancelled', 'reconciled']),
+  recorded_at: instant, cancelled_at: instant.nullable(), reconciled_at: instant.nullable(), reconciliation: reconciliation.nullable(), submission,
+  result_linked: z.boolean(), clinical_review_recorded: z.literal(false), care_completed: z.literal(false),
 }).strict().superRefine((value, ctx) => {
+  const resolved = value.state === 'reconciled';
+  const linked = resolved && value.reconciliation?.disposition === 'linked';
+  const expectedMatched = linked ? value.payload.analytes.filter((key) => value.submission.recorded_analytes.includes(key)) : [];
   if ((value.state === 'cancelled') !== (value.cancelled_at !== null)
     || (value.state === 'cancelled' && value.submission.status !== 'submission_cancelled')
+    || resolved !== (value.reconciled_at !== null) || resolved !== (value.reconciliation !== null)
+    || resolved !== (value.submission.status === 'saved_reconciled') || value.result_linked !== linked
+    || (linked && expectedMatched.length === 0)
+    || (value.reconciliation !== null && (JSON.stringify(value.reconciliation.matched_analytes) !== JSON.stringify(expectedMatched)
+      || JSON.stringify(value.reconciliation.missing_analytes) !== JSON.stringify(value.submission.missing_analytes)))
     || JSON.stringify(value.submission.missing_analytes) !== JSON.stringify(value.payload.analytes.filter((key) => !value.submission.recorded_analytes.includes(key)))) {
     ctx.addIssue({ code: 'custom', message: 'Intention cancellation or missing-analyte projection is inconsistent.' });
   }
