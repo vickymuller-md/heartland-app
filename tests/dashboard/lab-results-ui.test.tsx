@@ -128,6 +128,10 @@ function collectionInstant(): string {
 }
 
 describe('lab collection form', () => {
+  it('offers explicit source history without silently choosing an organization', async () => {
+    render(<LabResultsTab patientId={patientId} />);
+    expect(await screen.findByRole('link', { name: 'Manage source history' })).toHaveAttribute('href', `/patients/${patientId}/lab-sources`);
+  });
   beforeEach(() => {
     vi.stubEnv('TZ', 'America/New_York');
     currentSubmission = null;

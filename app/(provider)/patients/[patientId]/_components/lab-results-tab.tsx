@@ -683,8 +683,9 @@ function PatientLabResults({ patientId, actorId, isCurrent: sessionIsCurrent }: 
         }} />
       ))}
       {!evaluationsLoading && !evaluationsError && <EvaluationHistory evaluations={evaluations} />}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Laboratory sources</h2>
+        <a className="inline-flex min-h-11 items-center text-blue-700 underline" href={`/patients/${patientId}/lab-sources`}>Manage source history</a>
         <button type="button" onClick={fetchLabs} disabled={labsRefreshing}
           className="rounded-md border px-3 py-2 text-sm disabled:opacity-50">Refresh laboratory sources</button>
       </div>
