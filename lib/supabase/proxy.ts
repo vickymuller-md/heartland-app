@@ -34,6 +34,7 @@ const MFA_SETUP_PATH = "/security/mfa";
 // endpoints (robots, sitemap, web manifest) must never redirect to /login.
 const PUBLIC_EXACT = new Set<string>([
   "/",
+  "/~offline",
   "/robots.txt",
   "/sitemap.xml",
   "/manifest.webmanifest",

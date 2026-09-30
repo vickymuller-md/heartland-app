@@ -2,6 +2,7 @@ import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
 import {
   Serwist,
   CacheFirst,
+  NetworkOnly,
   StaleWhileRevalidate,
   ExpirationPlugin,
 } from "serwist";
@@ -46,6 +47,20 @@ const serwist = new Serwist({
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching: [
+    // Route page navigations through the offline fallback without caching HTML.
+    // API/Next endpoints and RSC fetches must never receive fallback documents.
+    {
+      matcher: ({ request, url: { pathname }, sameOrigin }) =>
+        sameOrigin &&
+        request.method === "GET" &&
+        request.mode === "navigate" &&
+        request.destination === "document" &&
+        pathname !== "/api" &&
+        !pathname.startsWith("/api/") &&
+        pathname !== "/_next" &&
+        !pathname.startsWith("/_next/"),
+      handler: new NetworkOnly(),
+    },
     // Only immutable, same-origin build assets and public app icons are cached.
     {
       matcher: ({ request, url: { pathname }, sameOrigin }) =>

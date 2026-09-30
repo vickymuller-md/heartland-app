@@ -33,7 +33,8 @@ const withSerwist = withSerwistInit({
   reloadOnOnline: false,
   cacheOnNavigation: false,
   additionalPrecacheEntries: [
-    { url: "/", revision },
+    // The home URL can redirect authenticated users to private workspaces.
+    // Precache only invariant public documents, never role-dependent pages.
     { url: "/~offline", revision },
     { url: "/downtime", revision },
     ...pocketCardEntries,

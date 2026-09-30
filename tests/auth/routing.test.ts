@@ -1,7 +1,49 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { getSafeConfirmRedirect } from '@/lib/auth/redirects';
+import { NextRequest } from 'next/server';
+import { updateSession } from '@/lib/supabase/proxy';
+
+const { getClaims, from } = vi.hoisted(() => ({ getClaims: vi.fn(), from: vi.fn() }));
+vi.mock('@supabase/ssr', () => ({
+  createServerClient: () => ({ auth: { getClaims }, from }),
+}));
+
+describe('Public offline document boundary', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getClaims.mockResolvedValue({ data: null, error: null });
+  });
+
+  it.each([
+    { data: null, error: null },
+    { data: null, error: { message: 'Synthetic invalid token' } },
+    { data: { claims: {} }, error: null },
+    { data: { claims: { sub: 'synthetic-user', aal: 'aal1' } }, error: null },
+    { data: { claims: { sub: 'synthetic-user', aal: 'aal2' } }, error: null },
+  ])('serves only the public offline notice without account queries: %j', async (result) => {
+    getClaims.mockResolvedValue(result);
+    const response = await updateSession(new NextRequest('https://app.example.test/~offline'));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+    expect(getClaims).toHaveBeenCalledTimes(1);
+    expect(from).not.toHaveBeenCalled();
+    if (result.data?.claims && 'sub' in result.data.claims) {
+      expect(response.headers.get('cache-control')).toContain('no-store');
+    }
+  });
+
+  it.each(['/~offline/child', '/~offline-other', '/patients', '/dashboard', '/today']) (
+    'does not extend public access to %s', async (pathname) => {
+      const response = await updateSession(new NextRequest(`https://app.example.test${pathname}`));
+      expect(response.status).toBe(307);
+      expect(response.headers.get('location')).toBe('https://app.example.test/login');
+      expect(getClaims).toHaveBeenCalledTimes(1);
+      expect(from).not.toHaveBeenCalled();
+    },
+  );
+});
 
 const proxySource = fs.readFileSync(
   path.resolve(__dirname, '../../lib/supabase/proxy.ts'),
