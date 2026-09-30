@@ -216,11 +216,11 @@ export function AutomationEvidence() {
           </Link>
         </div>
         <aside data-testid="local-candidate" aria-labelledby="lab-candidate-title" className="mt-10 rounded-3xl border-2 border-dashed border-cool/40 bg-terminal p-6 md:p-8">
-          <p className="text-sm font-semibold text-cool">Implementation status · Reviewed 24 September 2026</p>
-          <h3 id="lab-candidate-title" className="mt-3 text-2xl font-semibold text-cool">What is recorded, what is local, what is still open.</h3>
-          <p className="mt-4 max-w-3xl text-base leading-relaxed text-cool/80">An archive, a deployment record and a local candidate are different kinds of evidence. This dated summary is not a live service-status check or authorization for patient care.</p>
+          <p className="text-sm font-semibold text-cool">Implementation status · Deployed 30 September 2026</p>
+          <h3 id="lab-candidate-title" className="mt-3 text-2xl font-semibold text-cool">What is deployed, what is inactive, what still needs approval.</h3>
+          <p className="mt-4 max-w-3xl text-base leading-relaxed text-cool/80">A software archive, a deployment and clinical approval are different kinds of evidence. This dated summary is not a live service-status check or authorization for patient care.</p>
           <div data-testid="recorded-checkpoint" className="mt-6 rounded-2xl border border-grid bg-panel p-5">
-            <p className="text-sm font-semibold text-signal">Recorded deployment checkpoint · 19 September 2026</p>
+            <p className="text-sm font-semibold text-signal">Recorded deployment checkpoint · 30 September 2026</p>
             <h4 className="mt-3 text-xl font-semibold text-cool">Laboratory submission recovery</h4>
             <dl className="mt-4 grid gap-5 text-base leading-relaxed md:grid-cols-2">
               <div><dt className="font-semibold text-cool">Collection and reports</dt><dd className="mt-2 text-cool/80">The controlled workspace keeps collection time. Patient-summary printouts label a missing classification “Not recorded”; CSV leaves it blank. Neither export assumes “Normal”.</dd></div>
@@ -228,17 +228,19 @@ export function AutomationEvidence() {
             </dl>
             <p className="mt-4 text-base leading-relaxed text-cool/80">These are registered-workspace controls, not a public exam-submission service. Earlier submissions without a prepared attempt need their exact known identifier. This checkpoint does not create a new software archive.</p>
           </div>
-          <div data-testid="unreleased-work" className="mt-6 rounded-2xl border border-dashed border-cool/40 p-5">
-            <p className="text-sm font-semibold text-[#b4372d]">Local candidate · Not deployed</p>
+          <div data-testid="deployment-expansion" className="mt-6 rounded-2xl border border-dashed border-cool/40 p-5">
+            <p className="text-sm font-semibold text-[#b4372d]">Deployment expansion · Controlled evaluation only</p>
             <h4 className="mt-3 text-xl font-semibold text-cool">Recovery, ownership and visible pending work</h4>
             <dl className="mt-4 grid gap-5 text-base leading-relaxed md:grid-cols-2">
-              <div><dt className="font-semibold text-cool">Recover the saved observation</dt><dd className="mt-2 text-cool/80">Local tests cover individual and batch vital/symptom submissions, evaluation recovery and periodic-scan receipts. A retry must not duplicate an observation or hide a pending evaluation.</dd></div>
+              <div><dt className="font-semibold text-cool">Recover the saved observation</dt><dd className="mt-2 text-cool/80">The deployed workspace supports receipted individual and batch vital/symptom submissions and recovery without resending observations. Periodic-scan recovery is implemented but remains disabled.</dd></div>
               <div><dt className="font-semibold text-cool">Show who can act</dt><dd className="mt-2 text-cool/80">Organization-scoped owner selection, recoverable reassignment requests and restricted exception views make unresolved work visible. A captured notification intent is not a sent message; the new transport remains inactive.</dd></div>
+              <div><dt className="font-semibold text-cool">Trace the documented workflow</dt><dd className="mt-2 text-cool/80">Requests, laboratory source versions, human review records and contact documentation retain separate receipts and unresolved barriers. A documented step does not prove external delivery or completed care.</dd></div>
+              <div><dt className="font-semibold text-cool">Education and notification preferences</dt><dd className="mt-2 text-cool/80">Education responses use recoverable, session-bound submissions. Notification preferences are updated through authenticated, serialized requests. A saved response is not a clinical assessment; a preference is not proof that a message was delivered.</dd></div>
               <div><dt className="font-semibold text-cool">Rehearse without the App</dt><dd className="mt-2 text-cool/80">Toolkit V3.4 candidate work includes offline readiness worksheets, handoff/contact logs and 12 synthetic training scenarios. Prepared material is not evidence of completed training or clinical adoption.</dd></div>
-              <div><dt className="font-semibold text-cool">Keep unverified audio on hold</dt><dd className="mt-2 text-cool/80">58 prerecorded clips await source-to-sound and language review. The local candidate blocks their playback in three sandbox consumers while preserving text simulation. This hold is separate from optional live voice; it does not certify that service or remove existing public audio URLs.</dd></div>
+              <div><dt className="font-semibold text-cool">Keep unverified audio on hold</dt><dd className="mt-2 text-cool/80">58 prerecorded clips await source-to-sound and language review. The deployed App blocks their playback in three sandbox consumers while preserving text simulation. This hold is separate from optional live voice; it does not certify that service or remove existing public audio URLs.</dd></div>
             </dl>
           </div>
-          <p className="mt-6 border-t border-grid pt-5 text-base leading-relaxed text-cool/80">Still open: the complete order-to-contact cycle, durable notification delivery and human contingency, authenticated integration tests, competent clinical/language approvals and coordinated release. No completed clinical cycle, new public release or validated outcome is announced here.</p>
+          <p className="mt-6 border-t border-grid pt-5 text-base leading-relaxed text-cool/80">Verification: synthetic authenticated integration checks passed in an isolated environment; hosted schema and read contracts were checked at deployment. Still gated: scheduled scans, notification delivery and operational contingency approval, clinical/language acceptance of Toolkit V3.4 and audio, and updated App/Toolkit archives. No completed clinical cycle, real-world activation or validated outcome is claimed.</p>
         </aside>
       </div>
     </section>

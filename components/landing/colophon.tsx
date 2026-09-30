@@ -69,8 +69,8 @@ export function Colophon() {
               Software Heritage · historical snapshot
             </FooterLink>
             <li className="text-sm leading-relaxed text-stone">
-              This historical snapshot does not archive the local candidate
-              improvements described above.
+              This historical snapshot does not archive the deployment of
+              30 September 2026 described above.
             </li>
           </FooterBlock>
 

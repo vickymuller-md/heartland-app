@@ -61,16 +61,16 @@ describe("landing evidence walkthrough", () => {
     // user-event's focus selector omits summary; native Tab/Enter/Space are checked in a real browser.
   });
 
-  it("keeps release, simulation and local candidate labels outside disclosures", () => {
+  it("keeps archive, simulation and deployment labels outside disclosures", () => {
     render(<AutomationEvidence />);
-    for (const label of ["Published release · v1.9.0", "Synthetic walkthrough · No clinical care", "Recorded deployment checkpoint · 19 September 2026", "Local candidate · Not deployed"]) {
+    for (const label of ["Published release · v1.9.0", "Synthetic walkthrough · No clinical care", "Recorded deployment checkpoint · 30 September 2026", "Deployment expansion · Controlled evaluation only"]) {
       const element = screen.getByText(label);
       expect(element).toBeVisible();
       expect(element.closest("details")).toBeNull();
     }
   });
 
-  it("separates the recorded checkpoint from undeployed work without operational controls", () => {
+  it("distinguishes deployed controls from inactive automation without operational controls", () => {
     render(<AutomationEvidence />);
     const candidate = screen.getByTestId("local-candidate");
     expect(candidate).toHaveTextContent("Laboratory submission recovery");
@@ -79,17 +79,22 @@ describe("landing evidence walkthrough", () => {
     expect(candidate).toHaveTextContent("Acknowledgment is not clinical review");
     expect(candidate.querySelector("a, button, form, input, audio, video, iframe")).toBeNull();
     const recorded = screen.getByTestId("recorded-checkpoint");
-    const local = screen.getByTestId("unreleased-work");
-    expect(recorded).toHaveTextContent("Recorded deployment checkpoint · 19 September 2026");
+    const local = screen.getByTestId("deployment-expansion");
+    expect(recorded).toHaveTextContent("Recorded deployment checkpoint · 30 September 2026");
     expect(recorded).toHaveTextContent("Laboratory submission recovery");
     expect(recorded).not.toHaveTextContent("Local candidate");
-    expect(local).toHaveTextContent("Local candidate · Not deployed");
+    expect(local).toHaveTextContent("Deployment expansion · Controlled evaluation only");
     expect(local).not.toHaveTextContent("Recorded deployment checkpoint");
     for (const label of ["new transport remains inactive", "Toolkit V3.4 candidate", "12 synthetic training scenarios", "58 prerecorded clips", "preserving text simulation", "does not certify that service or remove existing public audio URLs"]) {
       expect(local).toHaveTextContent(label);
     }
     expect(candidate).toHaveTextContent("not a live service-status check");
-    expect(candidate).toHaveTextContent("Still open: the complete order-to-contact cycle");
+    expect(candidate).toHaveTextContent("Still gated: scheduled scans");
+    expect(candidate).toHaveTextContent("Periodic-scan recovery is implemented but remains disabled");
+    expect(candidate).toHaveTextContent("synthetic authenticated integration checks passed in an isolated environment");
+    expect(candidate).toHaveTextContent("Trace the documented workflow");
+    expect(candidate).toHaveTextContent("Education and notification preferences");
+    expect(candidate).not.toHaveTextContent("Local candidate · Not deployed");
   });
 
   it("preserves all nine capability groups and the synthetic sandbox destination", () => {
@@ -150,7 +155,7 @@ describe("composed public home", () => {
     expect(within(modules).getAllByText("Educational module")).toHaveLength(8);
     expect(within(screen.getByTestId("published-capabilities")).getAllByRole("article")).toHaveLength(9);
     expect(container.querySelectorAll("details")).toHaveLength(5);
-    for (const label of ["Published release · v1.9.0", "Synthetic walkthrough · No clinical care", "Local candidate · Not deployed"]) {
+    for (const label of ["Published release · v1.9.0", "Synthetic walkthrough · No clinical care", "Deployment expansion · Controlled evaluation only"]) {
       expect(screen.getByText(label).closest("details")).toBeNull();
     }
   });
@@ -195,7 +200,7 @@ describe("composed public home", () => {
     ]) expect(footer.getByRole("link", { name: label })).toHaveAttribute("href", href);
     expect(footer.getByRole("link", { name: /Software Heritage · historical snapshot/ })).toHaveAttribute("href", "https://archive.softwareheritage.org/swh:1:snp:3e39be4952047172a2c1a131c2965bd580a6dc69/");
     expect(container.querySelector('a[href="https://www.cureus.com/"], a[href="https://www.medrxiv.org/"]')).toBeNull();
-    expect(footer.getByText(/does not archive the local candidate/)).toBeVisible();
+    expect(footer.getByText(/does not archive the deployment of/)).toBeVisible();
     expect(metadata.title).toContain(`HEARTLAND App ${APP_VERSION}`);
     expect(metadata.description).toContain("educational implementation companion");
     expect(metadata.description).toContain("synthetic");
