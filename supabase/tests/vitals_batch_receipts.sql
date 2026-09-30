@@ -129,7 +129,10 @@ SELECT throws_ok($q$SELECT public.finalize_vitals_submission_evaluation((pg_temp
  '22023','Invalid vitals evaluation','batch cannot use individual recipe');
 SELECT is(public.finalize_vitals_submission_evaluation((pg_temp.vb_requests('batch'))[1],'46000000-0000-4000-8000-000000000001','vitals-frozen-batch-v1',ARRAY['spo2_low'])->>'status','complete','batch recipe finalized');
 SELECT is(public.finalize_vitals_submission_evaluation((pg_temp.vb_requests('batch'))[1],'46000000-0000-4000-8000-000000000001','vitals-frozen-batch-v1',ARRAY['spo2_low'])->>'attempts','1','batch evaluation replay idempotent');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT occurrence_count FROM public.alerts),1,'replay does not increment alert');
+SET LOCAL ROLE service_role;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claims','{"sub":"46000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2"}',true);
 SELECT is(public.list_pending_vitals_submissions('46000000-0000-4000-8000-000000000011')->>'total','2','unfinished batch row and acknowledged individual remain pending');
@@ -171,7 +174,10 @@ SELECT lives_ok($q$SELECT public.purge_expired_tester_provenance('46000000-0000-
 SELECT is((SELECT count(*)::int FROM public.vitals_submission_batches WHERE patient_id='46000000-0000-4000-8000-000000000012'),0,'no batch orphan');
 SELECT is((SELECT vitals_batch_rows_deleted FROM public.lab_provenance_erasures WHERE actor_id='46000000-0000-4000-8000-000000000012'),7,'new row audit count separate');
 SELECT is((SELECT vitals_batches_deleted FROM public.lab_provenance_erasures WHERE actor_id='46000000-0000-4000-8000-000000000012'),2,'new batch audit count includes unsaved attempt separately');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.vitals WHERE patient_id='46000000-0000-4000-8000-000000000012'),1007,'provenance purge does not invent observation deletion');
+SET LOCAL ROLE service_role;
 RESET ROLE;
 UPDATE public.profiles SET role='tester',sandbox_expires_at=now()-interval '1 hour' WHERE id='46000000-0000-4000-8000-000000000001';
 SET LOCAL ROLE service_role;
@@ -182,6 +188,9 @@ SELECT throws_ok($q$SELECT public.purge_expired_tester_provenance('46000000-0000
 SELECT is((SELECT count(*)::int FROM public.vitals_submission_batches),2,'blocked purge preserves both actor batches');
 SELECT is((SELECT count(*)::int FROM public.vitals_submission_batch_rows),2,'blocked purge preserves recipe mappings');
 SELECT is((SELECT count(*)::int FROM public.lab_provenance_erasures WHERE actor_id='46000000-0000-4000-8000-000000000001'),0,'blocked purge creates no partial erasure receipt');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.vitals WHERE patient_id='46000000-0000-4000-8000-000000000011'),3,'blocked purge preserves third-party patient observations');
+SET LOCAL ROLE service_role;
 SELECT * FROM finish();
 ROLLBACK;

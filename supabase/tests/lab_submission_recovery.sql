@@ -42,7 +42,10 @@ SELECT ok((SELECT num_nonnulls(lab_result_id, event_id, alert_status, collected_
 INSERT INTO recovery_results SELECT 'lost-prepare-response', * FROM public.prepare_lab_submission('f4000000-0000-4000-8000-000000000011');
 SELECT is((SELECT request_id FROM recovery_results WHERE label = 'lost-prepare-response'), (SELECT request_id FROM recovery_results WHERE label = 'first'), 'repeated preparation recovers same identity');
 SELECT ok(NOT (SELECT is_new FROM recovery_results WHERE label = 'lost-prepare-response'), 'recovered preparation is not a fresh form');
+-- Inspect persisted rows as owner; preparation and authorization stay authenticated.
+RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.lab_results), 0, 'preparation/read do not save clinical data');
+SET LOCAL ROLE authenticated;
 SELECT throws_ok($q$INSERT INTO public.lab_submission_attempts DEFAULT VALUES$q$, '42501', NULL, 'client cannot forge an attempt');
 SELECT throws_ok($q$UPDATE public.lab_submission_attempts SET closed_status = 'cancelled'$q$, '42501', NULL, 'client cannot forge cancellation');
 SELECT throws_ok($q$INSERT INTO public.lab_results(patient_id, collected_at, potassium) VALUES ('f4000000-0000-4000-8000-000000000011', '2015-01-01', 4)$q$,
@@ -87,7 +90,9 @@ INSERT INTO recovery_results SELECT 'lost-ack-response', * FROM public.acknowled
 SELECT is((SELECT submission_status FROM recovery_results WHERE label = 'lost-ack-response'), 'acknowledged', 'lost acknowledgement response is replayable');
 INSERT INTO recovery_results SELECT 'exact-closed', * FROM public.get_lab_submission('f4000000-0000-4000-8000-000000000011', (SELECT request_id FROM recovery_results WHERE label = 'first'));
 SELECT is((SELECT submission_status FROM recovery_results WHERE label = 'exact-closed'), 'acknowledged', 'explicit recovery can read closed identity');
+RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.lab_results), 1, 'read/acknowledgement do not insert another exam');
+SET LOCAL ROLE authenticated;
 INSERT INTO recovery_results SELECT 'second', * FROM public.prepare_lab_submission('f4000000-0000-4000-8000-000000000011');
 SELECT isnt((SELECT request_id FROM recovery_results WHERE label = 'second'), (SELECT request_id FROM recovery_results WHERE label = 'first'), 'new preparation requires previous closure');
 INSERT INTO recovery_results SELECT 'cancelled', * FROM public.cancel_lab_submission('f4000000-0000-4000-8000-000000000011', (SELECT request_id FROM recovery_results WHERE label = 'second'));
@@ -111,7 +116,9 @@ INSERT INTO recovery_saved SELECT 'rolled-back', * FROM public.submit_lab_result
  (SELECT request_id FROM recovery_results WHERE label = 'third'), 'f4000000-0000-4000-8000-000000000011', '2012-01-01', 4);
 ROLLBACK TO SAVEPOINT recovery_submission_rollback;
 SELECT is((SELECT submission_status FROM public.get_lab_submission('f4000000-0000-4000-8000-000000000011')), 'prepared', 'rolled-back submission leaves same prepared attempt');
+RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.lab_results), 1, 'rolled-back submission leaves no additional clinical row');
+SET LOCAL ROLE authenticated;
 INSERT INTO recovery_results SELECT 'cancel-acknowledged', * FROM public.cancel_lab_submission('f4000000-0000-4000-8000-000000000011', (SELECT request_id FROM recovery_results WHERE label = 'first'));
 SELECT is((SELECT submission_status FROM recovery_results WHERE label = 'cancel-acknowledged'), 'acknowledged', 'cancellation cannot change prior acknowledgement');
 SELECT throws_ok($q$SELECT * FROM public.acknowledge_lab_submission('f4000000-0000-4000-8000-000000000011', (SELECT request_id FROM recovery_results WHERE label = 'second'), (SELECT lab_result_id FROM recovery_saved WHERE label = 'saved'))$q$,

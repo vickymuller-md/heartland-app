@@ -321,7 +321,10 @@ SELECT * FROM public.purge_expired_tester_provenance('44000000-0000-4000-8000-00
 SELECT is((SELECT vitals_receipts_deleted FROM public.lab_provenance_erasures WHERE actor_id='44000000-0000-4000-8000-000000000001'),2,'audit separately counts vitals receipts erased');
 SELECT is((SELECT vitals_attempts_deleted FROM public.lab_provenance_erasures WHERE actor_id='44000000-0000-4000-8000-000000000001'),3,'audit counts prepared/committed/closed actor identities');
 SELECT is((SELECT count(*)::int FROM public.vitals_submission_attempts WHERE actor_id='44000000-0000-4000-8000-000000000002'),1,'other actor attempt preserved');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.vitals WHERE id=(SELECT (result->>'vitals_id')::uuid FROM vs_results WHERE label='committed')),1,'actor erasure preserves patient observation');
+SET LOCAL ROLE service_role;
 SELECT * FROM public.purge_expired_tester_provenance('44000000-0000-4000-8000-000000000001');
 SELECT is((SELECT sum(vitals_receipts_deleted)::int FROM public.lab_provenance_erasures WHERE actor_id='44000000-0000-4000-8000-000000000001'),2,
  'same-transaction repeat purge preserves earlier audit counts');

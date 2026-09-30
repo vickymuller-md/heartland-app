@@ -96,7 +96,10 @@ SELECT is((SELECT count(*)::int FROM public.lab_submission_receipts WHERE actor_
 SELECT is((SELECT count(*)::int FROM public.lab_submission_attempts WHERE actor_id = 'f6000000-0000-4000-8000-0000000000a1'), 0, 'A has no attempts left');
 SELECT is((SELECT count(*)::int FROM public.lab_submission_receipts WHERE actor_id = 'f6000000-0000-4000-8000-0000000000b1'), 1, 'B''s receipt untouched');
 SELECT is((SELECT count(*)::int FROM public.lab_submission_attempts WHERE actor_id = 'f6000000-0000-4000-8000-0000000000b1'), 1, 'B''s attempt untouched');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.lab_results WHERE id IN ('f6000000-0000-4000-8000-0000000000e1', 'f6000000-0000-4000-8000-0000000000e2')), 2, 'lab results preserved');
+SET LOCAL ROLE service_role;
 SELECT is((SELECT status FROM public.lab_alert_evaluations WHERE lab_result_id = 'f6000000-0000-4000-8000-0000000000e1'), 'recorded', 'evaluation preserved');
 SELECT is((SELECT count(*)::int FROM public.lab_alert_sources WHERE lab_result_id = 'f6000000-0000-4000-8000-0000000000e1'), 1, 'alert source preserved');
 SELECT is((SELECT count(*)::int FROM public.lab_provenance_erasures WHERE actor_id = 'f6000000-0000-4000-8000-0000000000a1'), 1, 'erasure audited once');

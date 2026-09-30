@@ -80,10 +80,16 @@ SELECT throws_ok($q$SELECT public.finalize_alert_scan_rule(pg_temp.sr('48000000-
  pg_temp.scan_result('no_checkin'))$q$,'22023','Invalid scan result','even source-less result cannot be swapped between receipts');
 INSERT INTO scan_results VALUES('no_checkin',pg_temp.finalize('no_checkin'));
 SELECT is((SELECT result->>'status' FROM scan_results WHERE label='no_checkin'),'complete','informational rule commits');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT severity FROM public.alerts WHERE id=(SELECT (result->>'alert_id')::uuid FROM scan_results WHERE label='no_checkin')),'informational','muting does not suppress or promote detected signal');
+SET LOCAL ROLE service_role;
 SELECT is((SELECT count(*)::int FROM public.work_items WHERE source_id=(SELECT (result->>'alert_id')::uuid FROM scan_results WHERE label='no_checkin')),1,'governed work is committed with alert');
 SELECT is(pg_temp.finalize('no_checkin'),(SELECT result FROM scan_results WHERE label='no_checkin'),'lost finalizer response recovers exact receipt');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT occurrence_count FROM public.alerts WHERE id=(SELECT (result->>'alert_id')::uuid FROM scan_results WHERE label='no_checkin')),1,'replay does not call coalescer twice');
+SET LOCAL ROLE service_role;
 SELECT throws_ok($q$SELECT pg_temp.finalize('no_checkin','not_triggered',NULL)$q$,'23505','Scan result differs from frozen evaluation','cannot replace completed clinical result');
 SELECT throws_ok($q$SELECT pg_temp.finalize('followup_due','triggered','warning')$q$,'22023','Invalid scan result','cannot promote informational follow-up');
 SELECT throws_ok($q$SELECT public.finalize_alert_scan_rule(pg_temp.sr('48000000-0000-4000-8000-000000000011'),'unknown',pg_temp.scan_result('followup_due'))$q$,
@@ -94,7 +100,10 @@ SELECT throws_ok($q$UPDATE public.alert_scan_patients SET snapshot='{}'$q$,'4250
 SELECT is(pg_temp.finalize('weight_trend_7d','blocked',NULL,'ambiguous_source')->>'status','blocked','ambiguity is explicit and not no-trigger');
 SELECT is(pg_temp.finalize('hyperkalemia','triggered','critical')->>'status','complete','independent critical rule completes despite blocked weight rule');
 SELECT is(pg_temp.finalize('low_adherence','not_applicable',NULL)->>'status','complete','confirmed no scheduled medication rule can complete without alert');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.alerts),2,'non-trigger/blocked rules do not create alerts');
+SET LOCAL ROLE service_role;
 
 RESET ROLE;
 INSERT INTO public.vitals(patient_id,weight_lbs,recorded_at) VALUES('48000000-0000-4000-8000-000000000011',185,now());
@@ -108,7 +117,10 @@ CREATE FUNCTION pg_temp.fail_scan_alert() RETURNS trigger LANGUAGE plpgsql AS $$
 CREATE TRIGGER fail_scan_alert AFTER INSERT OR UPDATE ON public.alerts FOR EACH ROW EXECUTE FUNCTION pg_temp.fail_scan_alert();
 SET LOCAL ROLE service_role;
 SELECT is(pg_temp.finalize('low_egfr','triggered','critical')->>'status','failed','persistence failure leaves retryable rule');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.alerts),2,'failed transaction adds no orphan alert');
+SET LOCAL ROLE service_role;
 SELECT is((SELECT error_code FROM public.alert_scan_evaluations WHERE receipt_id=pg_temp.sr('48000000-0000-4000-8000-000000000011') AND rule='low_egfr'),
  'P0001','only safe SQLSTATE persisted');
 SELECT is(pg_temp.finalize('no_checkin'),(SELECT result FROM scan_results WHERE label='no_checkin'),'other completed rules unaffected by failure');
@@ -146,9 +158,15 @@ SET LOCAL ROLE service_role;
 SELECT set_config('request.jwt.claims','{"role":"service_role"}',true);
 SELECT is(pg_temp.finalize('followup_overdue','triggered','warning')->>'error_code','needs_episode_adjudication','closed work requires explicit episode adjudication');
 SELECT is((SELECT to_jsonb(item) FROM public.work_items AS item WHERE status='closed'),(SELECT row FROM scan_closed),'closed human outcome remains byte-identical');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT occurrence_count FROM public.alerts WHERE flags=ARRAY['followup_overdue']),2,'new frozen signal persists once despite closed-item routing exception');
+SET LOCAL ROLE service_role;
 SELECT is(pg_temp.finalize('followup_overdue','triggered','warning')->>'status','complete','routing exception is distinct from persisted detection');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT occurrence_count FROM public.alerts WHERE flags=ARRAY['followup_overdue']),2,'exception replay never coalesces detection twice');
+SET LOCAL ROLE service_role;
 SELECT is(public.alert_scan_status()->>'routing_exceptions','1','routing exception counted separately from completed detection');
 
 -- A second organization receives the same alert but owns its own open task.
@@ -180,7 +198,10 @@ SELECT is((SELECT jsonb_array_length(result->'prior_item_ids') FROM scan_results
 SELECT is(public.finalize_alert_scan_rule('48000000-0000-4000-8000-000000000202','proactive-frozen-v2',
  jsonb_set(pg_temp.scan_result('followup_overdue','triggered','critical'),'{receipt_id}','"48000000-0000-4000-8000-000000000202"')),
  (SELECT result FROM scan_results WHERE label='mixed'),'mixed disposition replay is idempotent');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT occurrence_count FROM public.alerts WHERE flags=ARRAY['followup_overdue']),3,'only one extra occurrence from new mixed-organization receipt');
+SET LOCAL ROLE service_role;
 
 -- Distinct past/future run fixtures prove clock behavior without altering immutable live rows.
 RESET ROLE;

@@ -74,7 +74,38 @@ jobs:
         run: npx supabase start
       - name: Rebuild schema from migrations
         run: npx supabase db reset --local
+      - name: Record isolated database posture
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p database-evidence
+          npx supabase --version > database-evidence/cli-version.txt
+          docker exec -i supabase_db_heartland-app psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL' | tee database-evidence/posture.txt
+          SELECT version();
+          SELECT current_user, current_database();
+          SELECT rolname, rolsuper, rolinherit, rolbypassrls FROM pg_roles
+            WHERE rolname IN ('postgres','anon','authenticated','service_role') ORDER BY rolname;
+          DO $$ BEGIN
+            IF (SELECT rolsuper FROM pg_roles WHERE rolname=current_user) THEN
+              RAISE EXCEPTION 'pgTAP runner must not be a superuser';
+            END IF;
+          END $$;
+          SELECT pg_get_userbyid(defaclrole) AS owner, defaclnamespace::regnamespace, defaclobjtype, defaclacl
+            FROM pg_default_acl WHERE defaclnamespace IN (0,'public'::regnamespace);
+          SELECT version FROM supabase_migrations.schema_migrations ORDER BY version;
+          SQL
       - name: Lint database
         run: npx supabase db lint --local --level warning
       - name: Run pgTAP authorization contracts
-        run: npx supabase test db
+        shell: bash
+        run: |
+          set -o pipefail
+          npx supabase test db 2>&1 | tee database-evidence/pgtap.txt
+      - name: Preserve database verification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: heartland-database-verification
+          path: database-evidence/
+          if-no-files-found: warn
+          retention-days: 30

@@ -56,10 +56,13 @@ INSERT INTO lab_test_results SELECT 'boundary', * FROM public.submit_lab_result(
   'f2000000-0000-4000-8000-000000000001', 'f1000000-0000-4000-8000-000000000011', '2020-01-01T12:00:00.123456Z', 5.5, 15);
 SELECT is((SELECT status FROM lab_test_results WHERE label = 'boundary'), 'pending', 'submission returns durable pending state');
 SELECT is((SELECT count(*)::int FROM public.lab_alert_evaluations), 1, 'one durable evaluation is visible to linked provider');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT collected_at FROM public.lab_results WHERE id = (SELECT lab_result_id FROM lab_test_results WHERE label = 'boundary')),
   '2020-01-01T12:00:00.123456Z'::timestamptz, 'collection preserves microseconds and is not overwritten by entry time');
 SELECT ok((SELECT ordered_by IS NULL FROM public.lab_results WHERE id = (SELECT lab_result_id FROM lab_test_results WHERE label = 'boundary')),
   'recorder is not falsely represented as ordering clinician');
+SET LOCAL ROLE authenticated;
 SELECT is((SELECT recorded_by FROM public.lab_alert_evaluations WHERE id = (SELECT event_id FROM lab_test_results WHERE label = 'boundary')),
   'f1000000-0000-4000-8000-000000000001'::uuid, 'evaluation records authenticated recorder separately');
 INSERT INTO lab_test_results SELECT 'replay', * FROM public.submit_lab_result(
@@ -130,7 +133,10 @@ SELECT set_config('request.jwt.claims', '{"sub":"f1000000-0000-4000-8000-0000000
 SELECT pg_temp.stage_lab_test_request('f1000000-0000-4000-8000-000000000011', 'f2000000-0000-4000-8000-000000000009');
 SELECT throws_ok($q$SELECT * FROM public.submit_lab_result('f2000000-0000-4000-8000-000000000009', 'f1000000-0000-4000-8000-000000000011', '2021-02-03T12:00:00Z', 4)$q$,
   'P0001', 'Synthetic outbox failure', 'queue insertion failure aborts submission');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.lab_results WHERE collected_at = '2021-02-03T12:00:00Z'), 0, 'queue failure rolls back laboratory row');
+SET LOCAL ROLE authenticated;
 SELECT is((SELECT count(*)::int FROM public.lab_submission_receipts WHERE request_id = 'f2000000-0000-4000-8000-000000000009'), 0, 'queue failure leaves no receipt');
 RESET ROLE;
 DROP TRIGGER lab_test_outbox_failure ON public.lab_alert_evaluations;
@@ -147,19 +153,24 @@ SELECT set_config('request.jwt.claims', '{"role":"authenticated"}', true);
 SELECT throws_ok($q$SELECT * FROM public.process_lab_alert_event((SELECT lab_result_id FROM lab_test_results WHERE label = 'boundary'))$q$,
   '42501', 'Laboratory operation not authorized', 'processor requires explicit service claim');
 SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
+-- Owner-level trigger/constraint tests, independent of inherited service ACLs.
+RESET ROLE;
 SELECT throws_ok($q$UPDATE public.lab_results SET potassium = 6.5 WHERE id = (SELECT lab_result_id FROM lab_test_results WHERE label = 'boundary')$q$,
-  'P0001', 'Evaluated laboratory records are immutable', 'service cannot change a pending evaluation payload');
+  'P0001', 'Evaluated laboratory records are immutable', 'owner cannot change a pending evaluation payload');
+SET LOCAL ROLE service_role;
 INSERT INTO lab_test_results SELECT 'processed-boundary', * FROM public.process_lab_alert_event((SELECT lab_result_id FROM lab_test_results WHERE label = 'boundary'));
 SELECT is((SELECT status FROM lab_test_results WHERE label = 'processed-boundary'), 'not_required', 'equal K/eGFR boundaries do not trigger');
 SELECT is((SELECT attempt_count FROM public.lab_alert_evaluations WHERE id = (SELECT event_id FROM lab_test_results WHERE label = 'boundary')), 1, 'processing counts one attempt');
+RESET ROLE;
 SELECT throws_ok($q$UPDATE public.lab_results SET collected_at = '2019-01-01' WHERE id = (SELECT lab_result_id FROM lab_test_results WHERE label = 'boundary')$q$,
-  'P0001', 'Evaluated laboratory records are immutable', 'service cannot change collection after terminal evaluation');
+  'P0001', 'Evaluated laboratory records are immutable', 'owner cannot change collection after terminal evaluation');
 SELECT throws_ok($q$UPDATE public.lab_results SET patient_id = 'f1000000-0000-4000-8000-000000000012' WHERE id = (SELECT lab_result_id FROM lab_test_results WHERE label = 'boundary')$q$,
-  'P0001', 'Evaluated laboratory records are immutable', 'service cannot move a evaluated lab to another patient');
+  'P0001', 'Evaluated laboratory records are immutable', 'owner cannot move an evaluated lab to another patient');
 SELECT throws_ok($q$DELETE FROM public.lab_results WHERE id = (SELECT lab_result_id FROM lab_test_results WHERE label = 'boundary')$q$,
-  '23503', NULL, 'service cannot delete lab underpinning evaluation and receipt');
+  '23503', NULL, 'owner cannot delete lab underpinning evaluation and receipt');
 SELECT lives_ok($q$UPDATE public.lab_results SET potassium = potassium WHERE id = (SELECT lab_result_id FROM lab_test_results WHERE label = 'boundary')$q$,
   'no-op update does not pretend to create a correction');
+SET LOCAL ROLE service_role;
 SELECT throws_ok($q$SELECT * FROM public.process_lab_alert_event(NULL)$q$, '22023', 'Invalid laboratory event', 'null event rejected');
 SELECT throws_ok($q$SELECT * FROM public.process_lab_alert_event('f3000000-0000-4000-8000-000000000099')$q$,
   '22023', 'Invalid laboratory event', 'unknown event rejected generically');
@@ -224,7 +235,10 @@ SELECT is((SELECT status FROM lab_test_results WHERE label = 'failed-critical'),
 SELECT is((SELECT attempt_count FROM public.lab_alert_evaluations WHERE id = (SELECT event_id FROM lab_test_results WHERE label = 'critical')), 1, 'failed attempt is durable');
 SELECT is((SELECT last_error_code FROM public.lab_alert_evaluations WHERE id = (SELECT event_id FROM lab_test_results WHERE label = 'critical')),
   'evaluation_failed', 'failure stores only generic code, never SQLERRM');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.alerts WHERE patient_id = 'f1000000-0000-4000-8000-000000000012'), 0, 'second signal failure rolls back first alert');
+SET LOCAL ROLE service_role;
 SELECT is((SELECT count(*)::int FROM public.lab_alert_sources WHERE lab_result_id = (SELECT lab_result_id FROM lab_test_results WHERE label = 'critical')), 0, 'failure rolls back source links');
 SELECT is((SELECT count(*)::int FROM public.work_items WHERE patient_id = 'f1000000-0000-4000-8000-000000000012'), 0, 'failure rolls back trigger-created work items');
 RESET ROLE;
@@ -238,7 +252,10 @@ SELECT ok((SELECT bool_and(collected_at = '2018-01-01T12:00:00Z'::timestamptz AN
   FROM public.lab_alert_sources WHERE lab_result_id = (SELECT lab_result_id FROM lab_test_results WHERE label = 'critical')), 'source distinguishes historical collection from detection');
 INSERT INTO lab_test_results SELECT 'terminal-replay', * FROM public.process_lab_alert_event((SELECT lab_result_id FROM lab_test_results WHERE label = 'critical'));
 SELECT is((SELECT attempt_count FROM public.lab_alert_evaluations WHERE id = (SELECT event_id FROM lab_test_results WHERE label = 'critical')), 2, 'terminal replay does not count attempt');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT sum(occurrence_count)::int FROM public.alerts WHERE patient_id = 'f1000000-0000-4000-8000-000000000012'), 2, 'terminal replay does not increment occurrences');
+SET LOCAL ROLE service_role;
 RESET ROLE;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claims', '{"sub":"f1000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2"}', true);
@@ -250,8 +267,11 @@ SET LOCAL ROLE service_role;
 SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
 INSERT INTO lab_test_results SELECT 'processed-second-critical', * FROM public.process_lab_alert_event((SELECT lab_result_id FROM lab_test_results WHERE label = 'second-critical'));
 SELECT is((SELECT status FROM lab_test_results WHERE label = 'processed-second-critical'), 'recorded', 'new observation may coalesce an existing active signal');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.alerts WHERE patient_id = 'f1000000-0000-4000-8000-000000000012'), 2, 'coalescence does not create duplicate active alerts');
 SELECT is((SELECT sum(occurrence_count)::int FROM public.alerts WHERE patient_id = 'f1000000-0000-4000-8000-000000000012'), 4, 'each distinct observation is counted once per flag');
+SET LOCAL ROLE service_role;
 SELECT is((SELECT count(*)::int FROM public.lab_alert_sources), 4, 'coalesced alerts retain both observations instead of replacing provenance');
 RESET ROLE;
 SELECT throws_ok($q$UPDATE public.lab_alert_sources SET flag = 'changed'$q$, 'P0001', 'Laboratory provenance is append-only', 'source cannot be rewritten even by table owner');

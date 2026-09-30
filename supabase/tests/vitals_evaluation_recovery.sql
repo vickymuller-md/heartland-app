@@ -48,12 +48,18 @@ SELECT throws_ok($q$SELECT public.finalize_vitals_submission_evaluation(pg_temp.
  '42501','Vitals evaluation not authorized','wrong actor denied');
 INSERT INTO ve_results VALUES ('evaluated',pg_temp.ve_finish('critical',ARRAY['spo2_low','spo2_low']));
 SELECT is((SELECT result->>'status' FROM ve_results WHERE label='evaluated'),'complete','critical evaluation committed');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT red_flag FROM public.symptoms),true,'symptom classification committed with alert');
 SELECT is((SELECT count(*)::int FROM public.alerts),1,'one alert');
 SELECT is((SELECT flags FROM public.alerts),ARRAY['spo2_low'],'correct mapping');
+SET LOCAL ROLE service_role;
 SELECT is(pg_temp.ve_finish('critical',ARRAY['spo2_low']),
  (SELECT result FROM ve_results WHERE label='evaluated'),'lost finalizer response replays exact result');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT occurrence_count FROM public.alerts),1,'retry does not coalesce twice');
+SET LOCAL ROLE service_role;
 SELECT is((SELECT attempts FROM public.vitals_submission_evaluations),1,'completed retry does not count another evaluation');
 SELECT throws_ok($q$SELECT pg_temp.ve_finish('critical',ARRAY[]::text[])$q$,'23505','Vitals evaluation differs','changed flags cannot replace result');
 SELECT throws_ok($q$DELETE FROM public.vitals_submission_evaluations$q$,'42501',NULL,'service cannot erase provenance directly');
@@ -77,9 +83,12 @@ CREATE TRIGGER ve_fail AFTER INSERT OR UPDATE ON public.alerts FOR EACH ROW EXEC
 SET LOCAL ROLE service_role;
 SELECT set_config('request.jwt.claims','{"role":"service_role"}',true);
 SELECT is(pg_temp.ve_finish('failure',ARRAY['dyspnea_rest'])->>'status','failed','coalescer failure persists retry state');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.alerts),1,'failed coalescer effects rolled back');
 SELECT is((SELECT red_flag FROM public.symptoms WHERE id=(SELECT (result->>'symptoms_id')::uuid FROM ve_results WHERE label='failure-capture')),
  NULL::boolean,'failed evaluation never marks symptoms normal');
+SET LOCAL ROLE service_role;
 SELECT is((SELECT flags FROM public.vitals_submission_evaluations WHERE request_id=pg_temp.ve_request('failure')),NULL::text[],'failed result not published as complete');
 SELECT is((SELECT last_error_code FROM public.vitals_submission_evaluations WHERE request_id=pg_temp.ve_request('failure')),'P0001','sanitized error code only');
 RESET ROLE;
@@ -92,10 +101,13 @@ UPDATE public.provider_patient_links SET status='active' WHERE provider_id='4500
 SET LOCAL ROLE service_role;
 SELECT is(pg_temp.ve_finish('failure',ARRAY['dyspnea_rest'])->>'status','complete','retry completes original capture');
 SELECT is((SELECT attempts FROM public.vitals_submission_evaluations WHERE request_id=pg_temp.ve_request('failure')),2,'failure and retry counted');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.vitals),2,'retry never creates new observations');
 SELECT is((SELECT count(*)::int FROM public.alerts),2,'retry records one new signal');
 SELECT is((SELECT flags FROM public.alerts WHERE id=(SELECT alert_id FROM public.vitals_submission_evaluations WHERE request_id=pg_temp.ve_request('failure'))),
  ARRAY['dyspnea_severe'],'dyspnea maps to operational flag');
+SET LOCAL ROLE service_role;
 
 -- Patient self-entry with a no-alert evaluation and explicit no-delivery semantics.
 SET LOCAL ROLE authenticated;
@@ -119,7 +131,10 @@ SELECT set_config('request.jwt.claims','{"role":"service_role"}',true);
 SELECT is(public.finalize_vitals_submission_evaluation(pg_temp.ve_request('no-alert'),
  '45000000-0000-4000-8000-000000000012','vitals-frozen-individual-v1',ARRAY[]::text[])->>'status','complete','zero flags is an actual completed evaluation');
 SELECT is((SELECT alert_id FROM public.vitals_submission_evaluations WHERE request_id=pg_temp.ve_request('no-alert')),NULL::uuid,'no invented alert for zero flags');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT red_flag FROM public.symptoms WHERE patient_id='45000000-0000-4000-8000-000000000012'),false,'normal only after evaluation');
+SET LOCAL ROLE service_role;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claims','{"sub":"45000000-0000-4000-8000-000000000012","role":"authenticated","aal":"aal1"}',true);
 SELECT is(public.list_pending_vitals_submissions('45000000-0000-4000-8000-000000000012')->>'total','0','completed evaluation leaves pending list');

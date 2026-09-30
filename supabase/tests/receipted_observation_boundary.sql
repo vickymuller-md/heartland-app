@@ -63,8 +63,11 @@ SELECT throws_ok($q$INSERT INTO public.vitals(patient_id,weight_lbs) VALUES('530
  '42501',NULL,'service raw vitals INSERT also denied');
 SELECT throws_ok($q$INSERT INTO public.symptoms(patient_id,dyspnea) VALUES('53000000-0000-4000-8000-000000000011',3)$q$,
  '42501',NULL,'service raw symptoms INSERT also denied');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT count(*)::int FROM public.vitals),3,'only three receipted observations exist');
 SELECT is((SELECT count(*)::int FROM public.symptoms),3,'only three receipted symptom rows exist');
+SET LOCAL ROLE service_role;
 SELECT is((SELECT count(*)::int FROM public.vitals_submission_receipts),3,'every captured source has a receipt');
 SELECT is((SELECT count(*)::int FROM public.vitals_submission_evaluations WHERE status='pending'),3,'every capture has recoverable pending evaluation');
 SELECT lives_ok($q$SELECT public.finalize_vitals_submission_evaluation(
@@ -73,8 +76,11 @@ SELECT lives_ok($q$SELECT public.finalize_vitals_submission_evaluation(
  'existing evaluator still updates the receipted symptom classification');
 SELECT is((SELECT status FROM public.vitals_submission_evaluations WHERE request_id=(SELECT (result->>'request_id')::uuid FROM boundary_receipts WHERE label='patient-saved')),
  'complete','evaluation completion remains distinct from capture');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT red_flag FROM public.symptoms WHERE id=(SELECT (result->>'symptoms_id')::uuid FROM boundary_receipts WHERE label='patient-saved')),
  false,'evaluator retains authorized classification update');
+SET LOCAL ROLE service_role;
 RESET ROLE;
 SELECT * FROM finish();
 ROLLBACK;

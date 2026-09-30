@@ -47,10 +47,13 @@ INSERT INTO refresh_calls SELECT 'repeat', * FROM public.coalesce_patient_alert(
 SELECT ok(NOT (SELECT created FROM refresh_calls WHERE label = 'repeat'), 'repeat coalesces');
 SELECT is((SELECT alert_id FROM refresh_calls WHERE label = 'repeat'),
   (SELECT alert_id FROM refresh_calls WHERE label = 'first'), 'same alert identity');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT last_seen_at FROM public.alerts WHERE id = (SELECT alert_id FROM refresh_calls WHERE label = 'first')),
   (SELECT freshness_at FROM refresh_initial), 'now remains fixed without manipulating the clock');
 SELECT is((SELECT occurrence_count FROM public.alerts WHERE id = (SELECT alert_id FROM refresh_calls WHERE label = 'first')),
   2, 'source counts both observations');
+SET LOCAL ROLE service_role;
 SELECT is((SELECT reason FROM public.work_items WHERE id = (SELECT id FROM refresh_initial)),
   'Triggered signals: sodium_high · observed 2 times', 'count-only refresh updates the work item');
 SELECT is((SELECT count(*)::int FROM public.work_item_events
@@ -91,8 +94,11 @@ SELECT is((SELECT severity FROM public.work_items WHERE id = (SELECT id FROM ref
   'critical', 'warning escalates to critical after ACK in the same transaction');
 SELECT is((SELECT reason FROM public.work_items WHERE id = (SELECT id FROM refresh_initial)),
   'Triggered signals: sodium_high, weight_gain · observed 4 times', 'escalation count reaches item');
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT status FROM public.alerts WHERE id = (SELECT alert_id FROM refresh_calls WHERE label = 'first')),
   'acknowledged', 'escalation does not clear human ACK');
+SET LOCAL ROLE service_role;
 SELECT is((SELECT status FROM public.work_items WHERE id = (SELECT id FROM refresh_initial)),
   'reviewed', 'escalation does not invent a new review or reopen work');
 SELECT is((SELECT priority FROM public.work_items WHERE id = (SELECT id FROM refresh_initial)),
@@ -110,7 +116,9 @@ SELECT is((SELECT count(*)::int FROM public.work_items WHERE source_id = (SELECT
 
 -- Isolate the trigger's remaining columns: coalescer calls above also change count,
 -- so they alone cannot prove independent flag/severity/freshness predicates.
--- These direct service writes test projection, not a change to coalescer policy.
+-- Owner fixture writes test the trigger independently of installation-specific
+-- legacy service grants. Public coalescer calls above/below retain service_role.
+RESET ROLE;
 UPDATE public.alerts SET flags = flags || ARRAY['isolated_fixture_flag']
 WHERE id = (SELECT alert_id FROM refresh_calls WHERE label = 'first');
 SELECT ok((SELECT reason LIKE '%isolated_fixture_flag%' FROM public.work_items WHERE id = (SELECT id FROM refresh_initial)),
@@ -130,11 +138,9 @@ SELECT is((SELECT freshness_at FROM public.work_items WHERE id = (SELECT id FROM
   (SELECT last_seen_at FROM public.alerts WHERE id = (SELECT alert_id FROM refresh_calls WHERE label = 'first')),
   'timestamp-only change retains the prior refresh behavior');
 
-RESET ROLE;
 CREATE TEMP TABLE refresh_before_noop AS SELECT * FROM public.work_items WHERE id = (SELECT id FROM refresh_initial);
 CREATE TEMP TABLE refresh_event_count AS SELECT count(*)::int AS n FROM public.work_item_events WHERE work_item_id = (SELECT id FROM refresh_initial);
 GRANT SELECT ON refresh_before_noop, refresh_event_count TO service_role;
-SET LOCAL ROLE service_role;
 UPDATE public.alerts SET flags = flags, severity = severity, occurrence_count = occurrence_count, last_seen_at = last_seen_at
 WHERE id = (SELECT alert_id FROM refresh_calls WHERE label = 'first');
 SELECT is((SELECT to_jsonb(w) FROM public.work_items w WHERE id = (SELECT id FROM refresh_initial)),
@@ -157,8 +163,11 @@ SET LOCAL ROLE service_role;
 SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
 INSERT INTO refresh_calls SELECT 'after_close', * FROM public.coalesce_patient_alert(
   '42000000-0000-4000-8000-000000000011', NULL, 'critical', ARRAY['sodium_high', 'dyspnea']);
+-- Owner inspection only; the preceding operation retains its API role.
+RESET ROLE;
 SELECT is((SELECT occurrence_count FROM public.alerts WHERE id = (SELECT alert_id FROM refresh_calls WHERE label = 'first')),
   5, 'later source signal remains recorded');
+SET LOCAL ROLE service_role;
 SELECT is((SELECT to_jsonb(w) FROM public.work_items w WHERE id = (SELECT id FROM refresh_initial)),
   (SELECT to_jsonb(w) FROM refresh_closed w), 'later coalescence preserves every closed item field');
 SELECT is((SELECT count(*)::int FROM public.work_item_events WHERE work_item_id = (SELECT id FROM refresh_initial)),

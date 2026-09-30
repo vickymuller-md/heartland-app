@@ -46,18 +46,39 @@ BEGIN
  UPDATE public.work_items SET status='closed',outcome='Synthetic test closure',outcome_code='clinical_action_taken' WHERE id=pg_temp.work(n);
  PERFORM set_config('request.jwt.claims','{"role":"service_role"}',true);
 END $$;
-CREATE FUNCTION pg_temp.age(n integer,age interval) RETURNS void LANGUAGE plpgsql AS $$
+CREATE FUNCTION pg_temp.age(n integer,age interval,inject_failure boolean DEFAULT false) RETURNS void LANGUAGE plpgsql AS $$
 DECLARE v_intent uuid:=pg_temp.intent(n); at_time timestamptz:=clock_timestamp()-age;
+ saved jsonb; item jsonb;
 BEGIN
- -- Privileged fixture construction only; ordinary roles cannot set this option.
- PERFORM set_config('session_replication_role','replica',true);
+ -- Owner-only fixture construction: never disable FKs or grant system privileges.
+ SELECT jsonb_agg(jsonb_build_object('table',c.relname,'trigger',t.tgname,'state',t.tgenabled) ORDER BY c.relname,t.tgname)
+ INTO saved FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+ JOIN (VALUES
+  ('work_items','enforce_work_item_transition'),('work_items','audit_row_change'),('work_items','write_work_item_event'),
+  ('notification_intents','guard_notification_history'),('notification_dispatches','audit_notification_dispatch_change'),
+  ('notification_dispatch_attempts','guard_notification_dispatch_history'),('notification_dispatch_attempts','audit_notification_dispatch_change'),
+  ('notification_dispatch_events','guard_notification_dispatch_history')
+ ) expected(table_name,trigger_name) ON c.relname=expected.table_name AND t.tgname=expected.trigger_name
+ WHERE c.relnamespace='public'::regnamespace AND NOT t.tgisinternal;
+ IF jsonb_array_length(saved) IS DISTINCT FROM 8 THEN RAISE EXCEPTION 'Fixture trigger inventory changed'; END IF;
+ FOR item IN SELECT value FROM jsonb_array_elements(saved) LOOP
+  EXECUTE format('ALTER TABLE public.%I DISABLE TRIGGER %I',item->>'table',item->>'trigger');
+ END LOOP;
  UPDATE public.work_items SET closed_at=at_time,updated_at=at_time WHERE id=pg_temp.work(n);
+ IF inject_failure THEN RAISE EXCEPTION 'Injected fixture aging failure'; END IF;
  UPDATE public.notification_intents SET captured_at=at_time,cancelled_at=CASE WHEN cancelled_at IS NOT NULL THEN at_time END WHERE id=v_intent;
  UPDATE public.notification_dispatches SET created_at=at_time,updated_at=at_time,lease_expires_at=CASE WHEN lease_expires_at IS NOT NULL THEN at_time+interval '1 second' END WHERE notification_dispatches.intent_id=v_intent;
  UPDATE public.notification_dispatch_attempts SET created_at=at_time,started_at=CASE WHEN started_at IS NOT NULL THEN at_time END,
   finished_at=CASE WHEN finished_at IS NOT NULL THEN at_time END,lease_expires_at=at_time+interval '1 second' WHERE notification_dispatch_attempts.intent_id=v_intent;
  UPDATE public.notification_dispatch_events SET recorded_at=at_time WHERE notification_dispatch_events.intent_id=v_intent;
- PERFORM set_config('session_replication_role','origin',true);
+ FOR item IN SELECT value FROM jsonb_array_elements(saved) LOOP
+  EXECUTE format('ALTER TABLE public.%I %s TRIGGER %I',item->>'table',
+   CASE item->>'state' WHEN 'O' THEN 'ENABLE' WHEN 'D' THEN 'DISABLE' WHEN 'R' THEN 'ENABLE REPLICA' WHEN 'A' THEN 'ENABLE ALWAYS' END,
+   item->>'trigger');
+ END LOOP;
+EXCEPTION WHEN OTHERS THEN
+ -- The exception subtransaction restores both DDL and fixture rows before rethrow.
+ RAISE;
 END $$;
 CREATE FUNCTION pg_temp.enroll(n integer) RETURNS void LANGUAGE sql AS $$
  SELECT public.enroll_synthetic_notification_work(pg_temp.work(n),'disposable_synthetic_test',pg_temp.nr(n+1000))
@@ -110,6 +131,29 @@ UPDATE public.work_items SET created_at=(SELECT activated_at FROM notification_r
 SELECT throws_ok('SELECT pg_temp.enroll(102)','42501','Historical work remains protected','legacy enrollment is forbidden');
 SELECT pg_temp.close_work(101);
 SELECT is(pg_temp.erase(101),'not_due','exact erasure also requires quiet period');
+-- Prove exact O/D/R/A restoration and rollback with a non-superuser owner.
+CREATE TEMP TABLE original_trigger_states AS SELECT oid,tgenabled FROM pg_trigger;
+ALTER TABLE public.work_items ENABLE REPLICA TRIGGER audit_row_change;
+ALTER TABLE public.notification_intents ENABLE ALWAYS TRIGGER guard_notification_history;
+ALTER TABLE public.notification_dispatches DISABLE TRIGGER audit_notification_dispatch_change;
+CREATE TEMP TABLE aging_trigger_states AS SELECT oid,tgenabled FROM pg_trigger;
+CREATE TEMP TABLE aging_work_before AS SELECT to_jsonb(w) AS row FROM public.work_items w ORDER BY id;
+CREATE TEMP TABLE aging_intents_before AS SELECT to_jsonb(i) AS row FROM public.notification_intents i ORDER BY id;
+SELECT throws_ok($q$SELECT pg_temp.age(101,interval '31 days',true)$q$,'P0001','Injected fixture aging failure','aging failure is not swallowed');
+SELECT results_eq('SELECT oid,tgenabled FROM pg_trigger ORDER BY oid','SELECT oid,tgenabled FROM aging_trigger_states ORDER BY oid','failure restores every trigger state exactly');
+SELECT results_eq('SELECT to_jsonb(w) FROM public.work_items w ORDER BY id','SELECT row FROM aging_work_before','failure rolls back earlier fixture update');
+SELECT results_eq('SELECT to_jsonb(i) FROM public.notification_intents i ORDER BY id','SELECT row FROM aging_intents_before','failure leaves later fixture rows unchanged');
+SELECT lives_ok($q$SELECT pg_temp.age(101,interval '0 days')$q$,'fixture aging needs table ownership, not superuser');
+SELECT results_eq('SELECT oid,tgenabled FROM pg_trigger ORDER BY oid','SELECT oid,tgenabled FROM aging_trigger_states ORDER BY oid','success preserves O/D/R/A and all unrelated triggers');
+DO $$ DECLARE item record; BEGIN
+ FOR item IN SELECT c.relname,t.tgname,s.tgenabled FROM original_trigger_states s
+  JOIN pg_trigger t ON t.oid=s.oid JOIN pg_class c ON c.oid=t.tgrelid
+  WHERE t.tgenabled<>s.tgenabled LOOP
+  EXECUTE format('ALTER TABLE public.%I %s TRIGGER %I',item.relname,
+   CASE item.tgenabled WHEN 'O' THEN 'ENABLE' WHEN 'D' THEN 'DISABLE' WHEN 'R' THEN 'ENABLE REPLICA' WHEN 'A' THEN 'ENABLE ALWAYS' END,item.tgname);
+ END LOOP;
+END $$;
+SELECT results_eq('SELECT oid,tgenabled FROM pg_trigger ORDER BY oid','SELECT oid,tgenabled FROM original_trigger_states ORDER BY oid','state-variation fixture restores original catalog');
 SELECT pg_temp.age(101,interval '29 days');
 SELECT is(pg_temp.check_work(101,'retention_expired'),'not_due','29 days is not enough');
 SELECT pg_temp.age(101,interval '30 days');

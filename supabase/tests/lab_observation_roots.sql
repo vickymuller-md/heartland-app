@@ -94,7 +94,10 @@ SELECT is(public.cancel_lab_observation(pg_temp.lo(1100)),(SELECT value FROM obs
 SELECT lives_ok($q$SELECT public.acknowledge_lab_observation(pg_temp.lo(1100))$q$,'receipt explicitly acknowledged');
 SELECT is(public.get_lab_observation_request(pg_temp.lo(1100))->'receipt',(SELECT value->'receipt' FROM observation_receipts WHERE label='applied'),'receipt persists after ACK');
 SELECT lives_ok($q$SELECT public.acknowledge_lab_observation(pg_temp.lo(1100))$q$,'ACK replay idempotent');
+-- Inspect stored provenance as owner; registration RPCs remain authenticated.
+RESET ROLE;
 SELECT is((SELECT ordered_by FROM public.lab_results WHERE id=pg_temp.lo(100)),pg_temp.lo(2),'original ordering identity unchanged');
+SET LOCAL ROLE authenticated;
 SELECT is((SELECT count(*) FROM public.lab_alert_evaluations WHERE lab_result_id=pg_temp.lo(100)),0::bigint,'registration does not invent an evaluation');
 SELECT throws_ok($q$SELECT public.prepare_lab_observation(pg_temp.lo(9100),pg_temp.lo(9200),pg_temp.lo(90),pg_temp.lo(11),pg_temp.lo(100),'potassium',pg_temp.lo_payload())$q$,
  '23505','Observation source already registered','same organization cannot fork source authority');
