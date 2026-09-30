@@ -15,6 +15,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
+import { labCollectionMicros } from '@/lib/labs/quality';
 
 function loadEnvLocal(): Record<string, string> {
   try {
@@ -42,7 +43,6 @@ const EMBEDS: Array<{ table: string; select: string; used_by: string }> = [
   { table: 'work_items', select: 'id,patients!work_items_patient_id_fkey(profiles!patients_id_fkey(full_name)),assignee:profiles!work_items_assigned_to_fkey(full_name)', used_by: 'lib/daily-loop/queries.ts' },
   { table: 'work_items', select: 'id,recipient:profiles!work_items_transfer_pending_to_fkey(full_name),offered_by:profiles!work_items_transfer_offered_by_fkey(full_name)', used_by: 'lib/daily-loop/queries.ts — 00041 adds three more work_items→profiles paths, so these embeds must stay hinted' },
   { table: 'provider_messages', select: 'id,patients!provider_messages_patient_id_fkey(profiles!patients_id_fkey(full_name))', used_by: 'lib/inbox/queries.ts' },
-  { table: 'lab_alert_evaluations', select: 'id,lab_result_id,patient_id,status,attempt_count,source_assessment,lab_results!lab_alert_evaluations_lab_result_id_fkey(collected_at)', used_by: 'lab-results-tab.tsx — metadata only; authenticated grants also need a real-user contract' },
   { table: 'organization_memberships', select: 'id,organizations(timezone)', used_by: 'lib/daily-loop/queries.ts:90 — unhinted, resolves only while organization_memberships has exactly one relationship to organizations' },
 ];
 
@@ -68,5 +68,41 @@ describe.skipIf(!enabled)('PostgREST embeds between patients and profiles', () =
     const { status, body } = await rest('patients', 'id,profiles(full_name)');
     expect(status).toBe(300);
     expect(body.code).toBe('PGRST201');
+  });
+});
+
+// This consumer is authenticated, not service-role. A service-role embed alone
+// cannot verify its column privileges or RLS. Supply a real AAL2 synthetic session
+// and a known saved lab; the contract performs no writes or account creation.
+const historyEnabled = env.HEARTLAND_REST_CONTRACT === '1'
+  && !!env.NEXT_PUBLIC_SUPABASE_URL && !!env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  && !!env.HEARTLAND_REST_AUTH_ACCESS_TOKEN && !!env.HEARTLAND_REST_LAB_ID
+  && !!env.HEARTLAND_REST_PATIENT_ID && !!env.HEARTLAND_REST_LAB_COLLECTION;
+
+describe.skipIf(!historyEnabled)('authenticated laboratory history embed', () => {
+  it('returns the exact saved lab and original collection through the provider session', async () => {
+    // This is a credential-type check, not JWT authentication. PostgREST verifies
+    // the signature and current RLS; do not substitute a privileged service key.
+    const claims = JSON.parse(Buffer.from(env.HEARTLAND_REST_AUTH_ACCESS_TOKEN!.split('.')[1], 'base64url').toString());
+    expect(claims.role).toBe('authenticated');
+    expect(claims.aal).toBe('aal2');
+    expect(claims.user_role).toBe('provider');
+    const query = new URLSearchParams({
+      select: 'id,lab_result_id,patient_id,status,attempt_count,source_assessment,lab_results!lab_alert_evaluations_lab_result_id_fkey(collected_at)',
+      lab_result_id: `eq.${env.HEARTLAND_REST_LAB_ID}`, patient_id: `eq.${env.HEARTLAND_REST_PATIENT_ID}`, limit: '2',
+    });
+    const response = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/lab_alert_evaluations?${query}`, {
+      headers: { apikey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, Authorization: `Bearer ${env.HEARTLAND_REST_AUTH_ACCESS_TOKEN}` },
+    });
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body).toHaveLength(1);
+    expect(body[0].lab_result_id).toBe(env.HEARTLAND_REST_LAB_ID);
+    expect(body[0].patient_id).toBe(env.HEARTLAND_REST_PATIENT_ID);
+    const actualCollection = labCollectionMicros(body[0].lab_results.collected_at);
+    const expectedCollection = labCollectionMicros(env.HEARTLAND_REST_LAB_COLLECTION!);
+    expect(actualCollection).not.toBeNull();
+    expect(expectedCollection).not.toBeNull();
+    expect(actualCollection).toBe(expectedCollection);
   });
 });

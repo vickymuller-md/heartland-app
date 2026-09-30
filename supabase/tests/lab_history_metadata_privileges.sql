@@ -12,15 +12,17 @@ SELECT ok(NOT has_any_column_privilege('anon','public.lab_results','SELECT'),'an
 SELECT ok(NOT has_any_column_privilege('authenticated','public.lab_results','INSERT,UPDATE')
  AND NOT has_table_privilege('authenticated','public.lab_results','DELETE'),'metadata grant does not reopen raw writes');
 
--- Installations may retain earlier full-table reads. Test the minimum contract
--- separately without asserting that 00079 revoked unrelated historical grants.
-SAVEPOINT minimum_metadata;
-REVOKE SELECT ON public.lab_results FROM authenticated;
-\ir ../migrations/00079_lab_history_metadata_privileges.sql
-SELECT ok(has_column_privilege('authenticated','public.lab_results','id','SELECT'),'identity has an explicit column grant');
-SELECT ok(has_column_privilege('authenticated','public.lab_results','collected_at','SELECT'),'collection has an explicit column grant');
-SELECT ok(NOT has_column_privilege('authenticated','public.lab_results','potassium','SELECT'),'minimum contract does not grant raw potassium');
-ROLLBACK TO SAVEPOINT minimum_metadata;
+-- Inspect explicit column ACLs independently of historical table-level SELECT.
+-- The container test runner mounts tests only, so do not include migration files.
+SELECT ok(EXISTS(SELECT 1 FROM pg_attribute a CROSS JOIN LATERAL aclexplode(a.attacl) x
+ WHERE a.attrelid='public.lab_results'::regclass AND a.attname='id'
+ AND x.grantee='authenticated'::regrole AND x.privilege_type='SELECT'),'identity has an explicit column grant');
+SELECT ok(EXISTS(SELECT 1 FROM pg_attribute a CROSS JOIN LATERAL aclexplode(a.attacl) x
+ WHERE a.attrelid='public.lab_results'::regclass AND a.attname='collected_at'
+ AND x.grantee='authenticated'::regrole AND x.privilege_type='SELECT'),'collection has an explicit column grant');
+SELECT ok(NOT EXISTS(SELECT 1 FROM pg_attribute a CROSS JOIN LATERAL aclexplode(a.attacl) x
+ WHERE a.attrelid='public.lab_results'::regclass AND a.attname NOT IN('id','collected_at')
+ AND x.grantee='authenticated'::regrole AND x.privilege_type='SELECT'),'explicit history grants do not include raw-value columns');
 
 INSERT INTO auth.users(id,email,raw_user_meta_data)
  SELECT pg_temp.lh(n),'history-'||n||'@example.invalid','{"consent_accepted":true}'::jsonb FROM unnest(ARRAY[1,2,3,11,12]) n;
