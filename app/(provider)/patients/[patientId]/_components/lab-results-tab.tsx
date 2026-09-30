@@ -628,7 +628,7 @@ function PatientLabResults({ patientId, actorId, isCurrent: sessionIsCurrent }: 
         for (;;) {
           if (!isCurrent()) return;
           let query = supabase.from('lab_alert_evaluations')
-            .select('id,lab_result_id,patient_id,status,attempt_count,source_assessment,lab_results(collected_at)')
+            .select('id,lab_result_id,patient_id,status,attempt_count,source_assessment,lab_results!lab_alert_evaluations_lab_result_id_fkey(collected_at)')
             .eq('patient_id', patientId).order('id', { ascending: true });
           if (cursor) query = query.gt('id', cursor);
           const { data, error } = await query.limit(500);

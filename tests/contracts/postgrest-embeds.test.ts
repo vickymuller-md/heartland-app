@@ -42,6 +42,7 @@ const EMBEDS: Array<{ table: string; select: string; used_by: string }> = [
   { table: 'work_items', select: 'id,patients!work_items_patient_id_fkey(profiles!patients_id_fkey(full_name)),assignee:profiles!work_items_assigned_to_fkey(full_name)', used_by: 'lib/daily-loop/queries.ts' },
   { table: 'work_items', select: 'id,recipient:profiles!work_items_transfer_pending_to_fkey(full_name),offered_by:profiles!work_items_transfer_offered_by_fkey(full_name)', used_by: 'lib/daily-loop/queries.ts — 00041 adds three more work_items→profiles paths, so these embeds must stay hinted' },
   { table: 'provider_messages', select: 'id,patients!provider_messages_patient_id_fkey(profiles!patients_id_fkey(full_name))', used_by: 'lib/inbox/queries.ts' },
+  { table: 'lab_alert_evaluations', select: 'id,lab_result_id,patient_id,status,attempt_count,source_assessment,lab_results!lab_alert_evaluations_lab_result_id_fkey(collected_at)', used_by: 'lab-results-tab.tsx — metadata only; authenticated grants also need a real-user contract' },
   { table: 'organization_memberships', select: 'id,organizations(timezone)', used_by: 'lib/daily-loop/queries.ts:90 — unhinted, resolves only while organization_memberships has exactly one relationship to organizations' },
 ];
 
