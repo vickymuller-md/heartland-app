@@ -17,6 +17,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Keep preserved demonstration evidence until a reviewed erasure window.
+  if (process.env.SANDBOX_CLEANUP_ENABLED !== 'true') {
+    return NextResponse.json({ error: 'Sandbox cleanup is disabled' }, { status: 503 });
+  }
+
   const { data: expired, error } = await supabaseAdmin
     .from('profiles')
     .select('id')

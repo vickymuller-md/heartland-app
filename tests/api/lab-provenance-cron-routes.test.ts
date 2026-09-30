@@ -4,7 +4,7 @@
  * responses so scheduled runs never report a silent success.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
@@ -30,7 +30,27 @@ function cronRequest(secret = 'test-secret') {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  process.env.CRON_SECRET = 'test-secret';
+  vi.stubEnv('CRON_SECRET', 'test-secret');
+  vi.stubEnv('LAB_ALERT_DRAIN_ENABLED', 'true');
+  vi.stubEnv('SANDBOX_CLEANUP_ENABLED', 'true');
+});
+afterEach(() => vi.unstubAllEnvs());
+
+describe.each([
+  ['sandbox-cleanup', 'SANDBOX_CLEANUP_ENABLED'],
+  ['lab-alert-drain', 'LAB_ALERT_DRAIN_ENABLED'],
+])('operational activation: %s', (route, flag) => {
+  it.each([undefined, '', 'false', 'TRUE', '1'])('does no work when flag is %s', async (value) => {
+    vi.stubEnv(flag, value);
+    const { GET } = route === 'sandbox-cleanup'
+      ? await import('@/app/api/sandbox-cleanup/route')
+      : await import('@/app/api/lab-alert-drain/route');
+    expect((await GET(cronRequest('wrong'))).status).toBe(401);
+    expect((await GET(cronRequest())).status).toBe(503);
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(mockDeleteUser).not.toHaveBeenCalled();
+  });
 });
 
 describe('GET /api/sandbox-cleanup', () => {

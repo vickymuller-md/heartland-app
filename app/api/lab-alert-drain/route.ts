@@ -25,6 +25,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Activation is an explicit operational decision after the queue is reviewed.
+  if (process.env.LAB_ALERT_DRAIN_ENABLED !== 'true') {
+    return NextResponse.json({ error: 'Laboratory alert drain is disabled' }, { status: 503 });
+  }
+
   let pending: Array<{ id: string; lab_result_id: string; attempt_count: number }>;
   let exhausted: string[]; let exhaustedCount: number;
   try {
