@@ -128,7 +128,7 @@ describe('patient education self-assessment', () => {
     render(<TeachBackCard {...props} />);
     fireEvent.click(screen.getByRole('button', { name: /I've Read This/ }));
     expect(await screen.findByRole('alert')).toHaveTextContent('question version changed');
-    expect(screen.getByRole('button', { name: 'Check Answer' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Check Answer' })).toBeDisabled();
     expect(submit).not.toHaveBeenCalled();
   });
   it('retries only after absence is read, retaining UUID, option, actor and revision', async () => {

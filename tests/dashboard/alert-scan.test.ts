@@ -6,7 +6,7 @@
  * Route-level tests mock Supabase admin; query helper tests verify logic.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const { mockDrain } = vi.hoisted(() => ({ mockDrain: vi.fn() }));
 vi.mock('@/lib/dashboard/scan-runner', () => ({ drainAlertScan: mockDrain }));
 
@@ -133,8 +133,15 @@ describe('getPatientNoCheckinStatus', () => {
 describe('Alert Scan Route - Authorization', () => {
   beforeEach(() => {
     vi.unstubAllEnvs();
+    // Exercise each configuration explicitly, independent of the runner's env.
+    vi.stubEnv('CRON_SECRET', undefined);
+    vi.stubEnv('ALERT_SCAN_RECOVERY_ENABLED', undefined);
     mockFrom.mockReset();
     mockDrain.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it('returns 401 when Authorization header is missing', async () => {
@@ -195,9 +202,11 @@ describe('Alert Scan Route - Authorization', () => {
     const response = await GET(new Request('http://localhost/api/alert-scan', { headers: { Authorization: 'Bearer test-secret-123' } }));
     expect(response.status).toBe(503); expect(await response.text()).not.toContain('Synthetic private');
   });
-  it('returns503 with no service work if CRON_SECRET is missing', async () => {
+  it.each([undefined, ''])('returns503 with no service work if CRON_SECRET is %s', async (secret) => {
+    vi.stubEnv('CRON_SECRET', secret);
     const { GET } = await import('@/app/api/alert-scan/route');
     expect((await GET(new Request('http://localhost/api/alert-scan'))).status).toBe(503);
     expect(mockDrain).not.toHaveBeenCalled();
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 });
