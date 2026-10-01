@@ -1,11 +1,11 @@
-import { Masthead, Colophon } from "@heartland/ui";
-import { APP_ARCHIVE_DOI, APP_ARCHIVE_VERSION, APP_VERSION } from "@/lib/app-version";
+import { Masthead } from "@heartland/ui";
+import { Colophon } from "@/components/landing/colophon";
 
 /**
  * Public route-group layout — shared masthead + colophon for pages
  * that live outside the auth gate (request-access, future marketing pages).
- * Consumes shared @heartland/ui components to stay in sync with the
- * other HEARTLAND network sites.
+ * Keeps the shared network masthead and the App's current publication footer.
+ * The shared package's historical Toolkit footer must not override App releases.
  */
 export default function PublicLayout({
   children,
@@ -30,33 +30,7 @@ export default function PublicLayout({
       <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {children}
       </main>
-      <Colophon
-        currentSite="app"
-        version={APP_VERSION}
-        description="HEARTLAND App — an educational implementation companion for the HEARTLAND Protocol. Public tools and the sandbox use synthetic data; the protocol is described in a peer-reviewed article and archived as the Implementation Toolkit."
-        archive={{ label: `App software archive · ${APP_ARCHIVE_VERSION}`, href: `https://doi.org/${APP_ARCHIVE_DOI}` }}
-        legal={
-          <>
-            Built by Vicky Muller Ferreira, MD. Public tools and the sandbox use synthetic data; tester registration may collect account contact information. Authenticated workspaces remain controlled evaluation only. Real PHI and unsupervised clinical use are not authorized until organizational release gates are approved.
-          </>
-        }
-        extraBlocks={[
-          {
-            title: "Platform",
-            links: [
-              { label: "Try sandbox", href: "/register?mode=tester" },
-              { label: "Request clinical access", href: "/request-access" },
-              { label: "Sign in", href: "/login" },
-              { label: "About the protocol", href: "/about" },
-              {
-                label: "Software Heritage",
-                href: "https://archive.softwareheritage.org/swh:1:snp:3e39be4952047172a2c1a131c2965bd580a6dc69/",
-                external: true,
-              },
-            ],
-          },
-        ]}
-      />
+      <Colophon />
     </div>
   );
 }

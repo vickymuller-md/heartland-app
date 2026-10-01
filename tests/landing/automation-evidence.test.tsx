@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { AutomationEvidence } from "@/components/landing/automation-evidence";
 import { EvidenceFoundation } from "@/components/landing/evidence";
 import Home, { metadata } from "@/app/page";
+import PublicLayout from "@/app/(public)/layout";
 import { APP_ARCHIVE_DOI, APP_ARCHIVE_VERSION, APP_VERSION } from "@/lib/app-version";
 import * as population from "@/lib/sandbox/population";
 
@@ -19,6 +20,15 @@ vi.mock("next/navigation", () => ({ redirect }));
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe("landing evidence walkthrough", () => {
+  it("uses the current App publication footer on public routes, not the shared package's historical Toolkit", () => {
+    const { container } = render(<PublicLayout><p>Public content</p></PublicLayout>);
+    const footer = within(container.querySelector("footer")!);
+    expect(footer.getByRole("link", { name: "Implementation Toolkit · v3.4" })).toHaveAttribute("href", "https://doi.org/10.5281/zenodo.23073640");
+    expect(footer.getByRole("link", { name: `App software archive · ${APP_ARCHIVE_VERSION}` })).toHaveAttribute("href", `https://doi.org/${APP_ARCHIVE_DOI}`);
+    expect(footer.getByText(/tester registration may collect account contact information/)).toBeVisible();
+    expect(container.querySelector('a[href="https://doi.org/10.5281/zenodo.19101219"]')).toBeNull();
+  });
+
   it("renders five ordered, named native disclosures without client JavaScript", () => {
     const { container } = render(<AutomationEvidence />);
     const steps = within(screen.getByTestId("synthetic-walkthrough")).getAllByRole("listitem");

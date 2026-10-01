@@ -98,6 +98,8 @@ test('about page states the eight modules, separate identities and disclaimers',
   await expect(page.locator('body')).not.toContainText(/clinical decision support/i);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://app.heartlandprotocol.org/about');
   await expect(page.locator('footer').filter({ hasText: 'Heartland · App' })).toContainText('App software archive');
+  await expect(page.locator('footer').getByRole('link', { name: 'Implementation Toolkit · v3.4' })).toHaveAttribute('href', 'https://doi.org/10.5281/zenodo.23073640');
+  await expect(page.locator('a[href="https://doi.org/10.5281/zenodo.19101219"]')).toHaveCount(0);
 });
 
 test('explain-this-result degrades silently when the assistant is disabled', async ({ page }) => {

@@ -29,7 +29,8 @@ export function Colophon() {
               only. This release does not establish FDA clearance or
               authorization and does not resolve medical-device classification.
               It does not replace clinical judgment or institutional policy.
-              Public routes use synthetic data; authenticated workspaces remain
+              Public tools use synthetic data; tester registration may collect
+              account contact information. Authenticated workspaces remain
               controlled evaluation only. Real PHI and unsupervised clinical use
               are not authorized until release gates are approved.
             </p>
