@@ -92,7 +92,7 @@ test('about page states the eight modules, separate identities and disclaimers',
   await expect(page).not.toHaveURL(/\/login/);
   await expect(page.getByTestId('about-modules').getByRole('listitem')).toHaveCount(8);
   await expect(page.getByRole('link', { name: /10\.7759\/cureus\.104817/ })).toBeVisible();
-  await expect(page.getByRole('link', { name: /zenodo\.23074656/ })).toHaveAttribute('href', 'https://doi.org/10.5281/zenodo.23074656');
+  await expect(page.getByRole('link', { name: /zenodo\.23076550/ })).toHaveAttribute('href', 'https://doi.org/10.5281/zenodo.23076550');
   await expect(page.getByText(/did not evaluate the HEARTLAND App/)).toBeVisible();
   await expect(page.getByRole('note', { name: 'Clinical use disclaimer' })).toContainText('has not been validated');
   await expect(page.locator('body')).not.toContainText(/clinical decision support/i);

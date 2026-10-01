@@ -6,5 +6,5 @@
 export const APP_VERSION = 'v1.10.1';
 
 /** Last verified archive; a deployment version can advance before its DOI is published. */
-export const APP_ARCHIVE_VERSION = 'v1.10.0';
-export const APP_ARCHIVE_DOI = '10.5281/zenodo.23074656';
+export const APP_ARCHIVE_VERSION = 'v1.10.1';
+export const APP_ARCHIVE_DOI = '10.5281/zenodo.23076550';
