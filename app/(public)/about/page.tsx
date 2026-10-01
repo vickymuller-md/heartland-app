@@ -188,7 +188,7 @@ export default function AboutPage() {
                   Rapid GDMT up-titration effective, with more non-serious
                   adverse events
                 </td>
-                <td className="px-3 py-2">Module 8: Tier 3 methodology</td>
+                <td className="px-3 py-2">Module 8: Clinician-selected intensive optimization with close monitoring</td>
               </tr>
               <tr>
                 <td className="px-3 py-2">TIM-HF2 (Lancet 2018)</td>

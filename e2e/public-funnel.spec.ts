@@ -94,6 +94,8 @@ test('about page states the eight modules, separate identities and disclaimers',
   await expect(page.getByRole('link', { name: /10\.7759\/cureus\.104817/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /zenodo\.23076550/ })).toHaveAttribute('href', 'https://doi.org/10.5281/zenodo.23076550');
   await expect(page.getByText(/did not evaluate the HEARTLAND App/)).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'Module 8: Clinician-selected intensive optimization with close monitoring', exact: true })).toBeVisible();
+  await expect(page.locator('body')).not.toContainText('Tier 3 methodology');
   await expect(page.getByRole('note', { name: 'Clinical use disclaimer' })).toContainText('has not been validated');
   await expect(page.locator('body')).not.toContainText(/clinical decision support/i);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://app.heartlandprotocol.org/about');
