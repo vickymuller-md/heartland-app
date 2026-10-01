@@ -153,7 +153,9 @@ describe('explicit unsaved intention administration', () => {
   it.each(['targets', 'history'] as const)('does not show a partial %s list as complete and keeps own readiness independent', async (kind) => {
     mocks[kind].mockResolvedValueOnce(page(kind === 'targets' ? [target] : [], id(10))).mockResolvedValueOnce(failed);
     render(<CareUnsavedIntentPanel {...props} />); await recoverList(); click(kind === 'targets' ? 'Load pending laboratory intentions' : 'Load administrative journal');
-    await screen.findByText(/Current administrative evidence is unavailable or incomplete/); expect(mocks.ready).toHaveBeenLastCalledWith(true);
+    await screen.findByText(/Current administrative evidence is unavailable or incomplete/);
+    // Error text can render before the finally-state readiness effect flushes.
+    await waitFor(() => expect(mocks.ready).toHaveBeenLastCalledWith(true));
     expect(screen.queryByLabelText(kind === 'targets' ? 'Unsaved intention to resolve' : 'Administrative journal')).toBeNull();
   });
   it('rejects duplicate private pages and retains the original recoverable prefix', async () => {

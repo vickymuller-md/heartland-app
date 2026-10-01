@@ -194,7 +194,8 @@ describe('AlertInbox action feedback', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Alert not found');
     expect(mocks.refresh).not.toHaveBeenCalled();
     expect(screen.getByTestId('status-badge')).toHaveTextContent(alert.status);
-    expect(submit).toBeEnabled();
+    // The feedback may render before React settles the pending transition.
+    await waitFor(() => expect(submit).toBeEnabled());
     if (action === 'resolve') expect(screen.getByLabelText('Resolution outcome')).toHaveValue('Synthetic review documented');
     await user.click(screen.getByRole('button', { name: 'Refresh list', exact: true }));
     expect(mocks.refresh).toHaveBeenCalledTimes(1);
