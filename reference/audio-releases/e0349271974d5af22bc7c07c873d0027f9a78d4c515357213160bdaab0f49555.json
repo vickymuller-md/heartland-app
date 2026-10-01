@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic_audio_verification",
+  "verification": {
+    "kind": "automated_asr_decode_verification",
+    "state": "passed",
+    "scope": "synthetic_sandbox_only",
+    "locale": "es",
+    "recordedAt": "2026-10-01T04:01:07.292Z",
+    "sourceSha256": "a194db550b1d6a3cd0f28dc0c4d18206e3ee46a19fac7747d9a1eae8ccf1f065",
+    "clinicalScriptSha256": "b6c2ae9203f5a1a71e8d76d0dcca5913e60333f66eee59c1393ed4731546f5a3",
+    "audioSha256": "e6db65f50111d28f9b31a364395703c6972699b96a46389e995cc7260f1122fb",
+    "technicalEvidenceSha256": "26587c5b0dab2d125235982d574e1b1a162b977224094e7d8f12926d1c82b13d",
+    "documentaryEvidenceSha256": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571",
+    "asrTranscriptSha256": "622f0f355c991c1c0ed1b65d3b8a366904be4a680a2d2b4114fae16866fe6c2d",
+    "method": "local_asr_decode_documentary_comparison",
+    "humanListening": false,
+    "criticalContentChecked": true,
+    "notes": "Owner-delegated automated documentary comparison, reconciled with a separate automated reviewer. Source acceptance, technical evidence and activation authority are separate. This is not human listening or a signed clinical review.",
+    "comparison": {
+      "expectedText": "¿Pudo tomar todas sus medicinas ayer y hoy?",
+      "recognizedText": "¿pudo tomar todas sus medicinas ayer y hoy?",
+      "reconciliation": "Source and recognized text retain the intended meaning; differences in punctuation, capitalization, pauses and number spelling do not change the message. No removed negation, altered urgency, medication instruction or actual-delivery promise was identified.",
+      "unresolvedCriticalDiscrepancy": false
+    },
+    "criticalChecks": {
+      "negation": "not_applicable",
+      "numbersUnits": "not_applicable",
+      "urgency": "not_applicable",
+      "medicationAuthority": "not_applicable",
+      "deliveryClaims": "not_applicable",
+      "syntheticBoundary": "not_applicable"
+    }
+  }
+}

@@ -232,11 +232,10 @@ test.describe('sandbox navigation shell', () => {
         await page.getByTestId('sandbox-nav-outreach').click();
         const area = page.getByTestId('sandbox-outreach');
         const card = page.getByTestId('outreach-call-call-maria-redflag');
-        const audioNotice = card.getByTestId('outreach-audio-paused-call-maria-redflag');
-        await expect(audioNotice).toHaveText(staticAudioPlaybackPolicy('en').message);
-        await expect(audioNotice).toHaveAttribute('lang', 'en');
-        await expect(area.locator('audio')).toHaveCount(0);
-        await testInfo.attach('static-audio-paused', { body: await audioNotice.screenshot(), contentType: 'image/png' });
+        const audio = card.getByTestId('outreach-audio-call-maria-redflag').locator('audio');
+        await expect(audio).toHaveAttribute('src', staticAudioPlaybackPolicy('en', '/outreach-audio/call-maria-redflag.mp3').url!);
+        await expect(area.locator('audio')).toHaveCount(4);
+        await testInfo.attach('static-audio-authorized', { body: await card.screenshot(), contentType: 'image/png' });
         const viewTranscript = card.getByRole('button', { name: 'View transcript', exact: true });
         await viewTranscript.focus();
         await expect(viewTranscript).toBeFocused();
@@ -728,7 +727,8 @@ test('pre-generated call audio is served to anonymous visitors, not redirected t
   // Historical files remain public intentionally; playback quarantine is a
   // consumer policy, not deletion, access revocation, or clinical approval.
   // The session proxy must still treat .mp3 under public/ as a static asset.
-  for (const asset of ['/outreach-audio/prompts/daily_checkin/en/intro.mp3', '/outreach-audio/call-maria-redflag.mp3']) {
+  const legacy = ['/outreach-audio/prompts/daily_checkin/en/intro.mp3', '/outreach-audio/call-maria-redflag.mp3'];
+  for (const asset of [...legacy, ...legacy.map(asset => staticAudioPlaybackPolicy('en', asset).url!)]) {
     const response = await request.get(asset, { maxRedirects: 0 });
     expect(response.status(), asset).toBe(200);
     expect(response.headers()['content-type'], asset).toContain('audio');
@@ -1158,8 +1158,8 @@ test('outreach demonstrates simulated calls, transcripts, extraction, and the SB
   const maria = page.getByTestId('outreach-call-call-maria-redflag');
   await expect(maria).toContainText('Escalated to human review');
   await expect(maria).toContainText('Rule: weight_gain_5lb_7d');
-  await expect(page.getByTestId('outreach-audio-paused-call-maria-redflag')).toHaveText(staticAudioPlaybackPolicy('en').message);
-  await expect(page.getByTestId('sandbox-outreach').locator('audio')).toHaveCount(0);
+  await expect(page.getByTestId('outreach-audio-call-maria-redflag').locator('audio')).toHaveAttribute('src', staticAudioPlaybackPolicy('en', '/outreach-audio/call-maria-redflag.mp3').url!);
+  await expect(page.getByTestId('sandbox-outreach').locator('audio')).toHaveCount(4);
   await expect(page.getByTestId('outreach-call-call-robert-noanswer')).toContainText('No answer · human follow-up');
 
   await maria.getByRole('button', { name: /View transcript/ }).click();
@@ -1368,7 +1368,7 @@ test.describe('conversation integrity', () => {
         const serial = ++state.serial;
         probe.plays.push(state.src);
         // Only the explicit runtime-data fixture exercises autoplay recovery;
-        // historical static clips must never reach play() under quarantine.
+        // Static recordings use only the build-verified immutable release URLs.
         const final = state.src === `data:audio/mpeg;base64,${ending}`;
         if (final && probe.blockFinal > 0) {
           probe.blockFinal -= 1; probe.blocked += 1;
@@ -1399,14 +1399,16 @@ test.describe('conversation integrity', () => {
   test.afterEach(async ({ page }) => {
     const media = await conversationMedia(page);
     expect(media.recognitions, 'no microphone was enabled').toBe(0);
-    expect(media.plays.filter((src) => src.includes('/outreach-audio/')), 'historical recordings never play under quarantine').toEqual([]);
+    for (const src of media.plays.filter((src) => src.includes('/outreach-audio/'))) {
+      expect(src, 'only verified immutable recordings may play').toMatch(/^\/outreach-audio\/releases\/[a-f0-9]{64}\.mp3$/);
+    }
     expect(conversationPageErrors.get(page), 'conversation flow has no uncaught browser exception').toEqual([]);
   });
 
   for (const patientId of ['demo-maria', 'demo-james']) {
     for (const locale of ['en', 'es'] as const) {
       for (const scriptId of ['daily_checkin', 'titration_followup'] as const) {
-        test(`live ${patientId} ${scriptId} ${locale}: current rules, text filler and quarantined static audio`, async ({ page }) => {
+        test(`live ${patientId} ${scriptId} ${locale}: current rules, text filler and verified static audio`, async ({ page }) => {
           await page.route('**/api/sandbox-ai/checkin', async (route) => {
             const body = route.request().postDataJSON() as { state: CheckInState; wantSpeech: boolean };
             expect(body.state).toMatchObject({ patientId, scriptId, locale });
@@ -1434,7 +1436,7 @@ test.describe('conversation integrity', () => {
           for (const flag of finished.redFlags) await expect(receipt).toContainText(flag.id);
           await expect(receipt).toContainText('Typed answer + Quick answer / structured entry');
           await expect(area.getByRole('button', { name: 'Play assistant audio', exact: true })).toHaveCount(0);
-          expect((await conversationMedia(page)).plays).toEqual([]);
+          expect((await conversationMedia(page)).plays.length).toBeGreaterThan(0);
           expect((await conversationMedia(page)).blocked).toBe(0);
           const key = `${patientId}-${scriptId === 'daily_checkin' ? 'call' : 'titration-call'}`;
           await expect.poll(() => page.evaluate((completedKey) => {
@@ -1574,7 +1576,9 @@ test.describe('conversation integrity', () => {
           await expect(area.getByTestId('live-call-result')).toContainText('Routine');
           await expect(area.getByTestId('live-call-static-audio-notice')).toHaveText(staticAudioPlaybackPolicy('en').message);
           await expect(area.getByRole('button', { name: 'Play assistant audio', exact: true })).toHaveCount(0);
-          expect((await conversationMedia(page)).plays).toEqual([]);
+          // The media stub records attempts, not actual offline downloads.
+          // Local text completion remains available while transport is lost.
+          expect((await conversationMedia(page)).plays.every(src => /^\/outreach-audio\/releases\/[a-f0-9]{64}\.mp3$/.test(src))).toBe(true);
         } else {
           await expect(area.getByTestId('sandbox-ai-form')).toBeVisible();
           await fillRequiredFallbackAnswers(page);

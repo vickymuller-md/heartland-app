@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic_audio_verification",
+  "verification": {
+    "kind": "automated_asr_decode_verification",
+    "state": "passed",
+    "scope": "synthetic_sandbox_only",
+    "locale": "en",
+    "recordedAt": "2026-10-01T04:01:07.292Z",
+    "sourceSha256": "842074c94d3087464a07fd91ca61bcbea17262f856178613be649aea4a73a80f",
+    "clinicalScriptSha256": "58952356264f1991137f3c2aa79b31f14a70991788ec9ca43956df58868820d9",
+    "audioSha256": "43d987e45b0918f73d1c5fbd37185315b85d129c700111f4dab4e4ee1862ea0f",
+    "technicalEvidenceSha256": "26587c5b0dab2d125235982d574e1b1a162b977224094e7d8f12926d1c82b13d",
+    "documentaryEvidenceSha256": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571",
+    "asrTranscriptSha256": "da9ad936253c6d350dd8ecf801308b9e24bddf4192346475a4be3fff635a0580",
+    "method": "local_asr_decode_documentary_comparison",
+    "humanListening": false,
+    "criticalContentChecked": true,
+    "notes": "Owner-delegated automated documentary comparison, reconciled with a separate automated reviewer. Source acceptance, technical evidence and activation authority are separate. This is not human listening or a signed clinical review.",
+    "comparison": {
+      "expectedText": "What did the scale show this morning, in pounds?",
+      "recognizedText": "What did the scale show this morning in pounds?",
+      "reconciliation": "Source and recognized text retain the intended meaning; differences in punctuation, capitalization, pauses and number spelling do not change the message. No removed negation, altered urgency, medication instruction or actual-delivery promise was identified.",
+      "unresolvedCriticalDiscrepancy": false
+    },
+    "criticalChecks": {
+      "negation": "not_applicable",
+      "numbersUnits": "not_applicable",
+      "urgency": "not_applicable",
+      "medicationAuthority": "not_applicable",
+      "deliveryClaims": "not_applicable",
+      "syntheticBoundary": "not_applicable"
+    }
+  }
+}

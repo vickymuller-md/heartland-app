@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic_audio_verification",
+  "verification": {
+    "kind": "automated_asr_decode_verification",
+    "state": "passed",
+    "scope": "synthetic_sandbox_only",
+    "locale": "es",
+    "recordedAt": "2026-10-01T04:01:07.292Z",
+    "sourceSha256": "ae116aed97d12da7206884e067d7fa504fc32aea3099c2266b062ae89a182833",
+    "clinicalScriptSha256": "4002b96f662db95696f7e4390ade820c52067a5653bd9a1c185752144011929c",
+    "audioSha256": "efac32add988fa41aa0e4e9b8efc995196f5f99f1279226b241bbdb908b72d8f",
+    "technicalEvidenceSha256": "26587c5b0dab2d125235982d574e1b1a162b977224094e7d8f12926d1c82b13d",
+    "documentaryEvidenceSha256": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571",
+    "asrTranscriptSha256": "2b1fdd93f5915bea79952e852a24fccfdf236e159c0c1bf8fbebc1c21b2aa96a",
+    "method": "local_asr_decode_documentary_comparison",
+    "humanListening": false,
+    "criticalContentChecked": true,
+    "notes": "Owner-delegated automated documentary comparison, reconciled with a separate automated reviewer. Source acceptance, technical evidence and activation authority are separate. This is not human listening or a signed clinical review.",
+    "comparison": {
+      "expectedText": "Primero, lo importante: ¿algún dolor de pecho, o se ha desmayado o casi desmayado desde ayer?",
+      "recognizedText": "Primero, lo importante. ¿Algún dolor de pecho? ¿O se ha desmayado o casi desmayado desde ayer?",
+      "reconciliation": "Source and recognized text retain the intended meaning; differences in punctuation, capitalization, pauses and number spelling do not change the message. No removed negation, altered urgency, medication instruction or actual-delivery promise was identified.",
+      "unresolvedCriticalDiscrepancy": false
+    },
+    "criticalChecks": {
+      "negation": "not_applicable",
+      "numbersUnits": "not_applicable",
+      "urgency": "not_applicable",
+      "medicationAuthority": "not_applicable",
+      "deliveryClaims": "not_applicable",
+      "syntheticBoundary": "not_applicable"
+    }
+  }
+}

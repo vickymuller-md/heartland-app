@@ -79,6 +79,7 @@ interface AudioJob {
   body: string;
   characters: number;
   sourceSha256: string;
+  clinicalScriptSha256: string;
 }
 interface AudioReceipt {
   sourceSha256: string;
@@ -89,6 +90,12 @@ interface AudioReceipt {
 interface AudioManifest { schemaVersion: 1; clips: Record<string, AudioReceipt> }
 
 const sha256 = (value: string | Buffer) => createHash('sha256').update(value).digest('hex');
+
+/** Voice/model changes do not imply a change to the accepted clinical wording. */
+export function clinicalScriptFingerprint(relativePath: string, locale: Locale,
+  turns: Array<{ speaker: string; text: string }>) {
+  return sha256(JSON.stringify({ path: relativePath, locale, turns }));
+}
 
 export function parseAudioArgs(args: string[]): AudioOptions {
   const options: AudioOptions = { dryRun: false, force: false, locales: ['en', 'es'] };
@@ -121,9 +128,11 @@ export function parseAudioArgs(args: string[]): AudioOptions {
 
 export function audioCatalog(): AudioJob[] {
   const jobs: AudioJob[] = [];
-  const add = (relativePath: string, locale: Locale, endpoint: string, payload: object, characters: number) => {
+  const add = (relativePath: string, locale: Locale, endpoint: string, payload: object, characters: number,
+    turns: Array<{ speaker: string; text: string }>) => {
     const body = JSON.stringify(payload);
-    jobs.push({ relativePath, locale, endpoint, body, characters, sourceSha256: sha256(`${endpoint}\n${body}`) });
+    jobs.push({ relativePath, locale, endpoint, body, characters, sourceSha256: sha256(`${endpoint}\n${body}`),
+      clinicalScriptSha256: clinicalScriptFingerprint(relativePath, locale, turns) });
   };
   for (const transcript of OUTREACH_TRANSCRIPTS) {
     const inputs = transcript.turns.map((turn, index) => {
@@ -137,7 +146,8 @@ export function audioCatalog(): AudioJob[] {
       };
     });
     add(`${transcript.id}.mp3`, 'en', 'https://api.elevenlabs.io/v1/text-to-dialogue',
-      { inputs, model_id: MODEL_ID }, inputs.reduce((sum, input) => sum + input.text.length, 0));
+      { inputs, model_id: MODEL_ID }, inputs.reduce((sum, input) => sum + input.text.length, 0),
+      transcript.turns.map(turn => ({ speaker: turn.speaker, text: turn.text })));
   }
   for (const locale of ['en', 'es'] as const) {
     const clips: CallPrompt[] = [
@@ -147,7 +157,7 @@ export function audioCatalog(): AudioJob[] {
     for (const clip of clips) {
       add(clip.audioSrc.replace('/outreach-audio/', ''), locale,
         `https://api.elevenlabs.io/v1/text-to-speech/${ASSISTANT_VOICE}`,
-        { text: clip.text, model_id: MODEL_ID }, clip.text.length);
+        { text: clip.text, model_id: MODEL_ID }, clip.text.length, [{ speaker: 'assistant', text: clip.text }]);
     }
   }
   return jobs;
@@ -202,7 +212,9 @@ export async function runAudioGeneration(args: string[] = process.argv.slice(2))
       method: 'POST',
       headers: { 'xi-api-key': key, 'content-type': 'application/json' },
       body: job.body,
-      signal: AbortSignal.timeout(45_000),
+      // Full multi-speaker calls can finish after 45 seconds. On timeout,
+      // reconcile the provider history before retrying to avoid duplicate spend.
+      signal: AbortSignal.timeout(180_000),
     });
     if (!response.ok) throw new Error(`Audio synthesis failed (${response.status}) for ${job.relativePath}`);
     if (!response.headers.get('content-type')?.startsWith('audio/')) throw new Error(`Unexpected audio content type for ${job.relativePath}`);

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "kind": "delegated_automated_documentary_review",
+  "catalogSha256": "bb1e20ff31f6e2b1a6283081d0a4fc9a2206ae512f30e64df7a6217e5e1b0266",
+  "scope": "synthetic_sandbox_only",
+  "recordedAt": "2026-10-01T04:01:07.292Z",
+  "reviewer": "Owner-delegated automated documentary review with separate automated reviewer",
+  "method": "Read the 58 current scripts and compare all 27 EN/ES prompt pairs; separately compare source text with current-file local ASR. Review negation, symptoms, numerical meaning, urgency, medication authority, delivery claims and synthetic boundaries. No aggregate word-error score is used as an approval criterion.",
+  "humanReviewed": false,
+  "state": "passed",
+  "bilingualPairs": 27,
+  "englishOnlyDialogues": 4,
+  "findings": [
+    "27 EN/ES prompt pairs retain equivalent clinical and synthetic-demo boundaries; four dialogue fixtures are English only.",
+    "The 24 outdated recordings were replaced. Four short prompts were additionally regenerated; the English titration emergency prompt was regenerated once more.",
+    "Independent automated reconciliation found the clinically consequential content preserved. Lexical and grammatical differences are retained explicitly in each comparison, not erased.",
+    "Clinical script acceptance was reported by Rodrigo Costa as Vicky’s acceptance; no direct signature or human listening is represented."
+  ],
+  "limitations": [
+    "ASR and documentary comparison cannot certify pronunciation, prosody, accessibility or acoustic intelligibility.",
+    "No human listening session is attested.",
+    "Synthetic demonstration only; not patient communication, institutional authorization, clinical validation or evidence of delivered care."
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic_audio_verification",
+  "verification": {
+    "kind": "automated_asr_decode_verification",
+    "state": "passed",
+    "scope": "synthetic_sandbox_only",
+    "locale": "en",
+    "recordedAt": "2026-10-01T04:01:07.292Z",
+    "sourceSha256": "6c5f18f724682be19851a7f5e2412c65433a4859ac9e279f342df0ed2608c8ab",
+    "clinicalScriptSha256": "984d22a5dd3bc3fa96da8357aa5ae98f414b3fa5101478bca7a4cac8ba75ebb6",
+    "audioSha256": "11c1d1d634305c77550986ffd95329d4c968de7d2fa727ca184b297e80ae64dc",
+    "technicalEvidenceSha256": "26587c5b0dab2d125235982d574e1b1a162b977224094e7d8f12926d1c82b13d",
+    "documentaryEvidenceSha256": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571",
+    "asrTranscriptSha256": "7b90c939a0ea716858c3b16459dc188b681a0bf4ea12ff256dbef23926472503",
+    "method": "local_asr_decode_documentary_comparison",
+    "humanListening": false,
+    "criticalContentChecked": true,
+    "notes": "Owner-delegated automated documentary comparison, reconciled with a separate automated reviewer. Source acceptance, technical evidence and activation authority are separate. This is not human listening or a signed clinical review.",
+    "comparison": {
+      "expectedText": "Thank you. No urgent flags were found by the preset rules for this case. Clinical decisions still require human review. Contact your care team if concerned; for an emergency, call 911. Synthetic demo: no real calls, alerts, notifications, or appointments. Goodbye.",
+      "recognizedText": "Thank you. No urgent flags were found by the preset rules for this case. Clinical decisions still require human review. Contact your care team if concerned. For an emergency, call 911. Synthetic demo. No real calls, alerts, notifications, or appointments. Goodbye.",
+      "reconciliation": "Source and recognized text retain the intended meaning; differences in punctuation, capitalization, pauses and number spelling do not change the message. No removed negation, altered urgency, medication instruction or actual-delivery promise was identified.",
+      "unresolvedCriticalDiscrepancy": false
+    },
+    "criticalChecks": {
+      "negation": "preserved",
+      "numbersUnits": "preserved",
+      "urgency": "preserved",
+      "medicationAuthority": "preserved",
+      "deliveryClaims": "preserved",
+      "syntheticBoundary": "preserved"
+    }
+  }
+}

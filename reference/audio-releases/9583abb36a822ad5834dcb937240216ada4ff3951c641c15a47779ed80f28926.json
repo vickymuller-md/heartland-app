@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic_audio_release_authority",
+  "authority": {
+    "policy": "synthetic_delegated_v1",
+    "state": "approved",
+    "scope": "synthetic_sandbox_only",
+    "catalogSha256": "bb1e20ff31f6e2b1a6283081d0a4fc9a2206ae512f30e64df7a6217e5e1b0266",
+    "recordedAt": "2026-10-01T04:01:07.292Z",
+    "reportedBy": "Rodrigo Costa",
+    "reportedClinicalReviewer": "Vicky Muller Ferreira",
+    "clinicalBasis": "owner_reported_clinical_source_acceptance",
+    "clinicalStatement": "Rodrigo Costa reported in the task on 30 September 2026 EDT: “Sim vicky deu aceite clinico.” This records reported acceptance of the reviewed Toolkit V3.4 and audio scripts, not a direct clinician signature or listening attestation.",
+    "activationStatement": "Rodrigo previously authorized audio correction/review, activation, commits, production deployment and Zenodo publication, and now authorized necessary ElevenLabs recording. Release is conditional on exact-file technical/documentary verification and limited to synthetic sandbox playback.",
+    "signedByClinician": false,
+    "humanListening": false,
+    "documentaryEvidenceRef": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571.json",
+    "documentaryEvidenceSha256": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571"
+  }
+}

@@ -4,350 +4,408 @@
     {
       "path": "call-maria-redflag.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/14f848a4cc1c8777d2bf1fd58fb8832357d810a0ae06ba665b3cb24e20c73355.mp3"
     },
     {
       "path": "call-james-stable.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/49eab847fbb24d6e91352b2d0d87b97c930d08d70b6e5bd8bd8136a9dcbb134a.mp3"
     },
     {
       "path": "call-james-adherence.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/26546184f135efa9f59113e89691b53b9820b10f8de33c35f1314b9c0ea74904.mp3"
     },
     {
       "path": "call-robert-noanswer.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/09e81e43c1814ae2857c3c40886303db477c1b032af97a3f67cc76bbe01b88f6.mp3"
     },
     {
       "path": "prompts/daily_checkin/en/intro.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/3f0b47193225bb02aac39e03063f17db00b2beae35c9b7d4386f2d2862ba8284.mp3"
     },
     {
       "path": "prompts/daily_checkin/en/escalated.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/bb8220e2eeece1104ede6b2e966f90c69aee58c209de51090cd6baf3ca8435d7.mp3"
     },
     {
       "path": "prompts/daily_checkin/en/routine.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/11c1d1d634305c77550986ffd95329d4c968de7d2fa727ca184b297e80ae64dc.mp3"
     },
     {
       "path": "prompts/daily_checkin/en/emergency.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/da04b8bd987f5daadda3704d1b4a5209004832f58c9c51931491608cef5e43c2.mp3"
     },
     {
       "path": "prompts/daily_checkin/en/deflect.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/7eb23e40d537fa2d07b1e83a81326d4e4f2a685ed462131f1843cb8411be145a.mp3"
     },
     {
       "path": "prompts/daily_checkin/en/q1_safety.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/c3fb3c28ebdf6969efe065f9aa4fca9be0bc4c0cd1ca843c9ca03d069ca70f45.mp3"
     },
     {
       "path": "prompts/daily_checkin/en/q2_weight.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/43d987e45b0918f73d1c5fbd37185315b85d129c700111f4dab4e4ee1862ea0f.mp3"
     },
     {
       "path": "prompts/daily_checkin/en/q3_breathing.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/4b55a81b02905fcb122e606beea04ff214902616fb584446018285095e1c43d9.mp3"
     },
     {
       "path": "prompts/daily_checkin/en/q4_swelling.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/8fabc8db9ab2b459c2da6f80def96c69a8766282c10643f59b3cef1755f055bf.mp3"
     },
     {
       "path": "prompts/daily_checkin/en/q5_orthopnea.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/53471fbdc4d3330adf355a49d0261b1df75bc37c916eeea1f83990398ec81d9e.mp3"
     },
     {
       "path": "prompts/daily_checkin/en/q6_fatigue.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/3117a77de9477f012f9277ac5bf79d55981806a8a583c69955f011c2a9a73343.mp3"
     },
     {
       "path": "prompts/daily_checkin/en/q7_adherence.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/b6c4f8c472a833bf1b17d65f1c568ae0ace13453d6551afda2c07508eda6bf6b.mp3"
     },
     {
       "path": "prompts/daily_checkin/en/q8_devices.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/a46470bd39e8ef29b06d9fcf3f88f8f71563f784f434646f49f65b1be44d9209.mp3"
     },
     {
       "path": "prompts/titration_followup/en/intro.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/c6ecac8b9a4098509c6ba247c8d2265fc2cc6f64deb46ed2c6559beff2b02eee.mp3"
     },
     {
       "path": "prompts/titration_followup/en/escalated.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/3c04c27b270700eb0aa7a7767eb6fd014df7f2e7af546c7fb123cc53f64bc82a.mp3"
     },
     {
       "path": "prompts/titration_followup/en/routine.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/b15164efca3a4210a49b06061a33a94f6335dc44bf41cc0ed9fc8f0ba7f49563.mp3"
     },
     {
       "path": "prompts/titration_followup/en/emergency.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/f306298568ce264024566a87c2cd3ddd456ce841dedbfb2e6b31036bb51d2072.mp3"
     },
     {
       "path": "prompts/titration_followup/en/deflect.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/29a4e05898f59b3ba8aca7dcc2d00189aa4c00b4fac6ce00b163237d07b80efe.mp3"
     },
     {
       "path": "prompts/titration_followup/en/t1_safety.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/355a2ee97bf2e3389cb8d397497ac5b6dd5eba5cd3c198408db4e05829643c04.mp3"
     },
     {
       "path": "prompts/titration_followup/en/t2_dizziness.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/92d04bec6ccd8e565c6b3fba643167fe2ab640c907a3bd188e9628ddcee59a96.mp3"
     },
     {
       "path": "prompts/titration_followup/en/t3_sbp.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/04f988f36b8515c764376b39c31f3ad5a4129edabc9b87af5e3e2f3668c13ca0.mp3"
     },
     {
       "path": "prompts/titration_followup/en/t4_hr.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/8db54844495f06c3f1fff4c909d9534f36fe168397ab19b69e806ab3da8013c8.mp3"
     },
     {
       "path": "prompts/titration_followup/en/t5_symptoms.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/b85d5ddb36a41f968475f69529fb61b8fd509cf0f011392337990de8617bee2e.mp3"
     },
     {
       "path": "prompts/titration_followup/en/t6_adherence.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/68152e84906346d2a3f5145c0c8005b4103135263d95b7627ef3a29a33a1fb1b.mp3"
     },
     {
       "path": "prompts/fillers/en/filler_1.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/539e96094ed482b2e20440b75ff9f3dddfbf38448034e5f1b99d7ffcb9e6687d.mp3"
     },
     {
       "path": "prompts/fillers/en/filler_2.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/d3b902b3a960f0d5184c2c9f027f6bcadfd82b227249ce1669afd0277ec7394a.mp3"
     },
     {
       "path": "prompts/fillers/en/filler_3.mp3",
       "locale": "en",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/934d7c27d812ea46df3e03be71ecb9f8a365a9d81dfb63be8bf579d4f6a13e4c.mp3"
     },
     {
       "path": "prompts/daily_checkin/es/intro.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/3a7ee0470758b598ff31b8db8ba84b5ef695b9e58bda84d61191d8afd81d53d9.mp3"
     },
     {
       "path": "prompts/daily_checkin/es/escalated.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/805e1cb62b706fd30e4f1adaa7bdec1af72f8fddb01a406d955ab731a772966e.mp3"
     },
     {
       "path": "prompts/daily_checkin/es/routine.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/56ed3769fab52cdfcff7a829d942d0c894c97e1dc8ba6f115f02cb6956de5936.mp3"
     },
     {
       "path": "prompts/daily_checkin/es/emergency.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/8683428ab23e661131b9b17282d7603ae306947cb7511560ce857976a8e4bd79.mp3"
     },
     {
       "path": "prompts/daily_checkin/es/deflect.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/b2c779591f7d2c61493571c2d61d2b08ea9480c109a8d111381cc6486955dde3.mp3"
     },
     {
       "path": "prompts/daily_checkin/es/q1_safety.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/efac32add988fa41aa0e4e9b8efc995196f5f99f1279226b241bbdb908b72d8f.mp3"
     },
     {
       "path": "prompts/daily_checkin/es/q2_weight.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/b4fdd4ce3fca755140e4b671b06d10cdcd709c0d9061f245c913f6866b197e11.mp3"
     },
     {
       "path": "prompts/daily_checkin/es/q3_breathing.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/edbb58b74b3dacb27d2d371f3d7a229d913ca9ca68cb557566ff258e06f6d1ee.mp3"
     },
     {
       "path": "prompts/daily_checkin/es/q4_swelling.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/bc5ec50f9a977d9d382717c8d3649465915f3c47d2468182356a74229e6c2c46.mp3"
     },
     {
       "path": "prompts/daily_checkin/es/q5_orthopnea.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/2d10d6e8bc31dacb47b969df8e9a3ac1284569d04f4240b1608954ea4a7ddfdd.mp3"
     },
     {
       "path": "prompts/daily_checkin/es/q6_fatigue.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/2ddc2063d86636be3e1ecece5ee42b40782a6916e5a63a0a756877f47f283808.mp3"
     },
     {
       "path": "prompts/daily_checkin/es/q7_adherence.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/e6db65f50111d28f9b31a364395703c6972699b96a46389e995cc7260f1122fb.mp3"
     },
     {
       "path": "prompts/daily_checkin/es/q8_devices.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/7b1c10c7da05a69713135be2c57c3ce7b0511a539b8137b297605147bb5f181d.mp3"
     },
     {
       "path": "prompts/titration_followup/es/intro.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/981c136075608e38c9dcc2972a06fe9b88f8c5476366b14cf5b603884fa13eb3.mp3"
     },
     {
       "path": "prompts/titration_followup/es/escalated.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/d52d4140c6a57a6b9f962c6c4f563d3a2dca57c20ea5df634e4791ae4edf6c9a.mp3"
     },
     {
       "path": "prompts/titration_followup/es/routine.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/6733cf93ba57b572e469158e8b013712fdae830ce8b73003f115d181bc331bae.mp3"
     },
     {
       "path": "prompts/titration_followup/es/emergency.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/73c61239e7a5a80606d8b76ff4965d9aa3d8ce8bc0480a70070a6ab2cdd622de.mp3"
     },
     {
       "path": "prompts/titration_followup/es/deflect.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "source_mismatch"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/09a796afbe8a36c33b192bc634ced42c1a6d61d5cecc8e033c95c1494acabd21.mp3"
     },
     {
       "path": "prompts/titration_followup/es/t1_safety.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/f15619226fd06037f8dbd765b7e421878fdf010622f213d853abb41f33efbf6a.mp3"
     },
     {
       "path": "prompts/titration_followup/es/t2_dizziness.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/5eace3b69d3e45dc4ff55dd9a1c3de1d09e1658fc7abe66f323a936933be22a9.mp3"
     },
     {
       "path": "prompts/titration_followup/es/t3_sbp.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/f363188f059d0b3c99f5f529593921b3c07d94d91bdc345830324bea708220b1.mp3"
     },
     {
       "path": "prompts/titration_followup/es/t4_hr.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/9c4c992bbddaf3e5351697baa9bffdc30d38e6d60595fdc894cc3cbc3757508f.mp3"
     },
     {
       "path": "prompts/titration_followup/es/t5_symptoms.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/96b9e264fec09446d0e4d4e4e042b2dc3536a36520c2246b5b213a207fc5b350.mp3"
     },
     {
       "path": "prompts/titration_followup/es/t6_adherence.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/42bc9f73053fdd8e81a6f4314628e89beb442c3e4b8a4b96fbaf405fa7ef7aa1.mp3"
     },
     {
       "path": "prompts/fillers/es/filler_1.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/e49583e30934eb040a7d8666a7bebdefd30175e766319c85c23f0dee744547d6.mp3"
     },
     {
       "path": "prompts/fillers/es/filler_2.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/79d235ba6812165ac0cbf0d729b263baf3b0a0b20e5729101a802b763cf4352e.mp3"
     },
     {
       "path": "prompts/fillers/es/filler_3.mp3",
       "locale": "es",
-      "canPlay": false,
-      "reason": "review_pending"
+      "canPlay": true,
+      "reason": "approved",
+      "url": "/outreach-audio/releases/44138df4bc831a452b5aa543faafa4f1af2f5ff5da671b041371e97b454aa280.mp3"
     }
   ]
 }

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic_audio_verification",
+  "verification": {
+    "kind": "automated_asr_decode_verification",
+    "state": "passed",
+    "scope": "synthetic_sandbox_only",
+    "locale": "es",
+    "recordedAt": "2026-10-01T04:01:07.292Z",
+    "sourceSha256": "70d548825b84aa3ba0dbca8b29f579860b91e8782d3ddda76a7766e440bab885",
+    "clinicalScriptSha256": "7311094bec14828b87ae527f9bce4e3bb4b4ba98fc22382a9b292b0461913e3f",
+    "audioSha256": "8683428ab23e661131b9b17282d7603ae306947cb7511560ce857976a8e4bd79",
+    "technicalEvidenceSha256": "26587c5b0dab2d125235982d574e1b1a162b977224094e7d8f12926d1c82b13d",
+    "documentaryEvidenceSha256": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571",
+    "asrTranscriptSha256": "81358f8276918590217c4b0228c952b9fd0e9ffe30391cea3616672a60c33cee",
+    "method": "local_asr_decode_documentary_comparison",
+    "humanListening": false,
+    "criticalContentChecked": true,
+    "notes": "Owner-delegated automated documentary comparison, reconciled with a separate automated reviewer. Source acceptance, technical evidence and activation authority are separate. This is not human listening or a signed clinical review.",
+    "comparison": {
+      "expectedText": "Gracias por decírmelo. El dolor de pecho o los desmayos necesitan atención inmediata. Esto termina el chequeo simulado. Si está experimentando estos síntomas, llame al 911 o a su número local de emergencias de inmediato. No espere a esta demostración ni una llamada de su equipo de atención. Demostración sintética: sin llamadas, alertas, notificaciones ni citas reales.",
+      "recognizedText": "Gracias por decírmelo. El dolor de pecho o los desmayos necesitan atención inmediata. Este termina el chequeo simulado. Si está experimentando estos síntomas, llame al 911 o a su número local de emergencias de inmediato. No espere a esta demostración ni una llamada de su equipo de atención. Demostración sintética, sin llamadas, alertas, notificaciones ni citas reales.",
+      "reconciliation": "Expected “Esto”; ASR “Este”. This demonstrative difference does not alter chest-pain/syncope urgency, immediate 911/local emergency contact or the prohibition on waiting.",
+      "unresolvedCriticalDiscrepancy": false
+    },
+    "criticalChecks": {
+      "negation": "preserved",
+      "numbersUnits": "preserved",
+      "urgency": "preserved",
+      "medicationAuthority": "not_applicable",
+      "deliveryClaims": "preserved",
+      "syntheticBoundary": "preserved"
+    }
+  }
+}

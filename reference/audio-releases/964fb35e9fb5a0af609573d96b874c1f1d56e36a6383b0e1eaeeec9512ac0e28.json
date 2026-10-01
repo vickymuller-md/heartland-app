@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic_audio_verification",
+  "verification": {
+    "kind": "automated_asr_decode_verification",
+    "state": "passed",
+    "scope": "synthetic_sandbox_only",
+    "locale": "es",
+    "recordedAt": "2026-10-01T04:01:07.292Z",
+    "sourceSha256": "794858d121093a2d5a9b0eb338d989ef1b8e58cc88b530d42f5a41cca8bd8b92",
+    "clinicalScriptSha256": "1f61e8f397bbaec19cbf3aa8bcd99c84aec55972346fc9b9d84426f077722bb6",
+    "audioSha256": "9c4c992bbddaf3e5351697baa9bffdc30d38e6d60595fdc894cc3cbc3757508f",
+    "technicalEvidenceSha256": "26587c5b0dab2d125235982d574e1b1a162b977224094e7d8f12926d1c82b13d",
+    "documentaryEvidenceSha256": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571",
+    "asrTranscriptSha256": "e92936cde14655f331c693164c0c2ab28e2e25a3be8825d64796325792a01b3c",
+    "method": "local_asr_decode_documentary_comparison",
+    "humanListening": false,
+    "criticalContentChecked": true,
+    "notes": "Owner-delegated automated documentary comparison, reconciled with a separate automated reviewer. Source acceptance, technical evidence and activation authority are separate. This is not human listening or a signed clinical review.",
+    "comparison": {
+      "expectedText": "¿Y su frecuencia cardíaca — el número de pulso en el monitor? Está bien saltarse esta si no lo tiene.",
+      "recognizedText": "¿Y su frecuencia cardíaca? ¿El número de pulso en el monitor? Está bien saltarse esta si no lo tiene.",
+      "reconciliation": "Source and recognized text retain the intended meaning; differences in punctuation, capitalization, pauses and number spelling do not change the message. No removed negation, altered urgency, medication instruction or actual-delivery promise was identified.",
+      "unresolvedCriticalDiscrepancy": false
+    },
+    "criticalChecks": {
+      "negation": "preserved",
+      "numbersUnits": "preserved",
+      "urgency": "not_applicable",
+      "medicationAuthority": "not_applicable",
+      "deliveryClaims": "not_applicable",
+      "syntheticBoundary": "not_applicable"
+    }
+  }
+}

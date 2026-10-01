@@ -14,7 +14,7 @@ vi.mock('node:fs', () => ({
   writeFileSync: vi.fn((file: string, content: string | Buffer) => mocks.files.set(file, content)),
 }));
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { audioCatalog, parseAudioArgs, planAudioGeneration, runAudioGeneration } from '../../scripts/generate-outreach-audio.mts';
+import { audioCatalog, clinicalScriptFingerprint, parseAudioArgs, planAudioGeneration, runAudioGeneration } from '../../scripts/generate-outreach-audio.mts';
 
 const root = path.resolve(import.meta.dirname, '../..');
 const out = path.join(root, 'public/outreach-audio');
@@ -36,6 +36,16 @@ afterEach(() => {
 });
 
 describe('outreach audio planning', () => {
+  it('binds clinical approval to locale, context, speakers and ordered wording, not synthesis options', () => {
+    const turns = [{ speaker: 'assistant', text: 'Synthetic check-in.' }, { speaker: 'patient', text: 'No pain.' }];
+    const base = clinicalScriptFingerprint('dialogue.mp3', 'en', turns);
+    expect(clinicalScriptFingerprint('other.mp3', 'en', turns)).not.toBe(base);
+    expect(clinicalScriptFingerprint('dialogue.mp3', 'es', turns)).not.toBe(base);
+    expect(clinicalScriptFingerprint('dialogue.mp3', 'en', [...turns].reverse())).not.toBe(base);
+    expect(clinicalScriptFingerprint('dialogue.mp3', 'en', [{ ...turns[0], speaker: 'patient' }, turns[1]])).not.toBe(base);
+    expect(clinicalScriptFingerprint('dialogue.mp3', 'en', [turns[0], { ...turns[1], text: 'Pain.' }])).not.toBe(base);
+    expect(audioCatalog().every(job => /^[a-f0-9]{64}$/.test(job.clinicalScriptSha256))).toBe(true);
+  });
   it('has unique exact relative paths and fingerprints for all clips', () => {
     const catalog = audioCatalog();
     expect(catalog).toHaveLength(58);

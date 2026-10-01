@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic_audio_verification",
+  "verification": {
+    "kind": "automated_asr_decode_verification",
+    "state": "passed",
+    "scope": "synthetic_sandbox_only",
+    "locale": "en",
+    "recordedAt": "2026-10-01T04:01:07.292Z",
+    "sourceSha256": "a238e158a28a6b6e99f588f8950239853e7677f2b260b8f8d88cd4ca563d3921",
+    "clinicalScriptSha256": "b418f074266eb8d5b8b5b0313143283ad2cec025c5c772d9ee4747ee7f22c720",
+    "audioSha256": "26546184f135efa9f59113e89691b53b9820b10f8de33c35f1314b9c0ea74904",
+    "technicalEvidenceSha256": "26587c5b0dab2d125235982d574e1b1a162b977224094e7d8f12926d1c82b13d",
+    "documentaryEvidenceSha256": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571",
+    "asrTranscriptSha256": "3b839847abfe4c45bcd4ee4eab58e845464419ebf43f18cbb464013328c9aec0",
+    "method": "local_asr_decode_documentary_comparison",
+    "humanListening": false,
+    "criticalContentChecked": true,
+    "notes": "Owner-delegated automated documentary comparison, reconciled with a separate automated reviewer. Source acceptance, technical evidence and activation authority are separate. This is not human listening or a signed clinical review.",
+    "comparison": {
+      "expectedText": "Synthetic demo: no real calls, notifications, appointments, or deliveries. Morning, Mr. Walker — this is a simulated daily check-in. I collect and structure answers; clinical decisions require human review. Any chest pain or fainting since yesterday? No... no, nothing like that. Good. And the scale this morning? 188.2. Hang on — yeah, 188.2, I wrote it down. Perfect. How are you feeling otherwise — breathing, swelling, energy? Breathing's fine, no swelling... I'm dragging a little, though. More than usual. Okay, noted. And the medicines — everything taken, yesterday and— Well, now... I'll be honest with you. I missed the evening ones yesterday. That new bottle they gave me — I couldn't get the darn cap off. The arthritis, you know. Didn't want to bother anybody over a bottle cap. Thank you for explaining that, Mr. Walker. I'm recording the bottle-cap barrier in this synthetic summary for human review. A pharmacist could assess packaging options; this demo does not contact a pharmacy, promise a bottle, or confirm a resolution. Anything else to add? No, that'll do it. Thank you kindly. Bye now. That completes the simulated check-in, Mr. Walker. No next call is scheduled. Bye-bye.",
+      "recognizedText": "Synthetic demo. No real calls, notifications, appointments, or deliveries. Morning, Mr. Walker. This is a simulated daily check-in. I collect and structure answers. Clinical decisions require human review. Any chest pain or fainting since yesterday? No, no, nothing like that. Good. And the scale this morning? 188.2. Hang on. Yeah, 188.2. I wrote it down. Perfect. How are you feeling otherwise? Breathing, swelling, energy? Breathing's fine. No swelling. I'm dragging a little, though. More than usual. Okay, noted. And the medicines? Everything taken yesterday and... Well now, I'll be honest with you. I missed the evening ones yesterday. That new bottle they gave me, I couldn't get the darn cap off. The arthritis, you know, didn't want to bother anybody over a bottle cap. Thank you for explaining that, Mr. Walker. I'm recording the bottle cap barrier in this synthetic summary for human review. A pharmacist could assess packaging options. This demo does not contact a pharmacy, promise a bottle, or confirm a resolution. Anything else to add? No, that'll do it. Thank you kindly. Bye now. That completes the simulated check-in Mr. Walker. No next call is scheduled. Bye-bye.",
+      "reconciliation": "188.2, missed evening medicines and the bottle-cap barrier remain intact; no pharmacy contact, promised bottle or confirmed resolution is introduced.",
+      "unresolvedCriticalDiscrepancy": false
+    },
+    "criticalChecks": {
+      "negation": "preserved",
+      "numbersUnits": "preserved",
+      "urgency": "not_applicable",
+      "medicationAuthority": "preserved",
+      "deliveryClaims": "preserved",
+      "syntheticBoundary": "preserved"
+    }
+  }
+}

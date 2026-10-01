@@ -12,7 +12,7 @@ import { useAssistantAudioQueue } from '@/app/(sandbox)/sandbox/_components/use-
 import { staticAudioPlaybackPolicy } from '@/lib/sandbox-ai/static-audio-policy';
 
 // Only the pre-existing media lifecycle groups opt into an approved-audio
-// fixture. All other tests, including quarantine integration, use real policy.
+// fixture. Other tests explicitly exercise the unavailable-recording policy.
 const audioPolicyFixture = vi.hoisted(() => ({ approved: false }));
 vi.mock('@/lib/sandbox-ai/static-audio-policy', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/sandbox-ai/static-audio-policy')>();
@@ -21,7 +21,7 @@ vi.mock('@/lib/sandbox-ai/static-audio-policy', async (importOriginal) => {
     staticAudioPlaybackPolicy: (locale: 'en' | 'es' = 'en', assetPath?: string) => {
       const policy = actual.staticAudioPlaybackPolicy(locale, assetPath);
       // Artificial lifecycle fixture only; real policy never returns this path.
-      return audioPolicyFixture.approved ? { ...policy, canPlay: true, url: assetPath } : policy;
+      return audioPolicyFixture.approved ? { ...policy, canPlay: true, url: assetPath } : actual.staticAudioPlaybackPolicy(locale);
     },
   };
 });

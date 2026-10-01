@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic_audio_verification",
+  "verification": {
+    "kind": "automated_asr_decode_verification",
+    "state": "passed",
+    "scope": "synthetic_sandbox_only",
+    "locale": "en",
+    "recordedAt": "2026-10-01T04:01:07.292Z",
+    "sourceSha256": "0ecdd9b6ccaeaa78c9861117c878ba24909906ee4bd34221eeb29df09f526292",
+    "clinicalScriptSha256": "da5c10062ab736cc40658bf26e8fe524a99c2bb6201efe6d98ad237d37935d52",
+    "audioSha256": "8fabc8db9ab2b459c2da6f80def96c69a8766282c10643f59b3cef1755f055bf",
+    "technicalEvidenceSha256": "26587c5b0dab2d125235982d574e1b1a162b977224094e7d8f12926d1c82b13d",
+    "documentaryEvidenceSha256": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571",
+    "asrTranscriptSha256": "d124838375ee87b5affe91576d305fb2e58c60fe60f662d3d372b8222eba9a0b",
+    "method": "local_asr_decode_documentary_comparison",
+    "humanListening": false,
+    "criticalContentChecked": true,
+    "notes": "Owner-delegated automated documentary comparison, reconciled with a separate automated reviewer. Source acceptance, technical evidence and activation authority are separate. This is not human listening or a signed clinical review.",
+    "comparison": {
+      "expectedText": "Any new or worse swelling in your feet, ankles, or legs?",
+      "recognizedText": "Any new or worse swelling in your feet, ankles or legs?",
+      "reconciliation": "Source and recognized text retain the intended meaning; differences in punctuation, capitalization, pauses and number spelling do not change the message. No removed negation, altered urgency, medication instruction or actual-delivery promise was identified.",
+      "unresolvedCriticalDiscrepancy": false
+    },
+    "criticalChecks": {
+      "negation": "not_applicable",
+      "numbersUnits": "not_applicable",
+      "urgency": "not_applicable",
+      "medicationAuthority": "not_applicable",
+      "deliveryClaims": "not_applicable",
+      "syntheticBoundary": "not_applicable"
+    }
+  }
+}

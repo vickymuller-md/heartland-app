@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic_audio_verification",
+  "verification": {
+    "kind": "automated_asr_decode_verification",
+    "state": "passed",
+    "scope": "synthetic_sandbox_only",
+    "locale": "en",
+    "recordedAt": "2026-10-01T04:01:07.292Z",
+    "sourceSha256": "bd7a47bc9813353bfa07dcb35d8c9b2af3637ece4c52acf2578e66777b1e87be",
+    "clinicalScriptSha256": "7e1c66696ea86c49ad81174fa7cf3b49823cb51245f91a31856daf0859ed7aa1",
+    "audioSha256": "b15164efca3a4210a49b06061a33a94f6335dc44bf41cc0ed9fc8f0ba7f49563",
+    "technicalEvidenceSha256": "26587c5b0dab2d125235982d574e1b1a162b977224094e7d8f12926d1c82b13d",
+    "documentaryEvidenceSha256": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571",
+    "asrTranscriptSha256": "1952c76812af8750d2b87e5d6362fc7cb343a2ef6f2378845d00a05d075216a0",
+    "method": "local_asr_decode_documentary_comparison",
+    "humanListening": false,
+    "criticalContentChecked": true,
+    "notes": "Owner-delegated automated documentary comparison, reconciled with a separate automated reviewer. Source acceptance, technical evidence and activation authority are separate. This is not human listening or a signed clinical review.",
+    "comparison": {
+      "expectedText": "Thank you. The reported answers and readings passed the preset safety checks. Human review and confirmation are required before any dose change. If anything changes, call your care team; for an emergency, call 911. Synthetic demo: no real calls, alerts, notifications, or appointments. Goodbye.",
+      "recognizedText": "Thank you. The reported answers and readings pass the preset safety checks. Human review and confirmation are required before any dose change. If anything changes, call your care team. For an emergency, call 911. Synthetic demo. No real calls, alerts, notifications, or appointments. Goodbye.",
+      "reconciliation": "Expected “passed”; ASR “pass”. This grammatical difference preserves the reported safety-check outcome and explicitly requires human review/confirmation before any dose change.",
+      "unresolvedCriticalDiscrepancy": false
+    },
+    "criticalChecks": {
+      "negation": "preserved",
+      "numbersUnits": "preserved",
+      "urgency": "preserved",
+      "medicationAuthority": "preserved",
+      "deliveryClaims": "preserved",
+      "syntheticBoundary": "preserved"
+    }
+  }
+}

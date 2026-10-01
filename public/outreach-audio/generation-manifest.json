@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 1,
+  "clips": {
+    "call-maria-redflag.mp3": {
+      "sourceSha256": "bb910cdc943bac1d4984e370bcd9567cf054830b388175151332951ba3a14705",
+      "audioSha256": "14f848a4cc1c8777d2bf1fd58fb8832357d810a0ae06ba665b3cb24e20c73355",
+      "generatedAt": "2026-10-01T03:33:47.000Z",
+      "modelId": "eleven_v3"
+    },
+    "call-james-stable.mp3": {
+      "sourceSha256": "090bd669093e2838ab46ffe5384bacc577166cfd7d7926f4744fbe8e70ad9473",
+      "audioSha256": "49eab847fbb24d6e91352b2d0d87b97c930d08d70b6e5bd8bd8136a9dcbb134a",
+      "generatedAt": "2026-10-01T03:37:23.317Z",
+      "modelId": "eleven_v3"
+    },
+    "call-james-adherence.mp3": {
+      "sourceSha256": "a238e158a28a6b6e99f588f8950239853e7677f2b260b8f8d88cd4ca563d3921",
+      "audioSha256": "26546184f135efa9f59113e89691b53b9820b10f8de33c35f1314b9c0ea74904",
+      "generatedAt": "2026-10-01T03:38:13.522Z",
+      "modelId": "eleven_v3"
+    },
+    "call-robert-noanswer.mp3": {
+      "sourceSha256": "d7a49951b65e4e9d4bc8f76a447549513a131976593786d34b708245f43a74d1",
+      "audioSha256": "09e81e43c1814ae2857c3c40886303db477c1b032af97a3f67cc76bbe01b88f6",
+      "generatedAt": "2026-10-01T03:38:38.250Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/daily_checkin/en/intro.mp3": {
+      "sourceSha256": "16099072940f2a11bd7f1aaf56ad8e060ae3aa6f77f59f8c1ab42fececa95643",
+      "audioSha256": "3f0b47193225bb02aac39e03063f17db00b2beae35c9b7d4386f2d2862ba8284",
+      "generatedAt": "2026-10-01T03:38:48.219Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/daily_checkin/en/escalated.mp3": {
+      "sourceSha256": "8c33f3622eb38a9b157570e523ffb723c34ea8021d62e5c980f2e1065849a9b5",
+      "audioSha256": "bb8220e2eeece1104ede6b2e966f90c69aee58c209de51090cd6baf3ca8435d7",
+      "generatedAt": "2026-10-01T03:39:00.631Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/daily_checkin/en/routine.mp3": {
+      "sourceSha256": "6c5f18f724682be19851a7f5e2412c65433a4859ac9e279f342df0ed2608c8ab",
+      "audioSha256": "11c1d1d634305c77550986ffd95329d4c968de7d2fa727ca184b297e80ae64dc",
+      "generatedAt": "2026-10-01T03:39:11.482Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/daily_checkin/en/emergency.mp3": {
+      "sourceSha256": "b67d73d738bb4af9132d364aabefe9c562eb07f56d9da559b92528c72ca200d2",
+      "audioSha256": "da04b8bd987f5daadda3704d1b4a5209004832f58c9c51931491608cef5e43c2",
+      "generatedAt": "2026-10-01T03:39:25.642Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/daily_checkin/en/deflect.mp3": {
+      "sourceSha256": "28b5833b980f2e6a41469727b99d3dc85edf67e4963e10d2f3ca17cd8ce0522d",
+      "audioSha256": "7eb23e40d537fa2d07b1e83a81326d4e4f2a685ed462131f1843cb8411be145a",
+      "generatedAt": "2026-10-01T03:39:37.402Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/titration_followup/en/intro.mp3": {
+      "sourceSha256": "70eae451180c74c862928f6cee51c26eb1665e12565b986a4816a5a10a97142c",
+      "audioSha256": "c6ecac8b9a4098509c6ba247c8d2265fc2cc6f64deb46ed2c6559beff2b02eee",
+      "generatedAt": "2026-10-01T03:39:46.285Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/titration_followup/en/escalated.mp3": {
+      "sourceSha256": "0319b1e0b8e9b8e067a9284bf020fd0d13d9182d3421513b41a0d5eb8fca1bb5",
+      "audioSha256": "3c04c27b270700eb0aa7a7767eb6fd014df7f2e7af546c7fb123cc53f64bc82a",
+      "generatedAt": "2026-10-01T03:39:58.428Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/titration_followup/en/routine.mp3": {
+      "sourceSha256": "bd7a47bc9813353bfa07dcb35d8c9b2af3637ece4c52acf2578e66777b1e87be",
+      "audioSha256": "b15164efca3a4210a49b06061a33a94f6335dc44bf41cc0ed9fc8f0ba7f49563",
+      "generatedAt": "2026-10-01T03:40:11.977Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/titration_followup/en/emergency.mp3": {
+      "sourceSha256": "b67d73d738bb4af9132d364aabefe9c562eb07f56d9da559b92528c72ca200d2",
+      "audioSha256": "f306298568ce264024566a87c2cd3ddd456ce841dedbfb2e6b31036bb51d2072",
+      "generatedAt": "2026-10-01T03:52:29.777Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/titration_followup/en/deflect.mp3": {
+      "sourceSha256": "28b5833b980f2e6a41469727b99d3dc85edf67e4963e10d2f3ca17cd8ce0522d",
+      "audioSha256": "29a4e05898f59b3ba8aca7dcc2d00189aa4c00b4fac6ce00b163237d07b80efe",
+      "generatedAt": "2026-10-01T03:40:37.725Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/daily_checkin/es/intro.mp3": {
+      "sourceSha256": "4e29a11a1f5619cc3795153a941cc0041f1ee40657c63f0ef5b968e3ee8ae1a7",
+      "audioSha256": "3a7ee0470758b598ff31b8db8ba84b5ef695b9e58bda84d61191d8afd81d53d9",
+      "generatedAt": "2026-10-01T03:40:47.128Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/daily_checkin/es/escalated.mp3": {
+      "sourceSha256": "e4ae4ef9fa32b233f619e40f918ad1e1e0fd0dc5f051c11997fbe91df231e803",
+      "audioSha256": "805e1cb62b706fd30e4f1adaa7bdec1af72f8fddb01a406d955ab731a772966e",
+      "generatedAt": "2026-10-01T03:41:00.664Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/daily_checkin/es/routine.mp3": {
+      "sourceSha256": "7bc152a7cfd3ad86c21e9f96c4933429453288459306c0aa2ac83960c256b146",
+      "audioSha256": "56ed3769fab52cdfcff7a829d942d0c894c97e1dc8ba6f115f02cb6956de5936",
+      "generatedAt": "2026-10-01T03:41:14.727Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/daily_checkin/es/emergency.mp3": {
+      "sourceSha256": "70d548825b84aa3ba0dbca8b29f579860b91e8782d3ddda76a7766e440bab885",
+      "audioSha256": "8683428ab23e661131b9b17282d7603ae306947cb7511560ce857976a8e4bd79",
+      "generatedAt": "2026-10-01T03:41:29.090Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/daily_checkin/es/deflect.mp3": {
+      "sourceSha256": "a6e46c3b47e6cad249b6e3bd0b3368390c7afaef991f54461a5cc72f4df55a70",
+      "audioSha256": "b2c779591f7d2c61493571c2d61d2b08ea9480c109a8d111381cc6486955dde3",
+      "generatedAt": "2026-10-01T03:41:45.162Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/titration_followup/es/intro.mp3": {
+      "sourceSha256": "0b00aacf6025230198bc49f01baa2a3729883438220ea1d695dc9e849268451b",
+      "audioSha256": "981c136075608e38c9dcc2972a06fe9b88f8c5476366b14cf5b603884fa13eb3",
+      "generatedAt": "2026-10-01T03:41:53.252Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/titration_followup/es/escalated.mp3": {
+      "sourceSha256": "5e76bda1fa4d4371ef82dcf3cc87950035c57a0d5711ea8e9113970c01ac3696",
+      "audioSha256": "d52d4140c6a57a6b9f962c6c4f563d3a2dca57c20ea5df634e4791ae4edf6c9a",
+      "generatedAt": "2026-10-01T03:42:09.277Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/titration_followup/es/routine.mp3": {
+      "sourceSha256": "277af6f31e1963b197cec0af24d0d36131bf600b3bb40d8cee676adcc3d8b527",
+      "audioSha256": "6733cf93ba57b572e469158e8b013712fdae830ce8b73003f115d181bc331bae",
+      "generatedAt": "2026-10-01T03:42:22.323Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/titration_followup/es/emergency.mp3": {
+      "sourceSha256": "70d548825b84aa3ba0dbca8b29f579860b91e8782d3ddda76a7766e440bab885",
+      "audioSha256": "73c61239e7a5a80606d8b76ff4965d9aa3d8ce8bc0480a70070a6ab2cdd622de",
+      "generatedAt": "2026-10-01T03:42:34.444Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/titration_followup/es/deflect.mp3": {
+      "sourceSha256": "a6e46c3b47e6cad249b6e3bd0b3368390c7afaef991f54461a5cc72f4df55a70",
+      "audioSha256": "09a796afbe8a36c33b192bc634ced42c1a6d61d5cecc8e033c95c1494acabd21",
+      "generatedAt": "2026-10-01T03:42:46.075Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/titration_followup/en/t2_dizziness.mp3": {
+      "sourceSha256": "f38cbc089b4cd3e70e388bbc0bde0ce48dce4957020bf86bf9ad25eb567a02aa",
+      "audioSha256": "92d04bec6ccd8e565c6b3fba643167fe2ab640c907a3bd188e9628ddcee59a96",
+      "generatedAt": "2026-10-01T03:43:33.163Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/daily_checkin/es/q4_swelling.mp3": {
+      "sourceSha256": "b8a03ec113091093072f2b997c43bbc0e39f73593ae4e0e8e918c1fb5667b65c",
+      "audioSha256": "bc5ec50f9a977d9d382717c8d3649465915f3c47d2468182356a74229e6c2c46",
+      "generatedAt": "2026-10-01T03:43:37.115Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/daily_checkin/es/q8_devices.mp3": {
+      "sourceSha256": "abc0c98cfbe93ae273c8c7dfccbfbd5173f1561b8ded471fda788d12d99e58c1",
+      "audioSha256": "7b1c10c7da05a69713135be2c57c3ce7b0511a539b8137b297605147bb5f181d",
+      "generatedAt": "2026-10-01T03:43:41.900Z",
+      "modelId": "eleven_v3"
+    },
+    "prompts/fillers/es/filler_1.mp3": {
+      "sourceSha256": "0f2031bb5557f689202652ea50d6eaf1d02f4ccccb2b2b14842b0d84bbe5d9d4",
+      "audioSha256": "e49583e30934eb040a7d8666a7bebdefd30175e766319c85c23f0dee744547d6",
+      "generatedAt": "2026-10-01T03:43:43.613Z",
+      "modelId": "eleven_v3"
+    }
+  }
+}

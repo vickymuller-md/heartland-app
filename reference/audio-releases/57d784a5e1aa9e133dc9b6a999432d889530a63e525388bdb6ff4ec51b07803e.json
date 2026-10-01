@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic_audio_verification",
+  "verification": {
+    "kind": "automated_asr_decode_verification",
+    "state": "passed",
+    "scope": "synthetic_sandbox_only",
+    "locale": "en",
+    "recordedAt": "2026-10-01T04:01:07.292Z",
+    "sourceSha256": "b67d73d738bb4af9132d364aabefe9c562eb07f56d9da559b92528c72ca200d2",
+    "clinicalScriptSha256": "ac7740c576b7a8398331813996209d80dfed5be69f2bd799b5a18a1d89eabf03",
+    "audioSha256": "f306298568ce264024566a87c2cd3ddd456ce841dedbfb2e6b31036bb51d2072",
+    "technicalEvidenceSha256": "26587c5b0dab2d125235982d574e1b1a162b977224094e7d8f12926d1c82b13d",
+    "documentaryEvidenceSha256": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571",
+    "asrTranscriptSha256": "008457857ded2f44ea143be4ca3fa3f0e0b4551eda06ff39695554f9e31d8c2a",
+    "method": "local_asr_decode_documentary_comparison",
+    "humanListening": false,
+    "criticalContentChecked": true,
+    "notes": "Owner-delegated automated documentary comparison, reconciled with a separate automated reviewer. Source acceptance, technical evidence and activation authority are separate. This is not human listening or a signed clinical review.",
+    "comparison": {
+      "expectedText": "Thank you for telling me. Chest pain or fainting needs immediate attention. This ends the simulated check-in. If you are experiencing these symptoms, call 911 or your local emergency number immediately. Do not wait for this demo or a care-team callback. Synthetic demo: no real calls, alerts, notifications, or appointments.",
+      "recognizedText": "Thank you for telling me. Chest pain or fainting needs immediate attention. This ends the simulated check-in. If you are experiencing these symptoms, call 911 or your local emergency number immediately. Do not wait for this demo or a care team callback. Synthetic demo. No real calls, alerts, notifications, or appointments.",
+      "reconciliation": "The final recording was checked separately after its second generation. Medium ASR recognized “care teen” for “care-team”; large-v3 on the SAME final hash recognizes “care team callback” as scripted. Source and both observations preserve immediate 911/local emergency contact and the prohibition on waiting. This resolves the documentary lexical ambiguity without claiming human listening or acoustic certification.",
+      "unresolvedCriticalDiscrepancy": false
+    },
+    "criticalChecks": {
+      "negation": "preserved",
+      "numbersUnits": "preserved",
+      "urgency": "preserved",
+      "medicationAuthority": "not_applicable",
+      "deliveryClaims": "preserved",
+      "syntheticBoundary": "preserved"
+    }
+  }
+}

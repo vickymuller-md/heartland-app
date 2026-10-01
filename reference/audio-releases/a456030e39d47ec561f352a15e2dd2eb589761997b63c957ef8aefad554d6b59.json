@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic_audio_verification",
+  "verification": {
+    "kind": "automated_asr_decode_verification",
+    "state": "passed",
+    "scope": "synthetic_sandbox_only",
+    "locale": "es",
+    "recordedAt": "2026-10-01T04:01:07.292Z",
+    "sourceSha256": "abc0c98cfbe93ae273c8c7dfccbfbd5173f1561b8ded471fda788d12d99e58c1",
+    "clinicalScriptSha256": "840c630fb958838df8e0b13d0b2a1cfb4f024575462bd99a468edc545b1b7022",
+    "audioSha256": "7b1c10c7da05a69713135be2c57c3ce7b0511a539b8137b297605147bb5f181d",
+    "technicalEvidenceSha256": "26587c5b0dab2d125235982d574e1b1a162b977224094e7d8f12926d1c82b13d",
+    "documentaryEvidenceSha256": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571",
+    "asrTranscriptSha256": "9eb349035d5340480a0ed0bbbf77df5da228755c9dcae185472f3e2ef4da0145",
+    "method": "local_asr_decode_documentary_comparison",
+    "humanListening": false,
+    "criticalContentChecked": true,
+    "notes": "Owner-delegated automated documentary comparison, reconciled with a separate automated reviewer. Source acceptance, technical evidence and activation authority are separate. This is not human listening or a signed clinical review.",
+    "comparison": {
+      "expectedText": "Si tiene en casa un tensiómetro o un medidor de oxígeno, ¿cuáles fueron los números? Está bien saltarse esta.",
+      "recognizedText": "Si tiene en casa un tensiómetro o un medidor de oxígeno, ¿cuáles fueron los números? Está bien saltarse esta.",
+      "reconciliation": "Small ASR recognized “tienen”; medium ASR on the same regenerated hash recognizes “tiene en casa” as scripted. Equipment, measurements and permission to skip are preserved.",
+      "unresolvedCriticalDiscrepancy": false
+    },
+    "criticalChecks": {
+      "negation": "not_applicable",
+      "numbersUnits": "preserved",
+      "urgency": "not_applicable",
+      "medicationAuthority": "not_applicable",
+      "deliveryClaims": "not_applicable",
+      "syntheticBoundary": "not_applicable"
+    }
+  }
+}

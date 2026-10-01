@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic_audio_verification",
+  "verification": {
+    "kind": "automated_asr_decode_verification",
+    "state": "passed",
+    "scope": "synthetic_sandbox_only",
+    "locale": "en",
+    "recordedAt": "2026-10-01T04:01:07.292Z",
+    "sourceSha256": "090bd669093e2838ab46ffe5384bacc577166cfd7d7926f4744fbe8e70ad9473",
+    "clinicalScriptSha256": "1dd1f1d77284f1bd658206fdfd87f6d82a6821a55849c807a4b6df14814fb1ef",
+    "audioSha256": "49eab847fbb24d6e91352b2d0d87b97c930d08d70b6e5bd8bd8136a9dcbb134a",
+    "technicalEvidenceSha256": "26587c5b0dab2d125235982d574e1b1a162b977224094e7d8f12926d1c82b13d",
+    "documentaryEvidenceSha256": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571",
+    "asrTranscriptSha256": "fa77799be9158be0d1f09c1ea6c5d4216416b7b795a4b9b3f48327ac9fde0b3e",
+    "method": "local_asr_decode_documentary_comparison",
+    "humanListening": false,
+    "criticalContentChecked": true,
+    "notes": "Owner-delegated automated documentary comparison, reconciled with a separate automated reviewer. Source acceptance, technical evidence and activation authority are separate. This is not human listening or a signed clinical review.",
+    "comparison": {
+      "expectedText": "Synthetic demo: no real calls, notifications, appointments, or deliveries. Morning, Mr. Walker — this is a simulated daily check-in after simulated human follow-up on a bottle-cap barrier. Any chest pain or fainting since— Nope. None of that. Feeling pretty good today, actually. Well, that was fast. What did the scale say this morning? Uh... 187.8. Right about where it's been all week. I wrote it on the calendar like the nurse showed me. Steady is good. How about breathing, energy, any swelling? Breathing's fine. Energy's — well, I mowed half the yard yesterday, so I'd call that normal. No swelling. Ankles look like ankles. Half the yard, huh? Not bad at all. Last one — all your medicines, yesterday and today? And how's that new easy-open bottle working out? Yep, all of 'em. And that cap the pharmacy sent over — works like a charm. Coffee first, pills second, same as always. Thank you, Mr. Walker. That completes this synthetic check-in. The preset rules mark this case routine, but clinical decisions require human review. The easy-open cap is a simulated human resolution, not a delivery made by this demo. No next call is scheduled. Understood. You have a good one now. Bye. That completes the simulated check-in, Mr. Walker. Bye now.",
+      "recognizedText": "Synthetic Demo. No real calls, notifications, appointments, or deliveries. Morning, Mr. Walker. This is a simulated daily check-in after simulated human follow-up on a bottle cap barrier. Any chest pain or fainting since...? Nope. None of that. Feeling pretty good today, actually. Well, that was fast. What did the scale say this morning? Uh... 187.8. Right about where it's been all week. I wrote it on the calendar like the nurse showed me. Steady is good. How about breathing, energy, any swelling? Breathing's fine. Energy's… well, I mowed half the yard yesterday so I'd call that normal. No swelling. Ankles look like ankles. Half the yard, huh? Not bad at all. Last one. All your medicines, yesterday and today? And how's that new, easy open bottle working out? Ha, ha, yep, all of them. And that cap the pharmacy sent over works like a charm. Coffee first, pills second, same as always. Thank you, Mr. Walker. That completes this synthetic check-in. The preset rules mark this case routine, but clinical decisions require human review. The easy open cap is a simulated human resolution, not a delivery made by this demo. No next call is scheduled. Understood you have a good one now. Bye. That completes the simulated check-in Mr. Walker. Bye now",
+      "reconciliation": "ASR expands “em” to “them” and laughter to words. 187.8, the simulated human bottle-cap resolution, no real delivery and no scheduled next call remain intact.",
+      "unresolvedCriticalDiscrepancy": false
+    },
+    "criticalChecks": {
+      "negation": "preserved",
+      "numbersUnits": "preserved",
+      "urgency": "not_applicable",
+      "medicationAuthority": "preserved",
+      "deliveryClaims": "preserved",
+      "syntheticBoundary": "preserved"
+    }
+  }
+}

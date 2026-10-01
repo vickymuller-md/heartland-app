@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic_audio_verification",
+  "verification": {
+    "kind": "automated_asr_decode_verification",
+    "state": "passed",
+    "scope": "synthetic_sandbox_only",
+    "locale": "en",
+    "recordedAt": "2026-10-01T04:01:07.292Z",
+    "sourceSha256": "d7a49951b65e4e9d4bc8f76a447549513a131976593786d34b708245f43a74d1",
+    "clinicalScriptSha256": "03665e5658b96c9e832b5ff8c242a519317b843beeb1b477361f3c1d04a54eaa",
+    "audioSha256": "09e81e43c1814ae2857c3c40886303db477c1b032af97a3f67cc76bbe01b88f6",
+    "technicalEvidenceSha256": "26587c5b0dab2d125235982d574e1b1a162b977224094e7d8f12926d1c82b13d",
+    "documentaryEvidenceSha256": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571",
+    "asrTranscriptSha256": "68c73c80adc3fa591bafb687014a7606d8513ae5729dd0ae8d9172db521a1fe7",
+    "method": "local_asr_decode_documentary_comparison",
+    "humanListening": false,
+    "criticalContentChecked": true,
+    "notes": "Owner-delegated automated documentary comparison, reconciled with a separate automated reviewer. Source acceptance, technical evidence and activation authority are separate. This is not human listening or a signed clinical review.",
+    "comparison": {
+      "expectedText": "Synthetic demo: no real calls, notifications, appointments, or deliveries. Simulated attempt 1, 9:00 AM — no answer after six rings. An example voicemail script would request a return call to the clinic; no voicemail is sent. An unanswered call provides no evidence about the person's symptoms or safety. Simulated attempt 2, 11:30 AM — no answer. The demonstration marks the unanswered outreach as requiring human review by a coordinator, not a completed check-in. It does not contact a coordinator, send a voicemail, or schedule human outreach.",
+      "recognizedText": "Synthetic demo. No real calls, notifications, appointments, or deliveries. Simulated attempt 1. 9 a.m. No answer after six rings. An example voicemail script would request a return call to the clinic. No voicemail is sent. An unanswered call provides no evidence about the person's symptoms or safety. Simulated attempt 2. 11.30 a.m. No answer. The demonstration marks the unanswered outreach as requiring human review by a coordinator, not a completed check-in. It does not contact a coordinator, send a voicemail, or schedule human outreach.",
+      "reconciliation": "9:00 AM and 11:30 AM are formatting variants of the recognized times; no answer is not evidence of safety and no real voicemail/coordinator contact is claimed.",
+      "unresolvedCriticalDiscrepancy": false
+    },
+    "criticalChecks": {
+      "negation": "preserved",
+      "numbersUnits": "preserved",
+      "urgency": "not_applicable",
+      "medicationAuthority": "not_applicable",
+      "deliveryClaims": "preserved",
+      "syntheticBoundary": "preserved"
+    }
+  }
+}

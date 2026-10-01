@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic_audio_verification",
+  "verification": {
+    "kind": "automated_asr_decode_verification",
+    "state": "passed",
+    "scope": "synthetic_sandbox_only",
+    "locale": "en",
+    "recordedAt": "2026-10-01T04:01:07.292Z",
+    "sourceSha256": "bb910cdc943bac1d4984e370bcd9567cf054830b388175151332951ba3a14705",
+    "clinicalScriptSha256": "a00ca4edb120d5ed3a2f9eac558912f8ad53ce799877737706c41d43dc5a79a9",
+    "audioSha256": "14f848a4cc1c8777d2bf1fd58fb8832357d810a0ae06ba665b3cb24e20c73355",
+    "technicalEvidenceSha256": "26587c5b0dab2d125235982d574e1b1a162b977224094e7d8f12926d1c82b13d",
+    "documentaryEvidenceSha256": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571",
+    "asrTranscriptSha256": "ddd64be811609e8e14285990e5f4867f332d03901b229c089f77015ce85eadb2",
+    "method": "local_asr_decode_documentary_comparison",
+    "humanListening": false,
+    "criticalContentChecked": true,
+    "notes": "Owner-delegated automated documentary comparison, reconciled with a separate automated reviewer. Source acceptance, technical evidence and activation authority are separate. This is not human listening or a signed clinical review.",
+    "comparison": {
+      "expectedText": "Synthetic demo: no real calls, notifications, appointments, or deliveries. Good morning, Mrs. Santos — this is a simulated daily check-in. I collect and structure answers; clinical decisions require human review. How are you doing today? Any chest pain since yesterday, or any— Oh — no, no chest pain, dear. I'm just... so tired lately. Didn't sleep well again. I'm sorry to hear that — and we'll get to the sleeping in just a second. Did you get a chance to step on the scale this morning? The scale? Yes... hold on, let me find where I wrote it. My daughter got me one of those little notebooks... here it is — 179 and a half. 179 and a half, got it. It just keeps creeping up this week. And I haven't been eating any different, that's the thing. That's exactly the kind of thing we want to know about. How's the breathing today — fine, short of breath when you're up and moving, or even at rest? Well... I get winded just walking to the kitchen. And my ankles — I looked down this morning and they're all puffy again. Okay. And last night — is that why the sleeping was bad? Did you need extra pillows, or to sit up to breathe? I ended up in the recliner again. Second night in a row. The bed just... I can't breathe laying flat, you know? That's really helpful to know, thank you. Almost done — your medicines, were you able to take all of them, yesterday and today? Oh yes, all of them. I never miss those — my daughter makes sure of it. Thank you, Mrs. Santos. In this synthetic case, the weight change and breathing reports trigger preset rules requiring human review. This demo shows the need for nurse review; it does not contact a nurse or arrange a callback. If you have actual chest pain or severe trouble breathing, call 911 immediately — do not wait for this demo or a callback, alright? Alright... I understand this is a demonstration. Thank you, dear. Bye-bye now. That completes the simulated check-in, Mrs. Santos. Bye-bye.",
+      "recognizedText": "Synthetic demo. No real calls, notifications, appointments, or deliveries. Good morning, Mrs. Santos. This is a simulated daily check-in. I collect and structure answers. Clinical decisions require human review. How are you doing today? Any chest pain since yesterday or any? Ugh, no. No chest pain, dear. I'm just so tired lately. Didn't sleep well again. I'm sorry to hear that. And we'll get to the sleeping in just a second. Did you get a chance to step on the scale this morning? The scale? Yes. Hold on. Let me find where I wrote it. My daughter got me one of those little notebooks. Here it is. One seventy-nine and a half. One hundred seventy-nine and a half. Got it. It just keeps creeping up this week. And I haven't been eating any different. That's the thing. That's exactly the kind of thing we want to know about. How's the breathing today? Fine, short of breath when you're up and moving, or even at rest? Well, I get winded just walking to the kitchen. And my ankles, I look down this morning and they're all puffy again. Okay. And last night, is that why the sleeping was bad? Did you need extra pillows or to sit up to breathe? I ended up in the recliner again. Second night in a in a row, the bed just, I can't breathe laying flat, you know? That's really helpful to know, thank you. Almost done, your medicines. Were you able to take all of them, yesterday and today? Yes, all of them. I never miss those. My daughter makes sure of it. Thank you, Mrs. Santos. In this synthetic case, the weight change and breathing reports trigger preset rules requiring human review. This demo shows the need for nurse review. It does not contact a nurse or arrange a callback. If you have actual chest pain or severe trouble breathing, call 911 immediately. Do not wait for this demo or a callback, all right? All right, I understand this is a demonstration. Thank you, dear. Bye-bye now. That completes the simulated check-in, Mrs. Santos. Bye-bye.",
+      "reconciliation": "ASR expands 179 and a half to spoken words; the same weight is retained. Conversational interjections/tense and a repeated “in a” do not alter symptoms, urgency or follow-up limitations.",
+      "unresolvedCriticalDiscrepancy": false
+    },
+    "criticalChecks": {
+      "negation": "preserved",
+      "numbersUnits": "preserved",
+      "urgency": "preserved",
+      "medicationAuthority": "preserved",
+      "deliveryClaims": "preserved",
+      "syntheticBoundary": "preserved"
+    }
+  }
+}

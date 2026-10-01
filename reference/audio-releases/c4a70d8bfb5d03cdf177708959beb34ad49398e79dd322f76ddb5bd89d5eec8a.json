@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic_audio_verification",
+  "verification": {
+    "kind": "automated_asr_decode_verification",
+    "state": "passed",
+    "scope": "synthetic_sandbox_only",
+    "locale": "es",
+    "recordedAt": "2026-10-01T04:01:07.292Z",
+    "sourceSha256": "e337573fcd5d7cdb92af237fe0e7a57c572bbbf1f2cc75e648850b505e68e677",
+    "clinicalScriptSha256": "ef9547e2c32c98d10dd70c2fa6c383c3cb396b212b480f5383aa9adf5d87b590",
+    "audioSha256": "f15619226fd06037f8dbd765b7e421878fdf010622f213d853abb41f33efbf6a",
+    "technicalEvidenceSha256": "26587c5b0dab2d125235982d574e1b1a162b977224094e7d8f12926d1c82b13d",
+    "documentaryEvidenceSha256": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571",
+    "asrTranscriptSha256": "c1fa31bb68505902bafa598b1fd529b1af01e24de70b8e830f9178512fbb352c",
+    "method": "local_asr_decode_documentary_comparison",
+    "humanListening": false,
+    "criticalContentChecked": true,
+    "notes": "Owner-delegated automated documentary comparison, reconciled with a separate automated reviewer. Source acceptance, technical evidence and activation authority are separate. This is not human listening or a signed clinical review.",
+    "comparison": {
+      "expectedText": "Primero, lo importante: ¿algún dolor de pecho, o se ha desmayado o casi desmayado desde que aumentamos su medicina?",
+      "recognizedText": "Primero, lo importante ¿Algún dolor de pecho o se ha desmayado o casi desmayado desde que aumentamos su medicina?",
+      "reconciliation": "Source and recognized text retain the intended meaning; differences in punctuation, capitalization, pauses and number spelling do not change the message. No removed negation, altered urgency, medication instruction or actual-delivery promise was identified.",
+      "unresolvedCriticalDiscrepancy": false
+    },
+    "criticalChecks": {
+      "negation": "not_applicable",
+      "numbersUnits": "not_applicable",
+      "urgency": "not_applicable",
+      "medicationAuthority": "not_applicable",
+      "deliveryClaims": "not_applicable",
+      "syntheticBoundary": "not_applicable"
+    }
+  }
+}

@@ -10,6 +10,12 @@ import type { CallLocale, CheckInTurnResponse } from '@/lib/sandbox-ai/types';
 import { callPromptsFor } from '@/lib/sandbox-ai/call-prompts';
 import { staticAudioPlaybackPolicy } from '@/lib/sandbox-ai/static-audio-policy';
 
+// Exercise unavailable-recording fallback independently of the shipped release.
+vi.mock('@/lib/sandbox-ai/static-audio-policy', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/sandbox-ai/static-audio-policy')>();
+  return { ...actual, staticAudioPlaybackPolicy: (locale: 'en' | 'es' = 'en') => actual.staticAudioPlaybackPolicy(locale) };
+});
+
 vi.mock('@/lib/product-analytics/actions', () => ({
   trackProductEvent: vi.fn().mockResolvedValue(undefined),
 }));

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic_audio_verification",
+  "verification": {
+    "kind": "automated_asr_decode_verification",
+    "state": "passed",
+    "scope": "synthetic_sandbox_only",
+    "locale": "es",
+    "recordedAt": "2026-10-01T04:01:07.292Z",
+    "sourceSha256": "dd66fa7cad3a80765a2aa93ab46af8a3c24b120eb99becc3715d4e10dcece7df",
+    "clinicalScriptSha256": "3678924a9aa71988ea8f5706ce16c30eeed4532821d62264fede4cad0c3af5ed",
+    "audioSha256": "5eace3b69d3e45dc4ff55dd9a1c3de1d09e1658fc7abe66f323a936933be22a9",
+    "technicalEvidenceSha256": "26587c5b0dab2d125235982d574e1b1a162b977224094e7d8f12926d1c82b13d",
+    "documentaryEvidenceSha256": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571",
+    "asrTranscriptSha256": "9a40bf8ee9533f5ffff6a484c19c66e909c18cef025326cd4261477315117a18",
+    "method": "local_asr_decode_documentary_comparison",
+    "humanListening": false,
+    "criticalContentChecked": true,
+    "notes": "Owner-delegated automated documentary comparison, reconciled with a separate automated reviewer. Source acceptance, technical evidence and activation authority are separate. This is not human listening or a signed clinical review.",
+    "comparison": {
+      "expectedText": "Desde el cambio de dosis, ¿algún mareo o aturdimiento — especialmente al ponerse de pie?",
+      "recognizedText": "Desde el cambio de dosis, algún mareo o aturdimiento, especialmente al ponerse de pie?",
+      "reconciliation": "Source and recognized text retain the intended meaning; differences in punctuation, capitalization, pauses and number spelling do not change the message. No removed negation, altered urgency, medication instruction or actual-delivery promise was identified.",
+      "unresolvedCriticalDiscrepancy": false
+    },
+    "criticalChecks": {
+      "negation": "not_applicable",
+      "numbersUnits": "not_applicable",
+      "urgency": "not_applicable",
+      "medicationAuthority": "preserved",
+      "deliveryClaims": "not_applicable",
+      "syntheticBoundary": "not_applicable"
+    }
+  }
+}

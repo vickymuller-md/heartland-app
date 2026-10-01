@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic_audio_verification",
+  "verification": {
+    "kind": "automated_asr_decode_verification",
+    "state": "passed",
+    "scope": "synthetic_sandbox_only",
+    "locale": "es",
+    "recordedAt": "2026-10-01T04:01:07.292Z",
+    "sourceSha256": "a39d044d3c156a9c8a215f70cc4f572d1a12a56997468757f5c8e6c0a303291d",
+    "clinicalScriptSha256": "78ebf17cf1dc29360e2b5f824d1e34a7b9e96f343258b12323587d95f94663fe",
+    "audioSha256": "f363188f059d0b3c99f5f529593921b3c07d94d91bdc345830324bea708220b1",
+    "technicalEvidenceSha256": "26587c5b0dab2d125235982d574e1b1a162b977224094e7d8f12926d1c82b13d",
+    "documentaryEvidenceSha256": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571",
+    "asrTranscriptSha256": "76360361006e9dd2dafcf9e4fdc634ff6392ae1e1ff89721919eb621c4b8bb82",
+    "method": "local_asr_decode_documentary_comparison",
+    "humanListening": false,
+    "criticalContentChecked": true,
+    "notes": "Owner-delegated automated documentary comparison, reconciled with a separate automated reviewer. Source acceptance, technical evidence and activation authority are separate. This is not human listening or a signed clinical review.",
+    "comparison": {
+      "expectedText": "¿Cuál fue su presión arterial esta mañana — el número de arriba? Está bien saltarse esta si no tiene una lectura.",
+      "recognizedText": "¿Cuál fue su presión arterial esta mañana? ¿El número de arriba? ¿Está bien saltarse esta si no tiene una lectura?",
+      "reconciliation": "Source and recognized text retain the intended meaning; differences in punctuation, capitalization, pauses and number spelling do not change the message. No removed negation, altered urgency, medication instruction or actual-delivery promise was identified.",
+      "unresolvedCriticalDiscrepancy": false
+    },
+    "criticalChecks": {
+      "negation": "preserved",
+      "numbersUnits": "preserved",
+      "urgency": "not_applicable",
+      "medicationAuthority": "not_applicable",
+      "deliveryClaims": "not_applicable",
+      "syntheticBoundary": "not_applicable"
+    }
+  }
+}

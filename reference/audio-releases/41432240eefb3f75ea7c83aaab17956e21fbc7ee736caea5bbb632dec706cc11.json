@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic_audio_verification",
+  "verification": {
+    "kind": "automated_asr_decode_verification",
+    "state": "passed",
+    "scope": "synthetic_sandbox_only",
+    "locale": "es",
+    "recordedAt": "2026-10-01T04:01:07.292Z",
+    "sourceSha256": "a6e46c3b47e6cad249b6e3bd0b3368390c7afaef991f54461a5cc72f4df55a70",
+    "clinicalScriptSha256": "989130566058818892f7f9057852ea65c76fe7df069bde47aa3dcaef30005ede",
+    "audioSha256": "b2c779591f7d2c61493571c2d61d2b08ea9480c109a8d111381cc6486955dde3",
+    "technicalEvidenceSha256": "26587c5b0dab2d125235982d574e1b1a162b977224094e7d8f12926d1c82b13d",
+    "documentaryEvidenceSha256": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571",
+    "asrTranscriptSha256": "d5c64a103180bd29ae2598df4d9fbb41de3fa5b2f98c7bf5a1404ce44f8ce512",
+    "method": "local_asr_decode_documentary_comparison",
+    "humanListening": false,
+    "criticalContentChecked": true,
+    "notes": "Owner-delegated automated documentary comparison, reconciled with a separate automated reviewer. Source acceptance, technical evidence and activation authority are separate. This is not human listening or a signed clinical review.",
+    "comparison": {
+      "expectedText": "No puedo dar consejos médicos — solo recojo y organizo respuestas en esta demostración. Las decisiones clínicas requieren revisión humana. Si está preocupado o preocupada, comuníquese con su equipo de atención; en una emergencia, llame al 911. Demostración sintética: sin llamadas, alertas, notificaciones ni citas reales. Ahora, volvamos al chequeo:",
+      "recognizedText": "No puedo dar consejos médicos. Solo recojo y organizo respuestas en esta demostración. Las decisiones clínicas requieren revisión humana. Si está preocupado o preocupada, comuníquese con su equipo de atención. En una emergencia, llame al 911. Demostración sintética, sin llamadas, alertas, notificaciones, ni citas reales. Ahora, volvamos al chequeo.",
+      "reconciliation": "Source and recognized text retain the intended meaning; differences in punctuation, capitalization, pauses and number spelling do not change the message. No removed negation, altered urgency, medication instruction or actual-delivery promise was identified.",
+      "unresolvedCriticalDiscrepancy": false
+    },
+    "criticalChecks": {
+      "negation": "preserved",
+      "numbersUnits": "preserved",
+      "urgency": "preserved",
+      "medicationAuthority": "preserved",
+      "deliveryClaims": "preserved",
+      "syntheticBoundary": "preserved"
+    }
+  }
+}

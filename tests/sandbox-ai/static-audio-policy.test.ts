@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { audioCatalog } from '../../scripts/generate-outreach-audio.mts';
 import { staticAudioPlaybackPolicy } from '@/lib/sandbox-ai/static-audio-policy';
 
-describe('historical static audio quarantine', () => {
-  it('keeps the complete historical catalogue unavailable without inventing approvals', () => {
+describe('recording-specific static audio release', () => {
+  it('serves the 58 authorized synthetic recordings only at immutable byte identities', () => {
     const jobs = audioCatalog();
     expect(jobs).toHaveLength(58);
     expect(jobs.filter(job => job.locale === 'en')).toHaveLength(31);
@@ -14,8 +14,8 @@ describe('historical static audio quarantine', () => {
         reason: 'review_pending',
       });
       const asset = staticAudioPlaybackPolicy(job.locale, `/outreach-audio/${job.relativePath}`);
-      expect(asset.canPlay).toBe(false);
-      expect(asset.url).toBeUndefined();
+      expect(asset.canPlay).toBe(true);
+      expect(asset.url).toMatch(/^\/outreach-audio\/releases\/[a-f0-9]{64}\.mp3$/);
     }
   });
 

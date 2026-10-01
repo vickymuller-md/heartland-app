@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic_audio_verification",
+  "verification": {
+    "kind": "automated_asr_decode_verification",
+    "state": "passed",
+    "scope": "synthetic_sandbox_only",
+    "locale": "es",
+    "recordedAt": "2026-10-01T04:01:07.292Z",
+    "sourceSha256": "7ddf596ad6c9713cc8b0b5ecd09400fad619edd19e32b91466e2e2be989d6e98",
+    "clinicalScriptSha256": "7f1a8065cac5285a911a486781d57cd03d43776a4ad90d971c4f1d332f2654ad",
+    "audioSha256": "96b9e264fec09446d0e4d4e4e042b2dc3536a36520c2246b5b213a207fc5b350",
+    "technicalEvidenceSha256": "26587c5b0dab2d125235982d574e1b1a162b977224094e7d8f12926d1c82b13d",
+    "documentaryEvidenceSha256": "226d6b81800d6a687c3bbc02c584e0ac46297a830715663e36cdd9c62a223571",
+    "asrTranscriptSha256": "70ea19e1282dba30e827db5d5513ffb585ae923ab6b2cb76bbcb795fa5fed0a4",
+    "method": "local_asr_decode_documentary_comparison",
+    "humanListening": false,
+    "criticalContentChecked": true,
+    "notes": "Owner-delegated automated documentary comparison, reconciled with a separate automated reviewer. Source acceptance, technical evidence and activation authority are separate. This is not human listening or a signed clinical review.",
+    "comparison": {
+      "expectedText": "¿Alguna dificultad para respirar nueva o peor, o se siente mucho más cansado de lo normal, desde el cambio?",
+      "recognizedText": "¿Alguna dificultad para respirar nueva o peor? ¿O se siente mucho más cansado de lo normal desde el cambio?",
+      "reconciliation": "Source and recognized text retain the intended meaning; differences in punctuation, capitalization, pauses and number spelling do not change the message. No removed negation, altered urgency, medication instruction or actual-delivery promise was identified.",
+      "unresolvedCriticalDiscrepancy": false
+    },
+    "criticalChecks": {
+      "negation": "not_applicable",
+      "numbersUnits": "not_applicable",
+      "urgency": "not_applicable",
+      "medicationAuthority": "not_applicable",
+      "deliveryClaims": "not_applicable",
+      "syntheticBoundary": "not_applicable"
+    }
+  }
+}
