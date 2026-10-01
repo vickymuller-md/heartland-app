@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, BookOpen, Users, Activity, Phone, ClipboardCheck, Bell, FileText, Radio, Pill, BarChart2, ClipboardList, Stethoscope, CreditCard, FileBarChart2 } from 'lucide-react';
 import { ProtocolAssistant } from './protocol-assistant';
+import { ImplementationPrinciples, LocalReadinessGuide, ReferralContextGuide } from '@/components/implementation/implementation-guidance';
+import { QUALITY_METRIC_LIMIT } from '@/lib/implementation/constants';
+import { QUALITY_METRICS } from '@/lib/tier-selector/constants';
 
 /* ------------------------------------------------------------------ */
 /*  Table of Contents                                                  */
@@ -11,6 +14,7 @@ import { ProtocolAssistant } from './protocol-assistant';
 const TOC = [
   { id: 'overview', label: 'System Overview', icon: BookOpen },
   { id: 'getting-started', label: 'Getting Started', icon: Users },
+  { id: 'implementation-readiness', label: 'Local Readiness & Training', icon: ClipboardCheck },
   { id: 'patient-onboarding', label: 'Patient Onboarding', icon: Users },
   { id: 'daily-workflow-patient', label: 'Patient Daily Workflow', icon: Activity },
   { id: 'daily-workflow-provider', label: 'Provider Daily Workflow', icon: Bell },
@@ -45,13 +49,15 @@ function Section({ id, title, icon: Icon, children }: {
     <section id={id} className="scroll-mt-20 border-b border-gray-200 pb-8 mb-8">
       <button
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-controls={`${id}-content`}
         className="flex w-full items-center gap-3 text-left group"
       >
         <Icon className="h-6 w-6 text-blue-600 shrink-0" />
         <h2 className="text-xl font-semibold text-gray-900 flex-1">{title}</h2>
         {open ? <ChevronDown className="h-5 w-5 text-gray-400" /> : <ChevronRight className="h-5 w-5 text-gray-400" />}
       </button>
-      {open && <div className="mt-4 space-y-4 text-gray-700 leading-relaxed">{children}</div>}
+      {open && <div id={`${id}-content`} className="mt-4 space-y-4 text-gray-700 leading-relaxed">{children}</div>}
     </section>
   );
 }
@@ -105,7 +111,8 @@ export function GuideContent() {
           A complete step-by-step guide for healthcare professionals using the HEARTLAND Protocol
           Clinical Implementation Companion for rural heart failure management.
         </p>
-        <p className="text-xs text-gray-400 mt-2">Version 4.0 &middot; Last updated March 2026</p>
+        <p className="text-xs text-gray-400 mt-2">Operational clarification &middot; Updated October 2026</p>
+        <p className="mx-auto mt-3 max-w-2xl text-sm text-amber-800">Public demonstrations are synthetic; authenticated workspaces are for controlled evaluation. Do not enter real patient information. These instructions do not authorize clinical operation or promise live monitoring or contact.</p>
       </div>
 
       {/* Reference assistant over the published implementation content */}
@@ -127,6 +134,11 @@ export function GuideContent() {
           ))}
         </div>
       </nav>
+
+      <Section id="implementation-readiness" title="Local Readiness & Training" icon={ClipboardCheck}>
+        <ImplementationPrinciples />
+        <LocalReadinessGuide />
+      </Section>
 
       {/* ============================================================ */}
       {/*  1. SYSTEM OVERVIEW                                          */}
@@ -194,7 +206,7 @@ export function GuideContent() {
             <p>After registration, you will be automatically redirected to your <strong>Dashboard</strong>. Your unique <strong>Provider Code</strong> (a 6-character code like &quot;HLP-A3BX&quot;) is generated automatically.</p>
           </Step>
           <Step n={4} title="Assess your facility tier">
-            <p>Navigate to <NavPath path="Sidebar &rarr; Tier Selector" /> and complete the facility resource questionnaire. This determines whether your facility operates at Tier 1 (Minimal), Tier 2 (Standard), or Tier 3 (Advanced), which affects quality metric targets and discharge checklist complexity.</p>
+            <p>Navigate to <NavPath path="Sidebar &rarr; Tier Selector" /> and complete the facility resource questionnaire. It describes delivery capacity, not clinical eligibility or a lower standard of care. The individual care plan determines indicated treatment, education and follow-up timing.</p>
           </Step>
         </div>
 
@@ -262,7 +274,7 @@ export function GuideContent() {
             <p>For Track A patients: Instruct them to install the app on their phone (visit the website, tap &quot;Add to Home Screen&quot;). For Track B patients: Print the 7-day monitoring diary and Red Flag card.</p>
           </Step>
           <Step n={5} title="Education Modules">
-            <p>Assign the patient their education modules. All patients receive 3 core modules (daily weight monitoring, medication adherence, warning signs). Tier 2/3 patients receive 5 additional modules.</p>
+            <p>All eight education domains are available at every tier. Tailor format and support to the individual; record a justified deferred or not-applicable domain instead of excluding it by tier. Patient self-assessment is separate from teach-back verified by an authorized professional.</p>
           </Step>
         </div>
 
@@ -307,7 +319,7 @@ export function GuideContent() {
         </div>
 
         <Tip>
-          If the patient has no internet, vitals are saved locally and sync automatically when connectivity returns. The app works fully offline.
+          Offline reference access is not offline clinical writing. Do not assume a disconnected submission was saved or queued. Use the approved downtime record, preserve uncertain outcomes and reconcile through the supported recovery process after access returns.
         </Tip>
 
         <h3 className="font-semibold text-gray-900 mt-6 mb-2">For Track B (Analog) Patients</h3>
@@ -534,7 +546,7 @@ export function GuideContent() {
               <tr><td className="py-1.5 pr-4">Smartphone</td><td className="py-1.5 pr-4">Has smartphone with data</td><td className="py-1.5">No smartphone</td></tr>
               <tr><td className="py-1.5 pr-4">App comfort</td><td className="py-1.5 pr-4">Can use basic apps</td><td className="py-1.5">Not comfortable with apps</td></tr>
               <tr><td className="py-1.5 pr-4">Monitoring</td><td className="py-1.5 pr-4">Patient enters vitals in app</td><td className="py-1.5">Paper diary + phone calls</td></tr>
-              <tr><td className="py-1.5 pr-4">Alerts</td><td className="py-1.5 pr-4">Real-time via app</td><td className="py-1.5">Provider reviews at call time</td></tr>
+              <tr><td className="py-1.5 pr-4">Responsibility</td><td className="py-1.5 pr-4">Named human review and coverage; no monitoring guarantee</td><td className="py-1.5">Same responsibility; agreed phone/paper review and escalation</td></tr>
             </tbody>
           </table>
         </div>
@@ -587,7 +599,7 @@ export function GuideContent() {
             <p>Enter the weight, BP, HR, and symptoms for each day the patient reports. You can backdate entries to match the actual recording date.</p>
           </Step>
           <Step n={3} title="Submit">
-            <p>Each submission goes through the same red flag detection pipeline as Track A. You will see an immediate alert if any red flags are triggered.</p>
+            <p>Check the save receipt and any pending evaluation or recovery status. A saved observation is not proof of completed review, notification or contact. Keep unresolved work assigned; do not infer an all-clear from missing or unavailable information.</p>
           </Step>
         </div>
 
@@ -601,31 +613,32 @@ export function GuideContent() {
       {/* ============================================================ */}
       <Section id="alerts" title="Alerts & Triage" icon={Bell}>
         <p>
-          The alert system has two layers: <strong>real-time red flags</strong> (triggered immediately when vitals are submitted)
-          and <strong>proactive alerts</strong> (generated by a daily scan for patterns like missed check-ins or trending weight gain).
+          The software separates observations, evaluation, notification intent, attempts and human review.
+          External notification dispatch and institution-gated background processes remain disabled in this release.
+          A displayed alert, saved intent or acknowledged item does not prove delivery, contact or completed care.
         </p>
 
-        <h3 className="font-semibold text-gray-900 mt-4 mb-2">Alert Severity Tiers</h3>
+        <h3 className="font-semibold text-gray-900 mt-4 mb-2">Application Priority Labels</h3>
         <div className="space-y-2">
           <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-3">
             <div className="h-3 w-3 rounded-full bg-red-500"></div>
             <div>
               <span className="font-medium text-red-800">Critical</span>
-              <span className="text-xs text-red-600 ml-2">Weight gain &ge;3 lbs/2 days, SBP &lt;90 with symptoms, SpO2 &lt;92%, K+ &gt;5.5, chest pain</span>
+              <span className="text-xs text-red-600 ml-2">Inspect the underlying finding and applicable clinical policy; this label is not a response-time guarantee.</span>
             </div>
           </div>
           <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
             <div className="h-3 w-3 rounded-full bg-amber-500"></div>
             <div>
               <span className="font-medium text-amber-800">Warning</span>
-              <span className="text-xs text-amber-600 ml-2">Gradual weight trend &gt;2 lbs/7 days, medication adherence &lt;70%, low eGFR</span>
+              <span className="text-xs text-amber-600 ml-2">Review source, completeness and current status; a lower label does not exclude a clinically important problem.</span>
             </div>
           </div>
           <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
             <div className="h-3 w-3 rounded-full bg-blue-500"></div>
             <div>
               <span className="font-medium text-blue-800">Informational</span>
-              <span className="text-xs text-blue-600 ml-2">No check-in for 3+ days, follow-up due within 24 hours</span>
+              <span className="text-xs text-blue-600 ml-2">Workflow information still needs an owner and follow-up when unresolved.</span>
             </div>
           </div>
         </div>
@@ -633,8 +646,8 @@ export function GuideContent() {
         <h3 className="font-semibold text-gray-900 mt-6 mb-2">Managing Alerts</h3>
         <ul className="list-disc list-inside text-sm space-y-1 ml-4">
           <li><strong>Acknowledge:</strong> You&apos;ve seen it and are tracking the situation</li>
-          <li><strong>Resolve:</strong> The issue has been addressed (e.g., dose adjusted, patient contacted)</li>
-          <li><strong>Mute:</strong> Suppress a specific alert type for a patient (e.g., no-checkin for a patient on vacation)</li>
+          <li><strong>Resolve:</strong> Record the outcome and supporting evidence; a status change alone does not prove treatment or contact.</li>
+          <li><strong>Exceptions:</strong> Keep missing results, failed contact and uncertain outcomes visible with a named owner and backup.</li>
         </ul>
 
         <Warning>
@@ -657,17 +670,17 @@ export function GuideContent() {
             <p>Go to <NavPath path="Sidebar &rarr; Discharge" /> and select the patient, or navigate from the patient detail page.</p>
           </Step>
           <Step n={2} title="Complete the Discharge Bundle">
-            <p>Check off each item in the tier-appropriate bundle:</p>
+            <p>Review the common care requirements; tier changes delivery support, not the clinically indicated goal:</p>
             <ul className="list-disc list-inside ml-4 mt-1">
-              <li><strong>Tier 1 (Minimal):</strong> Case management, teach-back across all eight education domains (condensed where staffing is limited), medication reconciliation, follow-up scheduled</li>
-              <li><strong>Tier 2/3 (Standard/Advanced):</strong> All of Tier 1 plus CHW engagement and cardiac rehab referral</li>
+              <li><strong>Every tier:</strong> Complete medication reconciliation, teach-back across all eight relevant domains, medication access check and risk-led follow-up with named coverage.</li>
+              <li><strong>Delivery options:</strong> Local/remote pharmacy support, CHW reinforcement and other services according to availability and clinical need; document unmet needs and additional support/referral.</li>
             </ul>
           </Step>
           <Step n={3} title="Review task-shifting assignments">
-            <p>The Task-Shifting Table shows which team member handles each task based on your facility tier. Assign tasks to the appropriate staff.</p>
+            <p>The Task-Shifting Table distinguishes recognition, assessment and authorized decisions. Assign tasks based on competence, documented authority and coverage, not title or facility tier alone.</p>
           </Step>
           <Step n={4} title="Schedule post-discharge contacts">
-            <p>The system automatically creates 5 follow-up contacts:</p>
+            <p>The discharge workflow can create five planned contact records. These are not booked appointments, actual calls or completed care. Reconcile their timing with Module 1.3 and the individual care plan:</p>
             <ul className="list-disc list-inside ml-4 mt-1">
               <li><strong>48-Hour Phone Call</strong> &mdash; Verify meds, check weight, assess symptoms</li>
               <li><strong>Day 7 Office Visit</strong> &mdash; Full assessment, labs, med reconciliation</li>
@@ -680,6 +693,8 @@ export function GuideContent() {
             <p>Click &quot;Print Instructions&quot; to generate a patient-friendly discharge summary appropriate for your facility tier.</p>
           </Step>
         </div>
+
+        <ImplementationPrinciples />
 
         <h3 className="font-semibold text-gray-900 mt-6 mb-2">Tracking Follow-up Contacts</h3>
         <p className="text-sm">
@@ -779,6 +794,7 @@ export function GuideContent() {
         </div>
 
         <h3 className="font-semibold text-gray-900 mt-6 mb-2">Advanced HF Referral Criteria</h3>
+        <ReferralContextGuide />
         <p className="text-sm">The system checks for advanced HF referral indication when:</p>
         <ul className="list-disc list-inside text-sm space-y-1 ml-4 mt-2">
           <li>LVEF &le;35% <strong>AND</strong></li>
@@ -802,34 +818,32 @@ export function GuideContent() {
       {/* ============================================================ */}
       <Section id="quality-metrics" title="Quality Metrics Dashboard" icon={BarChart2}>
         <p>
-          Track your facility&apos;s performance against HEARTLAND Protocol quality targets. The dashboard shows
-          5 key metrics with monthly trend tracking and tier-specific targets.
+          Inspect monthly process measures with their denominators and missing-data limitations.
+          Historical tier-specific targets shown by legacy displays are service-planning examples, not individual treatment goals.
         </p>
+        <Warning>{QUALITY_METRIC_LIMIT}</Warning>
 
-        <h3 className="font-semibold text-gray-900 mt-4 mb-2">Tracked Metrics</h3>
+        <h3 className="font-semibold text-gray-900 mt-4 mb-2">Tracked Metrics and Interpretation</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="border-b text-left">
                 <th className="py-2 pr-4 font-medium">Metric</th>
-                <th className="py-2 pr-4 font-medium">Tier 1 Target</th>
-                <th className="py-2 pr-4 font-medium">Tier 2 Target</th>
-                <th className="py-2 font-medium">Tier 3 Target</th>
+                <th className="py-2 pr-4 font-medium">Tier 1 Planning Example</th>
+                <th className="py-2 font-medium">Tier 2/3 Planning Example</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              <tr><td className="py-1.5 pr-4">GDMT Discharge Rate</td><td className="py-1.5 pr-4">&ge;60%</td><td className="py-1.5 pr-4">&ge;75%</td><td className="py-1.5">&ge;90%</td></tr>
-              <tr><td className="py-1.5 pr-4">48-72h Post-Discharge Contact</td><td className="py-1.5 pr-4">&ge;70%</td><td className="py-1.5 pr-4">&ge;85%</td><td className="py-1.5">&ge;95%</td></tr>
-              <tr><td className="py-1.5 pr-4">7-Day Follow-up Attendance</td><td className="py-1.5 pr-4">&ge;60%</td><td className="py-1.5 pr-4">&ge;75%</td><td className="py-1.5">&ge;90%</td></tr>
-              <tr><td className="py-1.5 pr-4">30-Day Readmission Rate</td><td className="py-1.5 pr-4">Improvement</td><td className="py-1.5 pr-4">&le;20%</td><td className="py-1.5">&le;15%</td></tr>
-              <tr><td className="py-1.5 pr-4">Teach-Back Documentation</td><td className="py-1.5" colSpan={3}>Documented teach-back for every offered domain, with completion tracked per patient; no fixed percentage target is set by the protocol.</td></tr>
+              {QUALITY_METRICS.map((metric) => (
+                <tr key={metric.name}><td className="py-1.5 pr-4">{metric.name}</td><td className="py-1.5 pr-4">{metric.tier1Target}</td><td className="py-1.5">{metric.tier23Target}</td></tr>
+              ))}
             </tbody>
           </table>
         </div>
 
         <p className="text-sm mt-4">
           Enter your monthly data for each metric. The system calculates the rate and displays it against your facility&apos;s
-          tier-specific target with a trend chart showing improvement over time.
+          historical planning example with a trend chart. Neither a favorable comparison nor an improving trend establishes adequate individual care or clinical benefit.
         </p>
       </Section>
 
@@ -867,8 +881,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       <Section id="pocket-cards" title="Pocket Card Library" icon={CreditCard}>
         <p>
-          The Pocket Card Library provides digital versions of all 10 HEARTLAND Protocol reference cards.
-          These are designed to be printed, laminated, and kept at the bedside or in the clinic.
+          The Pocket Card Library provides ten educational reference cards. Check each card&apos;s version and prototype/distribution limits before use; library availability is not authorization for direct patient care.
         </p>
         <p className="text-sm">
           Go to <NavPath path="Sidebar &rarr; Pocket Cards" />. Click any card to view full-size with zoom capability.
@@ -884,7 +897,7 @@ export function GuideContent() {
         <div className="space-y-4">
           <div>
             <h4 className="font-medium text-gray-900">Q: My patient&apos;s vitals aren&apos;t showing up. What should I check?</h4>
-            <p className="text-sm text-gray-600 mt-1">A: First, check if the patient submitted vitals (look at &quot;Last Vitals&quot; date on the Dashboard). If they&apos;re a Track B patient, make sure you entered data via Track B Entry. If the patient has poor connectivity, vitals may be queued offline &mdash; they will sync when the patient reconnects.</p>
+            <p className="text-sm text-gray-600 mt-1">A: In a controlled synthetic evaluation, check the source record and save receipt, not just the screen date. An offline reference shell does not queue clinical writes. Preserve an uncertain save and use supported recovery after connectivity returns; do not blindly duplicate it.</p>
           </div>
           <div>
             <h4 className="font-medium text-gray-900">Q: How do I transition a patient from Track B to Track A?</h4>
@@ -911,7 +924,7 @@ export function GuideContent() {
 
       {/* Footer */}
       <div className="mt-12 border-t pt-6 text-center text-xs text-gray-400">
-        <p>HEARTLAND Protocol App &middot; Version 4.0 &middot; Clinical Implementation Companion</p>
+        <p>HEARTLAND Protocol App &middot; October 2026 operational clarification &middot; Clinical Implementation Companion</p>
         <p className="mt-1">This guide is for healthcare professionals only. Not intended for patient use.</p>
         <p className="mt-1">Protocol Author: Vicky Muller Ferreira, MD &middot; ORCID: 0009-0009-1099-5690</p>
       </div>

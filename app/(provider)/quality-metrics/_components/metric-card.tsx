@@ -75,11 +75,12 @@ export function MetricCard({ definition, latestRecord, history, facilityTier }: 
 
       {/* Target */}
       <div className="mb-2 text-sm text-gray-500">
-        Target: {targetLabel}
+        Historical planning example: {targetLabel}
       </div>
 
       {/* Status Badge */}
       <div className="mb-3">
+        <p className="mb-1 text-xs text-gray-500">Comparison with the planning example, not a clinical adequacy assessment.</p>
         <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyle.className}`}>
           {numericTarget == null && ratePct != null ? 'No Numeric Target' : statusStyle.label}
         </span>

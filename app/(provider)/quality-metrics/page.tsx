@@ -12,6 +12,7 @@ import { METRIC_DEFINITIONS } from '@/lib/quality-metrics/constants';
 import { getQualityMetrics, getMetricHistory } from '@/lib/quality-metrics/queries';
 import type { QualityMetricRecord, MonthlyTrend } from '@/lib/quality-metrics/types';
 import { MetricCard } from './_components/metric-card';
+import { QUALITY_METRIC_LIMIT } from '@/lib/implementation/constants';
 
 export default async function QualityMetricsPage() {
   const supabase = await createClient();
@@ -52,8 +53,9 @@ export default async function QualityMetricsPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Quality Metrics Dashboard</h1>
         <p className="mt-1 text-sm text-gray-600">
-          Track your facility&apos;s performance against HEARTLAND Protocol targets
+          Inspect recorded process measures and historical service-planning examples.
         </p>
+        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">{QUALITY_METRIC_LIMIT}</p>
       </div>
 
       {/* Metric Cards Grid */}

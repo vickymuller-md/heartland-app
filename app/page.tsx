@@ -11,6 +11,7 @@ import { AutomationEvidence } from "@/components/landing/automation-evidence";
 import { Modules } from "@/components/landing/modules";
 import { EvidenceFoundation } from "@/components/landing/evidence";
 import { AccessCta } from "@/components/landing/access-cta";
+import { ImplementationReadiness } from '@/components/landing/implementation-readiness';
 
 export const metadata: Metadata = {
   title: `HEARTLAND App ${APP_VERSION} · Educational Implementation Companion`,
@@ -38,7 +39,7 @@ export default async function Home() {
           { label: "Evidence Lab", href: "/sandbox" },
           {
             label: "Toolkit",
-            href: "https://doi.org/10.5281/zenodo.23073640",
+            href: "https://doi.org/10.5281/zenodo.23076249",
             external: true,
           },
           { label: "Sign in", href: "/login" },
@@ -52,6 +53,7 @@ export default async function Home() {
       <Abstract />
       <ScaleDemo />
       <AutomationEvidence />
+      <ImplementationReadiness />
       <Modules />
       <EvidenceFoundation />
       <AccessCta />

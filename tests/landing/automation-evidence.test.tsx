@@ -23,7 +23,7 @@ describe("landing evidence walkthrough", () => {
   it("uses the current App publication footer on public routes, not the shared package's historical Toolkit", () => {
     const { container } = render(<PublicLayout><p>Public content</p></PublicLayout>);
     const footer = within(container.querySelector("footer")!);
-    expect(footer.getByRole("link", { name: "Implementation Toolkit · v3.4" })).toHaveAttribute("href", "https://doi.org/10.5281/zenodo.23073640");
+    expect(footer.getByRole("link", { name: "Implementation Toolkit · v3.4.1" })).toHaveAttribute("href", "https://doi.org/10.5281/zenodo.23076249");
     expect(footer.getByRole("link", { name: `App software archive · ${APP_ARCHIVE_VERSION}` })).toHaveAttribute("href", `https://doi.org/${APP_ARCHIVE_DOI}`);
     expect(footer.getByText(/tester registration may collect account contact information/)).toBeVisible();
     expect(container.querySelector('a[href="https://doi.org/10.5281/zenodo.19101219"]')).toBeNull();
@@ -95,7 +95,7 @@ describe("landing evidence walkthrough", () => {
     expect(recorded).not.toHaveTextContent("Local candidate");
     expect(local).toHaveTextContent("Deployment expansion · Controlled evaluation only");
     expect(local).not.toHaveTextContent("Recorded deployment checkpoint");
-    for (const label of ["new transport remains inactive", "Published Toolkit V3.4", "12 synthetic training scenarios", "58 prerecorded clips", "preserving text simulation", "not human-listening certification or patient communication", "changed or revoked recordings remain blocked"]) {
+    for (const label of ["new transport remains inactive", "Published Toolkit V3.4.1", "12 synthetic training scenarios", "58 prerecorded clips", "preserving text simulation", "not human-listening certification or patient communication", "changed or revoked recordings remain blocked"]) {
       expect(local).toHaveTextContent(label);
     }
     expect(candidate).toHaveTextContent("not a live service-status check");
@@ -153,13 +153,18 @@ describe("composed public home", () => {
     });
   });
 
-  it("preserves the seven-section composition and all educational capabilities", async () => {
+  it("adds operational preparation while preserving all educational capabilities", async () => {
     const { container } = render(await Home());
     expect(createClient).toHaveBeenCalledOnce();
     expect(getUser).toHaveBeenCalledOnce();
     expect(redirect).not.toHaveBeenCalled();
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
-    expect(container.querySelectorAll("main > section")).toHaveLength(7);
+    expect(container.querySelectorAll("main > section")).toHaveLength(8);
+    const preparation = within(container.querySelector('#implementation-readiness')!);
+    expect(preparation.getAllByRole('article')).toHaveLength(4);
+    expect(preparation.getByRole('link', { name: 'Explore local readiness and training' })).toHaveAttribute('href', '/guide#implementation-readiness');
+    expect(preparation.getByRole('link', { name: 'Download the synthetic exercise pack' })).toHaveAttribute('href', '/resources/heartland-local-readiness-training.md');
+    expect(preparation.getByText(/No patient pilot, institutional adoption or clinical outcome is demonstrated/)).toBeVisible();
     const modules = screen.getByRole("region", { name: "Eight modules, one shared protocol." });
     expect(within(modules).getAllByRole("article")).toHaveLength(8);
     expect(within(modules).getAllByText("Educational module")).toHaveLength(8);
@@ -203,7 +208,7 @@ describe("composed public home", () => {
     const footer = within(container.querySelector("footer")!);
     for (const [label, href] of [
       ["Peer-reviewed protocol article", "https://doi.org/10.7759/cureus.104817"],
-      ["Implementation Toolkit · v3.4", "https://doi.org/10.5281/zenodo.23073640"],
+      ["Implementation Toolkit · v3.4.1", "https://doi.org/10.5281/zenodo.23076249"],
       [`App software archive · ${APP_ARCHIVE_VERSION}`, `https://doi.org/${APP_ARCHIVE_DOI}`],
       ["OSF deposit", "https://doi.org/10.17605/OSF.IO/YUSGH"],
       ["ORCID profile", "https://orcid.org/0009-0009-1099-5690"],

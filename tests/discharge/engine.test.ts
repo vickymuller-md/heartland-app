@@ -44,14 +44,14 @@ describe('computeFollowupDates', () => {
     expect(week2!.due_at.toISOString()).toBe('2026-01-15T12:00:00.000Z');
   });
 
-  it('week 2/3/4 rows present for tier 1 with tier1_mode "As resources allow"', () => {
+  it('week 2/3/4 rows retain named coverage and clinical timing in Tier 1', () => {
     const result = computeFollowupDates(DISCHARGE_DATE, 1);
     const weekRows = result.filter((r) =>
       ['call_week2', 'call_week3', 'call_week4'].includes(r.type)
     );
     expect(weekRows).toHaveLength(3);
     for (const row of weekRows) {
-      expect(row.tier1_mode).toBe('As resources allow');
+      expect(row.tier1_mode).toBe('Phone/paper with named coverage; clinically indicated timing');
     }
   });
 

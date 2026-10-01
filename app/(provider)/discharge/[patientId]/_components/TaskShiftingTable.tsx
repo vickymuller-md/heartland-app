@@ -9,6 +9,7 @@
  */
 
 import { TASK_SHIFTING_ROWS } from '@/lib/discharge/constants';
+import { ImplementationPrinciples } from '@/components/implementation/implementation-guidance';
 
 export function TaskShiftingTable() {
   return (
@@ -16,6 +17,7 @@ export function TaskShiftingTable() {
       <h2 className="mb-4 text-lg font-semibold text-gray-900">
         Task-Shifting Framework
       </h2>
+      <ImplementationPrinciples />
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm" data-testid="task-shifting-table">

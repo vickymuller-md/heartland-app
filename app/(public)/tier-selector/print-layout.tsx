@@ -7,6 +7,7 @@ import {
   TIER_LABELS,
 } from "@/lib/tier-selector/constants";
 import type { TierResult } from "@/lib/tier-selector/types";
+import { QUALITY_METRIC_LIMIT, RESOURCE_TIER_PRINCIPLE } from '@/lib/implementation/constants';
 
 interface PrintLayoutProps {
   result: TierResult;
@@ -28,6 +29,7 @@ export function PrintLayout({ result }: PrintLayoutProps) {
         <h3 className="text-base font-bold mb-2">Assessment Result</h3>
         <p className="text-lg font-bold">{result.tierLabel}</p>
         <p className="mt-1">{result.rationale}</p>
+        <p className="mt-2">{RESOURCE_TIER_PRINCIPLE}</p>
 
         <div className="mt-3">
           <h4 className="font-semibold mb-1">Category Breakdown</h4>
@@ -78,13 +80,14 @@ export function PrintLayout({ result }: PrintLayoutProps) {
 
       {/* Quality Metrics */}
       <section>
-        <h3 className="text-base font-bold mb-2">Quality Metrics Targets</h3>
+        <h3 className="text-base font-bold mb-2">Quality Metrics: Historical Planning Examples</h3>
+        <p className="mb-2">{QUALITY_METRIC_LIMIT}</p>
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b">
               <th className="text-left py-1 pr-4">Metric</th>
-              <th className="text-left py-1 pr-4">Tier 1 Target</th>
-              <th className="text-left py-1">Tier 2/3 Target</th>
+              <th className="text-left py-1 pr-4">Tier 1 Example</th>
+              <th className="text-left py-1">Tier 2/3 Example</th>
             </tr>
           </thead>
           <tbody>

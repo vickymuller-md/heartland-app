@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/card";
 import { QUALITY_METRICS, TIER_COLORS } from "@/lib/tier-selector/constants";
 import type { TierLevel } from "@/lib/tier-selector/types";
+import { QUALITY_METRIC_LIMIT } from '@/lib/implementation/constants';
 
 interface QualityMetricsTableProps {
   tierLevel: TierLevel;
@@ -19,9 +20,10 @@ export function QualityMetricsTable({ tierLevel }: QualityMetricsTableProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Quality Metrics Targets</CardTitle>
+        <CardTitle>Quality Metrics: Historical Planning Examples</CardTitle>
       </CardHeader>
       <CardContent>
+        <p className="mb-4 text-sm text-muted-foreground">{QUALITY_METRIC_LIMIT}</p>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -30,12 +32,12 @@ export function QualityMetricsTable({ tierLevel }: QualityMetricsTableProps) {
                 <th
                   className={`pb-2 pr-4 font-medium ${isTier1 ? TIER_COLORS[1].text + " font-bold" : ""}`}
                 >
-                  Tier 1 Target
+                  Tier 1 Example
                 </th>
                 <th
                   className={`pb-2 font-medium ${!isTier1 ? TIER_COLORS[tierLevel].text + " font-bold" : ""}`}
                 >
-                  Tier 2/3 Target
+                  Tier 2/3 Example
                 </th>
               </tr>
             </thead>

@@ -55,9 +55,9 @@ describe('POCKET_CARDS constants', () => {
     expect(card!.module.number).toBe(6);
   });
 
-  it('all src paths start with "/figures/" and end with ".jpg"', () => {
+  it('all src paths use a supported versioned raster asset', () => {
     POCKET_CARDS.forEach((card) => {
-      expect(card.src).toMatch(/^\/figures\/.*\.jpg$/);
+      expect(card.src).toMatch(/^\/figures\/.*\.(jpg|png)$/);
     });
   });
 

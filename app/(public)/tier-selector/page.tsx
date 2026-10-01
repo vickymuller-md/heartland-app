@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { TierQuestionnaire } from './questionnaire';
 import { ProviderPageDisclaimer } from '@/components/disclaimers/provider-page-disclaimer';
 import { authorize } from '@/lib/auth/authorization';
+import { ImplementationPrinciples } from '@/components/implementation/implementation-guidance';
 
 export const metadata: Metadata = {
   title: 'Implementation Tier Selector | HEARTLAND Protocol',
@@ -28,6 +29,7 @@ export default async function TierSelectorPage() {
       </div>
 
       <ProviderPageDisclaimer className="mb-6" />
+      <ImplementationPrinciples />
 
       <TierQuestionnaire clinicalIntegrationEnabled={clinicalIntegrationEnabled} />
     </div>

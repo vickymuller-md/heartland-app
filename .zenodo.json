@@ -1,6 +1,6 @@
 {
   "title": "HEARTLAND Protocol App — Clinical Implementation Companion for Rural Heart Failure",
-  "description": "HEARTLAND Protocol App is an inspectable clinical implementation companion for rural and resource-limited heart failure workflows, built with Next.js, React, TypeScript and Supabase. Version 1.10.0 consolidates recoverable examination and laboratory submissions, source/result-version provenance, corrected-result workflows, organization-scoped ownership and transfers, professional review/contact documentation, session-bound education responses, teach-back records, serialized notification preferences and queued notification-intent controls. It reconciles pharmacotherapy references, printable safety tables, individual care-plan wording and clinician-directed medication holds without changing clinical alert thresholds. The public synthetic sandbox retains bounded English/Spanish check-ins, optional voice, simulated outreach and morning rounds, a read-only provider Copilot, population replay, human-controlled SBAR wording, Evidence Flow and Decision Receipts. A recording-specific release gate authorizes 58 synthetic clips through separate records of reported clinical script acceptance, delegated automated ASR/decoder/documentary verification and release authorization. Exact source, locale, recording and evidence identities are verified before immutable playback URLs are built; changed or revoked recordings remain blocked. No clinician signature or human-listening certification is fabricated. Scheduled recovery, external notification transport and other institution-gated background processes remain disabled. AI supports bounded language tasks; registered rules set simulated routing and authorized professionals retain clinical decisions. Synthetic tests, a saved record, notification intent or audio playback do not establish patient contact, completed care, clinical validation, institutional adoption, regulatory status, efficacy or patient outcomes. Real PHI and unsupervised patient use are outside this release.",
+  "description": "HEARTLAND Protocol App is an inspectable clinical implementation companion for rural and resource-limited heart failure workflows. Version 1.10.1 clarifies that resource tiers govern delivery capacity, not lower clinical goals, delayed indicated follow-up or exclusion from pharmacy and financial-assistance support. It separates trained recognition and escalation, qualified assessment, authorized decisions, referral contexts and accepted-transfer responsibility. A public four-step local-readiness guide and downloadable pack provide 12 synthetic scenarios, role/coverage worksheets, paper records and respectful-escalation expectations. Historical quality percentages are planning examples, not validated benchmarks or individualized care targets. The release retains recoverable examination, laboratory and education workflows, versioned provenance, organization-scoped ownership, professional review/contact documentation and queued notification-intent controls. The synthetic sandbox retains bilingual bounded language assistance, simulated outreach, read-only Copilot, population replay, SBAR drafts, Evidence Flow, Decision Receipts and 58 recording-specific authorized synthetic clips. Numerical risk, dose, referral and alert rules, database permissions and audio assets are unchanged. Scheduled recovery and external notification transport remain disabled. Preparing a resource, saving a record, accepting a notification or playing audio does not establish staff competence, patient contact, delivered care, clinical validation, institutional adoption, regulatory status, efficacy or patient outcomes. Real PHI and unsupervised patient use are outside this release.",
   "creators": [
     {
       "name": "Muller Ferreira, Vicky",
@@ -29,14 +29,14 @@
     "synthetic data"
   ],
   "license": "MIT",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "publication_date": "2026-10-01",
   "upload_type": "software",
   "access_right": "open",
   "language": "eng",
   "related_identifiers": [
     {
-      "identifier": "10.5281/zenodo.23073640",
+      "identifier": "10.5281/zenodo.23076249",
       "relation": "isSupplementTo",
       "resource_type": "publication-other",
       "scheme": "doi"
@@ -55,7 +55,9 @@
     }
   ],
   "communities": [
-    { "identifier": "open-science" }
+    {
+      "identifier": "open-science"
+    }
   ],
-  "notes": "Release boundary: synthetic technical demonstration and controlled evaluation only. The October 1, 2026 local verification passed 4,635 unit/integration tests (8 skipped, 132 TODO) and 210 desktop/mobile end-to-end tests, typecheck, lint without errors, production build, security scan and production-dependency audit. The 58-file audio release verifier passed with 28 current generation receipts and 30 historical unreceipted recordings; 29 retired hashes remain blocked. These are software/documentary controls, not a listening certificate or clinical validation. Script acceptance was reported by the project owner as the clinician's acceptance, not furnished as a direct signed attestation. Institution-specific clinical, privacy, security, regulatory, accessibility and workflow evaluation remain required. The HEARTLAND Risk Stratification Framework remains proposed and unvalidated against clinical outcomes data."
+  "notes": "Release boundary: synthetic technical demonstration and controlled evaluation only. Verification includes typecheck, lint, unit/integration tests, production build, recording-specific release checks and desktop/mobile browser tests; skipped/TODO cases are not clinical validation. The 58-file audio release remains unchanged, with 28 current generation receipts and 30 historical unreceipted recordings; automated ASR/decoder checks are not human-listening certification. Earlier clinical script acceptance was reported by the project owner, not supplied as a direct signed attestation. Separate ambulatory entry, patient studies and institution-specific governance, staffing, coverage, privacy, security, accessibility and operational verification remain required. The HEARTLAND Risk Stratification Framework remains proposed and unvalidated against clinical outcomes."
 }

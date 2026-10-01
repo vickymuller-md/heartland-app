@@ -38,6 +38,8 @@ const PUBLIC_EXACT = new Set<string>([
   "/robots.txt",
   "/sitemap.xml",
   "/manifest.webmanifest",
+  // Sanitized, invariant educational file; do not allow all Markdown or /resources/*.
+  "/resources/heartland-local-readiness-training.md",
 ]);
 
 const STATIC_PREFIXES = ["/api", "/_next", "/favicon.ico"];

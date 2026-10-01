@@ -66,8 +66,8 @@ export function assessTier(categories: CategoryAssessment[]): TierResult {
   let rationale: string;
   if (overallTier === 3) {
     rationale =
-      'Your facility meets all Tier 3 requirements across all 8 implementation categories. ' +
-      'This represents the most advanced implementation level with comprehensive HF program capabilities.';
+      'Your selections describe Tier 3 capacity across all 8 implementation categories. ' +
+      'This self-reported resource profile does not verify local readiness, staff competence or clinical authorization.';
   } else {
     const limitingNames = limitingCategories
       .map((c) => c.categoryLabel)
@@ -76,7 +76,7 @@ export function assessTier(categories: CategoryAssessment[]): TierResult {
     if (allAtFloor) {
       rationale =
         `All categories are at ${TIER_LABELS[overallTier]}. ` +
-        'Consider upgrading the categories with the highest impact on patient outcomes first.';
+        'Prioritize documented gaps in access, monitoring and coverage for the intended care plan.';
     } else {
       rationale =
         `Overall tier limited to ${TIER_LABELS[overallTier]} by: ${limitingNames}. ` +

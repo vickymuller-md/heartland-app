@@ -261,14 +261,14 @@ export default function AboutPage() {
             </a>
           </li>
           <li>
-            <strong>Implementation Toolkit V3.4</strong> (Zenodo):{" "}
+            <strong>Implementation Toolkit V3.4.1</strong> (Zenodo):{" "}
             <a
-              href="https://doi.org/10.5281/zenodo.23073640"
+              href="https://doi.org/10.5281/zenodo.23076249"
               target="_blank"
               rel="noopener noreferrer"
               className="text-blue-600 underline hover:text-blue-800"
             >
-              DOI 10.5281/zenodo.23073640
+              DOI 10.5281/zenodo.23076249
             </a>
           </li>
           <li>

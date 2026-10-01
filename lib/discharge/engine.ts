@@ -22,7 +22,7 @@ import type { FollowupSchedule } from './types';
  *   5. call_week4: discharged_at + 28 days (4 weeks)
  *
  * Tier affects mode labels only (not row count):
- *   - Tier 1: weeks 2-4 tier1_mode = "As resources allow"
+ *   - Tier 1: phone/paper delivery with named coverage, not optional care
  *   - Tier 2/3: weeks 2-4 tier23_mode = "Structured protocol"
  *
  * Source: reference/clinical_content.md Section 4.4
@@ -57,7 +57,7 @@ export function computeFollowupDates(
       label: `Week ${week} Call`,
       due_at: addWeeks(dischargedAt, week),
       purpose: 'Titration, adherence',
-      tier1_mode: tier >= 2 ? 'Weekly calls (as resources allow)' : 'As resources allow',
+      tier1_mode: tier >= 2 ? 'Weekly calls; clinically indicated timing' : 'Phone/paper with named coverage; clinically indicated timing',
       tier23_mode: 'Structured protocol',
     });
   }

@@ -6,6 +6,7 @@ import {
   evaluateReferralCriteria,
 } from '@/lib/comorbidity/engine';
 import type { ReferralResult } from '@/lib/comorbidity/types';
+import { ReferralContextGuide } from '@/components/implementation/implementation-guidance';
 
 function parseNumeric(value: string): number | null {
   if (value.trim() === '') return null;
@@ -75,6 +76,7 @@ export function ReferralCriteriaForm() {
       <p className="mt-1 text-xs text-gray-500">
         Protocol Module 6, Section 6.2
       </p>
+      <ReferralContextGuide />
 
       <div className="mt-4 space-y-3">
         <div>

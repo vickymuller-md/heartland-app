@@ -6,7 +6,7 @@ authors:
   - family-names: "Muller Ferreira"
     given-names: "Vicky"
     orcid: "https://orcid.org/0009-0009-1099-5690"
-version: 1.10.0
+version: 1.10.1
 date-released: 2026-10-01
 repository-code: "https://github.com/vickymuller-md/heartland-app"
 url: "https://app.heartlandprotocol.org"
@@ -18,7 +18,10 @@ identifiers:
 abstract: >-
   Progressive Web Application operationalizing the HEARTLAND Protocol for
   primary care-led heart failure workflows in rural and resource-limited
-  settings. Version 1.10.0 includes a public synthetic-data demonstrator with
+  settings. Version 1.10.1 adds public local-readiness materials, pharmacy
+  participation across resource tiers, explicit recognition/assessment/decision
+  boundaries, referral contexts and common clinical goals with resource-specific
+  delivery support. It retains a public synthetic-data demonstrator with
   bounded English- and Spanish-language check-ins, optional voice interaction,
   simulated outreach, a read-only provider Copilot over deterministic tools,
   population replay, human-controlled SBAR wording, Evidence Flow, Decision

@@ -108,9 +108,11 @@ describe('assessTier', () => {
     expect(result.rationale).toContain('Monitoring');
   });
 
-  it('generates rationale "meets all Tier 3 requirements" when all are Tier 3', () => {
+  it('describes Tier 3 as self-reported capacity, not verified clinical readiness', () => {
     const result = assessTier(makeCategories(3));
-    expect(result.rationale).toContain('meets all Tier 3 requirements');
+    expect(result.rationale).toContain('selections describe Tier 3 capacity');
+    expect(result.rationale).toContain('does not verify local readiness');
+    expect(result.rationale).not.toContain('meets all Tier 3 requirements');
   });
 
   it('throws Error when categories array length is not 8', () => {

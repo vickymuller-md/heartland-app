@@ -157,13 +157,13 @@ describe('CardGallery component', () => {
 // Direct download anchors in the card grid
 // ==========================================================================
 describe('Download links', () => {
-  it('each card in the grid has an anchor with href pointing to /figures/*.jpg', () => {
+  it('each card links a supported versioned figure asset', () => {
     render(<CardGallery />);
     POCKET_CARDS.forEach((card) => {
       const link = screen.getByRole('link', {
         name: `Download ${card.title}`,
       });
-      expect(link.getAttribute('href')).toMatch(/^\/figures\/.*\.jpg$/);
+      expect(link.getAttribute('href')).toMatch(/^\/figures\/.*\.(jpg|png)$/);
     });
   });
 

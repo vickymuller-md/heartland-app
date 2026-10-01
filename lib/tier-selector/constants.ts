@@ -2,7 +2,7 @@
  * Implementation Tier Selector -- Clinical Constants
  *
  * ALL data sourced from reference/clinical_content.md Module 8.
- * Every value character-for-character from protocol v3.3.
+ * Operational descriptions distinguish delivery capacity from clinical goals.
  */
 
 import type {
@@ -91,23 +91,23 @@ export const CATEGORY_DEFINITIONS: CategoryDefinition[] = [
     protocolComponent: 'Module 2',
     levels: {
       1: {
-        label: '\u22652 classes, prioritize SGLT2i + BB',
+        label: 'Indicated therapy with coordinated support',
         description:
-          'Initiate at least 2 GDMT classes before discharge, prioritizing SGLT2i and beta-blocker.',
+          'Pursue all clinically indicated GDMT classes with individualized timing, tolerability and safe monitoring. Coordinate laboratory access, pharmacy support and referral when local capacity is insufficient.',
         upgradeAction:
-          'Target all 4 GDMT classes within 14 days using structured titration protocol.',
+          'Add structured follow-up and monitoring capacity without changing the clinical goal.',
       },
       2: {
-        label: 'Target all classes in 14 days',
+        label: 'Indicated therapy with structured follow-up',
         description:
-          'Target initiation of all GDMT classes within 14 days of discharge using structured titration.',
+          'Pursue all clinically indicated GDMT classes with individualized timing, tolerability and safe monitoring. Use structured team follow-up and documented laboratory review.',
         upgradeAction:
-          'Implement rapid-sequence GDMT optimization per STRONG-HF methodology.',
+          'Expand multidisciplinary monitoring for clinician-selected optimization plans.',
       },
       3: {
-        label: 'Rapid sequence per STRONG-HF',
+        label: 'Indicated therapy with multidisciplinary monitoring',
         description:
-          'Rapid-sequence GDMT titration based on STRONG-HF trial methodology with intensive monitoring.',
+          'Pursue all clinically indicated GDMT classes with individualized timing, tolerability and safe monitoring. Intensive optimization requires clinical suitability and adequate monitoring, not a Tier 3 label alone.',
         upgradeAction: '',
       },
     },
@@ -178,23 +178,23 @@ export const CATEGORY_DEFINITIONS: CategoryDefinition[] = [
     protocolComponent: 'Module 3',
     levels: {
       1: {
-        label: '48-72h call, 14-day visit',
+        label: 'Risk-led timing; phone/paper coordination',
         description:
-          'Initial telephone contact at 48-72 hours post-discharge with follow-up office visit within 14 days.',
+          'Use the risk-led timing in Module 1.3 and the individual care plan. Name the owner and backup; arrange feasible phone, paper and in-person follow-up. A resource gap does not extend a clinically indicated deadline.',
         upgradeAction:
-          'Shorten to 48h call with 7-day visit and weekly follow-up for 4 weeks.',
+          'Add scheduling and coverage support to meet the clinically indicated plan.',
       },
       2: {
-        label: '48h call, 7-day visit, weekly \u00d74',
+        label: 'Risk-led timing; coordinated visits',
         description:
-          '48-hour telephone call, 7-day office visit, and weekly follow-up contacts for 4 weeks.',
+          'Use the risk-led timing in Module 1.3 and the individual care plan. Coordinate telephone, video and in-person visits with accepted coverage.',
         upgradeAction:
-          'Extend weekly follow-up beyond 4 weeks with flexible scheduling.',
+          'Expand multidisciplinary contact capacity where clinically needed.',
       },
       3: {
-        label: '48h call, 7-day visit, weekly \u00d74+',
+        label: 'Risk-led timing; multidisciplinary coverage',
         description:
-          '48-hour telephone call, 7-day office visit, weekly follow-up for 4+ weeks with flexible extension.',
+          'Use the risk-led timing in Module 1.3 and the individual care plan. Provide multidisciplinary coverage and additional contacts when indicated; tier alone does not determine timing.',
         upgradeAction: '',
       },
     },
@@ -207,11 +207,11 @@ export const CATEGORY_DEFINITIONS: CategoryDefinition[] = [
     protocolComponent: 'Module 8',
     levels: {
       1: {
-        label: 'RN/MA + physician (MD)',
+        label: 'Core team + local/remote pharmacy option',
         description:
-          'Core clinical team: registered nurse or medical assistant partnered with physician for HF management.',
+          'Named clinician with trained RN/MA support; community, ambulatory or remote pharmacist may participate when available. Define competence, authority and backup for each task.',
         upgradeAction:
-          'Add dedicated RN champion and pharmacist (PharmD) for medication management.',
+          'Add dedicated coordination time and strengthen pharmacy access; pharmacist participation is not restricted to higher tiers.',
       },
       2: {
         label: 'RN champion, MA, PharmD',
@@ -265,11 +265,11 @@ export const CATEGORY_DEFINITIONS: CategoryDefinition[] = [
     protocolComponent: 'Module 6',
     levels: {
       1: {
-        label: 'Generic Bridge',
+        label: 'Generic Bridge + coordinated assistance',
         description:
-          'Generic Bridge pathway: prioritize generic medications. As of the Walmart $4/$9 generic list effective March 2025 the set runs about $28-$36/month; carvedilol is not on that list, and the set does not include an SGLT2 inhibitor. Prices change and require local verification.',
+          'Generic Bridge pathway with medication-access assessment and assistance pursuit whenever indicated, including external navigation support. As of the Walmart $4/$9 generic list effective March 2025 the set runs about $28-$36/month; carvedilol is not on that list, and the set does not include an SGLT2 inhibitor. Prices and program eligibility require local verification; a bridge is not an equivalent substitute for a missing class.',
         upgradeAction:
-          'Add patient assistance program (PAP) pursuit to supplement Generic Bridge.',
+          'Add dedicated patient assistance program (PAP) navigation capacity; assistance pursuit is already appropriate at every tier when indicated.',
       },
       2: {
         label: 'PAP pursuit + Generic Bridge',

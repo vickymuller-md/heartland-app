@@ -1,6 +1,6 @@
-# HEARTLAND Protocol v3.4 — Clinical Content for App Development
+# HEARTLAND Protocol — Operational Clarification for App Development
 
-Source: `protocol_v34_candidate.Rmd` + `tables_v34.R` (October 2026). Published Toolkit V3.4: Zenodo 10.5281/zenodo.23073640. The historical source filename is retained for reproducibility. Publication does not establish clinical validation or authorize patient use; prototype and local-policy limitations remain in force.
+Source: published Toolkit V3.4.1, Zenodo 10.5281/zenodo.23076249 (`protocol_v341.Rmd` + `tables_v341.R`, October 2026). Predecessor Toolkit V3.4: Zenodo 10.5281/zenodo.23073640, preserved unchanged. This reference incorporates the successor's operational clarifications and is not identical to archived V3.4. Publication does not establish clinical validation or authorize patient use; prototype and local-policy limitations remain in force.
 
 ---
 
@@ -70,7 +70,7 @@ Prevalence: Li and Wei (2025), NHANES 1999-2018, 34,809 adults; doi:10.1016/j.aj
 | Drug Class | Agent (Generic) | Starting Dose | Target Dose | Safety Gates |
 |-|-|-|-|-|
 | ARNI | Sacubitril/valsartan | 24/26 mg BID (Toolkit conservative start — see note below) | 97/103 mg BID (double after 2-4 weeks as tolerated) | SBP >100; K+ <5.5 (Toolkit operational gate; the ENTRESTO label sets no numeric SBP or K+ threshold). eGFR <30: start at half the usual starting dose (label §2.7) — there is no renal floor for ARNI. 36-hour washout in BOTH directions when switching to or from an ACE inhibitor |
-| Beta-blocker | Carvedilol | 3.125 mg BID | 25 mg BID (50 if >85kg) | HR >50; SBP >90 (Toolkit operational gate; no guideline sets a numeric threshold). In Tier 3 rapid-sequence flows apply the STRONG-HF triggers instead: SBP <95 mmHg; HR <55 bpm |
+| Beta-blocker | Carvedilol | 3.125 mg BID | 25 mg BID (50 if >85kg) | HR >50; SBP >90 (Toolkit operational gate; no guideline sets a numeric threshold). For a clinician-selected intensive optimization plan, the STRONG-HF triggers remain: SBP <95 mmHg; HR <55 bpm |
 | MRA (steroidal) | Spironolactone | 12.5-25 mg daily (2022 AHA/ACC/HFSA Table 14; the ALDACTONE label starts at 25 mg daily) | 25-50 mg daily | eGFR >30; K+ <5.0 (2022 AHA/ACC/HFSA, COR 1 A). eGFR 30-50: halve the dose or use 25 mg every other day (2022 AHA/ACC/HFSA p. e932; ALDACTONE label §2.2). Label indication is NYHA III-IV; guideline recommendation covers NYHA II-IV, supported by EMPHASIS-HF (eplerenone) |
 | MRA (steroidal, alternative) | Eplerenone | 25 mg daily | 50 mg daily, preferably within 4 weeks as tolerated | Label contraindications: creatinine clearance ≤30 mL/min (CrCl, NOT indexed eGFR), K+ >5.5 mEq/L at initiation, or concomitant strong CYP3A inhibitors. Cap at 25 mg daily with a moderate CYP3A inhibitor |
 | SGLT2i | Dapagliflozin or Empagliflozin | 10 mg daily (empagliflozin: in the morning) | 10 mg daily (no titration) | Dapagliflozin: do not initiate if eGFR <25 mL/min/1.73m²; if eGFR falls below 25 during treatment, continue 10 mg daily (FARXIGA label §2.3). Empagliflozin: the label sets no eGFR floor for the HF indication (JARDIANCE label §2); the EMPEROR trials did not enrol eGFR <20. Assess renal function before initiating and as clinically indicated |
@@ -134,7 +134,7 @@ Foundational therapy using generics, typically about $5-$9 per drug per month in
 3. MRA (Spironolactone generic) — about $6-$13/month; the usual 25 mg HF starting strength is absent from the Walmart program tiers
 4. Metformin (if diabetic/prediabetic) — about $5-$9/month
 
-Prices vary by pharmacy, program and state and require local verification. The previously published figures of "$4/month per drug" and "~$15/month total" are **contradicted** by the current primary sources and have been withdrawn. **This bundle does not include an SGLT2i** — note the tension with Tier 1 guidance, which prioritizes SGLT2i plus a beta-blocker when only ≥2 classes are achievable; where the bridge cannot deliver an SGLT2i, record the gap and pursue assistance or a generic dapagliflozin rather than silently downgrading the regimen.
+Prices vary by pharmacy, program and state and require local verification. The previously published figures of "$4/month per drug" and "~$15/month total" are **contradicted** by the current primary sources and have been withdrawn. **This bundle does not include an SGLT2i** and is not equivalent to all clinically indicated therapy. At any tier, where the bridge cannot deliver an indicated class, record the gap, named owner and access plan; pursue locally verified assistance or an available generic rather than silently lowering the treatment goal.
 
 **Branded price context:** agents without a US generic (finerenone, empagliflozin, semaglutide) carry list prices in the hundreds to over a thousand dollars per month — finerenone lists from about $706.80 per 30 tablets (verified 2026-09-17). Sacubitril/valsartan and dapagliflozin **do** now have marketed US generics (dapagliflozin since April 2026).
 
@@ -197,12 +197,16 @@ Both tracks follow **identical clinical decision algorithms**. Track selection i
 |-|-|-|-|
 | Case Management Assessment | Within 24h of admission | If available | Required |
 | Teach-Back Education | Before discharge | All clinically relevant domains; condensed, print-first delivery | All clinically relevant domains; extended delivery with CHW or pharmacist reinforcement |
-| Medication Reconciliation | Before discharge | Simplified | Full with PharmD |
-| Follow-Up Scheduled | Before leaving | 14-day PCP | 7-day visit confirmed |
+| Medication Reconciliation | Before discharge | Complete reconciliation, teach-back and access check; local or remote pharmacist when available | Complete reconciliation, teach-back and access check; pharmacist integrated when available |
+| Follow-Up Scheduled | Before leaving | Risk-led deadline per Module 1.3; named owner and feasible contact route | Risk-led deadline per Module 1.3; appointment and backup confirmed |
 
 ### 4.2 Task-Shifting Framework
 
-**Core principle:** clinical decisions remain with licensed personnel. Task shifting applies to data collection and education delivery, not clinical judgment.
+**Core principle:** any appropriately trained team member may recognize and promptly report a concern. Qualified staff assess it within their scope; medication changes and clinical disposition require documented professional authority and applicable local agreements. A job title, certificate or software permission alone does not confer that authority.
+
+**Pharmacy across tiers:** community, ambulatory or remote pharmacists may participate at every tier when available. Define responsibility for medication reconciliation, patient/caregiver teach-back, access barriers, monitoring and recommendations. Pharmacy participation is an option across tiers, not a universal staffing prerequisite. A medication discrepancy or unresolved access barrier needs a named owner and follow-up, not a reconciliation checkbox alone.
+
+**Respectful escalation:** acknowledge concerns respectfully, politely and gratefully, regardless of role or seniority. Confirm who will act and by when under local policy; if acknowledgment fails, use the agreed backup. Raising a concern does not transfer responsibility without acceptance.
 
 | Task | Optimal Executor | Alternatives | No CHW Available |
 |-|-|-|-|
@@ -210,7 +214,7 @@ Both tracks follow **identical clinical decision algorithms**. Track selection i
 | Discharge checklist | RN | MA with script, LPN | RN or provider |
 | Daily weight/BP calls | RN, Pharmacist | MA, CHW, Automated IVR | MA with script; IVR system |
 | Symptom assessment | RN | LPN → RN review | RN via phone |
-| Red-flag triage | RN/Provider | NO SUBSTITUTION | NO SUBSTITUTION |
+| Red-flag recognition, assessment and escalation | Trained observer reports; qualified clinician assesses within scope | Pharmacist may assess medication concerns within scope; disposition requires documented authority | Any trained team member reports to named clinician/backup; confirm acceptance and next action |
 | Potassium/eGFR chain for MRA and finerenone | NAMED RESPONSIBLE CLINICIAN (prescriber of record) | Covering clinician named in a written coverage schedule. NO SUBSTITUTION by unlicensed staff for the decision; RN/MA may draw and chase the lab | Same; the chain has three named duties: (i) order and review the 4-week potassium/eGFR, (ii) act on K+ ≥6.0 out of hours, (iii) decide the restart after a hold |
 | Home device setup | Home Health RN | CHW, Family caregiver | Family with phone instruction |
 | Financial/PAP navigation | Social Worker | CHW, Financial navigator | SW via phone; self-service resources |
@@ -236,7 +240,9 @@ Both tracks follow **identical clinical decision algorithms**. Track selection i
 | 48-72 hours | Medication check, side effects, barriers | Phone call | Phone or video |
 | Day 7 | Vitals, GDMT tolerability, weight trend | Phone acceptable | In-person or video preferred |
 | Weeks 2-4 | Titration, adherence | Weekly calls | Structured protocol |
-| High-risk | Intensive support | As resources allow | CHW engagement, frequent contact |
+| High-risk | Clinically indicated intensive support | Name the coverage gap and arrange additional support/referral | CHW engagement and frequent contact where clinically indicated |
+
+These are contact-format examples, not tier-specific clinical deadlines. Clinical indication, severity, tolerability and safe monitoring determine timing; use Module 1.3 and the individual care plan. An unmet need remains visible with an owner and support/referral plan, rather than becoming a lower treatment goal.
 
 ---
 
@@ -325,6 +331,14 @@ The previously published "$150-200/month" is reachable **only** with ≥16 days 
 
 ### 6.2 Advanced HF Referral Criteria
 
+**Choose the referral context before using a checklist:**
+
+- **Planned specialist consultation:** for a clinically stable person needing specialist input, document the clinical question, responsible clinician, destination and follow-up plan. Confirm acceptance and track attendance, report and communication.
+- **Urgent or emergency assessment:** acute deterioration follows the locally approved urgent/emergency pathway. Do not wait for routine referral, software acknowledgment or the three-variable form; it does not assess acute stability or exclude an emergency.
+- **Advanced HF / inpatient context:** the criteria below remain unchanged. Continuous or frequent IV inotrope need belongs to an advanced-HF/inpatient specialist context, not a routine outpatient prerequisite. A clinician considers the full presentation; the form is not a comprehensive referral assessment.
+
+**Pharmacy entry and accepted handoff:** a pharmacist or another team member can initiate a concern and contact the named clinical decision-maker. Record the reason, relevant result/version, urgency under local policy, recipient, acceptance and next action. The current owner retains responsibility until an accepted transfer under the local workflow; a sent request is not completed care.
+
 **Refer for advanced therapies evaluation if:**
 - LVEF ≤35% despite ≥3 months of optimal GDMT
 - ≥2 HF hospitalizations in past 12 months
@@ -384,7 +398,9 @@ Candidates: NYHA I-II, stable GDMT ≥4 weeks, willing to participate.
 
 ### 8.1 Quality Metrics
 
-| Metric | Tier 1 Target | Tier 2/3 Target |
+**Interpretation:** historical tier-specific percentages below are illustrative service-planning examples, not validated benchmarks, individual care targets or permission to omit indicated care. Report denominators, contraindications, access barriers and unmet needs. The two-class GDMT measure is incomplete treatment coverage, not the full treatment goal.
+
+| Metric | Tier 1 Planning Example | Tier 2/3 Planning Example |
 |-|-|-|
 | 48-72h post-discharge contact | >70% | >90% |
 | ≥2 GDMT classes at discharge (HFrEF) | >60% | >80% |
@@ -397,17 +413,23 @@ Candidates: NYHA I-II, stable GDMT ≥4 weeks, willing to participate.
 | Component | Tier 1 (Minimal) | Tier 2 (Standard) | Tier 3 (Advanced) |
 |-|-|-|-|
 | Risk Stratification | Score at discharge | Full CKM + Score | Full CKM + Score |
-| GDMT | ≥2 classes, prioritize SGLT2i + BB | Target all classes in 14 days | Rapid-sequence initiation |
+| GDMT support | All clinically indicated classes; coordinated access and monitoring | Same clinical goal; structured follow-up and laboratory review | Same clinical goal; multidisciplinary monitoring when indicated |
 | Monitoring | Track B (Analog) | Dual-track (A/B) | Track A primary + RPM |
 | Discharge Education | Teach-back, all 8 domains (condensed format) | Teach-back, all 8 domains | Teach-back, all 8 domains, CHW-reinforced |
-| Follow-up | 48-72 hour call, 14-day visit | 48-hour call, 7-day visit, weekly ×4 | 48-hour call, 7-day visit, frequent |
-| Staffing | RN/MA + physician (MD) | RN champion, MA, PharmD | Full team (RN, PharmD, social worker, CHW) |
+| Follow-up | Risk-led timing (Module 1.3); phone/paper with named coverage | Risk-led timing (Module 1.3); coordinated visits and backup | Risk-led timing (Module 1.3); multidisciplinary coverage |
+| Staffing | Named clinician with RN/MA; local/remote pharmacist option | RN champion, MA, pharmacist when available | Multidisciplinary team with pharmacist and CHW when available |
 | CHW | Alternative/Family | High-risk only | Full integration |
-| Financial | Generic Bridge | PAP pursuit + Generic Bridge | PAP pursuit + Generic Bridge |
+| Financial | Generic Bridge + coordinated assistance when indicated | PAP pursuit + Generic Bridge | PAP pursuit + Generic Bridge |
 
-**Principle:** tier governs the **format and level of support** with which care is delivered, never whether a clinically indicated element is offered at all. A Tier 1 facility achieving consistent 48-hour phone calls and ≥2 GDMT classes is delivering evidence-based care within its resource constraints.
+**Principle:** clinical indication, severity, tolerability and safe monitoring determine the care plan and timing. Resource tier determines delivery format and support, not a lower treatment goal. Record unmet needs, a named owner and a plan for additional support or referral. Community, ambulatory or remote pharmacists may participate at every tier; a tier label neither requires nor excludes a particular professional.
 
-**Tier 3 rapid up-titration:** STRONG-HF (Mebazaa et al., *Lancet* 2022) showed that intensive, early optimization within two weeks of discharge reduces the composite of HF rehospitalization and all-cause death; post-hospitalization initiation strategies (DeVore et al., *JAMA Cardiology* 2020, doi:10.1001/jamacardio.2019.4665) support this approach. It requires close monitoring and adequate staffing.
+**Intensive optimization is not a tier entitlement:** STRONG-HF (Mebazaa et al., *Lancet* 2022) supports intensive early optimization in its studied post-hospitalization setting. Applying an intensive plan requires clinical suitability, tolerability, close monitoring and adequate staffing; a Tier 3 label alone is not an indication, and a Tier 1 label is not an exclusion. Trial findings are not validation of HEARTLAND. The supporting post-hospitalization initiation reference remains DeVore et al., *JAMA Cardiology* 2020, doi:10.1001/jamacardio.2019.4665; it is not a separate validation of this framework.
+
+### Local Readiness and Training
+
+Before any institutional evaluation, map site-specific competence, authority, workload, pharmacy access, primary/backup coverage, laboratory/referral availability and emergency routes. Hold a team huddle and rehearse paper/telephone and digital workflows using fictional cases. Document observed performance, unresolved gaps, remediation and repeat assessment. Respond to concerns respectfully regardless of role or seniority.
+
+The public readiness pack provides worksheets and 12 synthetic scenarios: pending transfer, missed collection, absent classification, later evidence after closure, lost save response, uncertain delivery, revoked access, corrected result, unconfirmed contact, unverified recording, unresolved medication/referral request and downtime during a coverage change. A prepared pack or completed worksheet is not proof of training delivered, clinical competence, adoption or permission for patient use. Separate ambulatory-entry validation and a patient pilot remain deferred.
 
 ### 8.3 Value-Based Payment Preparation (ASM 2027)
 
@@ -431,7 +453,7 @@ Candidates: NYHA I-II, stable GDMT ≥4 weeks, willing to participate.
 | FINEARTS-HF | 2024 | Finerenone lowered the rate of total worsening HF events plus CV death by 16% (rate ratio 0.84, 0.74-0.95) in HF with LVEF ≥40%; CV death alone was not reduced; more hyperkalemia | FDA-labeled for HF with LVEF ≥40% since July 2025; US guideline integration ongoing |
 | STEP-HFpEF | 2023 | Semaglutide improved symptoms and weight (co-primary endpoints) in obese HFpEF | Symptom and weight trial, not a CV outcome trial |
 | Hozhó Trial | 2024 | Phone-based GDMT titration with a home BP cuff raised the proportion with a new GDMT class at 30 days from 13.1% to 66.2% (53.1 percentage points) in 103 adults with HFrEF in rural Navajo Nation | Stepped-wedge pragmatic trial; informs Module 3 analog track |
-| STRONG-HF | 2022 | Rapid GDMT up-titration with close follow-up lowered 180-day HF readmission or all-cause death; more non-serious adverse events (41% vs 29%), with similar serious and fatal events | Tier 3 methodology |
+| STRONG-HF | 2022 | Rapid GDMT up-titration with close follow-up lowered 180-day HF readmission or all-cause death; more non-serious adverse events (41% vs 29%), with similar serious and fatal events | Clinician-selected intensive optimization with close monitoring |
 | TIM-HF2 | 2018 | 30% lower all-cause death (HR 0.70, 95% CI 0.50-0.96), a secondary endpoint; primary endpoint (days lost to unplanned CV admission or death) 4.88% vs 6.64%, ratio 0.80 (0.65-1.00) | Selected German population; informs RPM design |
 
 ## APPENDIX B: Manufacturer Assistance Programs

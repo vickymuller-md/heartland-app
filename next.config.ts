@@ -15,7 +15,7 @@ const revision =
 // content hashes: an updated card is re-fetched, an unchanged one is not.
 const figuresDir = path.join(process.cwd(), "public", "figures");
 const pocketCardEntries = readdirSync(figuresDir)
-  .filter((file) => file.endsWith(".jpg"))
+  .filter((file) => /\.(jpg|png)$/.test(file))
   .sort()
   .map((file) => ({
     url: `/figures/${file}`,

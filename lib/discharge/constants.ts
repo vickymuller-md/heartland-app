@@ -2,7 +2,7 @@
  * Discharge Checklist -- Clinical Constants
  * Phase 16: DSCH-01 (bundle), DSCH-02 (task shifting), DSCH-06 (teach-back)
  *
- * Source: HEARTLAND Protocol v3.3 Module 4, Sections 4.1-4.3
+ * Source: HEARTLAND Protocol operational clarification, Module 4, Sections 4.1-4.3
  * All content sourced from reference/clinical_content.md
  */
 
@@ -31,15 +31,15 @@ export const BUNDLE_COMPONENTS: BundleComponent[] = [
     id: 'med_reconciliation',
     label: 'Medication Reconciliation',
     timing: 'Before discharge',
-    tier1: 'Simplified',
-    tier23: 'Full with PharmD',
+    tier1: 'Complete reconciliation, teach-back and access check; local or remote pharmacist when available',
+    tier23: 'Complete reconciliation, teach-back and access check; pharmacist integrated when available',
   },
   {
     id: 'follow_up_scheduled',
     label: 'Follow-Up Scheduled',
     timing: 'Before leaving',
-    tier1: '14-day PCP',
-    tier23: '7-day visit confirmed',
+    tier1: 'Risk-led deadline per Module 1.3; named owner and feasible contact route',
+    tier23: 'Risk-led deadline per Module 1.3; appointment and backup confirmed',
   },
 ];
 
@@ -78,10 +78,10 @@ export const TASK_SHIFTING_ROWS: TaskShiftRow[] = [
   },
   {
     id: 'red_flag_triage',
-    task: 'Red-flag triage',
-    optimal: 'RN/Provider',
-    alternatives: 'NO SUBSTITUTION',
-    no_chw: 'NO SUBSTITUTION',
+    task: 'Red-flag recognition, assessment and escalation',
+    optimal: 'Trained observer reports; qualified clinician assesses within scope',
+    alternatives: 'Pharmacist may assess medication concerns within scope; disposition requires documented authority',
+    no_chw: 'Any trained team member reports to named clinician/backup; confirm acceptance and next action',
   },
   {
     id: 'home_device_setup',

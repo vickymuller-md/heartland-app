@@ -41,10 +41,10 @@ export function Colophon() {
               Peer-reviewed protocol article
             </FooterLink>
             <FooterLink
-              href="https://doi.org/10.5281/zenodo.23073640"
+              href="https://doi.org/10.5281/zenodo.23076249"
               external
             >
-              Implementation Toolkit · v3.4
+              Implementation Toolkit · v3.4.1
             </FooterLink>
             <FooterLink href={`https://doi.org/${APP_ARCHIVE_DOI}`} external>
               App software archive · {APP_ARCHIVE_VERSION}

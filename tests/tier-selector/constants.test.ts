@@ -61,10 +61,35 @@ describe('CATEGORY_DEFINITIONS', () => {
     expect(education!.levels[1].description).toMatch(/condensed form where staffing is limited/i);
   });
 
-  it('gdmt Tier 3 description matches protocol', () => {
+  it('GDMT goals depend on clinical need, not resource tier', () => {
     const gdmt = CATEGORY_DEFINITIONS.find((c) => c.id === 'gdmt');
     expect(gdmt).toBeDefined();
-    expect(gdmt!.levels[3].label).toContain('Rapid sequence per STRONG-HF');
+    for (const tier of [1, 2, 3] as const) {
+      expect(gdmt!.levels[tier].description).toContain('all clinically indicated GDMT classes');
+      expect(gdmt!.levels[tier].description).toContain('individualized timing, tolerability and safe monitoring');
+      expect(gdmt!.levels[tier].label).not.toMatch(/2 classes|14 days|STRONG-HF/);
+    }
+  });
+
+  it('follow-up timing is risk-led at every tier', () => {
+    const followUp = CATEGORY_DEFINITIONS.find((c) => c.id === 'follow-up')!;
+    for (const tier of [1, 2, 3] as const) {
+      expect(followUp.levels[tier].description).toContain('risk-led timing in Module 1.3');
+      expect(followUp.levels[tier].description).not.toMatch(/within 14 days|7-day office/);
+    }
+  });
+
+  it('Tier 1 explicitly permits community, ambulatory or remote pharmacy participation', () => {
+    const staffing = CATEGORY_DEFINITIONS.find((c) => c.id === 'staffing')!;
+    expect(staffing.levels[1].description).toContain('community, ambulatory or remote pharmacist');
+    expect(staffing.levels[1].description).toContain('competence, authority and backup');
+  });
+
+  it('does not defer indicated financial assistance until a tier upgrade', () => {
+    const financial = CATEGORY_DEFINITIONS.find((c) => c.id === 'financial')!;
+    expect(financial.levels[1].description).toContain('assistance pursuit whenever indicated');
+    expect(financial.levels[1].description).toContain('not an equivalent substitute');
+    expect(financial.levels[1].upgradeAction).toContain('every tier');
   });
 
   it('monitoring Tier 2 description matches protocol', () => {
