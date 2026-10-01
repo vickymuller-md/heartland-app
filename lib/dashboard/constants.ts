@@ -16,7 +16,7 @@ export const CRITICAL_THRESHOLDS = {
   WEIGHT_GAIN_2D_LBS: 3,
   /** Weight gain >= 5 lbs in 7 days: "Urgent evaluation within 24h" */
   WEIGHT_GAIN_7D_LBS: 5,
-  /** SBP < 90 mmHg: "Hold GDMT; call provider" */
+  /** SBP < 90 mmHg: contact provider; medication holds require clinician direction. */
   SBP_LOW: 90,
   /** SpO2 < 92% at rest: "Urgent evaluation" */
   SPO2_LOW: 92,

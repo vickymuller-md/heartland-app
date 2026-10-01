@@ -34,7 +34,7 @@ export const RED_FLAG_CRITERIA = {
     threshold: 90, // mmHg (below this)
     severity: 'critical' as const,
     message: 'Low blood pressure with symptoms',
-    action: 'Hold GDMT medications and call your provider immediately',
+    action: 'Contact your provider immediately. Hold GDMT only as directed by a clinician or your existing clinician-written plan; do not make independent medication changes.',
   },
   spo2_low: {
     id: 'spo2_low',

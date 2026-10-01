@@ -29,10 +29,11 @@ describe('RedFlagCard', () => {
     expect(screen.getByText('Urgent evaluation within 24h')).toBeDefined();
   });
 
-  it('shows "SBP < 90 mmHg with symptoms" with action "Hold GDMT; call provider"', () => {
+  it('keeps the symptomatic SBP threshold and requires clinician-directed medication changes', () => {
     render(<RedFlagCard />);
     expect(screen.getByText('SBP <90 mmHg with symptoms')).toBeDefined();
-    expect(screen.getByText('Hold GDMT; call provider')).toBeDefined();
+    expect(screen.getByText(/Hold GDMT only as directed by a clinician/)).toBeDefined();
+    expect(screen.getByText(/existing clinician-written plan; do not make independent medication changes/)).toBeDefined();
   });
 
   it('shows "SpO2 < 92% at rest" with action "Urgent evaluation"', () => {

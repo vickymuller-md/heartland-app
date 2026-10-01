@@ -1,6 +1,6 @@
-# HEARTLAND Protocol v3.4 (candidate) — Clinical Content for App Development
+# HEARTLAND Protocol v3.4 — Clinical Content for App Development
 
-Source: `protocol_v34_candidate.Rmd` + `tables_v34.R` (September 2026). V3.4 is a candidate, not published — the published record remains V3.3 (Zenodo 10.5281/zenodo.19101219).
+Source: `protocol_v34_candidate.Rmd` + `tables_v34.R` (October 2026). Published Toolkit V3.4: Zenodo 10.5281/zenodo.23073640. The historical source filename is retained for reproducibility. Publication does not establish clinical validation or authorize patient use; prototype and local-policy limitations remain in force.
 
 ---
 
@@ -258,7 +258,7 @@ TIM-HF2 (Koehler et al., *Lancet* 2018), with its pre-specified geospatial analy
 |-|-|
 | Weight gain ≥3 lbs in 2 days | Call clinic same day |
 | Weight gain ≥5 lbs in 1 week | Urgent evaluation within 24h |
-| SBP <90 mmHg with symptoms | Hold GDMT; call provider |
+| SBP <90 mmHg with symptoms | Contact the provider. Hold GDMT only as directed by a clinician or the patient's existing clinician-written plan; do not make independent medication changes. |
 | SpO2 <92% at rest (if baseline normal) | Urgent evaluation |
 | New/worsening dyspnea at rest | Same-day evaluation |
 | **Chest pain, syncope** | **EMERGENCY — Call 911** |

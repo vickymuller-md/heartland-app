@@ -32,9 +32,9 @@ export const RED_FLAG_ALERTS: RedFlagAlert[] = [
   },
   {
     id: 'sbp-low',
-    // Source: "SBP <90 mmHg with symptoms | Hold GDMT; call provider"
+    // Source: SBP <90 mmHg with symptoms; any medication hold is clinician-directed.
     finding: 'SBP <90 mmHg with symptoms',
-    action: 'Hold GDMT; call provider',
+    action: "Contact the provider. Hold GDMT only as directed by a clinician or the patient's existing clinician-written plan; do not make independent medication changes.",
     severity: 'urgent',
   },
   {

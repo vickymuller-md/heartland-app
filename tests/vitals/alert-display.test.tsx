@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { RedFlagAlert } from '@/app/(patient)/today/_components/red-flag-alert';
 import type { RedFlag } from '@/lib/vitals/types';
+import { RED_FLAG_CRITERIA } from '@/lib/vitals/constants';
 
 // ==========================================================================
 // VITL-06: Red Flag Alert Display
@@ -28,10 +29,15 @@ const criticalSbpFlag: RedFlag = {
   id: 'sbp_low_symptomatic',
   severity: 'critical',
   message: 'Low blood pressure with symptoms',
-  action: 'Hold GDMT medications and call your provider immediately',
+  action: RED_FLAG_CRITERIA.sbp_low_symptomatic.action,
 };
 
 describe('RedFlagAlert', () => {
+  it('preserves immediate contact without instructing independent medication suspension', () => {
+    render(<RedFlagAlert flags={[criticalSbpFlag]} />);
+    expect(screen.getByText(/Contact your provider immediately/)).toBeInTheDocument();
+    expect(screen.getByText(/existing clinician-written plan; do not make independent medication changes/)).toBeInTheDocument();
+  });
   it('renders warning-level alert with amber styling for weight gain 3lb/2d', () => {
     const { container } = render(<RedFlagAlert flags={[warningFlag]} />);
     // Should find warning text
