@@ -182,7 +182,10 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
         for (const item of turn.speech ?? []) {
           if (item?.kind === 'clip') {
             const clip = prompts[item.clipId];
-            if (clip && staticAudio.canPlay) enqueue(clip.audioSrc);
+            if (clip) {
+              const playback = staticAudioPlaybackPolicy(locale, clip.audioSrc);
+              if (playback.canPlay && playback.url) enqueue(playback.url);
+            }
           } else if (item?.kind === 'audio') {
             enqueue(`data:audio/mpeg;base64,${item.mp3Base64}`);
           }

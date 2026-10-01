@@ -21,6 +21,7 @@ const LEGACY_SENSITIVE_CACHE_MARKERS = [
   "pages-html",
   "next-data",
   "static-data-assets",
+  "static-audio-assets",
   "apis",
   "others",
 ];

@@ -13,9 +13,10 @@ vi.mock('@/lib/sandbox-ai/static-audio-policy', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/sandbox-ai/static-audio-policy')>();
   return {
     ...actual,
-    staticAudioPlaybackPolicy: (locale: 'en' | 'es' = 'en') => {
-      const policy = actual.staticAudioPlaybackPolicy(locale);
-      return audioPolicyFixture.approved ? { ...policy, canPlay: true } : policy;
+    staticAudioPlaybackPolicy: (locale: 'en' | 'es' = 'en', assetPath?: string) => {
+      const policy = actual.staticAudioPlaybackPolicy(locale, assetPath);
+      // Artificial lifecycle fixture only; real policy never returns this path.
+      return audioPolicyFixture.approved ? { ...policy, canPlay: true, url: assetPath } : policy;
     },
   };
 });

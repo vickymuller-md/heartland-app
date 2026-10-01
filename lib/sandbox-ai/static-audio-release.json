@@ -1,0 +1,1273 @@
+{
+  "schemaVersion": 1,
+  "scope": "synthetic_sandbox_only",
+  "evidence": {
+    "kind": "local_asr_and_decode_not_human_approval",
+    "sha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+    "file": "asr-small-r2.jsonl",
+    "engine": "faster-whisper 1.2.1",
+    "model": "Systran/faster-whisper-small",
+    "revision": "536b0662742c02347bc0e980a01041f333bce120",
+    "humanListening": false
+  },
+  "blockedAudio": [
+    {
+      "audioSha256": "61a83a90db001ed5c1d2163595d038307c47395365b9b1734416bc9d32e781be",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "4c104d1869adda048e158a475368f798437cee84deec666739fcde0da7fd9d4e",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "50935859452faa15659df8fbd85a9747afd397785a18238b53a9af5e22bc0f24",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "f93cb785adc899f3aec8c7a50f2e264ffafd425eec60ea89260f0f4ad54e920f",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "9f575180f3b25c99c5f0a27a331d65b15fa5a4a9b7753b6b742bad6b8cf75835",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "339887f7d547fbe571adda6451ad976d4480a189921ec93cf058ceaf06ed7a14",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "7be762f43154a7927b404408f735547373d5cf3cc690ad8821391a93276af2c5",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "15235ef365a8d9604d869f458ad6149e0add9ab48b76d190c02a09cf1c7db4a7",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "b2bb3c866405d0858ad6210d54bc7612a6fb4b854579fd01be38fe7f0a8b7d54",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "a90b792e67f6a6a009f1aae56a238b89acdc86436070431bb4e442fbae2124ea",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "d847848faec8ef42488fc2ae2fa314505deefd4597742c7f2bec4d2576e4fb1b",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "574963988799c6e2b378fed55d2ee45ad5681771e6429910ba76643a5dd02154",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "a79e133aac72c0bcee1c6c277a63b1abf8c370e8f90732bc33a086fd5cda7f7a",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "b963502f7e566f04cb3bc4846ef38301cfb44904c623cc78478368158ea81d00",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "8f3d270215f29c02e609ebdbe971917580338c59dde99b0071343366f0cfb94e",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "602b6676630681eeb4effe1a4f84694778f00c30596f95adb13f8a89c74ed3c4",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "0838bf94011aca5189f20c25b237c3e356e65d07f1cb2aacf2491824f2a9a923",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "2397a45128593d7e32a2adf5019aee4edf7a004f99eb21776ebf82cac4284094",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "5a986c015db22fe0f9dcbc5fb899edb5b82f3fdb316e9c0a61d72456d562ca6b",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "efe0351cbc99b43d1968771277b92bc14954347f55ea827b517ae3cfba2edd0f",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "78b88f269e789ce7c8d263a51a440a20e31234fef9ed4a218c61e816b2d7238e",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "9bca684680d94e7aaaa539a3cf54747e768b277448913dc71ce6af284a865038",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "5939d614561dd93b4e3aa89649c1b9b742e30bb0881a4330670a7d0674b49bd7",
+      "reason": "source_mismatch"
+    },
+    {
+      "audioSha256": "f5a0ec3630401f62532de799f028229e1dd6ac660ae18d4f9ea92a4641e42d23",
+      "reason": "source_mismatch"
+    }
+  ],
+  "clips": [
+    {
+      "path": "call-maria-redflag.mp3",
+      "locale": "en",
+      "sourceSha256": "bb910cdc943bac1d4984e370bcd9567cf054830b388175151332951ba3a14705",
+      "audioSha256": "61a83a90db001ed5c1d2163595d038307c47395365b9b1734416bc9d32e781be",
+      "observedAt": "2026-10-01T00:33:05.940398+00:00",
+      "duration": 123.12,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "call-james-stable.mp3",
+      "locale": "en",
+      "sourceSha256": "090bd669093e2838ab46ffe5384bacc577166cfd7d7926f4744fbe8e70ad9473",
+      "audioSha256": "4c104d1869adda048e158a475368f798437cee84deec666739fcde0da7fd9d4e",
+      "observedAt": "2026-10-01T00:33:14.742006+00:00",
+      "duration": 64.96,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "call-james-adherence.mp3",
+      "locale": "en",
+      "sourceSha256": "a238e158a28a6b6e99f588f8950239853e7677f2b260b8f8d88cd4ca563d3921",
+      "audioSha256": "50935859452faa15659df8fbd85a9747afd397785a18238b53a9af5e22bc0f24",
+      "observedAt": "2026-10-01T00:33:25.159352+00:00",
+      "duration": 68.4,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "call-robert-noanswer.mp3",
+      "locale": "en",
+      "sourceSha256": "d7a49951b65e4e9d4bc8f76a447549513a131976593786d34b708245f43a74d1",
+      "audioSha256": "f93cb785adc899f3aec8c7a50f2e264ffafd425eec60ea89260f0f4ad54e920f",
+      "observedAt": "2026-10-01T00:33:31.842021+00:00",
+      "duration": 42.08,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/en/intro.mp3",
+      "locale": "en",
+      "sourceSha256": "16099072940f2a11bd7f1aaf56ad8e060ae3aa6f77f59f8c1ab42fececa95643",
+      "audioSha256": "9f575180f3b25c99c5f0a27a331d65b15fa5a4a9b7753b6b742bad6b8cf75835",
+      "observedAt": "2026-10-01T00:33:33.911851+00:00",
+      "duration": 11.76,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/en/escalated.mp3",
+      "locale": "en",
+      "sourceSha256": "8c33f3622eb38a9b157570e523ffb723c34ea8021d62e5c980f2e1065849a9b5",
+      "audioSha256": "339887f7d547fbe571adda6451ad976d4480a189921ec93cf058ceaf06ed7a14",
+      "observedAt": "2026-10-01T00:33:36.826374+00:00",
+      "duration": 21.92,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/en/routine.mp3",
+      "locale": "en",
+      "sourceSha256": "6c5f18f724682be19851a7f5e2412c65433a4859ac9e279f342df0ed2608c8ab",
+      "audioSha256": "7be762f43154a7927b404408f735547373d5cf3cc690ad8821391a93276af2c5",
+      "observedAt": "2026-10-01T00:33:39.140479+00:00",
+      "duration": 17.04,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/en/emergency.mp3",
+      "locale": "en",
+      "sourceSha256": "b67d73d738bb4af9132d364aabefe9c562eb07f56d9da559b92528c72ca200d2",
+      "audioSha256": "15235ef365a8d9604d869f458ad6149e0add9ab48b76d190c02a09cf1c7db4a7",
+      "observedAt": "2026-10-01T00:33:41.234726+00:00",
+      "duration": 16.4,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/en/deflect.mp3",
+      "locale": "en",
+      "sourceSha256": "28b5833b980f2e6a41469727b99d3dc85edf67e4963e10d2f3ca17cd8ce0522d",
+      "audioSha256": "b2bb3c866405d0858ad6210d54bc7612a6fb4b854579fd01be38fe7f0a8b7d54",
+      "observedAt": "2026-10-01T00:33:43.804443+00:00",
+      "duration": 14.48,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/en/q1_safety.mp3",
+      "locale": "en",
+      "sourceSha256": "b9bdf838103285f69b59659db4c8975f8f9c49fc48fad66bf3f1dfeb692bc164",
+      "audioSha256": "c3fb3c28ebdf6969efe065f9aa4fca9be0bc4c0cd1ca843c9ca03d069ca70f45",
+      "observedAt": "2026-10-01T00:33:45.307171+00:00",
+      "duration": 6.88,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/en/q2_weight.mp3",
+      "locale": "en",
+      "sourceSha256": "842074c94d3087464a07fd91ca61bcbea17262f856178613be649aea4a73a80f",
+      "audioSha256": "43d987e45b0918f73d1c5fbd37185315b85d129c700111f4dab4e4ee1862ea0f",
+      "observedAt": "2026-10-01T00:33:46.568785+00:00",
+      "duration": 2.48,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/en/q3_breathing.mp3",
+      "locale": "en",
+      "sourceSha256": "35b9b06c4a05bc37ea5977da6dd3dd7beb47e1e9376de320848427d6a9916adf",
+      "audioSha256": "4b55a81b02905fcb122e606beea04ff214902616fb584446018285095e1c43d9",
+      "observedAt": "2026-10-01T00:33:48.202047+00:00",
+      "duration": 7.68,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/en/q4_swelling.mp3",
+      "locale": "en",
+      "sourceSha256": "0ecdd9b6ccaeaa78c9861117c878ba24909906ee4bd34221eeb29df09f526292",
+      "audioSha256": "8fabc8db9ab2b459c2da6f80def96c69a8766282c10643f59b3cef1755f055bf",
+      "observedAt": "2026-10-01T00:33:49.505092+00:00",
+      "duration": 3.92,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/en/q5_orthopnea.mp3",
+      "locale": "en",
+      "sourceSha256": "db04bf9f34df6589eec6d2d10505bbf3219ae1ea11dade4a368fcfbe8de0af27",
+      "audioSha256": "53471fbdc4d3330adf355a49d0261b1df75bc37c916eeea1f83990398ec81d9e",
+      "observedAt": "2026-10-01T00:33:50.919013+00:00",
+      "duration": 6.16,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/en/q6_fatigue.mp3",
+      "locale": "en",
+      "sourceSha256": "f1aa7ac0b7ea207bcb92d1d2506a599d36d7fcbff7bc8b80b736c79ea08e153c",
+      "audioSha256": "3117a77de9477f012f9277ac5bf79d55981806a8a583c69955f011c2a9a73343",
+      "observedAt": "2026-10-01T00:33:52.139294+00:00",
+      "duration": 2.32,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/en/q7_adherence.mp3",
+      "locale": "en",
+      "sourceSha256": "39fcb277ddf588e83dc63e743022204ffda9b9a9e9d701230bf9f9802dd6b85a",
+      "audioSha256": "b6c4f8c472a833bf1b17d65f1c568ae0ace13453d6551afda2c07508eda6bf6b",
+      "observedAt": "2026-10-01T00:33:53.493328+00:00",
+      "duration": 2.88,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/en/q8_devices.mp3",
+      "locale": "en",
+      "sourceSha256": "39b3660639de65e7cb6ca6062f40a22c059ca4ca7761f317f7f7e03ffd98ceb1",
+      "audioSha256": "a46470bd39e8ef29b06d9fcf3f88f8f71563f784f434646f49f65b1be44d9209",
+      "observedAt": "2026-10-01T00:33:55.096417+00:00",
+      "duration": 6.48,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/en/intro.mp3",
+      "locale": "en",
+      "sourceSha256": "70eae451180c74c862928f6cee51c26eb1665e12565b986a4816a5a10a97142c",
+      "audioSha256": "a90b792e67f6a6a009f1aae56a238b89acdc86436070431bb4e442fbae2124ea",
+      "observedAt": "2026-10-01T00:33:57.030971+00:00",
+      "duration": 13.92,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/en/escalated.mp3",
+      "locale": "en",
+      "sourceSha256": "0319b1e0b8e9b8e067a9284bf020fd0d13d9182d3421513b41a0d5eb8fca1bb5",
+      "audioSha256": "d847848faec8ef42488fc2ae2fa314505deefd4597742c7f2bec4d2576e4fb1b",
+      "observedAt": "2026-10-01T00:33:59.949039+00:00",
+      "duration": 21.92,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/en/routine.mp3",
+      "locale": "en",
+      "sourceSha256": "bd7a47bc9813353bfa07dcb35d8c9b2af3637ece4c52acf2578e66777b1e87be",
+      "audioSha256": "574963988799c6e2b378fed55d2ee45ad5681771e6429910ba76643a5dd02154",
+      "observedAt": "2026-10-01T00:34:02.615502+00:00",
+      "duration": 19.04,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/en/emergency.mp3",
+      "locale": "en",
+      "sourceSha256": "b67d73d738bb4af9132d364aabefe9c562eb07f56d9da559b92528c72ca200d2",
+      "audioSha256": "a79e133aac72c0bcee1c6c277a63b1abf8c370e8f90732bc33a086fd5cda7f7a",
+      "observedAt": "2026-10-01T00:34:04.902501+00:00",
+      "duration": 16.56,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/en/deflect.mp3",
+      "locale": "en",
+      "sourceSha256": "28b5833b980f2e6a41469727b99d3dc85edf67e4963e10d2f3ca17cd8ce0522d",
+      "audioSha256": "b963502f7e566f04cb3bc4846ef38301cfb44904c623cc78478368158ea81d00",
+      "observedAt": "2026-10-01T00:34:07.200171+00:00",
+      "duration": 13.28,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/en/t1_safety.mp3",
+      "locale": "en",
+      "sourceSha256": "f0aab55131ee6375d456e447444a138bc7394650157be2695ef3248d876cd6b1",
+      "audioSha256": "355a2ee97bf2e3389cb8d397497ac5b6dd5eba5cd3c198408db4e05829643c04",
+      "observedAt": "2026-10-01T00:34:09.019387+00:00",
+      "duration": 6.64,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/en/t2_dizziness.mp3",
+      "locale": "en",
+      "sourceSha256": "f38cbc089b4cd3e70e388bbc0bde0ce48dce4957020bf86bf9ad25eb567a02aa",
+      "audioSha256": "eda11cd639abeed5265bc51e2ecaec2321a59bc33b7ccb1bff41d34b40feb413",
+      "observedAt": "2026-10-01T00:34:10.603263+00:00",
+      "duration": 5.12,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "uncertain"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/en/t3_sbp.mp3",
+      "locale": "en",
+      "sourceSha256": "ae14fbfedd85e6ea663d09a8f2af5cf9d6d5cc842c9923b35a2c769cdd8bef67",
+      "audioSha256": "04f988f36b8515c764376b39c31f3ad5a4129edabc9b87af5e3e2f3668c13ca0",
+      "observedAt": "2026-10-01T00:34:12.349851+00:00",
+      "duration": 6.16,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/en/t4_hr.mp3",
+      "locale": "en",
+      "sourceSha256": "bdec361bbde1d4007db1916a19eaf8a0f4e6fefd5fc716f3cf291b2350d704dc",
+      "audioSha256": "8db54844495f06c3f1fff4c909d9534f36fe168397ab19b69e806ab3da8013c8",
+      "observedAt": "2026-10-01T00:34:14.193215+00:00",
+      "duration": 5.44,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/en/t5_symptoms.mp3",
+      "locale": "en",
+      "sourceSha256": "0e05320c30cd6556667e09cd95d28c7d2ee2e24a63bd052d4f5b887b5434f423",
+      "audioSha256": "b85d5ddb36a41f968475f69529fb61b8fd509cf0f011392337990de8617bee2e",
+      "observedAt": "2026-10-01T00:34:15.783031+00:00",
+      "duration": 6.24,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/en/t6_adherence.mp3",
+      "locale": "en",
+      "sourceSha256": "12048a4a1700ce3e4fc841e41dfef33d4994cc44b7a28d4dc05d0380ea191b42",
+      "audioSha256": "68152e84906346d2a3f5145c0c8005b4103135263d95b7627ef3a29a33a1fb1b",
+      "observedAt": "2026-10-01T00:34:17.684642+00:00",
+      "duration": 2.48,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/fillers/en/filler_1.mp3",
+      "locale": "en",
+      "sourceSha256": "838a3239a1b6c257ce3e97761a01f9aebc2a597c90b57a58b820c97bf33fa76d",
+      "audioSha256": "539e96094ed482b2e20440b75ff9f3dddfbf38448034e5f1b99d7ffcb9e6687d",
+      "observedAt": "2026-10-01T00:34:19.163363+00:00",
+      "duration": 2.16,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/fillers/en/filler_2.mp3",
+      "locale": "en",
+      "sourceSha256": "2ae217447b34ea98e6e0c5b8136c9e53ea89068b36538ae5972ffeb0dfb48987",
+      "audioSha256": "d3b902b3a960f0d5184c2c9f027f6bcadfd82b227249ce1669afd0277ec7394a",
+      "observedAt": "2026-10-01T00:34:20.312467+00:00",
+      "duration": 1.6,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/fillers/en/filler_3.mp3",
+      "locale": "en",
+      "sourceSha256": "5edebc08cfb6da813a5b88d0d42df009cf254ae849e53b2af44e1e25e38b35e5",
+      "audioSha256": "934d7c27d812ea46df3e03be71ecb9f8a365a9d81dfb63be8bf579d4f6a13e4c",
+      "observedAt": "2026-10-01T00:34:21.504341+00:00",
+      "duration": 1.12,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/es/intro.mp3",
+      "locale": "es",
+      "sourceSha256": "4e29a11a1f5619cc3795153a941cc0041f1ee40657c63f0ef5b968e3ee8ae1a7",
+      "audioSha256": "8f3d270215f29c02e609ebdbe971917580338c59dde99b0071343366f0cfb94e",
+      "observedAt": "2026-10-01T00:34:23.746630+00:00",
+      "duration": 13.28,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/es/escalated.mp3",
+      "locale": "es",
+      "sourceSha256": "e4ae4ef9fa32b233f619e40f918ad1e1e0fd0dc5f051c11997fbe91df231e803",
+      "audioSha256": "602b6676630681eeb4effe1a4f84694778f00c30596f95adb13f8a89c74ed3c4",
+      "observedAt": "2026-10-01T00:34:27.165180+00:00",
+      "duration": 22.88,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/es/routine.mp3",
+      "locale": "es",
+      "sourceSha256": "7bc152a7cfd3ad86c21e9f96c4933429453288459306c0aa2ac83960c256b146",
+      "audioSha256": "0838bf94011aca5189f20c25b237c3e356e65d07f1cb2aacf2491824f2a9a923",
+      "observedAt": "2026-10-01T00:34:29.721819+00:00",
+      "duration": 17.28,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/es/emergency.mp3",
+      "locale": "es",
+      "sourceSha256": "70d548825b84aa3ba0dbca8b29f579860b91e8782d3ddda76a7766e440bab885",
+      "audioSha256": "2397a45128593d7e32a2adf5019aee4edf7a004f99eb21776ebf82cac4284094",
+      "observedAt": "2026-10-01T00:34:32.505576+00:00",
+      "duration": 16.48,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/es/deflect.mp3",
+      "locale": "es",
+      "sourceSha256": "a6e46c3b47e6cad249b6e3bd0b3368390c7afaef991f54461a5cc72f4df55a70",
+      "audioSha256": "5a986c015db22fe0f9dcbc5fb899edb5b82f3fdb316e9c0a61d72456d562ca6b",
+      "observedAt": "2026-10-01T00:34:35.081241+00:00",
+      "duration": 12.96,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/es/q1_safety.mp3",
+      "locale": "es",
+      "sourceSha256": "ae116aed97d12da7206884e067d7fa504fc32aea3099c2266b062ae89a182833",
+      "audioSha256": "efac32add988fa41aa0e4e9b8efc995196f5f99f1279226b241bbdb908b72d8f",
+      "observedAt": "2026-10-01T00:34:37.052901+00:00",
+      "duration": 6.72,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/es/q2_weight.mp3",
+      "locale": "es",
+      "sourceSha256": "ba553ae3551b59297bf8563c6977f2cbd4be43ab04903917514daea18e2ac448",
+      "audioSha256": "b4fdd4ce3fca755140e4b671b06d10cdcd709c0d9061f245c913f6866b197e11",
+      "observedAt": "2026-10-01T00:34:38.606584+00:00",
+      "duration": 3.04,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/es/q3_breathing.mp3",
+      "locale": "es",
+      "sourceSha256": "6aeb59c1e46d7b668ed41ed3c6f6665c10ec8ac3df70432215f3f48430b8cb66",
+      "audioSha256": "edbb58b74b3dacb27d2d371f3d7a229d913ca9ca68cb557566ff258e06f6d1ee",
+      "observedAt": "2026-10-01T00:34:40.679866+00:00",
+      "duration": 7.52,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/es/q4_swelling.mp3",
+      "locale": "es",
+      "sourceSha256": "b8a03ec113091093072f2b997c43bbc0e39f73593ae4e0e8e918c1fb5667b65c",
+      "audioSha256": "23be7a464a9749509dd46bfbab2a16496b182eb2b520cabfe47f448a02d431c0",
+      "observedAt": "2026-10-01T00:34:42.336795+00:00",
+      "duration": 4.96,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "uncertain"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/es/q5_orthopnea.mp3",
+      "locale": "es",
+      "sourceSha256": "eb5b6f0cbe62f1c52a124b9d8b5ff6d61d1fccd1d1bde3eced8568a70986583b",
+      "audioSha256": "2d10d6e8bc31dacb47b969df8e9a3ac1284569d04f4240b1608954ea4a7ddfdd",
+      "observedAt": "2026-10-01T00:34:44.060007+00:00",
+      "duration": 6.56,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/es/q6_fatigue.mp3",
+      "locale": "es",
+      "sourceSha256": "116ea0fd974c145206eb59dc9038f9c1ad93c441b5e7c2e4cd9829d3d8228c82",
+      "audioSha256": "2ddc2063d86636be3e1ecece5ee42b40782a6916e5a63a0a756877f47f283808",
+      "observedAt": "2026-10-01T00:34:45.599333+00:00",
+      "duration": 2.96,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/es/q7_adherence.mp3",
+      "locale": "es",
+      "sourceSha256": "a194db550b1d6a3cd0f28dc0c4d18206e3ee46a19fac7747d9a1eae8ccf1f065",
+      "audioSha256": "e6db65f50111d28f9b31a364395703c6972699b96a46389e995cc7260f1122fb",
+      "observedAt": "2026-10-01T00:34:47.057807+00:00",
+      "duration": 3.12,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/daily_checkin/es/q8_devices.mp3",
+      "locale": "es",
+      "sourceSha256": "abc0c98cfbe93ae273c8c7dfccbfbd5173f1561b8ded471fda788d12d99e58c1",
+      "audioSha256": "e9d00acce640250ba7785d1ab130551e060bc0b48096d4558defff006f3cdc5c",
+      "observedAt": "2026-10-01T00:34:48.868688+00:00",
+      "duration": 6.48,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "uncertain"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/es/intro.mp3",
+      "locale": "es",
+      "sourceSha256": "0b00aacf6025230198bc49f01baa2a3729883438220ea1d695dc9e849268451b",
+      "audioSha256": "efe0351cbc99b43d1968771277b92bc14954347f55ea827b517ae3cfba2edd0f",
+      "observedAt": "2026-10-01T00:34:51.590226+00:00",
+      "duration": 15.2,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/es/escalated.mp3",
+      "locale": "es",
+      "sourceSha256": "5e76bda1fa4d4371ef82dcf3cc87950035c57a0d5711ea8e9113970c01ac3696",
+      "audioSha256": "78b88f269e789ce7c8d263a51a440a20e31234fef9ed4a218c61e816b2d7238e",
+      "observedAt": "2026-10-01T00:34:55.161699+00:00",
+      "duration": 22.96,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/es/routine.mp3",
+      "locale": "es",
+      "sourceSha256": "277af6f31e1963b197cec0af24d0d36131bf600b3bb40d8cee676adcc3d8b527",
+      "audioSha256": "9bca684680d94e7aaaa539a3cf54747e768b277448913dc71ce6af284a865038",
+      "observedAt": "2026-10-01T00:34:58.499064+00:00",
+      "duration": 20.24,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/es/emergency.mp3",
+      "locale": "es",
+      "sourceSha256": "70d548825b84aa3ba0dbca8b29f579860b91e8782d3ddda76a7766e440bab885",
+      "audioSha256": "5939d614561dd93b4e3aa89649c1b9b742e30bb0881a4330670a7d0674b49bd7",
+      "observedAt": "2026-10-01T00:35:01.676583+00:00",
+      "duration": 17.92,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/es/deflect.mp3",
+      "locale": "es",
+      "sourceSha256": "a6e46c3b47e6cad249b6e3bd0b3368390c7afaef991f54461a5cc72f4df55a70",
+      "audioSha256": "f5a0ec3630401f62532de799f028229e1dd6ac660ae18d4f9ea92a4641e42d23",
+      "observedAt": "2026-10-01T00:35:04.640245+00:00",
+      "duration": 13.36,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "source_mismatch"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/es/t1_safety.mp3",
+      "locale": "es",
+      "sourceSha256": "e337573fcd5d7cdb92af237fe0e7a57c572bbbf1f2cc75e648850b505e68e677",
+      "audioSha256": "f15619226fd06037f8dbd765b7e421878fdf010622f213d853abb41f33efbf6a",
+      "observedAt": "2026-10-01T00:35:07.042405+00:00",
+      "duration": 8.08,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/es/t2_dizziness.mp3",
+      "locale": "es",
+      "sourceSha256": "dd66fa7cad3a80765a2aa93ab46af8a3c24b120eb99becc3715d4e10dcece7df",
+      "audioSha256": "5eace3b69d3e45dc4ff55dd9a1c3de1d09e1658fc7abe66f323a936933be22a9",
+      "observedAt": "2026-10-01T00:35:08.833370+00:00",
+      "duration": 6.16,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/es/t3_sbp.mp3",
+      "locale": "es",
+      "sourceSha256": "a39d044d3c156a9c8a215f70cc4f572d1a12a56997468757f5c8e6c0a303291d",
+      "audioSha256": "f363188f059d0b3c99f5f529593921b3c07d94d91bdc345830324bea708220b1",
+      "observedAt": "2026-10-01T00:35:10.892114+00:00",
+      "duration": 6.48,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/es/t4_hr.mp3",
+      "locale": "es",
+      "sourceSha256": "794858d121093a2d5a9b0eb338d989ef1b8e58cc88b530d42f5a41cca8bd8b92",
+      "audioSha256": "9c4c992bbddaf3e5351697baa9bffdc30d38e6d60595fdc894cc3cbc3757508f",
+      "observedAt": "2026-10-01T00:35:12.734519+00:00",
+      "duration": 6.72,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/es/t5_symptoms.mp3",
+      "locale": "es",
+      "sourceSha256": "7ddf596ad6c9713cc8b0b5ecd09400fad619edd19e32b91466e2e2be989d6e98",
+      "audioSha256": "96b9e264fec09446d0e4d4e4e042b2dc3536a36520c2246b5b213a207fc5b350",
+      "observedAt": "2026-10-01T00:35:14.559016+00:00",
+      "duration": 6.56,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/titration_followup/es/t6_adherence.mp3",
+      "locale": "es",
+      "sourceSha256": "469f2d5baafe0ea77ff9003bf90064360b49bac2452341d2c2603ae2e66d3032",
+      "audioSha256": "42bc9f73053fdd8e81a6f4314628e89beb442c3e4b8a4b96fbaf405fa7ef7aa1",
+      "observedAt": "2026-10-01T00:35:16.025342+00:00",
+      "duration": 3.04,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/fillers/es/filler_1.mp3",
+      "locale": "es",
+      "sourceSha256": "0f2031bb5557f689202652ea50d6eaf1d02f4ccccb2b2b14842b0d84bbe5d9d4",
+      "audioSha256": "ce6b77c2d75594952c989f4a6c19fa2fe84a7a1a98ecc2c1be6af57804750e0c",
+      "observedAt": "2026-10-01T00:35:17.376568+00:00",
+      "duration": 1.6,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "uncertain"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/fillers/es/filler_2.mp3",
+      "locale": "es",
+      "sourceSha256": "c752ab193344808fe5a6945d3ed2975f99fc8a190338e3d3df8b324989ec4005",
+      "audioSha256": "79d235ba6812165ac0cbf0d729b263baf3b0a0b20e5729101a802b763cf4352e",
+      "observedAt": "2026-10-01T00:35:18.624121+00:00",
+      "duration": 1.2,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    },
+    {
+      "path": "prompts/fillers/es/filler_3.mp3",
+      "locale": "es",
+      "sourceSha256": "918ed083abcd9de261bfa087260b55052b802313a5568b2d6f47e3da89711c22",
+      "audioSha256": "44138df4bc831a452b5aa543faafa4f1af2f5ff5da671b041371e97b454aa280",
+      "observedAt": "2026-10-01T00:35:19.914034+00:00",
+      "duration": 1.52,
+      "provenance": "historical_unreceipted",
+      "technical": {
+        "decoded": true,
+        "evidenceSha256": "16c71bd828e7ea11646d042c9688d3dcfb31b58a70fa98fbf07b688c0e20b492",
+        "asrFinding": "review_pending"
+      },
+      "decisions": {
+        "clinical": null,
+        "linguistic": null,
+        "listening": null,
+        "activation": null
+      }
+    }
+  ]
+}

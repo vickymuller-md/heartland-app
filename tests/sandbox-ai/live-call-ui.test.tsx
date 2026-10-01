@@ -18,9 +18,10 @@ vi.mock('@/lib/sandbox-ai/static-audio-policy', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/sandbox-ai/static-audio-policy')>();
   return {
     ...actual,
-    staticAudioPlaybackPolicy: (locale: 'en' | 'es' = 'en') => {
-      const policy = actual.staticAudioPlaybackPolicy(locale);
-      return audioPolicyFixture.approved ? { ...policy, canPlay: true } : policy;
+    staticAudioPlaybackPolicy: (locale: 'en' | 'es' = 'en', assetPath?: string) => {
+      const policy = actual.staticAudioPlaybackPolicy(locale, assetPath);
+      // Artificial lifecycle fixture only; real policy never returns this path.
+      return audioPolicyFixture.approved ? { ...policy, canPlay: true, url: assetPath } : policy;
     },
   };
 });
@@ -171,6 +172,23 @@ describe('SandboxLiveCall — conversation integrity regressions', () => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+  });
+
+  it.each(['', 'A detailed conclusion that is not the fixed script.'])('does not speak a fixed closing over a divergent override: %j', async (closing) => {
+    const played: string[] = [];
+    vi.mocked(HTMLMediaElement.prototype.play).mockImplementation(function (this: HTMLMediaElement) {
+      played.push(this.getAttribute('src') ?? '');
+      return Promise.resolve();
+    });
+    vi.mocked(fetch).mockResolvedValue(jsonTurn({ ...emergencyTurn(), assistantMessages: [closing], speech: [] }));
+    render(<SandboxLiveCall patient={maria} onComplete={onComplete} onClose={onClose} />);
+    fireEvent.click(screen.getByTestId('answer-call'));
+    drainAudioQueue();
+    await act(async () => { typeAnswer(); });
+    drainAudioQueue();
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(played).not.toContain(callPromptsFor('daily_checkin', 'en').emergency.audioSrc);
+    expect(played).toContain(fillerPromptsFor('en')[0].audioSrc);
   });
 
   it('handles rejected best-effort metrics without changing offline fallback or duplicating completion', async () => {

@@ -215,7 +215,7 @@ function SbarDraft({ patient, extraction }: { patient: SandboxPatient; extractio
 function CallCard({ transcript }: { transcript: SimulatedCallTranscript }) {
   const [expanded, setExpanded] = useState(false);
   const [showSbar, setShowSbar] = useState(false);
-  const staticAudio = staticAudioPlaybackPolicy();
+  const staticAudio = staticAudioPlaybackPolicy('en', transcript.audioSrc);
   const patient = transcript.patientId
     ? SANDBOX_PATIENTS.find((entry) => entry.id === transcript.patientId) ?? null
     : null;
@@ -244,12 +244,12 @@ function CallCard({ transcript }: { transcript: SimulatedCallTranscript }) {
           {staticAudio.message}
         </p>
       )}
-      {transcript.audioSrc && staticAudio.canPlay && (
+      {transcript.audioSrc && staticAudio.canPlay && staticAudio.url && (
         <div className="mt-3 rounded-lg bg-slate-50 p-3" data-testid={`outreach-audio-${transcript.id}`}>
           <audio
             controls
             preload="none"
-            src={transcript.audioSrc}
+            src={staticAudio.url}
             className="h-14 min-w-0 w-full max-w-full"
             aria-label={`Synthetic audio simulation of the call with ${transcript.patientName}`}
           />

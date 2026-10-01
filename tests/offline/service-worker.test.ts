@@ -168,7 +168,7 @@ describe('PWA Cache Security', () => {
   it('deletes legacy caches capable of containing clinical responses', () => {
     for (const marker of [
       'pages-rsc-prefetch', 'pages-rsc', 'pages-html', 'next-data',
-      'static-data-assets', 'apis', 'others',
+      'static-data-assets', 'static-audio-assets', 'apis', 'others',
     ]) {
       expect(serviceWorker).toContain(`"${marker}"`);
     }

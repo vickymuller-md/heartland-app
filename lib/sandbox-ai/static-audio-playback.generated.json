@@ -1,0 +1,353 @@
+{
+  "schemaVersion": 1,
+  "clips": [
+    {
+      "path": "call-maria-redflag.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "call-james-stable.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "call-james-adherence.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "call-robert-noanswer.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/daily_checkin/en/intro.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/daily_checkin/en/escalated.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/daily_checkin/en/routine.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/daily_checkin/en/emergency.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/daily_checkin/en/deflect.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/daily_checkin/en/q1_safety.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/daily_checkin/en/q2_weight.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/daily_checkin/en/q3_breathing.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/daily_checkin/en/q4_swelling.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/daily_checkin/en/q5_orthopnea.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/daily_checkin/en/q6_fatigue.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/daily_checkin/en/q7_adherence.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/daily_checkin/en/q8_devices.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/titration_followup/en/intro.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/titration_followup/en/escalated.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/titration_followup/en/routine.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/titration_followup/en/emergency.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/titration_followup/en/deflect.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/titration_followup/en/t1_safety.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/titration_followup/en/t2_dizziness.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/titration_followup/en/t3_sbp.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/titration_followup/en/t4_hr.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/titration_followup/en/t5_symptoms.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/titration_followup/en/t6_adherence.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/fillers/en/filler_1.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/fillers/en/filler_2.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/fillers/en/filler_3.mp3",
+      "locale": "en",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/daily_checkin/es/intro.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/daily_checkin/es/escalated.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/daily_checkin/es/routine.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/daily_checkin/es/emergency.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/daily_checkin/es/deflect.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/daily_checkin/es/q1_safety.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/daily_checkin/es/q2_weight.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/daily_checkin/es/q3_breathing.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/daily_checkin/es/q4_swelling.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/daily_checkin/es/q5_orthopnea.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/daily_checkin/es/q6_fatigue.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/daily_checkin/es/q7_adherence.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/daily_checkin/es/q8_devices.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/titration_followup/es/intro.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/titration_followup/es/escalated.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/titration_followup/es/routine.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/titration_followup/es/emergency.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/titration_followup/es/deflect.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "source_mismatch"
+    },
+    {
+      "path": "prompts/titration_followup/es/t1_safety.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/titration_followup/es/t2_dizziness.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/titration_followup/es/t3_sbp.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/titration_followup/es/t4_hr.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/titration_followup/es/t5_symptoms.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/titration_followup/es/t6_adherence.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/fillers/es/filler_1.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/fillers/es/filler_2.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "review_pending"
+    },
+    {
+      "path": "prompts/fillers/es/filler_3.mp3",
+      "locale": "es",
+      "canPlay": false,
+      "reason": "review_pending"
+    }
+  ]
+}

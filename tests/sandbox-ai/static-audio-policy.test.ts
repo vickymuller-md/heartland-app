@@ -13,6 +13,9 @@ describe('historical static audio quarantine', () => {
         canPlay: false,
         reason: 'review_pending',
       });
+      const asset = staticAudioPlaybackPolicy(job.locale, `/outreach-audio/${job.relativePath}`);
+      expect(asset.canPlay).toBe(false);
+      expect(asset.url).toBeUndefined();
     }
   });
 

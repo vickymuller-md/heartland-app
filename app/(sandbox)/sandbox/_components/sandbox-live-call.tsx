@@ -224,8 +224,12 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
   /** Always show current text; fixed recordings require the playback policy. */
   function enqueueClip(promptId: string, textOverride?: string) {
     const clip = prompts[promptId];
+    // Detailed runtime conclusions are not a verbatim transcript of a fixed clip.
     addLine('assistant', textOverride ?? clip?.text ?? '');
-    if (clip && staticAudio.canPlay) enqueueAudio(clip.audioSrc);
+    if (clip && (textOverride === undefined || textOverride === clip.text)) {
+      const playback = staticAudioPlaybackPolicy(locale, clip.audioSrc);
+      if (playback.canPlay && playback.url) enqueueAudio(playback.url);
+    }
   }
 
   function chooseLocale(next: CallLocale) {
@@ -463,7 +467,8 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
     const filler = fillers[Math.floor(Math.random() * fillers.length)];
     if (filler) {
       addLine('assistant', filler.text);
-      if (staticAudio.canPlay) enqueueAudio(filler.audioSrc);
+      const playback = staticAudioPlaybackPolicy(locale, filler.audioSrc);
+      if (playback.canPlay && playback.url) enqueueAudio(playback.url);
     }
     const previousPhase = callState.phase;
     try {
