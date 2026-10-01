@@ -8,13 +8,15 @@ Source: `protocol_v34_candidate.Rmd` + `tables_v34.R` (September 2026). V3.4 is 
 
 ### 1.1 CKM Staging (AHA 2023 Presidential Advisory)
 
-| Stage | Description | Prevalence | Life Expectancy Impact |
-|-|-|-|-|
-| 0 | No CKM risk factors | 13.2% | Reference |
-| 1 | Excess adiposity (BMI ≥25) and/or prediabetes | 20.8% | Minimal |
-| 2 | Metabolic risk factors (T2DM, HTN, high TG) and/or moderate-high CKD | 53.1% | Moderate |
-| 3 | Subclinical CVD with CKM | 5.0% | Significant |
-| 4 | Clinical CVD (including HF) ± kidney failure | **7.8%** | **-12.4 years at age 50** |
+| Stage | Description | Prevalence |
+|-|-|-|
+| 0 | No CKM risk factors | 13.2% |
+| 1 | Excess adiposity (BMI ≥25) and/or prediabetes | 20.8% |
+| 2 | Metabolic risk factors (T2DM, HTN, high TG) and/or moderate-high CKD | 53.1% |
+| 3 | Subclinical CVD with CKM | 5.0% |
+| 4 | Clinical CVD (including HF) ± kidney failure | **7.8%** |
+
+Prevalence: Li and Wei (2025), NHANES 1999-2018, 34,809 adults; doi:10.1016/j.ajpc.2025.100985. A separate life-table analysis by Cheng et al. (2025), NHANES 2007-2018, 9,043 adults, estimated 12.4 fewer remaining years at age 50 for stage 4 versus **stages 0-1 combined**, not stage 0 alone (25.1 vs 37.5 years; doi:10.1016/j.ajpc.2025.101339). These observational estimates are not individual prognoses or validation of the HEARTLAND score.
 
 ### 1.2 HEARTLAND Risk Score (Table 1 from protocol)
 
@@ -70,7 +72,7 @@ Source: `protocol_v34_candidate.Rmd` + `tables_v34.R` (September 2026). V3.4 is 
 | ARNI | Sacubitril/valsartan | 24/26 mg BID (Toolkit conservative start — see note below) | 97/103 mg BID (double after 2-4 weeks as tolerated) | SBP >100; K+ <5.5 (Toolkit operational gate; the ENTRESTO label sets no numeric SBP or K+ threshold). eGFR <30: start at half the usual starting dose (label §2.7) — there is no renal floor for ARNI. 36-hour washout in BOTH directions when switching to or from an ACE inhibitor |
 | Beta-blocker | Carvedilol | 3.125 mg BID | 25 mg BID (50 if >85kg) | HR >50; SBP >90 (Toolkit operational gate; no guideline sets a numeric threshold). In Tier 3 rapid-sequence flows apply the STRONG-HF triggers instead: SBP <95 mmHg; HR <55 bpm |
 | MRA (steroidal) | Spironolactone | 12.5-25 mg daily (2022 AHA/ACC/HFSA Table 14; the ALDACTONE label starts at 25 mg daily) | 25-50 mg daily | eGFR >30; K+ <5.0 (2022 AHA/ACC/HFSA, COR 1 A). eGFR 30-50: halve the dose or use 25 mg every other day (2022 AHA/ACC/HFSA p. e932; ALDACTONE label §2.2). Label indication is NYHA III-IV; guideline recommendation covers NYHA II-IV, supported by EMPHASIS-HF (eplerenone) |
-| MRA (steroidal, alternative) | Eplerenone | 25 mg daily | 50 mg daily, preferably within 4 weeks as tolerated | Label contraindications at initiation: creatinine clearance ≤30 mL/min (CrCl in mL/min, NOT eGFR indexed to body surface area) or K+ >5.5 mEq/L. Cap at 25 mg daily with a moderate CYP3A inhibitor |
+| MRA (steroidal, alternative) | Eplerenone | 25 mg daily | 50 mg daily, preferably within 4 weeks as tolerated | Label contraindications: creatinine clearance ≤30 mL/min (CrCl, NOT indexed eGFR), K+ >5.5 mEq/L at initiation, or concomitant strong CYP3A inhibitors. Cap at 25 mg daily with a moderate CYP3A inhibitor |
 | SGLT2i | Dapagliflozin or Empagliflozin | 10 mg daily (empagliflozin: in the morning) | 10 mg daily (no titration) | Dapagliflozin: do not initiate if eGFR <25 mL/min/1.73m²; if eGFR falls below 25 during treatment, continue 10 mg daily (FARXIGA label §2.3). Empagliflozin: the label sets no eGFR floor for the HF indication (JARDIANCE label §2); the EMPEROR trials did not enrol eGFR <20. Assess renal function before initiating and as clinically indicated |
 
 **Note on the ARNI starting dose (declared protocol choice).** The ENTRESTO label sets the recommended starting dose at **49/51 mg BID**, and reserves **24/26 mg BID** for three situations: the patient is not taking an ACE inhibitor or ARB (or was taking a low dose), eGFR <30 mL/min/1.73m², or Child-Pugh B hepatic impairment. The 2022 AHA/ACC/HFSA guideline permits the lower start explicitly. **HEARTLAND adopts 24/26 mg BID as a deliberately conservative default for rural and resource-limited settings, where the interval to the next in-person reassessment is longer.** This is a protocol choice, not a label instruction; facilities with reliable short-interval follow-up should start at 49/51 mg BID per label. Double the dose after 2 to 4 weeks as tolerated (label §2.2), reassessing every 1-2 weeks during titration (2022 AHA/ACC/HFSA, COR 2a).
@@ -88,7 +90,7 @@ A patient with an LVEF of exactly 40% is HFrEF by phenotype **and** within the f
 
 | Priority | Agent (Generic) | Dose | Evidence Context |
 |-|-|-|-|
-| 1. SGLT2i | Dapagliflozin or Empagliflozin | 10 mg daily | Class IIa per 2022 AHA/ACC/HFSA, supported by EMPEROR-Preserved and DELIVER (entry criterion LVEF >40%, excluding exactly 40%). Reduces CV death & HF hospitalization regardless of diabetes status. ESC grades this Class I, Level A since its 2023 focused update |
+| 1. SGLT2i | Dapagliflozin or Empagliflozin | 10 mg daily | 2022 AHA/ACC/HFSA Class IIa; ESC 2023 Class I, Level A. EMPEROR-Preserved and DELIVER enrolled LVEF >40% and reduced their primary composite of worsening HF events/HF hospitalization and CV death, mainly through fewer HF events. Neither trial established a significant reduction in CV death alone; benefit was consistent by diabetes status |
 | 2. MRA | Finerenone or spironolactone — no automatic preference | Finerenone: start 20 mg daily if eGFR ≥60 at initiation, target 40 mg daily; start 10 mg daily if eGFR ≥25 to <60, target 20 mg daily; initiation not recommended if eGFR <25. Spironolactone: start 12.5-25 mg daily, target 25-50 mg daily | Finerenone: FDA-labeled in adults with HF and LVEF ≥40% (July 2025 label), informed by FINEARTS-HF. FINEARTS-HF lowered the rate of total worsening HF events plus CV death by 16% (rate ratio 0.84, 95% CI 0.74-0.95); CV death alone was not reduced; more hyperkalemia. Spironolactone: established, low-cost option, but TOPCAT — the only large trial of spironolactone in LVEF ≥45% — was formally negative on its primary endpoint (HR 0.89, 95% CI 0.77-1.04; P=0.14); only HF hospitalization alone fell (HR 0.83, 0.69-0.99), and hyperkalemia doubled. Benefit in preserved EF is not demonstrated; consider in subgroups per guideline (2022 AHA/ACC/HFSA COR 2b, particularly at the lower end of the LVEF spectrum) |
 | 3. GLP-1 RA | Semaglutide | Start 0.25 mg weekly with scheduled escalation to the 2.4 mg weekly target dose | STEP-HFpEF: co-primary endpoints were symptoms and weight (KCCQ-CSS +7.8 points) in the obesity phenotype (BMI ≥30). Not a cardiovascular outcome trial. Best considered obesity therapy with CV benefits |
 | 4. Diuretics | Loop diuretics | PRN | Symptom/volume control |
@@ -103,12 +105,12 @@ A patient with an LVEF of exactly 40% is HFrEF by phenotype **and** within the f
 
 | Clinical Scenario | Suggested Approach | Rationale |
 |-|-|-|
-| HF with LVEF ≥40%, K+ ≤5.0, eGFR ≥60 | Finerenone at full-dose band, or spironolactone — no automatic preference | Start finerenone 20 mg daily, target 40 mg daily. Selection between agents depends on label fit, renal function, potassium, CYP3A4 interactions, access and the monitoring that can actually be delivered |
-| HF with LVEF ≥40%, K+ ≤5.0, eGFR ≥25 to <60 | Finerenone at the reduced-dose band, or spironolactone — no automatic preference | Start finerenone 10 mg daily, target 20 mg daily. This is the REDUCED-dose band, not the typical finerenone scenario |
-| History of hyperkalemia on an MRA | No automatic preference; reassess the cause and the monitoring plan before re-challenge with either agent | Finerenone is NOT lower-risk for hyperkalemia in HF: in FINEARTS-HF it roughly doubled it (K+ >5.5: HR 2.16, 95% CI 1.83-2.56; 14.3% vs 6.9%). There is no head-to-head trial of finerenone versus spironolactone in HF |
+| HF with LVEF ≥40%, K+ ≤5.0, eGFR ≥60 | Finerenone at full-dose band; consider spironolactone only under its own renal/potassium criteria. No automatic preference | Start finerenone 20 mg daily, target 40 mg daily. Selection between agents depends on label fit, renal function, potassium, CYP3A4 interactions, access and the monitoring that can actually be delivered |
+| HF with LVEF ≥40%, K+ ≤5.0, eGFR ≥25 to <60 | Finerenone at reduced-dose band; consider spironolactone only under its own renal/potassium criteria. No automatic preference | Start finerenone 10 mg daily, target 20 mg daily. This is the REDUCED-dose band, not the typical finerenone scenario |
+| History of hyperkalemia on an MRA | No automatic preference; reassess the cause and the monitoring plan before re-challenge with either agent | FINEARTS-HF compared finerenone with placebo, not spironolactone: K+ >5.5 was more frequent (HR 2.16, 95% CI 1.83-2.56; 14.3% vs 6.9%). ARTS (Pitt et al., 2013; doi:10.1093/eurheartj/eht187) included an open-label spironolactone comparator in a short phase II HFrEF/CKD study, not a comparative clinical-outcomes trial. Neither comparison establishes a universal preferred agent |
 | Significant cost barrier | Spironolactone | Verified 2026-09-17: spironolactone 25 mg from about $5.90 (cash-price program) to $12.61 (retail discount card); finerenone has no US generic and lists from about $706.80 per 30 tablets. The prior figures (~$4 vs ~$500) were both wrong. Prices change — verify locally |
 | HFrEF (LVEF <40%) | Steroidal MRA only (spironolactone or eplerenone) | Finerenone has NO completed dedicated outcome trial in HFrEF, and its HF indication is limited to LVEF ≥40%. FINALITY-HF is still recruiting and is restricted to patients intolerant of or ineligible for a steroidal MRA. Do not substitute finerenone for established steroidal MRA therapy in HFrEF |
-| Uncertain, guideline-adherent approach | Steroidal MRA per 2022 AHA/ACC/HFSA, with the TOPCAT caveat in preserved EF | MRA in HFrEF is COR 1, Level A. In LVEF ≥40% the MRA recommendation is COR 2b; TOPCAT was formally negative on its primary endpoint, so spironolactone benefit in preserved EF is not demonstrated |
+| Uncertain, guideline-adherent approach | Steroidal MRA per 2022 AHA/ACC/HFSA, with the TOPCAT caveat in preserved EF | Eligible HFrEF (LVEF ≤40%) has a steroidal-MRA COR 1, Level A recommendation; HFmrEF (41-49%) and selected HFpEF (≥50%) have COR 2b recommendations. Exactly 40% remains HFrEF and is also within the finerenone HF label. TOPCAT did not significantly improve its primary endpoint; do not imply a blanket benefit in preserved EF |
 
 ### Titration Safety Gates Summary
 
@@ -136,7 +138,7 @@ Prices vary by pharmacy, program and state and require local verification. The p
 
 **Branded price context:** agents without a US generic (finerenone, empagliflozin, semaglutide) carry list prices in the hundreds to over a thousand dollars per month — finerenone lists from about $706.80 per 30 tablets (verified 2026-09-17). Sacubitril/valsartan and dapagliflozin **do** now have marketed US generics (dapagliflozin since April 2026).
 
-**KEY PRINCIPLE:** Generic therapy is superior to NO therapy. Never delay treatment while waiting for paperwork.
+**KEY PRINCIPLE:** Pursue indicated, tolerated therapy while addressing cost barriers. Clinician selection and monitoring still apply; a low price does not establish suitability or guarantee access.
 
 ---
 
@@ -150,9 +152,9 @@ The Hózhó Trial (JAMA Internal Medicine 2024), a stepped-wedge pragmatic trial
 |-|-|
 | Population | 103 American Indian adults with HFrEF (LVEF ≤40%) in rural Navajo Nation; stepped-wedge pragmatic trial |
 | Primary Outcome | 66.2% vs 13.1% GDMT class addition at 30 days (OR 12.99, 95% CI 6.87-24.53) |
-| Absolute Increase | 53% |
-| Telehealth Completion | 80.5% adherence to phone visits |
-| Safety | No increase in adverse events (6.6% vs 5.0%, p=0.51) |
+| Absolute Increase | 53.1 percentage points |
+| Telehealth Completion | 83 of 103 planned phone visits completed (80.5%) |
+| Safety | No statistically significant difference in total adverse events (6.6% vs 5.0%, p=0.51); not evidence of equivalence |
 | Method | Voice telephone calls (not smartphone apps) |
 
 ### 3.2 Dual-Track Execution
@@ -219,9 +221,9 @@ Both tracks follow **identical clinical decision algorithms**. Track selection i
 **Education is delivered at every implementation tier.** Resource tier determines delivery **format, sequence and support** (printed versus on-screen, CHW reinforcement, session length), never the exclusion of a clinically relevant domain. Any domain not delivered must be recorded per patient as **deferred** or **not applicable** with a written reason — not silently withheld because of the facility's tier.
 
 **Core Domains (all tiers):**
-- DAILY WEIGHT: Weigh same time daily; call if +3 lbs/2 days or +5 lbs/week — *"When should you call about your weight?"*
+- DAILY WEIGHT: Weigh same time daily. Gain ≥3 lbs/2 days: call clinic same day. Gain ≥5 lbs/week: urgent evaluation within 24 hours. If both apply, retain the more urgent pathway — *"When should you call, and when do you need evaluation?"*
 - MEDICATIONS: Take daily even when feeling well; never stop without calling — *"Why take your medicines every day?"*
-- WARNING SIGNS: SOB, swelling, waking breathless → call clinic — *"What symptoms should worry you?"*
+- WARNING SIGNS: New/worsening breathlessness at rest: same-day evaluation. Severe breathing difficulty, chest pain or fainting: call 911. Report swelling or waking breathless to the care team — *"Which symptoms mean call 911?"*
 
 **Extended domains (offered at every tier):** what heart failure is, sodium, fluids, when to call, activity guidance.
 
@@ -424,11 +426,11 @@ Candidates: NYHA I-II, stable GDMT ≥4 weeks, willing to participate.
 
 | Trial | Year | Key Finding | Context |
 |-|-|-|-|
-| EMPEROR-Preserved | 2021 | Empagliflozin reduces CV death/HF hospitalization in HFpEF (LVEF >40%) | Class IIa per 2022 AHA/ACC/HFSA guideline |
-| DELIVER | 2022 | Dapagliflozin confirms SGLT2i benefit across broad HFpEF population | Class IIa per 2022 AHA/ACC/HFSA guideline |
+| EMPEROR-Preserved | 2021 | Empagliflozin reduced the composite of CV death or HF hospitalization in LVEF >40%, mainly through fewer HF hospitalizations; CV death alone was not significantly reduced | Class IIa per 2022 AHA/ACC/HFSA guideline |
+| DELIVER | 2022 | Dapagliflozin reduced the composite of worsening HF or CV death in LVEF >40%; CV death alone was not significantly reduced | Later evidence supporting SGLT2i use; ESC 2023 Class I, Level A |
 | FINEARTS-HF | 2024 | Finerenone lowered the rate of total worsening HF events plus CV death by 16% (rate ratio 0.84, 0.74-0.95) in HF with LVEF ≥40%; CV death alone was not reduced; more hyperkalemia | FDA-labeled for HF with LVEF ≥40% since July 2025; US guideline integration ongoing |
 | STEP-HFpEF | 2023 | Semaglutide improved symptoms and weight (co-primary endpoints) in obese HFpEF | Symptom and weight trial, not a CV outcome trial |
-| Hozhó Trial | 2024 | Phone-based GDMT titration with a home BP cuff raised the proportion with a new GDMT class at 30 days from 13.1% to 66.2% (53 percentage points) in 103 adults with HFrEF in rural Navajo Nation | Stepped-wedge pragmatic trial; informs Module 3 analog track |
+| Hozhó Trial | 2024 | Phone-based GDMT titration with a home BP cuff raised the proportion with a new GDMT class at 30 days from 13.1% to 66.2% (53.1 percentage points) in 103 adults with HFrEF in rural Navajo Nation | Stepped-wedge pragmatic trial; informs Module 3 analog track |
 | STRONG-HF | 2022 | Rapid GDMT up-titration with close follow-up lowered 180-day HF readmission or all-cause death; more non-serious adverse events (41% vs 29%), with similar serious and fatal events | Tier 3 methodology |
 | TIM-HF2 | 2018 | 30% lower all-cause death (HR 0.70, 95% CI 0.50-0.96), a secondary endpoint; primary endpoint (days lost to unplanned CV admission or death) 4.88% vs 6.64%, ratio 0.80 (0.65-1.00) | Selected German population; informs RPM design |
 

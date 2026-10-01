@@ -5,15 +5,17 @@ import { NonPharmacological } from '@/app/(public)/gdmt-pathway/non-pharmacologi
 // ==========================================================================
 // GDMT-07: Non-Pharmacological Management Display
 // Protocol v3.3 Module 2, Section 2.3
-// Dietary Sodium: <2,000 mg/day
+// Sodium is individualized in the care plan, not a universal restriction.
 // Physical Activity: Walking 5-10 min daily, increase to 30 min
 // Cardiac Rehabilitation: Class I recommendation
 // ==========================================================================
 describe('GDMT-07: Non-Pharmacological Management', () => {
-  it('renders dietary sodium target: <2,000 mg/day', () => {
+  it('renders a care-team target instead of an unqualified sodium prescription', () => {
     render(<NonPharmacological />);
     expect(screen.getByText('Dietary Sodium')).toBeInTheDocument();
-    expect(screen.getByText('<2,000 mg/day')).toBeInTheDocument();
+    expect(screen.getByText(/Individual target set by the care team/)).toBeInTheDocument();
+    expect(screen.getByText(/not a universal prescription/)).toBeInTheDocument();
+    expect(screen.queryByText('<2,000 mg/day')).not.toBeInTheDocument();
   });
 
   it('renders physical activity guidance', () => {

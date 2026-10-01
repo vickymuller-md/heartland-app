@@ -41,7 +41,8 @@ describe('GDMT-03: HFpEF Pathway', () => {
 
   it('each card displays evidence context text', () => {
     render(<HfpefPanel />);
-    expect(screen.getByText(/EMPEROR-Preserved \+ DELIVER/)).toBeInTheDocument();
+    expect(screen.getByText(/EMPEROR-Preserved and DELIVER/)).toBeInTheDocument();
+    expect(screen.getByText(/Neither trial established a significant reduction in CV death alone/)).toBeInTheDocument();
     expect(screen.getByText(/FINEARTS-HF/)).toBeInTheDocument();
     expect(screen.getByText(/STEP-HFpEF/)).toBeInTheDocument();
     expect(screen.getByText(/Symptom\/volume control/)).toBeInTheDocument();
@@ -66,7 +67,7 @@ describe('GDMT-04: Finerenone vs Spironolactone Guide', () => {
     render(<FinerenoneGuide />);
     expect(screen.getByText('Evaluate current finerenone label and patient context')).toBeInTheDocument();
     expect(screen.getByText('No automatic preference; reassess risk and monitoring')).toBeInTheDocument();
-    expect(screen.getByText(/~\$4\/month generic vs/)).toBeInTheDocument();
+    expect(screen.getByText(/Compare locally verified out-of-pocket costs/)).toBeInTheDocument();
     expect(screen.getByText('Verify current label and heart-failure guideline')).toBeInTheDocument();
   });
 

@@ -1,16 +1,16 @@
 import {
   HFREF_MEDICATIONS,
   HFPEF_MEDICATIONS,
-  FINERENONE_SCENARIOS,
-  SAFETY_GATE_RULES,
   NON_PHARMACOLOGICAL,
-  GENERIC_BRIDGE_ITEMS,
-  GENERIC_BRIDGE_PRINCIPLE,
   HFREF_PATHWAY_LABEL,
   LVEF_GE_40_PATHWAY_LABEL,
 } from '@/lib/gdmt/constants';
 import { EVIDENCE_LEVEL_CONFIG } from '@/lib/gdmt/evidence-levels';
 import type { Medication } from '@/lib/gdmt/types';
+import { FinerenoneGuide } from '@/components/gdmt/finerenone-guide';
+import { MraReference } from '@/components/gdmt/mra-reference';
+import { SafetyGateCard } from '@/components/gdmt/safety-gate-card';
+import { GenericBridge } from '@/components/gdmt/generic-bridge';
 
 function MedicationTable({
   medications,
@@ -20,53 +20,30 @@ function MedicationTable({
   showPriority?: boolean;
 }) {
   return (
-    <table className="w-full text-sm border-collapse">
-      <thead>
-        <tr className="border-b text-left">
-          {showPriority && <th className="py-1 pr-2">#</th>}
-          <th className="py-1 pr-2">Drug Class</th>
-          <th className="py-1 pr-2">Agent</th>
-          <th className="py-1 pr-2">Starting Dose</th>
-          <th className="py-1 pr-2">Target Dose</th>
-          <th className="py-1 pr-2">Safety Gates</th>
-          <th className="py-1">Evidence</th>
-        </tr>
-      </thead>
-      <tbody>
-        {medications.map((med) => (
-          <tr key={med.id} className="border-b">
-            {showPriority && (
-              <td className="py-1 pr-2">{med.priority ?? ''}</td>
-            )}
-            <td className="py-1 pr-2 font-medium">{med.drugClass}</td>
-            <td className="py-1 pr-2">{med.agent}</td>
-            <td className="py-1 pr-2">{med.startingDose}</td>
-            <td className="py-1 pr-2">{med.targetDose}</td>
-            <td className="py-1 pr-2">
-              {med.safetyGates.length > 0
-                ? med.safetyGates.join('; ')
-                : '--'}
-            </td>
-            <td className="py-1">
-              {EVIDENCE_LEVEL_CONFIG[med.evidenceLevel].label}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className="space-y-3">
+      {medications.map((med) => (
+        <article key={med.id} className="gdmt-print-medication border-b pb-2">
+          <h3 className="font-semibold">
+            {showPriority && `${med.priority ?? ''}. `}{med.drugClass} — {med.agent}
+          </h3>
+          <p><strong>Starting dose:</strong> {med.startingDose}</p>
+          <p><strong>Target dose:</strong> {med.targetDose}</p>
+          <p><strong>Safety gates:</strong> {med.safetyGates.length > 0 ? med.safetyGates.join('; ') : '--'}</p>
+          <p><strong>Evidence category:</strong> {EVIDENCE_LEVEL_CONFIG[med.evidenceLevel].label}</p>
+        </article>
+      ))}
+    </div>
   );
 }
 
 export function PrintSection() {
-  const uptitrate = SAFETY_GATE_RULES.filter((r) => r.action === 'uptitrate');
-  const hold = SAFETY_GATE_RULES.filter((r) => r.action === 'hold');
-
   return (
-    <div className="hidden print:block space-y-6 text-sm">
+    <div className="gdmt-print hidden print:block space-y-6 text-sm">
       <div>
         <h1 className="text-xl font-bold">GDMT Optimization Pathway</h1>
         <p className="text-gray-600">
-          HEARTLAND Protocol v3.3 -- Module 2
+          HEARTLAND Module 2 reference checked September 30, 2026.
+          Toolkit V3.4 remains a candidate, not a published or clinically approved release.
         </p>
       </div>
 
@@ -96,24 +73,12 @@ export function PrintSection() {
         <h2 className="text-base font-bold mb-2 border-b pb-1">
           Finerenone vs. Spironolactone Decision Guide
         </h2>
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="border-b text-left">
-              <th className="py-1 pr-2">Clinical Scenario</th>
-              <th className="py-1 pr-2">Suggested Approach</th>
-              <th className="py-1">Rationale</th>
-            </tr>
-          </thead>
-          <tbody>
-            {FINERENONE_SCENARIOS.map((s) => (
-              <tr key={s.clinicalScenario} className="border-b">
-                <td className="py-1 pr-2">{s.clinicalScenario}</td>
-                <td className="py-1 pr-2">{s.suggestedApproach}</td>
-                <td className="py-1">{s.rationale}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <FinerenoneGuide />
+      </section>
+
+      <section>
+        <h2 className="text-base font-bold mb-2 border-b pb-1">MRA Label Reference</h2>
+        <MraReference />
       </section>
 
       {/* Section 4: Titration Safety Gates */}
@@ -121,24 +86,7 @@ export function PrintSection() {
         <h2 className="text-base font-bold mb-2 border-b pb-1">
           Titration Safety Gates
         </h2>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <h3 className="font-bold text-green-700 mb-1">UPTITRATE IF</h3>
-            <ul className="list-disc ml-4">
-              {uptitrate.map((r) => (
-                <li key={r.condition}>{r.condition}</li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h3 className="font-bold text-red-700 mb-1">HOLD IF</h3>
-            <ul className="list-disc ml-4">
-              {hold.map((r) => (
-                <li key={r.condition}>{r.condition}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
+        <SafetyGateCard />
       </section>
 
       {/* Section 5: Non-Pharmacological */}
@@ -163,40 +111,9 @@ export function PrintSection() {
       {/* Section 6: Generic Bridge */}
       <section>
         <h2 className="text-base font-bold mb-2 border-b pb-1">
-          Generic Bridge (~$15/month)
+          Generic Bridge
         </h2>
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="border-b text-left">
-              <th className="py-1 pr-2">Drug Class</th>
-              <th className="py-1 pr-2">Generic Agent</th>
-              <th className="py-1">Monthly Cost</th>
-            </tr>
-          </thead>
-          <tbody>
-            {GENERIC_BRIDGE_ITEMS.map((item) => (
-              <tr key={item.agent} className="border-b">
-                <td className="py-1 pr-2">
-                  {item.drugClass}
-                  {item.note && (
-                    <span className="italic"> ({item.note})</span>
-                  )}
-                </td>
-                <td className="py-1 pr-2">{item.agent}</td>
-                <td className="py-1">{item.monthlyCost}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t font-bold">
-              <td colSpan={2} className="py-1 pr-2">
-                Total
-              </td>
-              <td className="py-1">~$15-16/month</td>
-            </tr>
-          </tfoot>
-        </table>
-        <p className="mt-2 font-medium italic">{GENERIC_BRIDGE_PRINCIPLE}</p>
+        <GenericBridge />
       </section>
 
       {/* Disclaimer */}

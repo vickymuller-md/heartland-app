@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { SafetyGateCard } from '@/components/gdmt/safety-gate-card';
-import { SAFETY_GATE_RULES } from '@/lib/gdmt/constants';
+import { SAFETY_GATE_RULES, SAFETY_GATE_SCOPE } from '@/lib/gdmt/constants';
 
 // ==========================================================================
 // GDMT-06: Titration Safety Gates Display
@@ -10,6 +10,12 @@ import { SAFETY_GATE_RULES } from '@/lib/gdmt/constants';
 // HOLD IF: SBP <90, HR <50, K+ >5.5, Cr increase >30%
 // ==========================================================================
 describe('GDMT-06: Safety Gates', () => {
+  it('qualifies the audience and excludes finerenone from generic renal/potassium holds', () => {
+    render(<SafetyGateCard />);
+    expect(screen.getByText(SAFETY_GATE_SCOPE)).toBeInTheDocument();
+    expect(screen.queryByText('K+ >5.5')).not.toBeInTheDocument();
+    expect(screen.getByText(/K\+ >5.5 \(steroidal MRA; not the finerenone rule\)/)).toBeInTheDocument();
+  });
   it('renders UPTITRATE IF section with green styling', () => {
     render(<SafetyGateCard />);
     const heading = screen.getByText('UPTITRATE IF');

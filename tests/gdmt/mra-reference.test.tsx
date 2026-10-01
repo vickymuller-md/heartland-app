@@ -14,12 +14,13 @@ describe('MraReference: steroidal MRA', () => {
     expect(screen.getByText(/half the dose or 25 mg every other day/i)).toBeInTheDocument();
   });
 
-  it('lists eplerenone with its dose and both label contraindications', () => {
+  it('lists eplerenone with its dose and all three general label contraindications', () => {
     render(<MraReference />);
     expect(screen.getByText('Eplerenone')).toBeInTheDocument();
     expect(screen.getByText(/^25 mg once daily \(INSPRA label 2\.1\)$/)).toBeInTheDocument();
     expect(screen.getByText(/creatinine clearance <=30 mL\/min/i)).toBeInTheDocument();
     expect(screen.getByText(/potassium >5\.5 mEq\/L/i)).toBeInTheDocument();
+    expect(screen.getByText(/Concomitant strong CYP3A inhibitors/i)).toBeInTheDocument();
   });
 
   it('renders the four eplerenone potassium bands including >=6.0', () => {

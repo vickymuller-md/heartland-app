@@ -6,6 +6,16 @@ import { PROTOCOL_CONTENT, PROTOCOL_CONTENT_HASH } from '@/lib/sandbox-ai/protoc
 
 const source = readFileSync(new URL('../../reference/clinical_content.md', import.meta.url), 'utf8');
 describe('Toolkit T4 corrections propagated to protocol reference', () => {
+  it('retains the September 30 corrections without overstating the evidence', () => {
+    expect(source).toContain('stages 0-1 combined');
+    expect(source).toContain('10.1016/j.ajpc.2025.101339');
+    expect(source).toContain('53.1 percentage points');
+    expect(source).toContain('83 of 103 planned phone visits');
+    expect(source).toContain('not evidence of equivalence');
+    expect(source).toContain('open-label spironolactone comparator');
+    expect(source).not.toContain('There is no head-to-head trial');
+    expect(source).not.toContain('Reduces CV death & HF hospitalization');
+  });
   it('ships exactly the reference text, not a stale embedded copy', () => {
     expect(PROTOCOL_CONTENT).toBe(source);
     expect(PROTOCOL_CONTENT_HASH).toBe(createHash('sha256').update(source).digest('hex').slice(0, 16));

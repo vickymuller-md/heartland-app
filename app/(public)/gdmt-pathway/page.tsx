@@ -11,6 +11,7 @@ import { PrintSection } from './print-section';
 import type { EvidenceLevel } from '@/lib/gdmt/types';
 import { ProviderPageDisclaimer } from '@/components/disclaimers/provider-page-disclaimer';
 import { authorize } from '@/lib/auth/authorization';
+import { GENERIC_BRIDGE_TITLE } from '@/lib/gdmt/constants';
 
 export const metadata: Metadata = {
   title: 'GDMT Optimization Pathway | HEARTLAND Protocol',
@@ -100,7 +101,7 @@ export default async function GdmtPathwayPage() {
       {/* Generic Bridge */}
       <section aria-labelledby="generic-bridge-heading" className="print:hidden">
         <h2 id="generic-bridge-heading" className="text-xl font-semibold mb-4">
-          Generic Bridge (~$15/month)
+          {GENERIC_BRIDGE_TITLE}
         </h2>
         <GenericBridge />
       </section>

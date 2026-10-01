@@ -69,7 +69,7 @@ export const HFREF_MEDICATIONS: Medication[] = [
       // ALDACTONE label 2.2; 2022 AHA/ACC/HFSA p. e932
       'eGFR 30-50: half the dose or 25 mg every other day',
       // INSPRA label 4 — creatinine clearance, not eGFR
-      'Eplerenone: contraindicated if creatinine clearance <=30 mL/min or K+ >5.5 mEq/L at initiation',
+      'Eplerenone: contraindicated if creatinine clearance <=30 mL/min, K+ >5.5 mEq/L at initiation, or concomitant strong CYP3A inhibitors',
     ],
     evidenceLevel: 'established',
     evidenceContext: '2022 AHA/ACC/HFSA COR 1 A recommends an MRA (spironolactone or eplerenone) if eGFR >30 and K+ <5.0. Eplerenone is the guideline alternative when gynecomastia or breast pain occurs (10% of men on spironolactone vs 1% on placebo in RALES).',
@@ -95,7 +95,7 @@ export const HFPEF_MEDICATIONS: Medication[] = [
     targetDose: '10 mg daily',
     safetyGates: SGLT2I_RENAL_GATES,
     evidenceLevel: 'established',
-    evidenceContext: 'Class IIa per 2022 AHA/ACC/HFSA. EMPEROR-Preserved + DELIVER.',
+    evidenceContext: '2022 AHA/ACC/HFSA Class IIa; ESC 2023 Class I, Level A. EMPEROR-Preserved and DELIVER enrolled LVEF >40% and reduced their primary composite of worsening HF events/HF hospitalization and CV death, mainly through fewer HF events. Neither trial established a significant reduction in CV death alone.',
     priority: 1,
   },
   {
@@ -106,7 +106,11 @@ export const HFPEF_MEDICATIONS: Medication[] = [
     // initiation, and 10-20 mg is the starting range, not the target.
     startingDose: 'Finerenone 20 mg daily (eGFR >=60) or 10 mg daily (eGFR 25 to <60) / Spironolactone 12.5-25 mg daily',
     targetDose: 'Finerenone 40 mg daily (eGFR >=60 at initiation) or 20 mg daily (eGFR 25 to <60) / Spironolactone 25-50 mg daily',
-    safetyGates: ['K+ <5.0', 'eGFR >=25'],
+    safetyGates: [
+      'Finerenone: do not initiate if K+ >5.0; exactly 5.0 is permitted',
+      'Finerenone: initiation not recommended if eGFR <25',
+      'Spironolactone: eGFR >30 and K+ <5.0 (2022 AHA/ACC/HFSA)',
+    ],
     evidenceLevel: 'established',
     evidenceContext: 'Finerenone: FDA-labeled in adults with HF and LVEF >=40% (July 2025 label), informed by FINEARTS-HF. Apply the current label, including potassium and eGFR monitoring.',
     priority: 2,
@@ -267,12 +271,12 @@ export const FINERENONE_SCENARIOS: FinerenoneScenario[] = [
   {
     clinicalScenario: 'History of hyperkalemia on MRA',
     suggestedApproach: 'No automatic preference; reassess risk and monitoring',
-    rationale: 'Finerenone can also cause hyperkalemia; use current labeling and individualized clinical review',
+    rationale: 'FINEARTS-HF found more hyperkalemia with finerenone than placebo, not spironolactone. ARTS compared finerenone with open-label spironolactone in a short phase II HFrEF/CKD study, not a comparative clinical-outcomes trial (Pitt et al., 2013; doi:10.1093/eurheartj/eht187). No universal preferred agent follows from these comparisons.',
   },
   {
     clinicalScenario: 'Significant cost barrier',
     suggestedApproach: 'Spironolactone',
-    rationale: '~$4/month generic vs. ~$500/month',
+    rationale: 'Compare locally verified out-of-pocket costs and access for clinically appropriate agents. Historical price snapshots are not current quotes, and cost alone does not make the agents interchangeable.',
   },
   {
     clinicalScenario: 'HFrEF',
@@ -291,18 +295,21 @@ export const FINERENONE_FDA_LABEL_URL =
 
 // Source: reference/clinical_content.md Titration Safety Gates Summary
 export const SAFETY_GATE_RULES: SafetyGateRule[] = [
-  { condition: 'SBP >=100', action: 'uptitrate' },
-  { condition: 'HR >=50', action: 'uptitrate' },
+  { condition: 'SBP >=100 and asymptomatic', action: 'uptitrate' },
+  { condition: 'HR >=50 (beta-blockers)', action: 'uptitrate' },
   { condition: 'K+ <5.0', action: 'uptitrate' },
-  { condition: 'SBP <90', action: 'hold' },
+  { condition: 'SBP <90 or symptomatic hypotension', action: 'hold' },
   { condition: 'HR <50', action: 'hold' },
-  { condition: 'K+ >5.5', action: 'hold' },
-  { condition: 'Cr increase >30%', action: 'hold' },
+  { condition: 'K+ >5.5 (steroidal MRA; not the finerenone rule)', action: 'hold' },
+  { condition: 'Cr increase >30% (ARNI/steroidal MRA; not the finerenone rule)', action: 'hold' },
 ];
+
+export const SAFETY_GATE_SCOPE =
+  'Professional titration reference, not instructions for patient self-adjustment. These generic potassium/creatinine hold gates do not apply to finerenone. Use the separate Finerenone Decision Guide for the heart-failure potassium table, dose bands, restart footnotes and renal warning; do not substitute the CKD/type 2 diabetes table.';
 
 // Source: reference/clinical_content.md Section 2.3
 export const NON_PHARMACOLOGICAL = {
-  sodium: { label: 'Dietary Sodium', target: '<2,000 mg/day' },
+  sodium: { label: 'Dietary Sodium', target: 'Individual target set by the care team and written in the care plan; less than 2,000 mg/day is a commonly used target, not a universal prescription' },
   activity: {
     label: 'Physical Activity',
     target: 'Walking 5-10 min daily, gradually increase to 30 min moderate activity most days',
@@ -315,11 +322,16 @@ export const NON_PHARMACOLOGICAL = {
 
 // Source: reference/clinical_content.md Section 2.4
 export const GENERIC_BRIDGE_ITEMS: GenericBridgeItem[] = [
-  { drugClass: 'ACE inhibitor OR ARB', agent: 'Lisinopril or Losartan', monthlyCost: '$4/month' },
-  { drugClass: 'Beta-blocker', agent: 'Carvedilol generic', monthlyCost: '$4/month' },
-  { drugClass: 'MRA', agent: 'Spironolactone generic', monthlyCost: '$4/month' },
-  { drugClass: 'Metformin', agent: 'Metformin', monthlyCost: '$4/month', note: 'if diabetic/prediabetic' },
+  { drugClass: 'ACE inhibitor OR ARB', agent: 'Lisinopril or Losartan', monthlyCost: 'About $5-9/month' },
+  { drugClass: 'Beta-blocker', agent: 'Carvedilol generic', monthlyCost: 'About $6/month', note: 'not available on every discount list' },
+  { drugClass: 'MRA', agent: 'Spironolactone generic', monthlyCost: 'About $6-13/month' },
+  { drugClass: 'Metformin', agent: 'Metformin', monthlyCost: 'About $5-9/month', note: 'if diabetic/prediabetic' },
 ];
 
+export const GENERIC_BRIDGE_TITLE = 'Generic Bridge - verify local access and cost';
+export const GENERIC_BRIDGE_TOTAL = 'Verify locally; not a bundled price';
+export const GENERIC_BRIDGE_PRICE_NOTE =
+  'Illustrative September 17, 2026 price snapshots from the Toolkit, not current quotes. Pharmacy, dose, quantity, eligibility and shipping affect cost; a discount list may not carry every drug. Verify the complete regimen locally. This bridge does not include an SGLT2i: record that gap and pursue access rather than implying full GDMT coverage.';
+
 export const GENERIC_BRIDGE_PRINCIPLE =
-  'Generic therapy is superior to NO therapy. Never delay treatment while waiting for paperwork.';
+  'Pursue indicated, tolerated therapy while addressing cost barriers. Clinician selection and monitoring still apply; a low price does not establish suitability or guarantee access.';

@@ -11,13 +11,16 @@ import {
 import {
   GENERIC_BRIDGE_ITEMS,
   GENERIC_BRIDGE_PRINCIPLE,
+  GENERIC_BRIDGE_TITLE,
+  GENERIC_BRIDGE_TOTAL,
+  GENERIC_BRIDGE_PRICE_NOTE,
 } from '@/lib/gdmt/constants';
 
 export function GenericBridge() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Generic Bridge (~$15/month)</CardTitle>
+        <CardTitle>{GENERIC_BRIDGE_TITLE}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <Table>
@@ -25,7 +28,7 @@ export function GenericBridge() {
             <TableRow>
               <TableHead>Drug Class</TableHead>
               <TableHead>Generic Agent</TableHead>
-              <TableHead>Monthly Cost</TableHead>
+              <TableHead>Historical Monthly Estimate</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -50,10 +53,11 @@ export function GenericBridge() {
               <TableCell colSpan={2} className="font-bold">
                 Total
               </TableCell>
-              <TableCell className="font-bold">~$15-16/month</TableCell>
+              <TableCell className="font-bold whitespace-normal">{GENERIC_BRIDGE_TOTAL}</TableCell>
             </TableRow>
           </TableFooter>
         </Table>
+        <p className="text-sm text-muted-foreground">{GENERIC_BRIDGE_PRICE_NOTE}</p>
 
         <div className="rounded-md bg-emerald-50 p-3 text-sm font-medium text-emerald-800">
           {GENERIC_BRIDGE_PRINCIPLE}

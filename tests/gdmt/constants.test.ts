@@ -181,15 +181,16 @@ describe('GDMT-09: Content Matches Protocol', () => {
       expect(FINERENONE_SCENARIOS).toHaveLength(5);
     });
 
-    // F3: no automatic MRA preference in LVEF >=40%. FINEARTS-HF increased
-    // hyperkalemia (HR 2.16 for K+ >5.5, JAMA Cardiol 2025) and there is no
-    // head-to-head trial against spironolactone in heart failure.
+    // FINEARTS-HF used placebo; ARTS had a short phase II spironolactone
+    // comparison, not a comparative clinical-outcomes trial.
     it('states no automatic preference and never claims lower hyperkalemia', () => {
       const joined = FINERENONE_SCENARIOS.map((s) => `${s.suggestedApproach} ${s.rationale}`).join(' ');
       expect(joined).toMatch(/No automatic preference/i);
       expect(joined).not.toMatch(/finerenone preferred/i);
       expect(joined).not.toMatch(/lower hyperkalemia/i);
       expect(joined).not.toMatch(/either acceptable/i);
+      expect(joined).toContain('ARTS compared finerenone with open-label spironolactone');
+      expect(joined).not.toMatch(/no head-to-head trial/i);
     });
   });
 
@@ -229,6 +230,9 @@ describe('GDMT-09: Content Matches Protocol', () => {
       const mra = HFPEF_MEDICATIONS.find((m) => m.id === 'mra-hfpef');
       expect(mra!.startingDose).not.toBe(mra!.targetDose);
       expect(mra!.targetDose).toMatch(/40 mg/);
+      expect(mra!.safetyGates).toContain('Finerenone: do not initiate if K+ >5.0; exactly 5.0 is permitted');
+      expect(mra!.safetyGates).toContain('Spironolactone: eGFR >30 and K+ <5.0 (2022 AHA/ACC/HFSA)');
+      expect(mra!.safetyGates).not.toContain('K+ <5.0');
     });
   });
 
@@ -271,21 +275,24 @@ describe('GDMT-09: Content Matches Protocol', () => {
   });
 
   describe('Generic Bridge (Section 2.4)', () => {
-    it('GENERIC_BRIDGE_ITEMS contains 4 drugs each at $4/month', () => {
+    it('contains four historical estimates without the withdrawn $4 claim', () => {
       expect(GENERIC_BRIDGE_ITEMS).toHaveLength(4);
       GENERIC_BRIDGE_ITEMS.forEach((item) => {
-        expect(item.monthlyCost).toBe('$4/month');
+        expect(item.monthlyCost).toMatch(/^About \$/);
+        expect(item.monthlyCost).not.toBe('$4/month');
       });
     });
 
-    it('GENERIC_BRIDGE_PRINCIPLE states generic therapy is superior to no therapy', () => {
-      expect(GENERIC_BRIDGE_PRINCIPLE).toContain('Generic therapy is superior to NO therapy');
+    it('conditions access navigation on clinical appropriateness', () => {
+      expect(GENERIC_BRIDGE_PRINCIPLE).toContain('indicated, tolerated therapy');
+      expect(GENERIC_BRIDGE_PRINCIPLE).toContain('does not establish suitability or guarantee access');
     });
   });
 
   describe('Non-Pharmacological (Section 2.3)', () => {
     it('NON_PHARMACOLOGICAL has sodium (<2,000 mg/day), activity, and cardiac rehab entries', () => {
-      expect(NON_PHARMACOLOGICAL.sodium.target).toBe('<2,000 mg/day');
+      expect(NON_PHARMACOLOGICAL.sodium.target).toContain('Individual target set by the care team');
+      expect(NON_PHARMACOLOGICAL.sodium.target).toContain('not a universal prescription');
       expect(NON_PHARMACOLOGICAL.activity.target).toContain('Walking 5-10 min daily');
       expect(NON_PHARMACOLOGICAL.cardiacRehab.target).toContain('Class I recommendation');
     });

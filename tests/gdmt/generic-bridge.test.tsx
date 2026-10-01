@@ -1,15 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { GenericBridge } from '@/components/gdmt/generic-bridge';
-import { GENERIC_BRIDGE_ITEMS, GENERIC_BRIDGE_PRINCIPLE } from '@/lib/gdmt/constants';
+import { GENERIC_BRIDGE_ITEMS, GENERIC_BRIDGE_PRINCIPLE, GENERIC_BRIDGE_PRICE_NOTE, GENERIC_BRIDGE_TOTAL } from '@/lib/gdmt/constants';
 
 // ==========================================================================
 // GDMT-08: Generic Bridge Cost Display
-// Protocol v3.3 Module 2, Section 2.4 -- Generic Bridge (~$15/month)
-// 1. ACE inhibitor (Lisinopril) OR ARB (Losartan) -- $4/month
-// 2. Beta-blocker (Carvedilol generic) -- $4/month
-// 3. MRA (Spironolactone generic) -- $4/month
-// 4. Metformin (if diabetic/prediabetic) -- $4/month
+// September 2026 reference: dated estimates, not quotes or an access guarantee.
 // ==========================================================================
 describe('GDMT-08: Generic Bridge', () => {
   it('renders 4 generic drug items', () => {
@@ -22,34 +18,38 @@ describe('GDMT-08: Generic Bridge', () => {
     }
   });
 
-  it('shows ACE inhibitor/ARB (Lisinopril or Losartan) at $4/month', () => {
+  it('shows historical estimates and excludes the withdrawn $4 price', () => {
     render(<GenericBridge />);
     expect(screen.getByText('Lisinopril or Losartan')).toBeInTheDocument();
-    // All items show $4/month
-    const costs = screen.getAllByText('$4/month');
-    expect(costs.length).toBeGreaterThanOrEqual(4);
+    expect(screen.getAllByText('About $5-9/month')).toHaveLength(2);
+    expect(screen.queryByText('$4/month')).not.toBeInTheDocument();
   });
 
-  it('shows Beta-blocker (Carvedilol generic) at $4/month', () => {
+  it('shows carvedilol with a local availability caveat', () => {
     render(<GenericBridge />);
     expect(screen.getByText('Carvedilol generic')).toBeInTheDocument();
+    expect(screen.getByText(/not available on every discount list/)).toBeInTheDocument();
   });
 
-  it('shows MRA (Spironolactone generic) at $4/month', () => {
+  it('shows the historical spironolactone range', () => {
     render(<GenericBridge />);
     expect(screen.getByText('Spironolactone generic')).toBeInTheDocument();
+    expect(screen.getByText('About $6-13/month')).toBeInTheDocument();
   });
 
-  it('shows Metformin at $4/month with "if diabetic/prediabetic" note', () => {
+  it('keeps the metformin indication qualification', () => {
     render(<GenericBridge />);
     const metforminCells = screen.getAllByText('Metformin');
     expect(metforminCells.length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/if diabetic\/prediabetic/)).toBeInTheDocument();
   });
 
-  it('displays total approximately $15/month', () => {
+  it('does not imply a current bundled price or full GDMT access', () => {
     render(<GenericBridge />);
-    expect(screen.getByText('~$15-16/month')).toBeInTheDocument();
+    expect(screen.getByText(GENERIC_BRIDGE_TOTAL)).toBeInTheDocument();
+    expect(screen.getByText(GENERIC_BRIDGE_PRICE_NOTE)).toBeInTheDocument();
+    expect(screen.queryByText('~$15-16/month')).not.toBeInTheDocument();
+    expect(screen.getByText(/does not include an SGLT2i/)).toBeInTheDocument();
   });
 
   it('displays key principle about generic therapy', () => {

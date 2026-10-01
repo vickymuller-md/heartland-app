@@ -1,5 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card';
-import { SAFETY_GATE_RULES } from '@/lib/gdmt/constants';
+import { SAFETY_GATE_RULES, SAFETY_GATE_SCOPE } from '@/lib/gdmt/constants';
 
 export function SafetyGateCard() {
   const uptitrate = SAFETY_GATE_RULES.filter((r) => r.action === 'uptitrate');
@@ -7,6 +7,9 @@ export function SafetyGateCard() {
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
+      <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 md:col-span-2">
+        {SAFETY_GATE_SCOPE}
+      </p>
       {/* UPTITRATE IF column */}
       <Card className="border-green-300">
         <CardContent className="pt-4">
