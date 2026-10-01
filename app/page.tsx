@@ -38,7 +38,7 @@ export default async function Home() {
           { label: "Evidence Lab", href: "/sandbox" },
           {
             label: "Toolkit",
-            href: "https://doi.org/10.5281/zenodo.19101219",
+            href: "https://doi.org/10.5281/zenodo.23073640",
             external: true,
           },
           { label: "Sign in", href: "/login" },

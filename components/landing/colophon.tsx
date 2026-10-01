@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { HeartLineMark } from "./medical-cross";
-import { APP_VERSION } from "@/lib/app-version";
+import { APP_ARCHIVE_DOI, APP_ARCHIVE_VERSION, APP_VERSION } from "@/lib/app-version";
 import { HEARTLAND_NETWORK } from "@heartland/ui";
 
 /**
@@ -40,13 +40,13 @@ export function Colophon() {
               Peer-reviewed protocol article
             </FooterLink>
             <FooterLink
-              href="https://doi.org/10.5281/zenodo.19101219"
+              href="https://doi.org/10.5281/zenodo.23073640"
               external
             >
-              Implementation Toolkit · v3.3
+              Implementation Toolkit · v3.4
             </FooterLink>
-            <FooterLink href="https://doi.org/10.5281/zenodo.22233054" external>
-              App software archive · {APP_VERSION}
+            <FooterLink href={`https://doi.org/${APP_ARCHIVE_DOI}`} external>
+              App software archive · {APP_ARCHIVE_VERSION}
             </FooterLink>
             <FooterLink href="https://doi.org/10.17605/OSF.IO/YUSGH" external>
               OSF deposit

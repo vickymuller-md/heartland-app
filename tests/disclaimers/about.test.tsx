@@ -58,11 +58,11 @@ describe('About Page (ABOUT-01)', () => {
   it('renders "Open Access" section with Zenodo DOI link', () => {
     render(<AboutPage />);
     expect(screen.getByText('Open Access')).toBeInTheDocument();
-    const zenodoLink = screen.getByText(/10\.5281\/zenodo\.19101219/);
+    const zenodoLink = screen.getByText(/10\.5281\/zenodo\.23073640/);
     expect(zenodoLink).toBeInTheDocument();
     expect(zenodoLink.closest('a')).toHaveAttribute(
       'href',
-      'https://doi.org/10.5281/zenodo.19101219',
+      'https://doi.org/10.5281/zenodo.23073640',
     );
   });
 

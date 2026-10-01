@@ -299,12 +299,12 @@ function SubmittedPanel() {
           <span className="transition-transform group-hover:translate-x-1">→</span>
         </Link>
         <Link
-          href="https://doi.org/10.5281/zenodo.19101219"
+          href="https://doi.org/10.5281/zenodo.23073640"
           target="_blank"
           rel="noopener noreferrer"
           className="group inline-flex items-center gap-1.5 font-editorial text-[14.5px] font-medium text-cool transition-colors hover:text-alert"
         >
-          Read the Implementation Toolkit V3.3 (Zenodo)
+          Read the Implementation Toolkit V3.4 (Zenodo)
           <span className="transition-transform group-hover:translate-x-1">↗</span>
         </Link>
       </div>

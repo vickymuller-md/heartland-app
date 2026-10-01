@@ -434,7 +434,7 @@ export function GuideContent() {
       <Section id="gdmt-pathway" title="GDMT Optimization Pathway" icon={Pill}>
         <p>
           The GDMT Pathway provides evidence-based medication optimization guidance for both HFrEF (LVEF &le;40%)
-          and HFpEF (LVEF &gt;40%). All content matches the published HEARTLAND Protocol v3.3.
+          and HFpEF (LVEF &gt;40%). Reference content incorporates the published HEARTLAND Toolkit V3.4; local-policy and prototype limitations remain applicable.
         </p>
 
         <h3 className="font-semibold text-gray-900 mt-4 mb-2">HFrEF: Quadruple Therapy</h3>

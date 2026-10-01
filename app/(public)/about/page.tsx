@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ProviderPageDisclaimer } from "@/components/disclaimers/provider-page-disclaimer";
-import { APP_ARCHIVE_DOI, APP_VERSION } from "@/lib/app-version";
+import { APP_ARCHIVE_DOI, APP_ARCHIVE_VERSION } from "@/lib/app-version";
 
 export const metadata: Metadata = {
   title: "About - HEARTLAND Protocol",
@@ -261,18 +261,18 @@ export default function AboutPage() {
             </a>
           </li>
           <li>
-            <strong>Implementation Toolkit V3.3</strong> (Zenodo):{" "}
+            <strong>Implementation Toolkit V3.4</strong> (Zenodo):{" "}
             <a
-              href="https://doi.org/10.5281/zenodo.19101219"
+              href="https://doi.org/10.5281/zenodo.23073640"
               target="_blank"
               rel="noopener noreferrer"
               className="text-blue-600 underline hover:text-blue-800"
             >
-              DOI 10.5281/zenodo.19101219
+              DOI 10.5281/zenodo.23073640
             </a>
           </li>
           <li>
-            <strong>App software archive {APP_VERSION}</strong> (Zenodo):{" "}
+            <strong>App software archive {APP_ARCHIVE_VERSION}</strong> (Zenodo):{" "}
             <a
               href={`https://doi.org/${APP_ARCHIVE_DOI}`}
               target="_blank"

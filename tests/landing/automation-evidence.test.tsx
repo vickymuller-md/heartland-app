@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { AutomationEvidence } from "@/components/landing/automation-evidence";
 import { EvidenceFoundation } from "@/components/landing/evidence";
 import Home, { metadata } from "@/app/page";
-import { APP_VERSION } from "@/lib/app-version";
+import { APP_ARCHIVE_DOI, APP_ARCHIVE_VERSION, APP_VERSION } from "@/lib/app-version";
 import * as population from "@/lib/sandbox/population";
 
 const { getUser, createClient, redirect } = vi.hoisted(() => ({
@@ -63,7 +63,7 @@ describe("landing evidence walkthrough", () => {
 
   it("keeps archive, simulation and deployment labels outside disclosures", () => {
     render(<AutomationEvidence />);
-    for (const label of ["Published release · v1.9.0", "Synthetic walkthrough · No clinical care", "Recorded deployment checkpoint · 30 September 2026", "Deployment expansion · Controlled evaluation only"]) {
+    for (const label of [`Published release · ${APP_VERSION}`, "Synthetic walkthrough · No clinical care", "Recorded deployment checkpoint · 30 September 2026", "Deployment expansion · Controlled evaluation only"]) {
       const element = screen.getByText(label);
       expect(element).toBeVisible();
       expect(element.closest("details")).toBeNull();
@@ -85,7 +85,7 @@ describe("landing evidence walkthrough", () => {
     expect(recorded).not.toHaveTextContent("Local candidate");
     expect(local).toHaveTextContent("Deployment expansion · Controlled evaluation only");
     expect(local).not.toHaveTextContent("Recorded deployment checkpoint");
-    for (const label of ["new transport remains inactive", "Toolkit V3.4 candidate", "12 synthetic training scenarios", "58 prerecorded clips", "preserving text simulation", "does not certify that service or remove existing public audio URLs"]) {
+    for (const label of ["new transport remains inactive", "Published Toolkit V3.4", "12 synthetic training scenarios", "58 prerecorded clips", "preserving text simulation", "not human-listening certification or patient communication", "changed or revoked recordings remain blocked"]) {
       expect(local).toHaveTextContent(label);
     }
     expect(candidate).toHaveTextContent("not a live service-status check");
@@ -155,7 +155,7 @@ describe("composed public home", () => {
     expect(within(modules).getAllByText("Educational module")).toHaveLength(8);
     expect(within(screen.getByTestId("published-capabilities")).getAllByRole("article")).toHaveLength(9);
     expect(container.querySelectorAll("details")).toHaveLength(5);
-    for (const label of ["Published release · v1.9.0", "Synthetic walkthrough · No clinical care", "Deployment expansion · Controlled evaluation only"]) {
+    for (const label of [`Published release · ${APP_VERSION}`, "Synthetic walkthrough · No clinical care", "Deployment expansion · Controlled evaluation only"]) {
       expect(screen.getByText(label).closest("details")).toBeNull();
     }
   });
@@ -193,8 +193,8 @@ describe("composed public home", () => {
     const footer = within(container.querySelector("footer")!);
     for (const [label, href] of [
       ["Peer-reviewed protocol article", "https://doi.org/10.7759/cureus.104817"],
-      ["Implementation Toolkit · v3.3", "https://doi.org/10.5281/zenodo.19101219"],
-      [`App software archive · ${APP_VERSION}`, "https://doi.org/10.5281/zenodo.22233054"],
+      ["Implementation Toolkit · v3.4", "https://doi.org/10.5281/zenodo.23073640"],
+      [`App software archive · ${APP_ARCHIVE_VERSION}`, `https://doi.org/${APP_ARCHIVE_DOI}`],
       ["OSF deposit", "https://doi.org/10.17605/OSF.IO/YUSGH"],
       ["ORCID profile", "https://orcid.org/0009-0009-1099-5690"],
     ]) expect(footer.getByRole("link", { name: label })).toHaveAttribute("href", href);

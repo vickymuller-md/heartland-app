@@ -179,7 +179,7 @@ export function AutomationEvidence() {
         <div className="mt-14">
           <p className="text-sm font-semibold text-signal">Published release · {APP_VERSION}</p>
           <h3 className="mt-3 text-2xl font-semibold text-cool">Choose what to explore.</h3>
-          <p className="mt-3 max-w-3xl text-base leading-relaxed text-cool/80">These capabilities describe the archived App baseline, not a guarantee that every mode is currently enabled. Public interactions are synthetic; capacity and safety controls apply. See the separate audio hold and implementation states below.</p>
+          <p className="mt-3 max-w-3xl text-base leading-relaxed text-cool/80">These capabilities do not guarantee that every mode is currently enabled. Public interactions are synthetic; capacity and safety controls apply. See the separate audio-release and implementation states below.</p>
         </div>
         <div data-testid="published-capabilities" className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {CAPABILITIES.map((capability) => (
@@ -216,7 +216,7 @@ export function AutomationEvidence() {
           </Link>
         </div>
         <aside data-testid="local-candidate" aria-labelledby="lab-candidate-title" className="mt-10 rounded-3xl border-2 border-dashed border-cool/40 bg-terminal p-6 md:p-8">
-          <p className="text-sm font-semibold text-cool">Implementation status · Deployed 30 September 2026</p>
+          <p className="text-sm font-semibold text-cool">Implementation status · Deployed 1 October 2026</p>
           <h3 id="lab-candidate-title" className="mt-3 text-2xl font-semibold text-cool">What is deployed, what is inactive, what still needs approval.</h3>
           <p className="mt-4 max-w-3xl text-base leading-relaxed text-cool/80">A software archive, a deployment and clinical approval are different kinds of evidence. This dated summary is not a live service-status check or authorization for patient care.</p>
           <div data-testid="recorded-checkpoint" className="mt-6 rounded-2xl border border-grid bg-panel p-5">
@@ -236,11 +236,11 @@ export function AutomationEvidence() {
               <div><dt className="font-semibold text-cool">Show who can act</dt><dd className="mt-2 text-cool/80">Organization-scoped owner selection, recoverable reassignment requests and restricted exception views make unresolved work visible. A captured notification intent is not a sent message; the new transport remains inactive.</dd></div>
               <div><dt className="font-semibold text-cool">Trace the documented workflow</dt><dd className="mt-2 text-cool/80">Requests, laboratory source versions, human review records and contact documentation retain separate receipts and unresolved barriers. A documented step does not prove external delivery or completed care.</dd></div>
               <div><dt className="font-semibold text-cool">Education and notification preferences</dt><dd className="mt-2 text-cool/80">Education responses use recoverable, session-bound submissions. Notification preferences are updated through authenticated, serialized requests. A saved response is not a clinical assessment; a preference is not proof that a message was delivered.</dd></div>
-              <div><dt className="font-semibold text-cool">Rehearse without the App</dt><dd className="mt-2 text-cool/80">Toolkit V3.4 candidate work includes offline readiness worksheets, handoff/contact logs and 12 synthetic training scenarios. Prepared material is not evidence of completed training or clinical adoption.</dd></div>
-              <div><dt className="font-semibold text-cool">Keep unverified audio on hold</dt><dd className="mt-2 text-cool/80">58 prerecorded clips await source-to-sound and language review. The deployed App blocks their playback in three sandbox consumers while preserving text simulation. This hold is separate from optional live voice; it does not certify that service or remove existing public audio URLs.</dd></div>
+              <div><dt className="font-semibold text-cool">Rehearse without the App</dt><dd className="mt-2 text-cool/80">Published Toolkit V3.4 is accompanied by offline readiness worksheets, handoff/contact logs and 12 synthetic training scenarios. Prepared material is not evidence of completed training or clinical adoption; prototype cards retain their stated distribution restrictions.</dd></div>
+              <div><dt className="font-semibold text-cool">Listen to bounded synthetic demonstrations</dt><dd className="mt-2 text-cool/80">58 prerecorded clips have recording-specific authorization for synthetic sandbox playback, while preserving text simulation. Clinical script acceptance, automated source-to-transcript checks and release authorization are recorded separately. This is not human-listening certification or patient communication. Only verified immutable recordings play; changed or revoked recordings remain blocked.</dd></div>
             </dl>
           </div>
-          <p className="mt-6 border-t border-grid pt-5 text-base leading-relaxed text-cool/80">Verification: synthetic authenticated integration checks passed in an isolated environment; hosted schema and read contracts were checked at deployment. Still gated: scheduled scans, notification delivery and operational contingency approval, clinical/language acceptance of Toolkit V3.4 and audio, and updated App/Toolkit archives. No completed clinical cycle, real-world activation or validated outcome is claimed.</p>
+          <p className="mt-6 border-t border-grid pt-5 text-base leading-relaxed text-cool/80">Verification: synthetic authenticated integration checks passed in an isolated environment; hosted schema and read contracts were checked at deployment. Still gated: scheduled scans, external notification delivery and institution-specific operational approval. Script acceptance and synthetic audio release do not authorize real-patient use. Consult the publication section for the separately archived versions. No completed clinical cycle, real-world activation or validated outcome is claimed.</p>
         </aside>
       </div>
     </section>

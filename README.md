@@ -62,7 +62,7 @@ For research collaborations, pilot deployments at Critical Access Hospitals, or 
 | Public sandbox | Account-free synthetic Evidence Lab with bilingual AI-assisted check-ins, provider workflow demonstrations, population replay, and inspectable decision receipts; not for real patient data or clinical use |
 | Clinical release posture | Controlled evaluation only; real-PHI and pilot go-live gates remain closed pending independent validation and organizational controls |
 | Product plan | Published in [`reference/HEARTLAND_PRODUCT_ADOPTION_PLAN.md`](./reference/HEARTLAND_PRODUCT_ADOPTION_PLAN.md) |
-| Open-science release record | Version metadata in [`CITATION.cff`](./CITATION.cff) and [`.zenodo.json`](./.zenodo.json); release boundaries in [`reference/RELEASE_NOTES_v1.9.0.md`](./reference/RELEASE_NOTES_v1.9.0.md) |
+| Open-science release record | Version metadata in [`CITATION.cff`](./CITATION.cff) and [`.zenodo.json`](./.zenodo.json); current release boundaries in [`reference/RELEASE_NOTES_v1.10.0.md`](./reference/RELEASE_NOTES_v1.10.0.md). Historical release notes remain preserved. |
 
 ## Stack
 
@@ -88,7 +88,7 @@ npm test
 Protocol content and research materials are available through the existing deposits:
 
 - **Cureus** (peer-reviewed, indexed PubMed/PMC/Scopus)
-- **Zenodo** (protocol): [`10.5281/zenodo.19101219`](https://doi.org/10.5281/zenodo.19101219)
+- **Zenodo** (protocol): [`10.5281/zenodo.23073640`](https://doi.org/10.5281/zenodo.23073640)
 - **Zenodo** (software, all versions): [`10.5281/zenodo.19600593`](https://doi.org/10.5281/zenodo.19600593)
 - **OSF**: [`10.17605/OSF.IO/YUSGH`](https://doi.org/10.17605/OSF.IO/YUSGH)
 - **medRxiv**: three complementary systematic reviews registered in PROSPERO

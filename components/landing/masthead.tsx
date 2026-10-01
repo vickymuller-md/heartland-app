@@ -22,7 +22,7 @@ export function Masthead() {
             The Protocol
           </Link>
           <a
-            href="https://doi.org/10.5281/zenodo.19101219"
+            href="https://doi.org/10.5281/zenodo.23073640"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-alert"

@@ -1,6 +1,6 @@
 {
   "title": "HEARTLAND Protocol App — Clinical Implementation Companion for Rural Heart Failure",
-  "description": "Progressive Web Application translating the HEARTLAND Protocol (Heart failure Evidence-based Access in Rural Treatment, Linking Advanced Network Delivery) into inspectable implementation-support workflows for rural and resource-limited United States settings. Version 1.9.0 expands the public synthetic sandbox with bounded English- and Spanish-language daily and titration check-ins; optional voice interaction; simulated outreach and morning-round automation; a provider Copilot over 13 read-only deterministic tools; five-day synthetic scenarios; deterministic population replay for 500, 2,500, or 5,000 fictional check-ins; a Chart-to-Call-to-Document review workflow; protocol-grounded explanations; human-controlled SBAR wording proposals; Evidence Flow; and Decision Receipts. The language-model layer converses, extracts, explains, summarizes, and drafts. Version-controlled protocol-derived rules and explicit missing-data policies set simulated dispositions, and a human reviewer authorizes any next action. Deterministic preflight checks, bounded output screening, atomic usage limits, and graceful fallbacks constrain the public demonstration. Built with Next.js 16, React 19, TypeScript, and Supabase. The public sandbox uses synthetic data. This release demonstrates implemented and inspectable software; it does not establish clinical validation, institutional deployment, regulatory status, adoption, clinical safety, efficacy, staffing effects, or patient outcomes.",
+  "description": "HEARTLAND Protocol App is an inspectable clinical implementation companion for rural and resource-limited heart failure workflows, built with Next.js, React, TypeScript and Supabase. Version 1.10.0 consolidates recoverable examination and laboratory submissions, source/result-version provenance, corrected-result workflows, organization-scoped ownership and transfers, professional review/contact documentation, session-bound education responses, teach-back records, serialized notification preferences and queued notification-intent controls. It reconciles pharmacotherapy references, printable safety tables, individual care-plan wording and clinician-directed medication holds without changing clinical alert thresholds. The public synthetic sandbox retains bounded English/Spanish check-ins, optional voice, simulated outreach and morning rounds, a read-only provider Copilot, population replay, human-controlled SBAR wording, Evidence Flow and Decision Receipts. A recording-specific release gate authorizes 58 synthetic clips through separate records of reported clinical script acceptance, delegated automated ASR/decoder/documentary verification and release authorization. Exact source, locale, recording and evidence identities are verified before immutable playback URLs are built; changed or revoked recordings remain blocked. No clinician signature or human-listening certification is fabricated. Scheduled recovery, external notification transport and other institution-gated background processes remain disabled. AI supports bounded language tasks; registered rules set simulated routing and authorized professionals retain clinical decisions. Synthetic tests, a saved record, notification intent or audio playback do not establish patient contact, completed care, clinical validation, institutional adoption, regulatory status, efficacy or patient outcomes. Real PHI and unsupervised patient use are outside this release.",
   "creators": [
     {
       "name": "Muller Ferreira, Vicky",
@@ -29,16 +29,16 @@
     "synthetic data"
   ],
   "license": "MIT",
-  "version": "1.9.0",
-  "publication_date": "2026-09-01",
+  "version": "1.10.0",
+  "publication_date": "2026-10-01",
   "upload_type": "software",
   "access_right": "open",
   "language": "eng",
   "related_identifiers": [
     {
-      "identifier": "10.5281/zenodo.19101219",
+      "identifier": "10.5281/zenodo.23073640",
       "relation": "isSupplementTo",
-      "resource_type": "publication-article",
+      "resource_type": "publication-other",
       "scheme": "doi"
     },
     {
@@ -57,5 +57,5 @@
   "communities": [
     { "identifier": "open-science" }
   ],
-  "notes": "Release boundary: the public sandbox uses synthetic data and is intended for technical demonstration and controlled evaluation. Real PHI and unsupervised clinical use are not authorized. The September 1, 2026 release snapshot passed 1,355 unit and integration tests, 72 desktop/mobile end-to-end tests, and 44 database authorization contracts, together with lint, typecheck, production build, security scan, npm audit at the high threshold, CodeQL, and CycloneDX SBOM generation. These are software-quality controls, not clinical validation. The selected emergency-language and obvious-identifier screens are bounded safeguards, not comprehensive detection or de-identification. Institution-specific clinical, privacy, security, regulatory, accessibility, and workflow evaluation remain required before any governed real-world deployment. The HEARTLAND Risk Stratification Framework remains proposed and unvalidated against clinical outcomes data."
+  "notes": "Release boundary: synthetic technical demonstration and controlled evaluation only. The October 1, 2026 local verification passed 4,635 unit/integration tests (8 skipped, 132 TODO) and 210 desktop/mobile end-to-end tests, typecheck, lint without errors, production build, security scan and production-dependency audit. The 58-file audio release verifier passed with 28 current generation receipts and 30 historical unreceipted recordings; 29 retired hashes remain blocked. These are software/documentary controls, not a listening certificate or clinical validation. Script acceptance was reported by the project owner as the clinician's acceptance, not furnished as a direct signed attestation. Institution-specific clinical, privacy, security, regulatory, accessibility and workflow evaluation remain required. The HEARTLAND Risk Stratification Framework remains proposed and unvalidated against clinical outcomes data."
 }
