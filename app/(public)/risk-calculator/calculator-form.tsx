@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useState, useSyncExternalStore } from 'react';
 import { Printer, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PatientSelector, type SelectedPatientData } from '@/components/shared/patient-selector';
@@ -14,11 +14,14 @@ import { ResultCard } from './result-card';
 import { ScoreBreakdown } from './score-breakdown';
 
 const categories = ['Clinical', 'Laboratory', 'Cardiac', 'Comorbidity', 'Social/Geographic'] as const;
+// React uses the server snapshot until the calculator can handle input.
+const subscribeToHydration = () => () => undefined;
 
 export function CalculatorForm({ actorId }: { actorId?: string }) {
+  const ready = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const [patient, setPatient] = useState<SelectedPatientData['patient'] | null>(null);
   return (
-    <div>
+    <fieldset aria-label="Risk assessment" aria-busy={!ready} disabled={!ready} className="m-0 min-w-0 border-0 p-0">
       <PrintHeader />
       {actorId && (
         <div className="mb-6 print:hidden">
@@ -27,7 +30,7 @@ export function CalculatorForm({ actorId }: { actorId?: string }) {
         </div>
       )}
       <Assessment key={JSON.stringify([actorId, patient?.id])} actorId={actorId} patient={patient} />
-    </div>
+    </fieldset>
   );
 }
 

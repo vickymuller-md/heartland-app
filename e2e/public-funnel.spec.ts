@@ -106,6 +106,27 @@ test('about page states the eight modules, separate identities and disclaimers',
   await expect(page.locator('a[href="https://doi.org/10.5281/zenodo.19101219"]')).toHaveCount(0);
 });
 
+test('the first risk calculator interaction works when scripts arrive late', async ({ page }) => {
+  const scripts = /\/_next\/static\/.*\.js(?:\?|$)/;
+  let releaseScripts!: () => void;
+  const delay = new Promise<void>(resolve => { releaseScripts = resolve; });
+  await page.route(scripts, async route => { await delay; await route.continue(); });
+
+  const sample = page.getByRole('button', { name: 'Load synthetic example' });
+  const firstFactor = page.getByRole('radio', { name: 'Present', exact: true }).first();
+  try {
+    await page.goto('/risk-calculator', { waitUntil: 'commit' });
+    await expect(sample).toBeDisabled();
+    await expect(firstFactor).toBeDisabled();
+  } finally {
+    releaseScripts();
+  }
+  await sample.click();
+  await expect(page.getByText('10 of 10 factors reviewed', { exact: true })).toBeVisible();
+  await expect(page.getByRole('radio', { checked: true })).toHaveCount(10);
+  await expect(page.getByTestId('result-card')).toBeVisible();
+});
+
 test('explains the assessed example and keeps the result available during an assistant outage', async ({ page }) => {
   await page.goto('/risk-calculator');
   await expect(page.getByTestId('result-card')).toHaveCount(0);
