@@ -44,9 +44,9 @@ INSERT INTO auth.users(id,email,raw_user_meta_data)
  SELECT pg_temp.rt(n),'runtime-'||n||'@example.invalid','{"consent_accepted":true}'::jsonb FROM unnest(ARRAY[1,2,3,4,5,11,12]) n;
 UPDATE public.profiles SET role='provider',state='NY' WHERE id IN(SELECT pg_temp.rt(n) FROM generate_series(1,5) n);
 UPDATE public.consents SET accepted=false WHERE user_id=pg_temp.rt(4);
-INSERT INTO public.provider_patient_links(provider_id,patient_id,status,linked_at) VALUES
- (pg_temp.rt(1),pg_temp.rt(11),'active',now()),(pg_temp.rt(3),pg_temp.rt(11),'active',now()),
- (pg_temp.rt(4),pg_temp.rt(11),'active',now()),(pg_temp.rt(5),pg_temp.rt(12),'active',now());
+INSERT INTO public.provider_patient_links(id,provider_id,patient_id,status,linked_at) VALUES
+ (pg_temp.rt(301),pg_temp.rt(1),pg_temp.rt(11),'active',now()),(pg_temp.rt(302),pg_temp.rt(3),pg_temp.rt(11),'active',now()),
+ (pg_temp.rt(303),pg_temp.rt(4),pg_temp.rt(11),'active',now()),(pg_temp.rt(304),pg_temp.rt(5),pg_temp.rt(12),'active',now());
 INSERT INTO public.organization_memberships(organization_id,user_id,role,status,joined_at,created_by)
  VALUES(public.primary_organization_for_provider(pg_temp.rt(1)),pg_temp.rt(2),'clinician','active',now(),pg_temp.rt(1));
 -- Two patients' real rows make an accidentally broadened RLS visibly fail.
@@ -54,12 +54,12 @@ INSERT INTO public.vitals(id,patient_id,recorded_at,weight_lbs)
  SELECT pg_temp.rt(100+n),pg_temp.rt(n),now(),180 FROM unnest(ARRAY[11,12]) n;
 INSERT INTO public.symptoms(id,patient_id,recorded_at,dyspnea)
  SELECT pg_temp.rt(100+n),pg_temp.rt(n),now(),0 FROM unnest(ARRAY[11,12]) n;
-INSERT INTO public.medications(id,patient_id,name) SELECT pg_temp.rt(100+n),pg_temp.rt(n),'Synthetic medication' FROM unnest(ARRAY[11,12]) n;
+INSERT INTO public.medications(id,patient_id,name,frequency) SELECT pg_temp.rt(100+n),pg_temp.rt(n),'Synthetic medication','once_daily' FROM unnest(ARRAY[11,12]) n;
 INSERT INTO public.medication_logs(medication_id,patient_id,scheduled_date,dose_number)
- SELECT pg_temp.rt(100+n),pg_temp.rt(n),current_date,1 FROM unnest(ARRAY[11,12]) n;
+ SELECT pg_temp.rt(100+n),pg_temp.rt(n),(now() AT TIME ZONE public.medication_calendar_zone_internal(pg_temp.rt(n)))::date,1 FROM unnest(ARRAY[11,12]) n;
 INSERT INTO public.education_progress(patient_id,domain_id) SELECT pg_temp.rt(n),'daily_weight' FROM unnest(ARRAY[11,12]) n;
-INSERT INTO public.provider_notes(patient_id,provider_id,content)
- SELECT pg_temp.rt(n),pg_temp.rt(CASE n WHEN 11 THEN 1 ELSE 5 END),'[Titration] Synthetic documentation' FROM unnest(ARRAY[11,12]) n;
+INSERT INTO public.provider_notes(id,patient_id,provider_id,content)
+ SELECT pg_temp.rt(100+n),pg_temp.rt(n),pg_temp.rt(CASE n WHEN 11 THEN 1 ELSE 5 END),'[Titration] Synthetic documentation' FROM unnest(ARRAY[11,12]) n;
 INSERT INTO public.alert_preferences(provider_id,patient_id,alert_type)
  SELECT pg_temp.rt(CASE n WHEN 11 THEN 1 ELSE 5 END),pg_temp.rt(n),'no_checkin' FROM unnest(ARRAY[11,12]) n;
 INSERT INTO public.scheduled_followups(patient_id,provider_id,scheduled_at,type)
@@ -144,16 +144,16 @@ SET LOCAL ROLE service_role;
 SELECT set_config('request.jwt.claims','{"role":"service_role"}',true);
 SELECT lives_ok('SELECT id FROM public.profiles LIMIT 1','health query available');
 SELECT lives_ok($q$SELECT id FROM public.profiles WHERE role='tester' AND sandbox_expires_at<=now() LIMIT 100$q$,'cleanup lookup available without invoking cleanup');
-SELECT is((SELECT count(id) FROM public.profiles WHERE role='provider'),5::bigint,'aggregate provider count available');
-SELECT is((SELECT count(id) FROM public.profiles WHERE role='patient'),2::bigint,'aggregate patient count available');
+SELECT is((SELECT count(id) FROM public.profiles WHERE role='provider' AND id BETWEEN pg_temp.rt(1) AND pg_temp.rt(12)),5::bigint,'aggregate provider count available');
+SELECT is((SELECT count(id) FROM public.profiles WHERE role='patient' AND id BETWEEN pg_temp.rt(1) AND pg_temp.rt(12)),2::bigint,'aggregate patient count available');
 SELECT lives_ok('SELECT state FROM public.profiles WHERE state IS NOT NULL','aggregate geographic query available');
 SELECT lives_ok($q$SELECT created_at FROM public.profiles WHERE role='provider'$q$,'aggregate month query available');
-SELECT is((SELECT count(id) FROM public.alerts),2::bigint,'aggregate alert count available with id grant');
-SELECT is((SELECT count(id) FROM public.provider_notes WHERE content ILIKE '[Titration]%'),2::bigint,'aggregate note filter available');
-SELECT is((SELECT count(id) FROM public.access_requests WHERE status='pending'),1::bigint,'aggregate access-request count available');
+SELECT is((SELECT count(id) FROM public.alerts WHERE id IN(pg_temp.rt(111),pg_temp.rt(112))),2::bigint,'aggregate alert count available with id grant');
+SELECT is((SELECT count(id) FROM public.provider_notes WHERE content ILIKE '[Titration]%' AND id IN(pg_temp.rt(111),pg_temp.rt(112))),2::bigint,'aggregate note filter available');
+SELECT is((SELECT count(id) FROM public.access_requests WHERE status='pending' AND id=pg_temp.rt(200)),1::bigint,'aggregate access-request count available');
 SELECT lives_ok($q$DELETE FROM public.provider_patient_links WHERE id=pg_temp.rt(201) AND status='invited'$q$,'failed invitation compensates exact invited row');
 SELECT is((SELECT count(id) FROM public.provider_patient_links WHERE id=pg_temp.rt(201)),0::bigint,'invitation compensation removed only target');
-SELECT is((SELECT count(id) FROM public.provider_patient_links),4::bigint,'clinical links untouched by compensation');
+SELECT is((SELECT count(id) FROM public.provider_patient_links WHERE id BETWEEN pg_temp.rt(301) AND pg_temp.rt(304)),4::bigint,'clinical links untouched by compensation');
 SELECT throws_ok($q$INSERT INTO public.vitals(patient_id,recorded_at) VALUES(pg_temp.rt(11),now())$q$,'42501',NULL,'service raw vitals insert stays revoked');
 SELECT throws_ok($q$INSERT INTO public.symptoms(patient_id,recorded_at) VALUES(pg_temp.rt(11),now())$q$,'42501',NULL,'service raw symptoms insert stays revoked');
 SELECT throws_ok($q$SELECT * FROM public.notification_dispatch_attempts$q$,'42501',NULL,'service cannot read transport journal directly');

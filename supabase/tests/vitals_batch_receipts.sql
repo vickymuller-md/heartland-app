@@ -153,7 +153,8 @@ INSERT INTO public.vitals(patient_id,recorded_at,weight_lbs,sbp,dbp,heart_rate,s
 SET LOCAL ROLE authenticated;
 INSERT INTO vb_results VALUES('limit',public.prepare_vitals_batch('46000000-0000-4000-8000-000000000012'));
 SELECT lives_ok($q$SELECT public.submit_vitals_batch('46000000-0000-4000-8000-000000000012',pg_temp.vb_id('limit'),
- (SELECT jsonb_agg(pg_temp.vb_rows()->0) FROM generate_series(1,7)))$q$,'1000 base plus seven captured rows accepted');
+ (SELECT jsonb_agg(jsonb_set(pg_temp.vb_rows()->0,'{recorded_at}',to_jsonb(now() - interval '30 minutes')))
+  FROM generate_series(1,7)))$q$,'1000 base plus seven recent captured rows accepted');
 SELECT is((SELECT jsonb_array_length(history) FROM public.vitals_submission_batch_rows WHERE batch_id=pg_temp.vb_id('limit') AND row_index=6),1006,'last recipe history contains1006 prior-only entries');
 SELECT is((SELECT count(DISTINCT receipt.captured_at)::int FROM public.vitals_submission_receipts AS receipt
  JOIN public.vitals_submission_batch_rows AS mapping USING(request_id) WHERE mapping.batch_id=pg_temp.vb_id('limit')),1,'all seven use same captured instant');
