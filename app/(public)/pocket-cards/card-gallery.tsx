@@ -54,7 +54,7 @@ export function CardGallery() {
           <h2 className="text-lg font-semibold text-gray-900">
             Module {group.module.number}: {group.module.name}
           </h2>
-          <p className="text-sm text-gray-500 mt-0.5 mb-4">
+          <p className="text-sm text-gray-600 mt-0.5 mb-4">
             {group.module.description}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

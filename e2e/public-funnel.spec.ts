@@ -1,3 +1,4 @@
+import { enterSandboxArea } from './support/sandbox-navigation';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
@@ -21,13 +22,13 @@ test('complete synthetic sandbox opens without an account', async ({ page }) => 
   await expect(patient360Cta).toHaveClass(/text-white/);
   await expect(patient360Cta).toHaveClass(/border-white\/25/);
 
-  await page.getByTestId('sandbox-nav-daily-loop').click();
+  await enterSandboxArea(page, 'daily-loop');
   await expect(page.getByTestId('sandbox-daily-loop')).toBeVisible();
   await page.getByRole('button', { name: 'Review', exact: true }).first().click();
   await expect(page.getByText('reviewed').first()).toBeVisible();
 
   for (const section of ['copilot', 'outreach', 'patient-360', 'pathways', 'coordination', 'patient-view', 'impact']) {
-    await page.getByTestId(`sandbox-nav-${section}`).click();
+    await enterSandboxArea(page, section);
     await expect(page.getByTestId(`sandbox-${section}`)).toBeVisible();
   }
   await expect(page.getByText('9/9 areas explored')).toBeVisible();
@@ -105,14 +106,12 @@ test('about page states the eight modules, separate identities and disclaimers',
   await expect(page.locator('a[href="https://doi.org/10.5281/zenodo.19101219"]')).toHaveCount(0);
 });
 
-test('explain-this-result degrades silently when the assistant is disabled', async ({ page }) => {
+test('explains the assessed example and keeps the result available during an assistant outage', async ({ page }) => {
   await page.goto('/risk-calculator');
-  const button = page.getByTestId('explain-result-button');
-  await expect(button).toBeVisible();
-  await button.click();
-  // CI runs without SANDBOX_AI_ENABLED: the assist call falls back and the
-  // button removes itself, leaving the deterministic result untouched.
-  await expect(page.getByTestId('explain-result')).toHaveCount(0);
+  await expect(page.getByTestId('result-card')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Load synthetic example' }).click();
+  await page.getByTestId('explain-result-button').click();
+  await expect(page.getByRole('button', { name: 'Retry explanation' })).toBeVisible();
   await expect(page.getByTestId('result-card')).toBeVisible();
 });
 

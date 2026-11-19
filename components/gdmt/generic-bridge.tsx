@@ -23,7 +23,7 @@ export function GenericBridge() {
         <CardTitle>{GENERIC_BRIDGE_TITLE}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Table>
+        <Table scrollLabel="Generic medication reference">
           <TableHeader>
             <TableRow>
               <TableHead>Drug Class</TableHead>

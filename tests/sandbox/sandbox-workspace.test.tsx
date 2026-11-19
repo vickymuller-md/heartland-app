@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { SANDBOX_PATHWAYS, SANDBOX_PATIENTS, SANDBOX_SECTIONS, SANDBOX_TASKS, SANDBOX_TEAM } from '@/lib/sandbox/fixtures';
 import { SandboxWorkspace } from '@/app/(sandbox)/sandbox/sandbox-workspace';
 import { requestAssist } from '@/lib/sandbox-ai/assist-client';
+import { OUTREACH_TRANSCRIPTS } from '@/lib/sandbox-ai/fixtures';
 
 vi.mock('@/lib/product-analytics/actions', () => ({
   trackProductEvent: vi.fn().mockResolvedValue(undefined),
@@ -30,6 +31,7 @@ describe('complete synthetic sandbox dataset', () => {
 
 describe('SandboxWorkspace', () => {
   beforeEach(() => {
+    window.history.replaceState(null, '', '/sandbox');
     vi.clearAllMocks();
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('No network in navigation tests')));
     vi.stubGlobal('matchMedia', vi.fn().mockImplementation((media: string) => ({
@@ -137,6 +139,7 @@ describe('SandboxWorkspace', () => {
     const first = render(<SandboxWorkspace />);
     const restored = JSON.parse(localStorage.getItem('heartland_synthetic_sandbox_v2')!);
     first.unmount();
+    window.history.replaceState(null, '', '/sandbox');
     Object.assign(restored, {
       selectedSection: 'patient-360', selectedPatientId: SANDBOX_PATIENTS[1].id,
       populationSize: 500, dayIndex: 1, workedCases: [{ id: 'pop-7-d1', outcome: 'reviewed_no_call', dayIndex: 1 }],
@@ -371,10 +374,31 @@ describe('SandboxWorkspace', () => {
       await user.click(button);
     }
     await user.click(area.getByRole('button', { name: 'Message care team' }));
+    expect(area.getByText(/Available in the demo portal/)).toBeInTheDocument();
+    await user.click(area.getByRole('button', { name: 'Simulate the recipient marking it as read' }));
+    expect(area.getByText('Read confirmed in the demo portal.')).toBeInTheDocument();
     await user.click(area.getByRole('button', { name: 'View contact plan' }));
     expect(area.getByText('3/4', { exact: true })).toBeInTheDocument();
-    expect(new Set(JSON.parse(window.localStorage.getItem('heartland_synthetic_sandbox_v2')!).patientCheckIns).size).toBe(5);
+    expect(new Set(JSON.parse(window.localStorage.getItem('heartland_synthetic_sandbox_v2')!).patientCheckIns).size).toBe(6);
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('clears a completed call and ignores an in-flight call from the visit that was reset', async () => {
+    const transcript = { ...OUTREACH_TRANSCRIPTS[0], id: 'ai-run-abc123', patientName: 'Fictional test call' };
+    let finish!: (response: Response) => void;
+    const pending = new Promise<Response>((resolve) => { finish = resolve; });
+    const response = () => Response.json({ transcript });
+    vi.mocked(fetch).mockResolvedValueOnce(response()).mockReturnValueOnce(pending);
+    render(<SandboxWorkspace />);
+    fireEvent.click(screen.getByTestId('sandbox-nav-outreach'));
+    fireEvent.click(screen.getByTestId('run-simulated-call'));
+    expect(await screen.findByTestId('outreach-call-ai-run-abc123')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('run-simulated-call'));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset', exact: true }));
+    await act(async () => { finish(response()); await pending; });
+    fireEvent.click(screen.getByTestId('sandbox-nav-outreach'));
+    expect(screen.queryByTestId('outreach-call-ai-run-abc123')).toBeNull();
+    expect(JSON.parse(localStorage.getItem('heartland_synthetic_sandbox_v2')!).aiOutreachRuns).toEqual([]);
   });
 
   it('recovers safely from tampered local sandbox state', async () => {
@@ -405,6 +429,7 @@ describe('SandboxWorkspace', () => {
     render(<SandboxWorkspace />);
     await waitFor(() => expect(screen.getByTestId('sandbox-day-badge')).toHaveTextContent('Day 1 of 5'));
 
+    window.history.replaceState(null, '', '/sandbox');
     window.localStorage.setItem('heartland_synthetic_sandbox_v2', JSON.stringify({
       savedAt: Date.now(),
       selectedSection: 'command',

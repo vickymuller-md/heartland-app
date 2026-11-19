@@ -77,7 +77,17 @@ describe('SandboxOutreach', () => {
     render(<SandboxOutreach liveCalls={[LIVE_TRANSCRIPT]} runs={[]} onLiveCall={onLiveCall} />);
 
     const audioBlock = screen.getByTestId('outreach-audio-call-maria-redflag');
-    expect(within(audioBlock).getByLabelText(/Synthetic audio simulation of the call with Maria Santos/)).toBeInTheDocument();
+    const audio = within(audioBlock).getByLabelText(/Synthetic audio simulation of the call with Maria Santos/);
+    const status = within(audioBlock).getByRole('status');
+    expect(status).toHaveTextContent('Recording available');
+    fireEvent.playing(audio);
+    expect(status).toHaveTextContent('Recording playing');
+    fireEvent.pause(audio);
+    expect(status).toHaveTextContent('Recording paused');
+    fireEvent.ended(audio);
+    expect(status).toHaveTextContent('Recording played to the end');
+    fireEvent.error(audio);
+    expect(status).toHaveTextContent('Open the transcript below');
     expect(audioBlock.textContent).toContain('no real call is placed');
     // Live simulations are text-only: no audio block is rendered for them.
     expect(screen.queryByTestId(`outreach-audio-${LIVE_TRANSCRIPT.id}`)).toBeNull();

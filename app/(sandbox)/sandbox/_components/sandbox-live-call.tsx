@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Mic, MicOff, Phone, PhoneOff, Send, Volume2 } from 'lucide-react';
 import { trackProductEvent, type ProductEventInput } from '@/lib/product-analytics/actions';
 import { getPublicDisseminationContext } from '@/lib/product-analytics/public-context';
@@ -149,9 +149,9 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
   const logRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLElement | null>(null);
   const startedTracked = useRef(false);
-  const startedAt = useRef(Date.now());
+  const startedAt = useRef<number | null>(null);
+  const fillerIndex = useRef(0);
   const micFailuresRef = useRef(0);
-  const sendSpokenRef = useRef<(message: string) => void>(() => undefined);
   const speechPendingRef = useRef(false);
   const turnEpochRef = useRef(0);
   const closedRef = useRef(false);
@@ -205,6 +205,15 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
   const prompts = callPromptsFor(scriptId, locale);
   const staticAudio = staticAudioPlaybackPolicy(locale);
   const copy = SCRIPT_COPY[scriptId];
+
+  useEffect(() => {
+    if (phase === 'active' && startedAt.current === null) startedAt.current = Date.now();
+    if (phase === 'done' && result && startedAt.current !== null) {
+      trackAiEvent('ai_checkin_completed', Math.min(Date.now() - startedAt.current, 3_600_000));
+      if (result.disposition !== 'routine') trackAiEvent('ai_escalation_demonstrated');
+      startedAt.current = null;
+    }
+  }, [phase, result]);
 
   useEffect(() => {
     if (phase !== 'active' || closed) return;
@@ -261,7 +270,6 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
   function trackStartOnce() {
     if (startedTracked.current) return;
     startedTracked.current = true;
-    startedAt.current = Date.now();
     trackAiEvent('ai_checkin_started');
   }
 
@@ -289,8 +297,6 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
     }
     setResult({ disposition, redFlags: turn.redFlags, detail: closing });
     setPhase('done');
-    trackAiEvent('ai_checkin_completed', Math.min(Date.now() - startedAt.current, 3_600_000));
-    if (disposition !== 'routine') trackAiEvent('ai_escalation_demonstrated');
     onComplete({ disposition, redFlagIds: turn.redFlags.map((flag) => flag.id) });
     return stop;
   }
@@ -464,8 +470,9 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
     addLine('you', message);
     // Current filler text remains available while historical recordings pause.
     const fillers = fillerPromptsFor(locale);
-    const filler = fillers[Math.floor(Math.random() * fillers.length)];
-    if (filler) {
+    if (fillers.length > 0) {
+      const filler = fillers[fillerIndex.current % fillers.length];
+      fillerIndex.current += 1;
       addLine('assistant', filler.text);
       const playback = staticAudioPlaybackPolicy(locale, filler.audioSrc);
       if (playback.canPlay && playback.url) enqueueAudio(playback.url);
@@ -532,8 +539,8 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
       }
     }
   }
-  useEffect(() => {
-    sendSpokenRef.current = (message: string) => { void sendMessage(message, 'voice'); };
+  const sendSpokenAnswer = useEffectEvent((message: string) => {
+    void sendMessage(message, 'voice');
   });
 
   async function answerWithText() {
@@ -581,7 +588,7 @@ export function SandboxLiveCall({ patient, scriptId = 'daily_checkin', onComplet
       try { recognition.stop(); } catch { /* already stopped */ }
       if (transcript.length > 0) {
         micFailuresRef.current = 0;
-        sendSpokenRef.current(transcript.slice(0, 500));
+        sendSpokenAnswer(transcript.slice(0, 500));
       } else {
         failed();
       }

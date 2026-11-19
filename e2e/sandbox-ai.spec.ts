@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
+import { openSandboxAreas, enterSandboxArea } from './support/sandbox-navigation';
 import { SANDBOX_PATIENTS, SANDBOX_PATHWAYS, SANDBOX_SECTIONS } from '../lib/sandbox/fixtures';
 import { OUTREACH_TRANSCRIPTS, SIMULATED_CALL_SCENARIOS } from '../lib/sandbox-ai/fixtures';
 import { applyDeterministicAnswer, createInitialState, emptyExtraction } from '../lib/sandbox-ai/engine';
@@ -58,6 +59,44 @@ test.describe('sandbox navigation shell', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
   });
 
+  for (const [width, height] of [[320, 740], [390, 844], [1440, 900]]) {
+    test(`sample review is visible, shareable and resumable at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.goto('/guide');
+      await page.getByRole('link', { name: 'Try sandbox' }).click();
+      await expect(page).toHaveURL(/area=command/);
+      const start = page.getByTestId('population-run');
+      const box = await start.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.y + box!.height).toBeLessThanOrEqual(height);
+      await start.click();
+      await page.getByRole('button', { name: 'Review a sample case' }).click();
+      const example = page.locator('[data-testid^="queue-entry-"][aria-expanded="true"]');
+      await expect(example).toBeFocused();
+      const ordinal = new URL(page.url()).searchParams.get('case');
+      expect(ordinal).toMatch(/^\d+$/);
+      const caseUrl = page.url();
+      const record = page.getByTestId(`queue-worked-${ordinal}`);
+      await expect(record).toHaveCount(0);
+      await page.getByTestId(new RegExp(`^queue-outcome-${ordinal}-`)).first().click();
+      await expect(record).toContainText('Selected by you in this simulation');
+      await enterSandboxArea(page, 'impact');
+      await page.goBack();
+      await expect(page).toHaveURL(caseUrl);
+      await expect(example).toBeFocused();
+      await expect(record).toBeVisible();
+      await page.reload();
+      await expect(example).toBeFocused({ timeout: 15_000 });
+      await expect(record).toBeVisible();
+      await page.getByRole('button', { name: 'Reset', exact: true }).click();
+      await expect(page.getByTestId('population-count-processed')).toBeHidden();
+      expect(new URL(page.url()).searchParams.has('case')).toBe(false);
+      await page.goto(caseUrl);
+      await expect(example).toBeVisible();
+      await expect(record).toHaveCount(0);
+    });
+  }
+
   for (const width of [320, 390, 768, 1024, 1440]) {
     for (const fontSize of [16, 32]) {
       test(`fits navigation at ${width}px with ${fontSize}px root text`, async ({ page }, testInfo) => {
@@ -84,6 +123,7 @@ test.describe('sandbox navigation shell', () => {
         await testInfo.attach('navigation-initial', { body: await page.screenshot(), contentType: 'image/png' });
 
         for (const section of SANDBOX_SECTIONS) {
+          await openSandboxAreas(page);
           const button = page.getByTestId(`sandbox-nav-${section.id}`);
           await expect(button).toHaveAccessibleName(section.shortLabel);
           await assertFits(button);
@@ -153,7 +193,7 @@ test.describe('sandbox navigation shell', () => {
         await expect(page.getByRole('region', { name: 'Sandbox area: Command Center', exact: true })).toBeFocused();
         await tour.evaluate((element) => element.scrollIntoView({ block: 'start', behavior: 'instant' }));
         await testInfo.attach('navigation-tour', { body: await page.screenshot(), contentType: 'image/png' });
-        await page.getByTestId('sandbox-nav-impact').click();
+        await enterSandboxArea(page, 'impact');
         await impact.getByRole('button', { name: 'Reset sandbox', exact: true }).click();
         await expect(page.getByRole('region', { name: 'Sandbox area: Command Center', exact: true })).toBeFocused();
         await expect(page.getByTestId('sandbox-nav-command')).toHaveAttribute('aria-current', 'page');
@@ -170,7 +210,7 @@ test.describe('sandbox navigation shell', () => {
       });
 
       test('patient sources, tabs, chart labels and local table scrolling', async ({ page }, testInfo) => {
-        await page.getByTestId('sandbox-nav-patient-360').click();
+        await enterSandboxArea(page, 'patient-360');
         const area = page.getByTestId('sandbox-patient-360');
         const chooser = area.getByRole('region', { name: 'Choose a synthetic patient' });
         for (const patient of SANDBOX_PATIENTS) {
@@ -229,7 +269,7 @@ test.describe('sandbox navigation shell', () => {
           if (unavailable) return route.fulfill({ json: { fallback: true } });
           pending = route;
         });
-        await page.getByTestId('sandbox-nav-outreach').click();
+        await enterSandboxArea(page, 'outreach');
         const area = page.getByTestId('sandbox-outreach');
         const card = page.getByTestId('outreach-call-call-maria-redflag');
         const audio = card.getByTestId('outreach-audio-call-maria-redflag').locator('audio');
@@ -324,7 +364,7 @@ test.describe('sandbox navigation shell', () => {
           HTMLMediaElement.prototype.play = () => ++attempts === 1 ? Promise.reject(new DOMException('Mock user gesture required', 'NotAllowedError')) : Promise.resolve();
           HTMLMediaElement.prototype.pause = () => {};
         });
-        await page.getByTestId('sandbox-nav-copilot').click();
+        await enterSandboxArea(page, 'copilot');
         const area = page.getByTestId('sandbox-copilot');
         expect(heldCall).toBeUndefined();
         await area.getByTestId('run-morning-round').click();
@@ -379,7 +419,7 @@ test.describe('sandbox navigation shell', () => {
       });
 
       test('pathways, coordination and patient portal local interactions', async ({ page }, testInfo) => {
-        await page.getByTestId('sandbox-nav-pathways').click();
+        await enterSandboxArea(page, 'pathways');
         const pathways = page.getByTestId('sandbox-pathways');
         expect(await pathways.getByRole('link', { name: 'Open interactive tool' }).evaluateAll((links) => links.map((link) => link.getAttribute('href')))).toEqual(SANDBOX_PATHWAYS.map((pathway) => pathway.href));
         for (const pathway of SANDBOX_PATHWAYS) {
@@ -389,7 +429,7 @@ test.describe('sandbox navigation shell', () => {
         }
         await expect(pathways.getByRole('button', { name: 'Explored', exact: true })).toHaveCount(6);
         await assertAreaReflow(pathways, width);
-        await page.getByTestId('sandbox-nav-coordination').click();
+        await enterSandboxArea(page, 'coordination');
         const coordination = page.getByTestId('sandbox-coordination');
         for (const button of await coordination.getByRole('button', { name: /^Assign to/ }).all()) {
           if (await button.isEnabled()) await button.click();
@@ -399,7 +439,7 @@ test.describe('sandbox navigation shell', () => {
         await coordination.getByRole('button', { name: 'Confirm next milestone' }).click();
         await coordination.getByRole('button', { name: 'Generate synthetic handoff' }).click();
         await assertAreaReflow(coordination, width);
-        await page.getByTestId('sandbox-nav-patient-view').click();
+        await enterSandboxArea(page, 'patient-view');
         const portal = page.getByTestId('sandbox-patient-view');
         for (const name of ['Record today’s weight', 'Confirm medications', 'Review next education item']) {
           const button = portal.getByRole('button', { name: new RegExp(name) });
@@ -431,7 +471,7 @@ test.describe('sandbox navigation shell', () => {
           if (unavailable) return route.fulfill({ json: { fallback: true } });
           pending = route;
         });
-        await page.getByTestId('sandbox-nav-daily-loop').click();
+        await enterSandboxArea(page, 'daily-loop');
         const area = page.getByTestId('sandbox-daily-loop');
         await expect.poll(() => Boolean(pending)).toBe(true);
         await expect(area.getByTestId('draft-morning-brief')).toBeDisabled();
@@ -476,7 +516,7 @@ test.describe('sandbox navigation shell', () => {
 
       test('conversation surfaces reflow, stay keyboard-reachable and manage focus', async ({ page }) => {
         await page.route('**/outreach-audio/**', (route) => route.abort());
-        await page.getByTestId('sandbox-nav-patient-view').click();
+        await enterSandboxArea(page, 'patient-view');
         const view = page.getByTestId('sandbox-patient-view');
         // Bounded-height transcripts must stay readable from the keyboard.
         const assertLogKeyboard = async (log: Locator) => {
@@ -582,7 +622,7 @@ test.describe('sandbox navigation shell', () => {
         await page.getByRole('button', { name: 'Submit check-in' }).click();
       } else {
         await page.goto('/sandbox');
-        await page.getByTestId('sandbox-nav-patient-view').click();
+        await enterSandboxArea(page, 'patient-view');
         await page.getByTestId('open-live-call').click();
         await page.getByTestId('answer-call').click();
         const chips = page.getByTestId('live-call-chips');
@@ -612,11 +652,12 @@ test.describe('sandbox navigation shell', () => {
     await page.setViewportSize({ width: 320, height: 700 });
     await page.goto('/sandbox');
     await page.evaluate(() => { document.documentElement.style.fontSize = '32px'; });
-    await expect(page.getByTestId('sandbox-nav-command')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Explore all 9 areas' })).toBeVisible();
     await page.keyboard.press('Tab');
     await expect(page.getByRole('link', { name: 'Skip to main content' })).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(page.getByRole('main')).toBeFocused();
+    await openSandboxAreas(page);
     await page.getByTestId('sandbox-nav-command').focus();
     await page.keyboard.press('Tab');
     await expect(page.getByTestId('sandbox-nav-copilot')).toBeFocused();
@@ -624,6 +665,7 @@ test.describe('sandbox navigation shell', () => {
     await expect(page.getByTestId('sandbox-nav-command')).toHaveAttribute('aria-current', 'page');
     await page.keyboard.press('Enter');
     await expect(page.getByRole('region', { name: 'Sandbox area: Copilot', exact: true })).toBeFocused();
+    await openSandboxAreas(page);
     await page.getByTestId('sandbox-nav-daily-loop').focus();
     await page.keyboard.press('Shift+Tab');
     await expect(page.getByTestId('sandbox-nav-copilot')).toBeFocused();
@@ -638,8 +680,8 @@ test.describe('sandbox navigation shell', () => {
 });
 
 async function openCheckIn(page: import('@playwright/test').Page) {
-  await page.goto('/sandbox');
-  await page.getByTestId('sandbox-nav-patient-view').click();
+  if (new URL(page.url()).pathname !== '/sandbox') await page.goto('/sandbox');
+  await enterSandboxArea(page, 'patient-view');
   await page.getByRole('button', { name: /Complete symptom check-in/ }).click();
   await expect(page.getByTestId('sandbox-ai-checkin')).toBeVisible();
 }
@@ -704,7 +746,7 @@ test('chest pain routes straight to the emergency template', async ({ page }) =>
 
 test('the simulated live call completes on the deterministic chip path', async ({ page }) => {
   await page.goto('/sandbox');
-  await page.getByTestId('sandbox-nav-patient-view').click();
+  await enterSandboxArea(page, 'patient-view');
   await page.getByTestId('open-live-call').click();
   await page.getByTestId('answer-call').click();
   await expect(page.getByRole('log')).toContainText('any chest pain');
@@ -737,7 +779,7 @@ test('pre-generated call audio is served to anonymous visitors, not redirected t
 
 test('the titration follow-up call completes on chips and the registered gates decide', async ({ page }) => {
   await page.goto('/sandbox');
-  await page.getByTestId('sandbox-nav-patient-view').click();
+  await enterSandboxArea(page, 'patient-view');
   await page.getByTestId('open-titration-call').click();
   await page.getByTestId('answer-call').click();
   await expect(page.getByRole('log')).toContainText('since we increased your medicine');
@@ -758,7 +800,7 @@ test('the titration follow-up call completes on chips and the registered gates d
 
 test('the live call retains the Spanish transcript on the deterministic chip path', async ({ page }) => {
   await page.goto('/sandbox');
-  await page.getByTestId('sandbox-nav-patient-view').click();
+  await enterSandboxArea(page, 'patient-view');
   await page.getByTestId('open-live-call').click();
   await page.getByTestId('call-locale-es').click();
   await page.getByTestId('answer-call').click();
@@ -781,12 +823,12 @@ test('assist surfaces render drafted content from the assist endpoint', async ({
   });
 
   await page.goto('/sandbox');
-  await page.getByTestId('sandbox-nav-daily-loop').click();
+  await enterSandboxArea(page, 'daily-loop');
   await page.getByTestId('draft-morning-brief').click();
   await expect(page.getByTestId('morning-brief')).toContainText('Maria Santos needs a callback');
   await expect(page.getByTestId('morning-brief')).toContainText('never by the AI');
 
-  await page.getByTestId('sandbox-nav-outreach').click();
+  await enterSandboxArea(page, 'outreach');
   const maria = page.getByTestId('outreach-call-call-maria-redflag');
   await maria.getByRole('button', { name: /Draft SBAR handoff/ }).click();
   await page.getByTestId('sbar-polish').click();
@@ -833,7 +875,7 @@ test('the copilot runs the morning round, narrates the brief, and answers queue 
   });
 
   await page.goto('/sandbox');
-  await page.getByTestId('sandbox-nav-copilot').click();
+  await enterSandboxArea(page, 'copilot');
   await expect(page.getByTestId('sandbox-copilot')).toBeVisible();
 
   await page.getByTestId('run-morning-round').click();
@@ -847,7 +889,7 @@ test('the copilot runs the morning round, narrates the brief, and answers queue 
   await expect(page.getByTestId('copilot-trace')).toContainText('queue (4 items) → rule weight_gain_5lb_7d');
 
   // The round populated the shared queue in the Daily Loop.
-  await page.getByTestId('sandbox-nav-daily-loop').click();
+  await enterSandboxArea(page, 'daily-loop');
   await expect(page.getByTestId('daily-loop-outreach')).toContainText('Persona 2 (synthetic)');
 });
 
@@ -882,7 +924,7 @@ test('the call chats back on pure small talk and streams text before audio', asy
   });
 
   await page.goto('/sandbox');
-  await page.getByTestId('sandbox-nav-patient-view').click();
+  await enterSandboxArea(page, 'patient-view');
   await page.getByTestId('open-live-call').click();
   await page.getByTestId('answer-call').click();
 
@@ -943,8 +985,21 @@ test('the theater replay shows live processing and Skip lands on the exact final
 
 test('a case is fully workable: chart, protocol outcome, progress, Daily Loop, and Impact', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/sandbox');
-  await page.getByTestId('population-run').click();
+  // Hold the app scripts so the same first click is exercised after a slow hydration.
+  const script = /\/_next\/static\/.*\.js(?:\?|$)/;
+  let unblock!: () => void;
+  const delay = new Promise<void>(resolve => { unblock = resolve; });
+  await page.route(script, async route => { await delay; await route.continue(); });
+  const run = page.getByTestId('population-run');
+  try {
+    await page.goto('/sandbox', { waitUntil: 'commit' });
+    await expect(run).toBeDisabled();
+  } finally {
+    unblock();
+  }
+  await expect(run).toBeEnabled();
+  await page.unroute(script);
+  await run.click();
   await expect(page.getByTestId('population-exceptions')).toBeVisible();
   await expect(page.getByTestId('queue-progress')).toContainText('0 of');
 
@@ -969,11 +1024,11 @@ test('a case is fully workable: chart, protocol outcome, progress, Daily Loop, a
   await expect(page.getByTestId(`queue-send-${ordinal}`)).toContainText('In Daily Loop ✓');
 
   // The population patient now exists in the Daily Loop's outreach queue.
-  await page.getByTestId('sandbox-nav-daily-loop').click();
+  await enterSandboxArea(page, 'daily-loop');
   await expect(page.getByTestId('daily-loop-outreach')).toContainText('Overnight round');
 
   // And the work shows up as adoption evidence.
-  await page.getByTestId('sandbox-nav-impact').click();
+  await enterSandboxArea(page, 'impact');
   await expect(page.getByText('Cases documented')).toBeVisible();
 });
 
@@ -1016,7 +1071,7 @@ test('the day simulation advances the badge, logs the completed day, and survive
   });
 
   await page.goto('/sandbox');
-  await page.getByTestId('sandbox-nav-copilot').click();
+  await enterSandboxArea(page, 'copilot');
   await expect(page.getByTestId('copilot-day-badge')).toContainText('Day 1 of 5');
   await expect(page.getByTestId('sandbox-day-badge')).toContainText('Day 1 of 5');
   await expect(page.getByTestId('advance-day')).toBeDisabled();
@@ -1123,7 +1178,7 @@ test('the live call supports hands-free voice answers with server-provided speec
   });
 
   await page.goto('/sandbox');
-  await page.getByTestId('sandbox-nav-patient-view').click();
+  await enterSandboxArea(page, 'patient-view');
   await page.getByTestId('open-live-call').click();
   await page.getByTestId('live-call-mic-opt-in').click();
   await page.getByTestId('answer-call').click();
@@ -1152,7 +1207,7 @@ test('the live call supports hands-free voice answers with server-provided speec
 
 test('outreach demonstrates simulated calls, transcripts, extraction, and the SBAR draft', async ({ page }) => {
   await page.goto('/sandbox');
-  await page.getByTestId('sandbox-nav-outreach').click();
+  await enterSandboxArea(page, 'outreach');
   await expect(page.getByTestId('sandbox-outreach')).toBeVisible();
 
   const maria = page.getByTestId('outreach-call-call-maria-redflag');
@@ -1179,7 +1234,7 @@ test('outreach demonstrates simulated calls, transcripts, extraction, and the SB
 
 test('daily loop shows the automated-outreach work items with the required labeling', async ({ page }) => {
   await page.goto('/sandbox');
-  await page.getByTestId('sandbox-nav-daily-loop').click();
+  await enterSandboxArea(page, 'daily-loop');
 
   const block = page.getByTestId('daily-loop-outreach');
   await expect(block).toContainText('From automated outreach (demonstration)');
@@ -1201,11 +1256,11 @@ test('AI surfaces never use the restricted regulatory terminology', async ({ pag
   await expect(page.locator('body')).not.toContainText(/clinical decision support/i);
   await expect(page.locator('body')).not.toContainText(/AI (triage|diagnos)/i);
 
-  await page.getByTestId('sandbox-nav-outreach').click();
+  await enterSandboxArea(page, 'outreach');
   await expect(page.locator('body')).not.toContainText(/clinical decision support/i);
   await expect(page.locator('body')).not.toContainText(/AI (triage|diagnos)/i);
 
-  await page.getByTestId('sandbox-nav-copilot').click();
+  await enterSandboxArea(page, 'copilot');
   await expect(page.getByTestId('sandbox-copilot')).toBeVisible();
   await expect(page.locator('body')).not.toContainText(/clinical decision support/i);
   await expect(page.locator('body')).not.toContainText(/AI (triage|diagnos)/i);
@@ -1221,7 +1276,7 @@ test('accessibility: check-in open and outreach pass critical/serious axe checks
   const checkInScan = await new AxeBuilder({ page }).analyze();
   expect(checkInScan.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? ''))).toEqual([]);
 
-  await page.getByTestId('sandbox-nav-outreach').click();
+  await enterSandboxArea(page, 'outreach');
   await page.getByTestId('outreach-call-call-maria-redflag').getByRole('button', { name: /View transcript/ }).click();
   const outreachScan = await new AxeBuilder({ page }).analyze();
   expect(outreachScan.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? ''))).toEqual([]);
@@ -1283,9 +1338,9 @@ async function conversationMedia(page: Page) {
 
 async function openConversation(page: Page, patientId: string, surface: ConversationSurface, script: ScriptId = 'daily_checkin') {
   const patient = SANDBOX_PATIENTS.find((entry) => entry.id === patientId)!;
-  await page.getByTestId('sandbox-nav-patient-360').click();
+  await enterSandboxArea(page, 'patient-360');
   await page.getByRole('region', { name: 'Choose a synthetic patient' }).getByRole('button', { name: new RegExp(patient.name) }).click();
-  await page.getByTestId('sandbox-nav-patient-view').click();
+  await enterSandboxArea(page, 'patient-view');
   if (surface === 'checkin') await page.getByRole('button', { name: /Complete symptom check-in/ }).click();
   else await page.getByTestId(script === 'daily_checkin' ? 'open-live-call' : 'open-titration-call').click();
   const area = page.getByTestId(surface === 'checkin' ? 'sandbox-ai-checkin' : 'sandbox-live-call');
@@ -1637,7 +1692,7 @@ test.describe('conversation integrity', () => {
       expect(route.request().postDataJSON().kind).toBe('morning_brief');
       await route.fulfill({ json: { kind: 'morning_brief', brief: 'Synthetic known-fixture summary for the audio consumer regression.', mp3Base64: ENDING_AUDIO } });
     });
-    await page.getByTestId('sandbox-nav-copilot').click();
+    await enterSandboxArea(page, 'copilot');
     const area = page.getByTestId('sandbox-copilot');
     expect(calls).toBe(0);
     await area.getByTestId('run-morning-round').click();

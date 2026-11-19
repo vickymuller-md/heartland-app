@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { Eye, EyeOff, FlaskConical, HeartPulse, UserCheck } from "lucide-react";
@@ -31,7 +31,8 @@ export function RegisterForm({ inviteProviderId, inviterName, initialRole = "tes
     register,
     handleSubmit,
     setValue,
-    watch,
+    control,
+    getValues,
     formState: { errors },
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
@@ -43,6 +44,8 @@ export function RegisterForm({ inviteProviderId, inviterName, initialRole = "tes
       consent_accepted: false,
     },
   });
+
+  const role = useWatch({ control, name: "role" });
 
   function handleFormSubmit() {
     // Open consent dialog before proceeding
@@ -60,7 +63,7 @@ export function RegisterForm({ inviteProviderId, inviterName, initialRole = "tes
     setValue("consent_accepted", true, { shouldValidate: true });
 
     // Re-trigger submit after consent is accepted
-    const values = watch();
+    const values = getValues();
     await doSignUp({ ...values, consent_accepted: true });
   }
 
@@ -258,7 +261,7 @@ export function RegisterForm({ inviteProviderId, inviterName, initialRole = "tes
 
             {/* Submit */}
             <Button type="submit" className="min-h-11 w-full" size="lg" disabled={submitting}>
-              {submitting ? "Creating account..." : watch("role") === "tester" ? "Start free sandbox" : "Create patient account"}
+              {submitting ? "Creating account..." : role === "tester" ? "Start free sandbox" : "Create patient account"}
             </Button>
 
             {/* Links */}

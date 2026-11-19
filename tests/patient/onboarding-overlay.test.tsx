@@ -10,7 +10,8 @@
  * - Dot progress indicator tracks current screen
  */
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock markOnboardingSeen server action
@@ -48,6 +49,21 @@ describe('OnboardingOverlay (PTUX-01)', () => {
     expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument();
   });
 
+  it('names the introduction and returns focus to Today on Escape without completing it', async () => {
+    const user = userEvent.setup();
+    const { markOnboardingSeen } = await import('@/lib/patient/onboarding-actions');
+    render(<main id="main-content" tabIndex={-1}><OnboardingOverlay showOnboarding /></main>);
+    const title = screen.getByRole('heading', { name: 'Welcome to HEARTLAND' });
+    expect(screen.getByRole('dialog', { name: 'Welcome to HEARTLAND' })).toBeVisible();
+    await waitFor(() => expect(title).toHaveFocus());
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('heading', { name: 'Your Daily Routine' })).toHaveFocus();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('main')).toHaveFocus());
+    expect(markOnboardingSeen).not.toHaveBeenCalled();
+  });
+
   it('advances to screen 2 when Next is clicked on screen 1', () => {
     render(<OnboardingOverlay showOnboarding={true} />);
 
@@ -64,10 +80,10 @@ describe('OnboardingOverlay (PTUX-01)', () => {
     // Advance to screen 3
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
 
-    expect(screen.getByText('Your Data is Private')).toBeInTheDocument();
+    expect(screen.getByText('Privacy & access')).toBeInTheDocument();
   });
 
-  it('calls markOnboardingSeen and sets localStorage when Get Started is clicked on screen 3', async () => {
+  it('records completion for the current account and closes the tour on screen 3', async () => {
     const { markOnboardingSeen } = await import(
       '@/lib/patient/onboarding-actions'
     );
@@ -82,10 +98,7 @@ describe('OnboardingOverlay (PTUX-01)', () => {
     fireEvent.click(screen.getByRole('button', { name: /get started/i }));
 
     expect(markOnboardingSeen).toHaveBeenCalled();
-    expect(localStorageMock.setItem).toHaveBeenCalledWith(
-      'heartland_onboarding_seen',
-      '1'
-    );
+    expect(localStorageMock.setItem).not.toHaveBeenCalled();
   });
 
   it('shows dot progress indicator with active dot for current screen (1, 2, 3)', () => {

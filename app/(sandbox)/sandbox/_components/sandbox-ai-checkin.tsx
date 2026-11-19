@@ -63,7 +63,7 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
   const [voiceOn, setVoiceOn] = useState(false);
   const { audioRef, needsTap, enqueue, resumeAfterTap, stop } = useAssistantAudioQueue();
   const startedTracked = useRef(false);
-  const startedAt = useRef(Date.now());
+  const startedAt = useRef(0);
   const logRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLElement | null>(null);
   const requestEpoch = useRef(0);
@@ -72,6 +72,7 @@ export function SandboxAiCheckIn({ patient, onComplete, onClose }: {
   const completed = useRef(false);
 
   useEffect(() => {
+    startedAt.current = Date.now();
     closed.current = false;
     requestEpoch.current += 1;
     return () => {

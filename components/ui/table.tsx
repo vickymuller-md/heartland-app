@@ -4,11 +4,28 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+function Table({ className, scrollLabel, ...props }: React.ComponentProps<"table"> & { scrollLabel?: string }) {
+  const container = React.useRef<HTMLDivElement>(null);
+  const [scrollable, setScrollable] = React.useState(false);
+  React.useEffect(() => {
+    const el = container.current;
+    if (!el || !scrollLabel) return;
+    const measure = () => setScrollable(el.scrollWidth > el.clientWidth + 1);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    if (el.firstElementChild) observer.observe(el.firstElementChild);
+    return () => observer.disconnect();
+  }, [scrollLabel]);
   return (
     <div
+      ref={container}
+      role={scrollable ? "region" : undefined}
+      aria-label={scrollable ? scrollLabel : undefined}
+      tabIndex={scrollable ? 0 : undefined}
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      className="relative w-full overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
     >
       <table
         data-slot="table"

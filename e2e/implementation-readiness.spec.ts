@@ -15,7 +15,7 @@ test.describe('public operational clarification', () => {
       await expect(readiness.getByRole('heading', { name: 'Local Readiness & Training', exact: true })).toBeVisible();
       await expect(readiness.getByText(/Community, ambulatory or remote pharmacists/)).toBeVisible();
       await expect(readiness.getByRole('listitem')).toHaveCount(4);
-      await expect(page.getByRole('heading', { name: 'Urgent or emergency assessment', exact: true })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Urgent or emergency assessment', exact: true })).toHaveCount(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 1);
       const analysis = await new AxeBuilder({ page }).include('#implementation-readiness').analyze();
       expect(analysis.violations).toEqual([]);
@@ -24,6 +24,9 @@ test.describe('public operational clarification', () => {
       await expect(toggle).toHaveAttribute('aria-expanded', 'false');
       await toggle.click();
       await expect(readiness.getByRole('link', { name: /12 synthetic scenarios/ })).toBeVisible();
+      await page.goto('/guide#comorbidity');
+      const referral = page.locator('#comorbidity');
+      await expect(referral.getByRole('heading', { name: 'Urgent or emergency assessment' })).toBeVisible();
     });
   }
 

@@ -9,7 +9,8 @@
  * EFFI-02: Sidebar refactored into 3 labeled NAV_GROUPS with urgentCount badge.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Dialog, DialogClose, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -74,105 +75,86 @@ export const NAV_GROUPS = [
   },
 ] as const;
 
-// ---------- ProviderShell Component ----------
+function ProviderNavigation({ urgentCount, onNavigate }: { urgentCount: number | null; onNavigate?: () => void }) {
+  const pathname = usePathname();
+  return (
+    <>
+      {/* Navigation -- grouped (EFFI-02) */}
+      <nav aria-label="Workspace destinations" className="flex-1 overflow-y-auto px-3 py-4">
+        {NAV_GROUPS.map((group) => (
+          <div key={group.label} className="mb-4">
+            <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-wider text-slate-300">
+              {group.label}
+            </p>
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              const showCount = item.showBadge && urgentCount !== null && urgentCount > 0;
+              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${active ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+                  onClick={onNavigate}
+                  aria-current={active ? 'page' : undefined}
+                >
+                  <Icon className="size-5 shrink-0" />
+                  <span className="flex-1">{item.label}</span>
+                  {item.showBadge && urgentCount === null && <span className="text-xs text-amber-200">Count unavailable</span>}
+                  {showCount && (
+                    <span className="ml-auto rounded-full bg-red-700 px-1.5 py-0.5 text-xs font-bold text-white">
+                      {urgentCount}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
 
-interface ProviderShellProps {
-  children: React.ReactNode;
-  urgentCount: number;
+      {/* Sign Out */}
+      <div className="border-t border-slate-700 p-4">
+        <SignOutButton className="w-full justify-start text-slate-300 hover:bg-slate-800 hover:text-white" />
+      </div>
+    </>
+  );
 }
 
-export function ProviderShell({ children, urgentCount }: ProviderShellProps) {
+export function ProviderShell({ children, urgentCount }: { children: React.ReactNode; urgentCount: number | null }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const pathname = usePathname();
+  useEffect(() => {
+    const desktop = window.matchMedia?.('(min-width: 64rem)');
+    const closeOnDesktop = () => { if (desktop?.matches) setSidebarOpen(false); };
+    desktop?.addEventListener('change', closeOnDesktop);
+    return () => desktop?.removeEventListener('change', closeOnDesktop);
+  }, []);
 
   return (
     <div className="flex min-h-screen">
       <a href="#main-content" className="sr-only z-50 rounded bg-white px-4 py-3 font-semibold text-slate-950 focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Skip to main content</a>
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-slate-900 text-white transition-transform duration-200 print:hidden lg:static lg:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        {/* Logo / Title */}
-        <div className="flex h-16 items-center justify-between px-6">
-          <span className="text-lg font-bold tracking-wide">HEARTLAND</span>
-          <button
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded hover:bg-slate-700 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Close sidebar"
-          >
-            <X className="size-5" />
-          </button>
-        </div>
-
-        {/* Navigation -- grouped (EFFI-02) */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4">
-          {NAV_GROUPS.map((group) => (
-            <div key={group.label} className="mb-4">
-              <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                {group.label}
-              </p>
-              {group.items.map((item) => {
-                const Icon = item.icon;
-                const showCount = item.showBadge && urgentCount > 0;
-                const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${active ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
-                    onClick={() => setSidebarOpen(false)}
-                    aria-current={active ? 'page' : undefined}
-                  >
-                    <Icon className="size-5 shrink-0" />
-                    <span className="flex-1">{item.label}</span>
-                    {showCount && (
-                      <span className="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-xs font-bold text-white">
-                        {urgentCount}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
-
-        {/* Sign Out */}
-        <div className="border-t border-slate-700 p-4">
-          <SignOutButton className="w-full justify-start text-slate-300 hover:bg-slate-800 hover:text-white" />
-        </div>
+      <aside className="hidden w-64 shrink-0 flex-col bg-slate-900 text-white lg:flex print:hidden">
+        <div className="flex h-16 items-center px-6 text-lg font-bold">HEARTLAND</div>
+        <ProviderNavigation urgentCount={urgentCount} />
       </aside>
-
-      {/* Main content area */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Mobile top bar */}
         <header className="flex h-16 items-center border-b border-gray-200 bg-white px-4 print:hidden lg:hidden">
-          <button
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded hover:bg-gray-100"
-            onClick={() => setSidebarOpen(true)}
-            aria-label="Open sidebar"
-          >
-            <Menu className="size-5 text-gray-700" />
-          </button>
-          <span className="ml-3 text-lg font-bold tracking-wide text-slate-900">
-            HEARTLAND
-          </span>
+          <Dialog open={sidebarOpen} onOpenChange={setSidebarOpen}>
+            <DialogTrigger aria-label="Open sidebar" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded hover:bg-gray-100">
+              <Menu className="size-5 text-gray-700" />
+            </DialogTrigger>
+            <DialogContent showCloseButton={false} className="inset-y-0 left-0 flex h-dvh w-72 max-w-[90vw] translate-x-0 translate-y-0 flex-col gap-0 rounded-none bg-slate-900 p-0 text-white">
+              <div className="flex min-h-16 items-center justify-between px-4">
+                <DialogTitle>Workspace navigation</DialogTitle>
+                <DialogClose aria-label="Close sidebar" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded hover:bg-slate-700"><X className="size-5" /></DialogClose>
+              </div>
+              <ProviderNavigation urgentCount={urgentCount} onNavigate={() => setSidebarOpen(false)} />
+            </DialogContent>
+          </Dialog>
+          <span className="ml-3 text-lg font-bold tracking-wide text-slate-900">HEARTLAND</span>
         </header>
-
         <ConnectivityBanner workspace="provider" />
-
-        {/* Page content */}
-        <main id="main-content" className="flex-1 p-4 sm:p-6">{children}</main>
+        <main id="main-content" tabIndex={-1} className="flex-1 p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );

@@ -214,6 +214,7 @@ function SbarDraft({ patient, extraction }: { patient: SandboxPatient; extractio
 
 function CallCard({ transcript }: { transcript: SimulatedCallTranscript }) {
   const [expanded, setExpanded] = useState(false);
+  const [audioStatus, setAudioStatus] = useState<'ready' | 'playing' | 'paused' | 'finished' | 'unavailable'>('ready');
   const [showSbar, setShowSbar] = useState(false);
   const staticAudio = staticAudioPlaybackPolicy('en', transcript.audioSrc);
   const patient = transcript.patientId
@@ -248,11 +249,18 @@ function CallCard({ transcript }: { transcript: SimulatedCallTranscript }) {
         <div className="mt-3 rounded-lg bg-slate-50 p-3" data-testid={`outreach-audio-${transcript.id}`}>
           <audio
             controls
+            onPlaying={() => setAudioStatus('playing')}
+            onPause={(event) => { if (!event.currentTarget.ended) setAudioStatus('paused'); }}
+            onEnded={() => setAudioStatus('finished')}
+            onError={() => setAudioStatus('unavailable')}
             preload="none"
             src={staticAudio.url}
             className="h-14 min-w-0 w-full max-w-full"
             aria-label={`Synthetic audio simulation of the call with ${transcript.patientName}`}
           />
+          <p role="status" className="mt-1 text-sm font-semibold text-slate-700">
+            {{ ready: 'Recording available', playing: 'Recording playing', paused: 'Recording paused', finished: 'Recording played to the end', unavailable: 'Audio unavailable · Open the transcript below' }[audioStatus]}
+          </p>
           <p className="mt-1 text-xs leading-4 text-slate-600">
             Synthetic audio simulation (AI-generated voices) — no real call is placed. The transcript below is the source of record.
           </p>

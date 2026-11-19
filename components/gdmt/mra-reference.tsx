@@ -44,7 +44,7 @@ export function MraReference() {
         </div>
         <p className="text-xs italic text-muted-foreground">{EPLERENONE_GUIDE.unitCaution}</p>
         <div className="overflow-x-auto">
-          <Table>
+          <Table scrollLabel="MRA reference">
             <TableHeader>
               <TableRow>
                 <TableHead>Serum potassium (mEq/L)</TableHead>

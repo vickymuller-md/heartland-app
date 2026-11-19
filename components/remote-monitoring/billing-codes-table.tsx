@@ -16,7 +16,7 @@ export function BillingCodesTable() {
         <CardTitle>Remote Monitoring Billing Navigation</CardTitle>
       </CardHeader>
       <CardContent>
-        <Table>
+        <Table scrollLabel="Monitoring billing reference">
           <TableHeader>
             <TableRow>
               <TableHead>Code</TableHead>

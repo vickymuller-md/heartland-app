@@ -206,6 +206,7 @@ export interface SandboxDemoState {
   taskStates: Record<string, SandboxTaskState>;
   selectedPatientId: string;
   selectedSection: SandboxSectionId;
+  completedRound?: { size: SandboxDemoState['populationSize']; dayIndex: number; caseOrdinal: number | null };
   visitedSections: SandboxSectionId[];
   exploredPathways: string[];
   patientCheckIns: string[];

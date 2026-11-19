@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, ArrowRight, BookOpenCheck, ClipboardCheck, HeartPulse, Network, PhoneCall, ShieldCheck, Users } from 'lucide-react';
 import { outcomeLabel, outcomeOptionsFor } from '@/lib/sandbox/case-outcomes';
 import { SANDBOX_PATIENTS, SANDBOX_SECTIONS, SANDBOX_TASKS } from '@/lib/sandbox/fixtures';
 import {
-  getPopulationDayEvents,
+  getPopulationDayEvents, simulatePopulationDay,
   getPopulationPatientChart,
   POPULATION_SIZES,
   TRACK_SHORT_LABELS,
@@ -13,7 +13,7 @@ import {
   type PopulationEvent,
   type PopulationSize,
 } from '@/lib/sandbox/population';
-import type { AiOutreachRun, SandboxSectionId, SandboxTaskState, WorkedCase } from '@/lib/sandbox/types';
+import type { AiOutreachRun, SandboxDemoState, SandboxSectionId, SandboxTaskState, WorkedCase } from '@/lib/sandbox/types';
 import { RED_FLAG_CRITERIA } from '@/lib/vitals/constants';
 import { Button } from '@/components/ui/button';
 import { SandboxAiEvidenceFlow } from './sandbox-ai-evidence-flow';
@@ -24,7 +24,9 @@ import { MetricCard, SectionHeading, SyntheticBanner } from './sandbox-ui';
 const ICONS = [Activity, PhoneCall, ClipboardCheck, HeartPulse, BookOpenCheck, Network, Users, ShieldCheck];
 const numberFormat = new Intl.NumberFormat('en-US');
 
-export function SandboxCommandCenter({ taskStates, visitedSections, dayIndex, populationSize, workedCases, sentWorkItemIds, onPopulationSize, onWorkCase, onSendToDailyLoop, onNavigate, automatedCallsCount }: {
+export function SandboxCommandCenter({ restoredRound, onRoundChange, taskStates, visitedSections, dayIndex, populationSize, workedCases, sentWorkItemIds, onPopulationSize, onWorkCase, onSendToDailyLoop, onNavigate, automatedCallsCount }: {
+  restoredRound?: SandboxDemoState['completedRound'];
+  onRoundChange?: (completed: boolean, caseOrdinal: number | null, push: boolean) => void;
   taskStates: Record<string, SandboxTaskState>;
   visitedSections: SandboxSectionId[];
   dayIndex: number;
@@ -41,21 +43,45 @@ export function SandboxCommandCenter({ taskStates, visitedSections, dayIndex, po
   const actioned = Object.values(taskStates).filter((state) => ['actioned', 'awaiting', 'closed'].includes(state.status)).length;
   const nextSection = SANDBOX_SECTIONS.find((section) => !visitedSections.includes(section.id) && section.id !== 'command')?.id ?? 'daily-loop';
 
-  const [result, setResult] = useState<PopulationDayResult | null>(null);
+  const [initialResult] = useState(() => restoredRound ? simulatePopulationDay(populationSize, dayIndex) : null);
+  const [result, setResult] = useState<PopulationDayResult | null>(initialResult);
+  const [caseOrdinal, setCaseOrdinal] = useState<number | null>(restoredRound?.caseOrdinal ?? null);
+  const queue = useMemo(() => result ? getPopulationDayEvents(populationSize, dayIndex)
+    .filter(isReviewQueueEvent)
+    .sort((a, b) => QUEUE_CATEGORY_RANK[a.category] - QUEUE_CATEGORY_RANK[b.category])
+    .slice(0, 12) : [], [result, populationSize, dayIndex]);
+
+  function selectCase(ordinal: number | null, moveFocus = false) {
+    setCaseOrdinal(ordinal);
+    onRoundChange?.(true, ordinal, true);
+    if (moveFocus && ordinal !== null) {
+      requestAnimationFrame(() => document.getElementById(`sample-case-${ordinal}`)?.focus());
+    }
+  }
 
   return (
     <div className="min-w-0 space-y-8 [overflow-wrap:anywhere] [&_button]:h-auto [&_button]:min-h-11 [&_button]:max-w-full [&_button]:whitespace-normal [&_button]:py-2" data-testid="sandbox-command-center">
-      <section className="rounded-3xl bg-slate-950 px-3 py-8 text-white sm:px-8 lg:px-10">
-        <div className="grid min-w-0 grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:items-start">
+      <section className="rounded-3xl bg-slate-950 px-4 py-5 text-white sm:px-8 lg:px-10">
+        <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:items-start">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-300">Full synthetic product tour</p>
-            <h1 className="mt-3 max-w-3xl text-3xl font-bold tracking-tight sm:text-5xl">Explore a synthetic monitoring round.</h1>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-300">Synthetic check-ins · Day {dayIndex + 1}</p>
+            <h1 className="mt-3 max-w-3xl text-3xl font-bold tracking-tight sm:text-5xl">Follow a sample case</h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
-              Choose a population and follow its simulated check-ins. Registered rules identify
-              flags; monitoring-gap policies route missing responses. See what enters the review
-              queue, what remains unknown, and a limited set of cases to explore.
+              Follow {numberFormat.format(populationSize)} fictional check-ins from the overnight round to a registered rule, a human review and its record.
             </p>
-            <div className="mt-6 flex flex-wrap items-center gap-3">
+            {queue.length > 0 && (
+              <Button className="mt-4 min-h-11 bg-blue-700 text-white hover:bg-blue-800" onClick={() => selectCase(queue[0].ordinal, true)}>Review a sample case <ArrowRight className="ml-2 size-4" /></Button>
+            )}
+          </div>
+
+          <SandboxPopulationReplay initialResult={initialResult} size={populationSize} dayIndex={dayIndex} onDone={(completed) => {
+            setResult(completed);
+            setCaseOrdinal(null);
+            onRoundChange?.(Boolean(completed), null, false);
+          }} />
+          <div className="min-w-0 lg:col-span-2">
+            <p className="text-sm font-semibold text-slate-200">Choose the simulated population</p>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
               <div className="inline-flex max-w-full flex-wrap rounded-lg border border-white/20 p-1" role="group" aria-label="Synthetic population size">
                 {POPULATION_SIZES.map((size) => (
                   <button
@@ -72,8 +98,6 @@ export function SandboxCommandCenter({ taskStates, visitedSections, dayIndex, po
               </div>
             </div>
           </div>
-
-          <SandboxPopulationReplay size={populationSize} dayIndex={dayIndex} onDone={setResult} />
 
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap lg:col-span-2" aria-label="Choose a sandbox path">
             <Button className="min-h-11 bg-blue-600 text-white hover:bg-blue-500" onClick={() => onNavigate(nextSection)} data-testid="sandbox-guided-demo">
@@ -93,12 +117,12 @@ export function SandboxCommandCenter({ taskStates, visitedSections, dayIndex, po
         Names, events, values, messages, access relationships, and outcomes are fictional. Interaction state stays in this browser and never writes to clinical tables.
       </SyntheticBanner>
 
-      <SandboxAiEvidenceFlow populationSize={populationSize} dayIndex={dayIndex} />
-
       {result && (
         <ReviewQueueSection
           result={result}
-          populationSize={populationSize}
+          queue={queue}
+          expandedOrdinal={caseOrdinal}
+          onCaseChange={selectCase}
           dayIndex={dayIndex}
           workedCases={workedCases}
           sentWorkItemIds={sentWorkItemIds}
@@ -107,6 +131,8 @@ export function SandboxCommandCenter({ taskStates, visitedSections, dayIndex, po
           onNavigate={onNavigate}
         />
       )}
+
+      <SandboxAiEvidenceFlow populationSize={populationSize} dayIndex={dayIndex} />
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="Sandbox product metrics">
         <MetricCard label="Close-follow patients" value={SANDBOX_PATIENTS.length} detail="The tour zooms into three synthetic cases." tone="blue" />
@@ -167,9 +193,11 @@ function isReviewQueueEvent(event: PopulationEvent): boolean {
  * three stages — Chart (generated deterministic record), Call (the real
  * interactive AI check-in, inline), Document (whitelisted protocol outcomes).
  */
-function ReviewQueueSection({ result, populationSize, dayIndex, workedCases, sentWorkItemIds, onWorkCase, onSendToDailyLoop, onNavigate }: {
+function ReviewQueueSection({ result, queue, expandedOrdinal, onCaseChange, dayIndex, workedCases, sentWorkItemIds, onWorkCase, onSendToDailyLoop, onNavigate }: {
   result: PopulationDayResult;
-  populationSize: PopulationSize;
+  queue: PopulationEvent[];
+  expandedOrdinal: number | null;
+  onCaseChange: (ordinal: number | null, moveFocus?: boolean) => void;
   dayIndex: number;
   workedCases: WorkedCase[];
   sentWorkItemIds: string[];
@@ -177,12 +205,7 @@ function ReviewQueueSection({ result, populationSize, dayIndex, workedCases, sen
   onSendToDailyLoop: (run: AiOutreachRun) => void;
   onNavigate: (section: SandboxSectionId) => void;
 }) {
-  const [expandedOrdinal, setExpandedOrdinal] = useState<number | null>(null);
   const [callOrdinal, setCallOrdinal] = useState<number | null>(null);
-  const queue = getPopulationDayEvents(populationSize, dayIndex)
-    .filter(isReviewQueueEvent)
-    .sort((a, b) => QUEUE_CATEGORY_RANK[a.category] - QUEUE_CATEGORY_RANK[b.category])
-    .slice(0, 12);
   if (queue.length === 0) return null;
 
   const workedById = new Map(workedCases.map((entry) => [entry.id, entry]));
@@ -193,7 +216,7 @@ function ReviewQueueSection({ result, populationSize, dayIndex, workedCases, sen
     const next = [...queue.slice(index + 1), ...queue.slice(0, index)]
       .find((event) => !workedById.has(`pop-${event.ordinal}-d${dayIndex}`));
     setCallOrdinal(null);
-    setExpandedOrdinal(next ? next.ordinal : null);
+    onCaseChange(next ? next.ordinal : null, true);
   }
 
   return (
@@ -224,9 +247,10 @@ function ReviewQueueSection({ result, populationSize, dayIndex, workedCases, sen
               <button
                 type="button"
                 className="w-full p-3 text-left"
+                id={`sample-case-${event.ordinal}`}
                 aria-expanded={expanded}
                 data-testid={`queue-entry-${event.ordinal}`}
-                onClick={() => { setCallOrdinal(null); setExpandedOrdinal(expanded ? null : event.ordinal); }}
+                onClick={() => { setCallOrdinal(null); onCaseChange(expanded ? null : event.ordinal); }}
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-bold text-slate-950">{event.name} · {event.age}{worked && <span className="ml-2 text-xs font-semibold text-emerald-700">Worked ✓</span>}</p>
@@ -347,7 +371,7 @@ function CasePanel({ event, caseId, runId, dayIndex, worked, sent, callOpen, onO
           </div>
         </div>
         <p className="mt-2 text-xs text-slate-600">
-          Labs: {chart.labs.map((lab) => `${lab.name} ${lab.value}`).join(' · ')} <span className="text-slate-400">(3 days ago)</span>
+          Labs: {chart.labs.map((lab) => `${lab.name} ${lab.value}`).join(' · ')} <span className="text-slate-600">(3 days ago)</span>
         </p>
       </div>
 
@@ -385,7 +409,7 @@ function CasePanel({ event, caseId, runId, dayIndex, worked, sent, callOpen, onO
           Selections below are simulated; they do not place orders or deliver care.
         </p>
         {worked && (
-          <p className="mt-2 text-sm font-semibold text-emerald-800" data-testid={`queue-worked-${event.ordinal}`}>Worked ✓ — {outcomeLabel(worked.outcome)}</p>
+          <p role="status" className="mt-2 text-sm font-semibold text-emerald-800" data-testid={`queue-worked-${event.ordinal}`}><strong>Review record · {event.name}</strong><br />Worked ✓ — {outcomeLabel(worked.outcome)}<br /><span className="font-normal">Day {dayIndex + 1} · {event.ruleIds?.join(', ') || 'Monitoring-gap policy'} · {worked.outcome === 'call_routine_reassured' ? 'Recorded by simulated call rules' : worked.outcome === 'reviewed_legacy' ? 'Earlier simulation record' : 'Selected by you in this simulation'}</span></p>
         )}
         <div className="mt-2 flex flex-wrap gap-2">
           {options.map((option) => (

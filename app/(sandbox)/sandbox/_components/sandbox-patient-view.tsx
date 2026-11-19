@@ -25,6 +25,9 @@ export function SandboxPatientView({ patient, patientCheckIns, onCheckIn }: {
     { id: symptomsTaskId, icon: HeartPulse, title: 'Complete symptom check-in', detail: 'AI-assisted conversation (demonstration) with rule-based red-flag routing' },
     { id: `${patient.id}-education`, icon: BookOpen, title: 'Review next education item', detail: patient.education.next },
   ];
+  const messageId = `${patient.id}-message`;
+  const messageSaved = patientCheckIns.includes(messageId);
+  const messageRead = messageSaved && patientCheckIns.includes(`${messageId}-read`);
   const completed = tasks.filter((task) => patientCheckIns.includes(task.id)).length;
 
   function closeExperience(experience: Experience) {
@@ -125,13 +128,25 @@ export function SandboxPatientView({ patient, patientCheckIns, onCheckIn }: {
               <div className="rounded-xl bg-slate-50 p-3 sm:p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Next care-team action</p><p className="mt-2 font-bold text-slate-950">{patient.carePlan[0]}</p><p className="mt-2 text-sm text-slate-600">Owner and deadline remain visible to the patient where appropriate.</p></div>
               <div className="rounded-xl bg-slate-50 p-3 sm:p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Education progress</p><p className="mt-2 text-3xl font-bold text-slate-950">{patient.education.completed}/{patient.education.total}</p><p className="mt-2 text-sm text-slate-600">Next: {patient.education.next}</p></div>
             </div>
-            <div className="mt-4 flex flex-wrap gap-3"><Button variant="outline" className="min-h-11 h-auto min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]" onClick={() => onCheckIn(`${patient.id}-message`)}><MessageSquareText className="mr-2 size-4" /> Message care team</Button><Button variant="outline" className="min-h-11 h-auto min-w-0 max-w-full whitespace-normal text-sm [overflow-wrap:anywhere]" onClick={() => onCheckIn(`${patient.id}-call`)}><PhoneCall className="mr-2 size-4" /> View contact plan</Button></div>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Button variant="outline" disabled={messageSaved} className="min-h-11 h-auto max-w-full whitespace-normal" onClick={() => onCheckIn(messageId)}><MessageSquareText className="size-4" /> Message care team</Button>
+              <Button variant="outline" className="min-h-11 h-auto max-w-full whitespace-normal" onClick={() => onCheckIn(`${patient.id}-call`)}><PhoneCall className="size-4" /> View contact plan</Button>
+            </div>
+            <p className="mt-3 text-sm text-slate-700" role="status">
+              {messageSaved
+                ? messageRead ? 'Read confirmed in the demo portal.' : 'Available in the demo portal. Read confirmation is pending.'
+                : 'Create a sample message to see its portal status.'}
+            </p>
+            {messageSaved && !messageRead && (
+              <Button variant="outline" className="mt-2 min-h-11 h-auto max-w-full whitespace-normal" onClick={() => onCheckIn(`${messageId}-read`)}>Simulate the recipient marking it as read</Button>
+            )}
+            <p className="mt-2 text-xs leading-5 text-slate-600">This demonstration sends no device or email notification.</p>
           </section>
 
           <section className="rounded-2xl border bg-white p-3 sm:p-6">
-            <div className="flex items-center gap-3"><LockKeyhole className="size-6 text-violet-700" /><div><h2 className="text-xl font-bold text-slate-950">Privacy and access</h2><p className="text-sm text-slate-600">Patients can see and revoke relationships.</p></div></div>
+            <div className="flex items-center gap-3"><LockKeyhole className="size-6 text-violet-700" /><div><h2 className="text-xl font-bold text-slate-950">Privacy and access</h2><p className="text-sm text-slate-600">Review the provider relationships recorded for this workspace.</p></div></div>
             <ul className="mt-4 space-y-3">{patient.access.map((access) => <li key={access} className="flex gap-3 rounded-xl bg-slate-50 p-3 sm:p-4 text-sm text-slate-700"><Check className="mt-0.5 size-4 shrink-0 text-emerald-700" />{access}</li>)}</ul>
-            <p className="mt-4 text-xs leading-5 text-slate-500">The real portal also distinguishes delivered/read communication and exposes access history without showing internal audit payloads.</p>
+            <p className="mt-4 text-xs leading-5 text-slate-500">In Privacy &amp; access, patients can see recorded access events and end an active provider relationship.</p>
           </section>
 
           <section className="rounded-2xl bg-slate-950 p-3 text-white sm:p-6">

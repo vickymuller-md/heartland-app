@@ -5,6 +5,7 @@ import { Activity, BarChart3, BookOpenCheck, ClipboardList, HeartPulse, PhoneCal
 import { trackProductEvent } from '@/lib/product-analytics/actions';
 import { getPublicDisseminationContext } from '@/lib/product-analytics/public-context';
 import { OUTREACH_TRANSCRIPTS, outreachWorkItems, type SimulatedCallTranscript } from '@/lib/sandbox-ai/fixtures';
+import { sandboxStateFromUrl, sandboxUrlFromState, selectSandboxSection } from '@/lib/sandbox/navigation';
 import { OUTCOME_KEYS } from '@/lib/sandbox/case-outcomes';
 import { clampDayIndex, SANDBOX_DAY_COUNT } from '@/lib/sandbox/day-selectors';
 import { DEFAULT_POPULATION_SIZE, POPULATION_SIZES, type PopulationSize } from '@/lib/sandbox/population';
@@ -27,7 +28,7 @@ const MAX_LOCAL_AGE_MS = 7 * 86_400_000;
 const SECTION_ICONS = [Stethoscope, Sparkles, ClipboardList, PhoneCall, Activity, BookOpenCheck, Users, HeartPulse, BarChart3];
 const TASK_STATUSES: SandboxTaskStatus[] = ['open', 'reviewed', 'actioned', 'awaiting', 'closed'];
 const PATIENT_CHECK_IN_IDS = new Set(SANDBOX_PATIENTS.flatMap((patient) =>
-  ['weight', 'meds', 'symptoms', 'education', 'message', 'call'].map((suffix) => `${patient.id}-${suffix}`),
+  ['weight', 'meds', 'symptoms', 'education', 'message', 'message-read', 'call'].map((suffix) => `${patient.id}-${suffix}`),
 ));
 
 function trackSandboxEvent(
@@ -127,6 +128,13 @@ function safeStringList(value: unknown, allowed?: Set<string>, limit = 30): stri
   )))].slice(0, limit);
 }
 
+function restoreCompletedRound(value: unknown, size: PopulationSize, dayIndex: number): SandboxDemoState['completedRound'] {
+  if (!isRecord(value) || value.size !== size || value.dayIndex !== dayIndex) return undefined;
+  const ordinal = value.caseOrdinal;
+  const validCase = typeof ordinal === 'number' && Number.isInteger(ordinal) && ordinal >= 0 && ordinal < size;
+  return { size, dayIndex, caseOrdinal: validCase ? ordinal : null };
+}
+
 function restoreDemoState(value: unknown): SandboxDemoState | null {
   if (!isRecord(value) || typeof value.savedAt !== 'number' || value.savedAt <= Date.now() - MAX_LOCAL_AGE_MS) return null;
 
@@ -140,6 +148,10 @@ function restoreDemoState(value: unknown): SandboxDemoState | null {
   const visitedSections = safeStringList(value.visitedSections, sectionIds) as SandboxSectionId[];
   if (!visitedSections.includes(selectedSection)) visitedSections.push(selectedSection);
 
+  const dayIndex = typeof value.dayIndex === 'number' ? clampDayIndex(value.dayIndex) : 0;
+  const populationSize = POPULATION_SIZES.includes(value.populationSize as PopulationSize)
+    ? value.populationSize as PopulationSize
+    : DEFAULT_POPULATION_SIZE;
   const storedTaskStates = isRecord(value.taskStates) ? value.taskStates : {};
   const taskStates = initialTaskStates();
   for (const task of SANDBOX_TASKS) {
@@ -167,12 +179,11 @@ function restoreDemoState(value: unknown): SandboxDemoState | null {
     patientCheckIns: safeStringList(value.patientCheckIns, PATIENT_CHECK_IN_IDS),
     documentedActions: safeStringList(value.documentedActions, undefined, 20),
     aiOutreachRuns: restoreOutreachRuns(value.aiOutreachRuns),
-    dayIndex: typeof value.dayIndex === 'number' ? clampDayIndex(value.dayIndex) : 0,
+    dayIndex,
     dayLog: restoreDayLog(value.dayLog),
-    populationSize: POPULATION_SIZES.includes(value.populationSize as PopulationSize)
-      ? value.populationSize as PopulationSize
-      : DEFAULT_POPULATION_SIZE,
+    populationSize,
     workedCases: restoreWorkedCases(value),
+    completedRound: restoreCompletedRound(value.completedRound, populationSize, dayIndex),
     savedAt: value.savedAt,
   };
 }
@@ -214,7 +225,8 @@ function hasMeaningfulAction(state: SandboxDemoState): boolean {
     || state.exploredPathways.length > 0
     || state.patientCheckIns.length > 0
     || state.documentedActions.length > 0
-    || state.aiOutreachRuns.length > 0;
+    || state.aiOutreachRuns.length > 0
+    || state.workedCases.length > 0;
 }
 
 export function SandboxWorkspace() {
@@ -222,35 +234,59 @@ export function SandboxWorkspace() {
   // Live transcripts are session-local by design (never persisted); only the
   // run metadata in demo.aiOutreachRuns survives a reload.
   const [liveCalls, setLiveCalls] = useState<SimulatedCallTranscript[]>([]);
+  const visit = useRef(0);
+  const [visitNumber, setVisitNumber] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [navigationRevision, setNavigationRevision] = useState(0);
   const [hydrated, setHydrated] = useState(false);
   const [dayToast, setDayToast] = useState<string | null>(null);
   const dayToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const startedAt = useRef(Date.now());
+  const startedAt = useRef(0);
   const firstActionTracked = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const focusRequested = useRef(false);
+  const restoreCaseFocus = useRef(false);
   const selectedPatient = SANDBOX_PATIENTS.find((patient) => patient.id === demo.selectedPatientId) ?? SANDBOX_PATIENTS[0];
   const currentSectionIndex = SANDBOX_SECTIONS.findIndex((section) => section.id === demo.selectedSection);
   const progress = Math.round((demo.visitedSections.length / SANDBOX_SECTIONS.length) * 100);
   // The day queues only show the current simulation day; older runs stay in history.
   const dayRuns = demo.aiOutreachRuns.filter((run) => run.dayIndex === demo.dayIndex);
 
+  function writeUrl(state: SandboxDemoState, replace = false) {
+    const next = sandboxUrlFromState(new URL(window.location.href), state);
+    if (next.href !== window.location.href) {
+      if (replace) window.history.replaceState(null, '', next);
+      else window.history.pushState(null, '', next);
+    }
+  }
+
   useEffect(() => {
+    startedAt.current = Date.now();
+    let saved = initialDemoState();
     try {
       const stored = localStorage.getItem(SANDBOX_STORAGE_KEY);
-      if (stored) {
-        const restored = restoreDemoState(JSON.parse(stored));
-        if (restored) {
-          setDemo(restored);
-          firstActionTracked.current = hasMeaningfulAction(restored);
-          trackSandboxEvent('sandbox_returned');
-        }
+      const restored = stored ? restoreDemoState(JSON.parse(stored)) : null;
+      if (restored) {
+        saved = restored;
+        firstActionTracked.current = hasMeaningfulAction(restored);
+        trackSandboxEvent('sandbox_returned');
       }
-    } catch {
-      try { localStorage.removeItem(SANDBOX_STORAGE_KEY); } catch { /* Storage can be unavailable in hardened browsers. */ }
-    } finally {
-      setHydrated(true);
+    } catch { /* A disabled or stale store must not prevent opening a shared URL. */ }
+    const entry = new URL(window.location.href);
+    restoreCaseFocus.current = entry.searchParams.has('case');
+    const initial = sandboxStateFromUrl(saved, entry);
+    setDemo(initial);
+    writeUrl(initial, true);
+    setHydrated(true);
+    function restoreLocation() {
+      const url = new URL(window.location.href);
+      restoreCaseFocus.current = url.searchParams.has('case');
+      setMenuOpen(false);
+      setDemo((current) => sandboxStateFromUrl(current, url));
+      setNavigationRevision((revision) => revision + 1);
     }
+    window.addEventListener('popstate', restoreLocation);
+    return () => window.removeEventListener('popstate', restoreLocation);
   }, []);
 
   useEffect(() => {
@@ -278,6 +314,17 @@ export function SandboxWorkspace() {
     content.scrollIntoView({ block: 'start', behavior: smooth ? 'smooth' : 'auto' });
   }, [demo]);
 
+  useEffect(() => {
+    if (!hydrated || !restoreCaseFocus.current || demo.selectedSection !== 'command') return;
+    const ordinal = demo.completedRound?.caseOrdinal;
+    if (ordinal == null) return;
+    const frame = requestAnimationFrame(() => {
+      restoreCaseFocus.current = false;
+      document.getElementById(`sample-case-${ordinal}`)?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [hydrated, navigationRevision, demo.selectedSection, demo.completedRound]);
+
   function trackFirstAction() {
     if (firstActionTracked.current) return;
     firstActionTracked.current = true;
@@ -287,13 +334,23 @@ export function SandboxWorkspace() {
     );
   }
 
-  function navigate(section: SandboxSectionId) {
+  function navigate(section: SandboxSectionId, patientId?: string) {
+    const next = selectSandboxSection(demo, section);
+    if (patientId) next.selectedPatientId = patientId;
+    restoreCaseFocus.current = false;
     focusRequested.current = true;
+    setMenuOpen(false);
+    writeUrl(next);
     setDemo((current) => ({
-      ...current,
-      selectedSection: section,
-      visitedSections: current.visitedSections.includes(section) ? current.visitedSections : [...current.visitedSections, section],
+      ...selectSandboxSection(current, section),
+      selectedPatientId: patientId ?? current.selectedPatientId,
     }));
+  }
+
+  function rememberRound(completed: boolean, caseOrdinal: number | null, push: boolean) {
+    const completedRound = completed ? { size: demo.populationSize, dayIndex: demo.dayIndex, caseOrdinal } : undefined;
+    writeUrl({ ...demo, completedRound }, !push);
+    setDemo((current) => ({ ...current, completedRound }));
   }
 
   function updateTask(task: SandboxTask, status: SandboxTaskStatus, outcome?: string) {
@@ -325,13 +382,12 @@ export function SandboxWorkspace() {
   }
 
   function openPatient(patientId: string) {
-    focusRequested.current = true;
-    setDemo((current) => ({
-      ...current,
-      selectedPatientId: patientId,
-      selectedSection: 'patient-360',
-      visitedSections: current.visitedSections.includes('patient-360') ? current.visitedSections : [...current.visitedSections, 'patient-360'],
-    }));
+    navigate('patient-360', patientId);
+  }
+
+  function choosePatient(selectedPatientId: string) {
+    writeUrl({ ...demo, selectedPatientId });
+    setDemo((current) => ({ ...current, selectedPatientId }));
   }
 
   function explorePathway(pathwayId: string) {
@@ -350,6 +406,7 @@ export function SandboxWorkspace() {
   }
 
   function recordOutreachRun(transcript: SimulatedCallTranscript) {
+    if (visitNumber !== visit.current) return;
     trackFirstAction();
     setLiveCalls((current) => [transcript, ...current].slice(0, 10));
     setDemo((current) => ({
@@ -399,6 +456,7 @@ export function SandboxWorkspace() {
       return {
         ...current,
         dayIndex: nextDay,
+        completedRound: undefined,
         dayLog: [
           ...current.dayLog.filter((entry) => entry.dayIndex !== current.dayIndex),
           { dayIndex: current.dayIndex, escalations, completedAtLabel: 'This visit' },
@@ -414,7 +472,9 @@ export function SandboxWorkspace() {
   }
 
   function setPopulationSize(populationSize: PopulationSize) {
-    setDemo((current) => ({ ...current, populationSize }));
+    if (populationSize === demo.populationSize) return;
+    writeUrl({ ...demo, populationSize, completedRound: undefined });
+    setDemo((current) => ({ ...current, populationSize, completedRound: undefined }));
   }
 
   function reassign(taskId: string, owner: string) {
@@ -423,11 +483,21 @@ export function SandboxWorkspace() {
   }
 
   function reset() {
+    visit.current += 1;
+    setVisitNumber(visit.current);
+    restoreCaseFocus.current = false;
     focusRequested.current = true;
     try { localStorage.removeItem(SANDBOX_STORAGE_KEY); } catch { /* Storage can be unavailable in hardened browsers. */ }
     firstActionTracked.current = false;
     startedAt.current = Date.now();
-    setDemo(initialDemoState());
+    const fresh = initialDemoState();
+    if (dayToastTimer.current) clearTimeout(dayToastTimer.current);
+    setDayToast(null);
+    setMenuOpen(false);
+    setLiveCalls([]);
+    setNavigationRevision((revision) => revision + 1);
+    writeUrl(fresh, true);
+    setDemo(fresh);
   }
 
   const sectionContent = (() => {
@@ -435,12 +505,12 @@ export function SandboxWorkspace() {
       case 'copilot': return <SandboxCopilot outreachItems={outreachWorkItems(dayRuns)} dayIndex={demo.dayIndex} dayLog={demo.dayLog} populationSize={demo.populationSize} reviewedCount={demo.workedCases.filter((entry) => entry.dayIndex === demo.dayIndex).length} onAdvanceDay={advanceDay} onRecordRun={recordOutreachRun} onNavigate={navigate} />;
       case 'daily-loop': return <SandboxDailyLoop taskStates={demo.taskStates} onTaskState={updateTask} onOpenPatient={openPatient} onBulkReview={bulkReview} outreachItems={outreachWorkItems(dayRuns)} dayIndex={demo.dayIndex} onOpenOutreach={() => navigate('outreach')} />;
       case 'outreach': return <SandboxOutreach liveCalls={liveCalls} runs={demo.aiOutreachRuns} onLiveCall={recordOutreachRun} />;
-      case 'patient-360': return <SandboxPatientWorkspace patient={selectedPatient} documentedActions={demo.documentedActions} onPatientChange={(patientId) => setDemo((current) => ({ ...current, selectedPatientId: patientId }))} onDocumentAction={documentAction} />;
+      case 'patient-360': return <SandboxPatientWorkspace patient={selectedPatient} documentedActions={demo.documentedActions} onPatientChange={choosePatient} onDocumentAction={documentAction} />;
       case 'pathways': return <SandboxPathways exploredPathways={demo.exploredPathways} onExplore={explorePathway} />;
       case 'coordination': return <SandboxCoordination taskStates={demo.taskStates} onReassign={reassign} onDocumentAction={documentAction} />;
       case 'patient-view': return <SandboxPatientView patient={selectedPatient} patientCheckIns={demo.patientCheckIns} onCheckIn={checkIn} />;
       case 'impact': return <SandboxImpact visitedSections={demo.visitedSections} exploredPathways={demo.exploredPathways} taskStates={demo.taskStates} documentedActions={demo.documentedActions} patientCheckIns={demo.patientCheckIns} dayIndex={demo.dayIndex} dayLog={demo.dayLog} workedCasesCount={demo.workedCases.length} onReset={reset} />;
-      default: return <SandboxCommandCenter taskStates={demo.taskStates} visitedSections={demo.visitedSections} dayIndex={demo.dayIndex} populationSize={demo.populationSize} workedCases={demo.workedCases} sentWorkItemIds={demo.aiOutreachRuns.map((run) => run.id)} onPopulationSize={setPopulationSize} onWorkCase={workCase} onSendToDailyLoop={addPopulationWorkItem} onNavigate={navigate} automatedCallsCount={OUTREACH_TRANSCRIPTS.length + demo.aiOutreachRuns.filter((run) => !POPULATION_WORK_ITEM_ID.test(run.id)).length} />;
+      default: return <SandboxCommandCenter key={`${hydrated}-${navigationRevision}`} restoredRound={demo.completedRound} onRoundChange={rememberRound} taskStates={demo.taskStates} visitedSections={demo.visitedSections} dayIndex={demo.dayIndex} populationSize={demo.populationSize} workedCases={demo.workedCases} sentWorkItemIds={demo.aiOutreachRuns.map((run) => run.id)} onPopulationSize={setPopulationSize} onWorkCase={workCase} onSendToDailyLoop={addPopulationWorkItem} onNavigate={navigate} automatedCallsCount={OUTREACH_TRANSCRIPTS.length + demo.aiOutreachRuns.filter((run) => !POPULATION_WORK_ITEM_ID.test(run.id)).length} />;
     }
   })();
 
@@ -448,7 +518,12 @@ export function SandboxWorkspace() {
   const nextSection = currentSectionIndex < SANDBOX_SECTIONS.length - 1 ? SANDBOX_SECTIONS[currentSectionIndex + 1] : null;
 
   return (
-    <div className="space-y-6">
+    <fieldset
+      aria-label="Interactive sandbox"
+      aria-busy={!hydrated}
+      disabled={!hydrated}
+      className="min-w-0 space-y-4 aria-busy:[&_button]:cursor-wait aria-busy:[&_button]:opacity-60"
+    >
       <nav className="-mx-4 border-y bg-slate-50 px-4 py-3 sm:-mx-6 sm:px-6" aria-label="Sandbox product navigation">
         <div className="mx-auto max-w-7xl">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -458,7 +533,10 @@ export function SandboxWorkspace() {
             </div>
             <div className="flex min-w-0 flex-wrap items-center gap-3"><div aria-hidden="true" className="hidden h-2 w-40 overflow-hidden rounded-full bg-slate-200 sm:block"><div className="h-full rounded-full bg-violet-600 transition-all motion-reduce:transition-none" style={{ width: `${progress}%` }} /></div><Button size="sm" variant="ghost" className="h-auto min-h-11 max-w-full whitespace-normal py-2 text-sm" onClick={reset}><RotateCcw className="mr-1 size-4" /> Reset</Button></div>
           </div>
-          <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-2">
+          <button type="button" aria-expanded={menuOpen} aria-controls="sandbox-area-list" onClick={() => setMenuOpen(!menuOpen)} className="mt-1 inline-flex min-h-11 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 lg:hidden">
+            {menuOpen ? 'Close areas' : 'Explore all 9 areas'}
+          </button>
+          <div id="sandbox-area-list" className={`mt-2 grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-2 lg:grid ${menuOpen ? 'grid' : 'hidden'}`}>
             {SANDBOX_SECTIONS.map((section, index) => {
               const Icon = SECTION_ICONS[index];
               const active = demo.selectedSection === section.id;
@@ -484,6 +562,6 @@ export function SandboxWorkspace() {
         <p className="text-center text-sm font-semibold uppercase tracking-wide text-slate-500">Step {currentSectionIndex + 1} of {SANDBOX_SECTIONS.length}</p>
         <div className="min-w-0 max-w-full">{nextSection ? <Button className="h-auto min-h-11 max-w-full whitespace-normal py-2" onClick={() => navigate(nextSection.id)}>{nextSection.title} →</Button> : <Button className="h-auto min-h-11 max-w-full whitespace-normal py-2" onClick={() => navigate('command')}>Return to Command Center</Button>}</div>
       </nav>
-    </div>
+    </fieldset>
   );
 }

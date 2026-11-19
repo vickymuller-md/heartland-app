@@ -62,7 +62,7 @@ function ChecklistContent({ providerId, session }: { providerId?: string; sessio
     trigger,
     getValues,
     reset,
-    watch,
+    subscribe,
   } = useForm<TitrationFormData>({
     resolver: zodResolver(titrationFormSchema),
     // react-hook-form's DefaultValues<T> already allows fields to be undefined
@@ -78,14 +78,16 @@ function ChecklistContent({ providerId, session }: { providerId?: string; sessio
   const invalidateContent = session?.invalidateContent;
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => {
-    const subscription = watch((_values, { name }) => {
-      formEpoch.current += 1;
-      invalidateContent?.();
-      if (!name || /^(sbp|hr|potassium|creatinine|creatinineBaseline|egfr|medications)(\.|$)/.test(name)) setProviderDecision(null);
-      setSaveOutcome((previous) => previous === 'unknown' ? previous : null);
+    return subscribe({
+      formState: { values: true },
+      callback: ({ name }) => {
+        formEpoch.current += 1;
+        invalidateContent?.();
+        if (!name || /^(sbp|hr|potassium|creatinine|creatinineBaseline|egfr|medications)(\.|$)/.test(name)) setProviderDecision(null);
+        setSaveOutcome((previous) => previous === 'unknown' ? previous : null);
+      },
     });
-    return () => subscription.unsubscribe();
-  }, [watch, invalidateContent]);
+  }, [subscribe, invalidateContent]);
 
   const handlePatientClear = () => {
     formEpoch.current += 1;

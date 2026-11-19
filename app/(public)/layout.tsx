@@ -13,21 +13,22 @@ export default function PublicLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-terminal font-editorial text-cool antialiased selection:bg-alert/40 selection:text-cool">
+    <div className="[&>header>div]:flex-wrap [&>header>div]:gap-3 [&>header>div>div>a]:inline-flex [&>header_a]:min-h-11 [&>header_nav]:flex-wrap bg-terminal font-editorial text-cool antialiased selection:bg-alert/40 selection:text-cool">
+      <a href="#main-content" className="sr-only z-50 rounded bg-white px-4 py-3 font-semibold text-slate-950 focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Skip to main content</a>
       <Masthead
         currentSite="app"
         navItems={[
           { label: "The Protocol", href: "/about" },
-          { label: "Try sandbox", href: "/register?mode=tester" },
           {
             label: "Research",
             href: "https://doi.org/10.5281/zenodo.23076249",
             external: true,
           },
         ]}
-        cta={{ label: "Sign in", href: "/login" }}
+        secondaryCta={{ label: "Sign in", href: "/login" }}
+        cta={{ label: "Try sandbox", href: "/sandbox" }}
       />
-      <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {children}
       </main>
       <Colophon />

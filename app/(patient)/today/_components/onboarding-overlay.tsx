@@ -1,131 +1,42 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Heart, CalendarDays, ShieldCheck } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { markOnboardingSeen } from '@/lib/patient/onboarding-actions';
 
-interface OnboardingOverlayProps {
-  showOnboarding: boolean;
-}
-
 const SCREENS = [
-  {
-    title: 'Welcome to HEARTLAND',
-    description:
-      'HEARTLAND Protocol helps your care team monitor your heart failure and keep you safe between visits.',
-    icon: Heart,
-  },
-  {
-    title: 'Your Daily Routine',
-    description:
-      'Each day, log your weight, blood pressure, and how you\'re feeling. It only takes 2 minutes.',
-    icon: CalendarDays,
-  },
-  {
-    title: 'Your Data is Private',
-    description:
-      'Your health information is only shared with your linked provider. It is never sold or shared with anyone else.',
-    icon: ShieldCheck,
-  },
+  { title: 'Welcome to HEARTLAND', description: 'Use this workspace to practice check-ins and review your care plan with an authorized care team. Use fictional information during evaluation.', icon: Heart },
+  { title: 'Your Daily Routine', description: 'Open Today to review your tasks, record a check-in and see messages from the care team.', icon: CalendarDays },
+  { title: 'Privacy & access', description: 'Open Privacy & access to review the provider relationships recorded for this workspace. You can end an active link there.', icon: ShieldCheck },
 ] as const;
 
-export function OnboardingOverlay({ showOnboarding }: OnboardingOverlayProps) {
-  const [currentScreen, setCurrentScreen] = useState(0);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    // Dual-persistence guard (pitfall 3): skip overlay if localStorage says already seen
-    if (typeof window !== 'undefined') {
-      const alreadySeen = localStorage.getItem('heartland_onboarding_seen');
-      if (alreadySeen) {
-        setVisible(false);
-        return;
-      }
-    }
-    setVisible(showOnboarding);
-  }, [showOnboarding]);
-
-  if (!visible) return null;
-
-  const screen = SCREENS[currentScreen];
+export function OnboardingOverlay({ showOnboarding }: { showOnboarding: boolean }) {
+  const [step, setStep] = useState(0);
+  const [dismissed, setDismissed] = useState(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const screen = SCREENS[step];
   const Icon = screen.icon;
-  const isLastScreen = currentScreen === SCREENS.length - 1;
-
-  function handleNext() {
-    if (currentScreen < SCREENS.length - 1) {
-      setCurrentScreen((prev) => prev + 1);
-    }
-  }
-
-  function handleGetStarted() {
-    markOnboardingSeen();
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('heartland_onboarding_seen', '1');
-    }
-    setVisible(false);
+  useEffect(() => { if (step > 0) heading.current?.focus(); }, [step]);
+  function finish() {
+    setDismissed(true);
+    void markOnboardingSeen().catch(() => undefined);
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-6">
-      {/* Icon */}
-      <div className="mb-6">
-        <Icon className="w-16 h-16 text-blue-600" aria-hidden="true" />
-      </div>
-
-      {/* Title */}
-      <h2 className="text-2xl font-bold text-gray-900 text-center mb-3">
-        {screen.title}
-      </h2>
-
-      {/* Description */}
-      <p className="text-lg text-gray-600 text-center max-w-sm mb-8">
-        {screen.description}
-      </p>
-
-      {/* Dot progress indicator */}
-      <div className="flex gap-3 mb-8" role="group" aria-label="Progress">
-        {SCREENS.map((_, i) => (
-          <span
-            key={i}
-            data-testid="progress-dot"
-            className={`w-3 h-3 rounded-full ${
-              i === currentScreen ? 'bg-blue-600' : 'bg-gray-300'
-            }`}
-            style={{ minWidth: 48, minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <span
-              className={`block w-3 h-3 rounded-full ${
-                i === currentScreen ? 'bg-blue-600' : 'bg-gray-300'
-              }`}
-            />
-          </span>
-        ))}
-      </div>
-
-      {/* Action button */}
-      {isLastScreen ? (
-        <button
-          onClick={handleGetStarted}
-          className="w-full max-w-sm min-h-[48px] text-lg font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Get Started
+    <Dialog open={showOnboarding && !dismissed} onOpenChange={(open) => { if (!open) setDismissed(true); }}>
+      <DialogContent initialFocus={heading} finalFocus={() => document.querySelector<HTMLElement>('#main-content') ?? true} className="max-h-[90dvh] overflow-y-auto p-6 sm:p-8">
+        <Icon className="size-10 text-blue-700" aria-hidden="true" />
+        <p className="text-sm font-semibold text-slate-600">Introduction · {step + 1} of {SCREENS.length}</p>
+        <DialogTitle ref={heading} tabIndex={-1} className="text-2xl">{screen.title}</DialogTitle>
+        <DialogDescription className="text-base leading-6 text-slate-700">{screen.description}</DialogDescription>
+        <div role="group" aria-label="Progress" className="flex gap-2">
+          {SCREENS.map(({ title }, i) => <span key={title} aria-hidden="true" data-testid="progress-dot" className={`h-1.5 flex-1 rounded-full ${i === step ? 'bg-blue-600' : 'bg-gray-300'}`} />)}
+        </div>
+        <button type="button" onClick={step === SCREENS.length - 1 ? finish : () => setStep(step + 1)} className="min-h-12 rounded-lg bg-blue-700 px-4 text-base font-semibold text-white">
+          {step === SCREENS.length - 1 ? 'Get Started' : 'Next'}
         </button>
-      ) : (
-        <button
-          onClick={handleNext}
-          className="w-full max-w-sm min-h-[48px] text-lg font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Next
-        </button>
-      )}
-
-      {/* Disclaimer on last screen */}
-      {isLastScreen && (
-        <p className="text-sm text-gray-500 text-center max-w-sm mt-4">
-          This app is for healthcare professionals and their patients. It is not
-          a substitute for medical care.
-        </p>
-      )}
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

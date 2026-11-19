@@ -31,7 +31,7 @@ export function FinerenoneGuide() {
           Dose in heart failure with LVEF &ge;40%, by eGFR at initiation
         </h3>
         <div className="overflow-x-auto">
-          <Table>
+          <Table scrollLabel="Finerenone eligibility">
             <TableHeader>
               <TableRow>
                 <TableHead>eGFR at initiation</TableHead>
@@ -80,7 +80,7 @@ export function FinerenoneGuide() {
           Serum potassium adjustment (heart failure indication)
         </h3>
         <div className="overflow-x-auto">
-          <Table>
+          <Table scrollLabel="Finerenone dose reference">
             <TableHeader>
               <TableRow>
                 <TableHead>Serum potassium (mEq/L)</TableHead>
@@ -109,7 +109,7 @@ export function FinerenoneGuide() {
 
       <h3 className="text-sm font-semibold">Agent selection scenarios</h3>
       <div className="overflow-x-auto">
-      <Table>
+      <Table scrollLabel="Finerenone follow-up reference">
         <TableHeader>
           <TableRow>
             <TableHead>Clinical Scenario</TableHead>

@@ -38,10 +38,11 @@ export default function OfflinePage() {
         </p>
       </div>
 
+      <a href="/downtime" className="my-3 inline-flex min-h-11 items-center rounded-lg border border-slate-300 bg-white px-4 font-semibold text-slate-900">Open the offline playbook</a>
       <ReloadButton />
 
       <footer className="mt-12 max-w-md border-t border-gray-200 pt-4">
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-600">
           Controlled evaluation only. No real PHI or unsupervised clinical use
           until organizational security, privacy, validation, and governance gates are approved.
         </p>

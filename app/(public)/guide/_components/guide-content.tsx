@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { ChevronDown, ChevronRight, BookOpen, Users, Activity, Phone, ClipboardCheck, Bell, FileText, Radio, Pill, BarChart2, ClipboardList, Stethoscope, CreditCard, FileBarChart2 } from 'lucide-react';
 import { ProtocolAssistant } from './protocol-assistant';
 import { ImplementationPrinciples, LocalReadinessGuide, ReferralContextGuide } from '@/components/implementation/implementation-guidance';
@@ -38,26 +39,29 @@ const TOC = [
 /*  Collapsible Section Component                                      */
 /* ------------------------------------------------------------------ */
 
+const GuideSection = createContext<{ active: string; select: (id: string) => void }>({ active: '', select: () => undefined });
+
 function Section({ id, title, icon: Icon, children }: {
   id: string;
   title: string;
   icon: React.ComponentType<{ className?: string }>;
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(true);
+  const { active, select } = useContext(GuideSection);
+  const open = active === id;
   return (
-    <section id={id} className="scroll-mt-20 border-b border-gray-200 pb-8 mb-8">
-      <button
-        onClick={() => setOpen(!open)}
+    <section id={id} className="scroll-mt-32 border-b border-gray-200 py-2">
+      <h2><button
+        type="button" onClick={() => select(open ? '' : id)}
         aria-expanded={open}
         aria-controls={`${id}-content`}
-        className="flex w-full items-center gap-3 text-left group"
+        className="flex min-h-12 w-full items-center gap-3 text-left group"
       >
         <Icon className="h-6 w-6 text-blue-600 shrink-0" />
-        <h2 className="text-xl font-semibold text-gray-900 flex-1">{title}</h2>
-        {open ? <ChevronDown className="h-5 w-5 text-gray-400" /> : <ChevronRight className="h-5 w-5 text-gray-400" />}
-      </button>
-      {open && <div id={`${id}-content`} className="mt-4 space-y-4 text-gray-700 leading-relaxed">{children}</div>}
+        <span className="text-lg font-semibold text-gray-900 flex-1">{title}</span>
+        {open ? <ChevronDown className="h-5 w-5 text-gray-600" /> : <ChevronRight className="h-5 w-5 text-gray-600" />}
+      </button></h2>
+      <div id={`${id}-content`} className={`my-4 space-y-4 text-gray-700 leading-relaxed print:block ${open ? '' : 'hidden'}`}>{children}</div>
     </section>
   );
 }
@@ -101,39 +105,58 @@ function NavPath({ path }: { path: string }) {
 /* ------------------------------------------------------------------ */
 
 export function GuideContent() {
+  const [active, setActive] = useState('');
+  useEffect(() => {
+    const readAnchor = () => {
+      const id = window.location.hash.slice(1);
+      setActive(TOC.some((item) => item.id === id) ? id : '');
+    };
+    readAnchor();
+    window.addEventListener('hashchange', readAnchor);
+    window.addEventListener('popstate', readAnchor);
+    return () => {
+      window.removeEventListener('hashchange', readAnchor);
+      window.removeEventListener('popstate', readAnchor);
+    };
+  }, []);
+
+  function select(id: string) {
+    const url = new URL(window.location.href);
+    url.hash = id;
+    window.history.pushState(null, '', url);
+    setActive(id);
+  }
+
   return (
+    <GuideSection.Provider value={{ active, select }}>
     <div className="print:text-sm">
       {/* Header */}
-      <div className="mb-10 text-center">
+      <div className="mb-5 text-center">
         <p className="text-sm font-semibold uppercase tracking-widest text-blue-600 mb-2">HEARTLAND Protocol</p>
-        <h1 className="text-3xl font-bold text-gray-900 mb-3">Provider User Guide</h1>
-        <p className="text-gray-500 max-w-2xl mx-auto">
-          A complete step-by-step guide for healthcare professionals using the HEARTLAND Protocol
-          Clinical Implementation Companion for rural heart failure management.
+        <h1 className="text-3xl font-bold text-gray-900 mb-3">HEARTLAND User Guide</h1>
+        <p className="text-gray-600 max-w-2xl mx-auto">
+          Explore a fictional case, find patient tasks or look up a care-team workflow.
         </p>
-        <p className="text-xs text-gray-400 mt-2">Operational clarification &middot; Updated October 2026</p>
-        <p className="mx-auto mt-3 max-w-2xl text-sm text-amber-800">Public demonstrations are synthetic; authenticated workspaces are for controlled evaluation. Do not enter real patient information. These instructions do not authorize clinical operation or promise live monitoring or contact.</p>
+        <p className="text-xs text-gray-600 mt-2">Operational clarification &middot; Updated October 2026</p>
+        <p className="mx-auto mt-3 max-w-2xl text-sm text-amber-800">Use fictional information in the demonstration and during controlled evaluation. This release does not establish HIPAA readiness or compliance. For clinical operation, your organization must approve use.</p>
       </div>
+
+      <nav aria-label="Start with your task" className="mb-6 grid gap-2 sm:grid-cols-3 print:hidden">
+        <Link className="rounded-xl border border-slate-300 bg-white p-3 font-semibold text-blue-800" href="/sandbox">Visitor · Follow a sample case</Link>
+        <a className="rounded-xl border border-slate-300 bg-white p-3 font-semibold text-blue-800" href="#daily-workflow-patient">Patient · Find today’s tasks</a>
+        <a className="rounded-xl border border-slate-300 bg-white p-3 font-semibold text-blue-800" href="#daily-workflow-provider">Team · Review the daily queue</a>
+      </nav>
 
       {/* Reference assistant over the published implementation content */}
       <ProtocolAssistant />
 
       {/* Table of Contents */}
-      <nav className="mb-12 rounded-lg border border-gray-200 bg-gray-50 p-6 print:hidden">
-        <h3 className="font-semibold text-gray-900 mb-3">Table of Contents</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-          {TOC.map(({ id, label, icon: Icon }) => (
-            <a
-              key={id}
-              href={`#${id}`}
-              className="flex items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-600 hover:bg-white hover:text-blue-700 transition-colors"
-            >
-              <Icon className="h-4 w-4 text-gray-400" />
-              {label}
-            </a>
-          ))}
-        </div>
-      </nav>
+      <details className="my-5 rounded-lg border border-gray-200 bg-gray-50 p-4 print:hidden">
+        <summary className="cursor-pointer py-2 font-semibold text-gray-900">Table of Contents</summary>
+        <nav aria-label="Guide sections" className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
+          {TOC.map(({ id, label }) => <a className="inline-flex min-h-11 items-center text-sm font-semibold text-blue-800 underline" href={`#${id}`} key={id}>{label}</a>)}
+        </nav>
+      </details>
 
       <Section id="implementation-readiness" title="Local Readiness & Training" icon={ClipboardCheck}>
         <ImplementationPrinciples />
@@ -167,9 +190,9 @@ export function GuideContent() {
 
         <h3 className="font-semibold text-gray-900 mt-6 mb-2">Key Features</h3>
         <ul className="list-disc list-inside space-y-1 text-sm">
-          <li><strong>Offline-First:</strong> Works without internet. Vitals are saved locally and sync when connectivity returns.</li>
+          <li><strong>Offline reference:</strong> Open the cached downtime playbook during a connection failure. Reconnect to submit an observation, then check its save receipt.</li>
           <li><strong>Mobile-Friendly:</strong> Installable as a phone app (PWA). No App Store download needed.</li>
-          <li><strong>Controlled Evaluation Boundary:</strong> Authenticated workspaces use organization-scoped access controls and cloud storage, with limited offline state available for resilience. This release does not establish HIPAA readiness or compliance; real-PHI use remains unauthorized until institutional security, privacy, legal, operational, and assurance gates are completed.</li>
+          <li><strong>Controlled Evaluation Boundary:</strong> Authenticated workspaces use organization-scoped access controls and cloud storage, with limited offline state available for resilience. Real patient information requires prior institutional security, privacy, legal and operational approvals.</li>
           <li><strong>Print-Ready:</strong> Every tool can be printed for paper-based workflows.</li>
           <li><strong>Dual Track:</strong> Track A (Digital) for smartphone patients, Track B (Analog) for paper-based patients.</li>
         </ul>
@@ -219,7 +242,7 @@ export function GuideContent() {
             <p>Go to <NavPath path="Sidebar &rarr; Invite Patient" />. Enter the patient&apos;s email address and click &quot;Send Invite.&quot;</p>
           </Step>
           <Step n={2} title="Patient receives invite and registers">
-            <p>The patient receives an email with a link to register. When they create their account, the linkage is automatically established.</p>
+            <p>After the invitation service accepts the request, the recipient opens the email link, completes registration and accepts the consent agreement. Check the recorded relationship before opening the workspace.</p>
           </Step>
           <Step n={3} title="Confirm linkage">
             <p>Go to <NavPath path="Sidebar &rarr; Patients" /> to see the patient appear in your panel.</p>
@@ -256,8 +279,8 @@ export function GuideContent() {
 
         <div className="space-y-4">
           <Step n={1} title="Risk Stratification">
-            <p>Run the 10-variable HEARTLAND Risk Score. Toggle each variable based on the patient&apos;s clinical profile. The score (0&ndash;18) determines their risk tier: Low (0&ndash;4), Moderate (5&ndash;8), or High (9+).</p>
-            <p>The result is automatically saved to the patient&apos;s profile.</p>
+            <p>Confirm the presence or absence of all 10 factors for the selected synthetic patient. The proposed score (0&ndash;18) places the completed example in a tier: Low (0&ndash;4), Moderate (5&ndash;8), or High (9+).</p>
+            <p>In an authorized provider workspace, select the patient, save the complete assessment and check its confirmation. Public examples stay in the calculator.</p>
           </Step>
           <Step n={2} title="Track Assignment">
             <p>Assess whether the patient should be on <strong>Track A (Digital)</strong> or <strong>Track B (Analog)</strong>:</p>
@@ -311,7 +334,7 @@ export function GuideContent() {
             <p>Rate shortness of breath, swelling, fatigue, and orthopnea on a 4-point scale (None / Mild / Moderate / Severe).</p>
           </Step>
           <Step n={6} title="Submit">
-            <p>Tap &quot;Submit.&quot; The app checks for red flags automatically. If a red flag is detected (e.g., 3+ lb weight gain in 2 days), the patient sees an immediate alert with instructions.</p>
+            <p>Submit the observation and check the receipt. Follow the instructions shown for its evaluation status. If evaluation is pending, use the documented follow-up process.</p>
           </Step>
           <Step n={7} title="Check medications">
             <p>The patient marks each medication dose as taken on the Medications tab. This builds their adherence record.</p>
@@ -709,14 +732,14 @@ export function GuideContent() {
       <Section id="messaging" title="Patient Messaging" icon={FileText}>
         <p>
           The structured messaging system lets you send one-way messages to patients. Messages appear as cards on
-          the patient&apos;s Today page. The system tracks when patients read each message.
+          the patient&apos;s Today page. The patient can select “Mark as read” to record a confirmation. A message available in the portal carries no evidence of external delivery.
         </p>
 
         <h3 className="font-semibold text-gray-900 mt-4 mb-2">Message Templates</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
           <div className="rounded-lg border p-3">
             <h4 className="font-medium text-blue-700">Dose Change</h4>
-            <p className="text-xs text-gray-600 mt-1">Notify patient of medication dose adjustments with specific instructions.</p>
+            <p className="text-xs text-gray-600 mt-1">Share medication dose instructions in the patient portal.</p>
           </div>
           <div className="rounded-lg border p-3">
             <h4 className="font-medium text-blue-700">Appointment</h4>
@@ -923,11 +946,12 @@ export function GuideContent() {
       </Section>
 
       {/* Footer */}
-      <div className="mt-12 border-t pt-6 text-center text-xs text-gray-400">
+      <div className="mt-12 border-t pt-6 text-center text-xs text-gray-600">
         <p>HEARTLAND Protocol App &middot; October 2026 operational clarification &middot; Clinical Implementation Companion</p>
         <p className="mt-1">This guide is for healthcare professionals only. Not intended for patient use.</p>
         <p className="mt-1">Protocol Author: Vicky Muller Ferreira, MD &middot; ORCID: 0009-0009-1099-5690</p>
       </div>
     </div>
+    </GuideSection.Provider>
   );
 }

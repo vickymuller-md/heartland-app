@@ -51,7 +51,7 @@ export function ProtocolAssistant() {
         <BookOpenCheck className="h-6 w-6 shrink-0 text-blue-600" aria-hidden="true" />
         <div>
           <h3 className="font-semibold text-gray-900">Ask the implementation guide</h3>
-          <p className="text-xs text-gray-500">AI reference assistant over the published HEARTLAND implementation content — every answer cites its module.</p>
+          <p className="text-xs text-gray-600">AI reference assistant over the published HEARTLAND implementation content — every answer cites its module.</p>
         </div>
       </div>
 
@@ -88,11 +88,11 @@ export function ProtocolAssistant() {
         ))}
       </div>
 
-      {status === 'busy' && <p className="mt-3 text-sm text-gray-500">Looking that up in the published content…</p>}
+      {status === 'busy' && <p className="mt-3 text-sm text-gray-600">Looking that up in the published content…</p>}
 
       {answer && (
         <div className="mt-3 rounded-lg border border-blue-200 bg-white p-4" data-testid="protocol-assistant-answer">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{asked}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">{asked}</p>
           <p className="mt-2 text-sm leading-6 text-gray-800">{answer.answer}</p>
           {answer.citations.length > 0 && (
             <p className="mt-2 flex flex-wrap gap-1.5">
@@ -111,7 +111,7 @@ export function ProtocolAssistant() {
         </p>
       )}
 
-      <p className="mt-3 text-[11px] leading-4 text-gray-500">
+      <p className="mt-3 text-[11px] leading-4 text-gray-600">
         Educational reference only: answers describe the published implementation content, are
         AI-generated, and may be imperfect — verify against the cited module. Not medical advice,
         not patient-specific guidance, and never a substitute for clinical judgment.

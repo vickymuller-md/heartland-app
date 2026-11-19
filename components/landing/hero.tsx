@@ -30,12 +30,12 @@ export function Hero() {
               follow-up: eight protocol modules, synthetic patient journeys and
               visible boundaries between AI, registered rules and human review.
             </p>
-            <p className="mt-4 max-w-xl text-base leading-relaxed text-cool/80">
-              Based on the HEARTLAND Protocol published in Cureus. Peer review
-              applies to the protocol article, not validation of the app or its AI.
-            </p>
 
-            <div className="mt-10 flex flex-col flex-wrap items-start gap-4 sm:flex-row sm:items-center">
+
+            <ol aria-label="Sample case in the sandbox" className="mt-5 flex flex-wrap gap-2 text-sm font-semibold text-signal">
+              {['Check-in received', 'Rule applied', 'Human review recorded'].map((step) => <li key={step} className="rounded-full border border-signal/40 px-3 py-1.5">{step}</li>)}
+            </ol>
+            <div className="mt-5 flex flex-col flex-wrap items-start gap-4 sm:flex-row sm:items-center">
               <Link
                 href="/sandbox"
                 data-landing-cta="start-sandbox"
@@ -57,7 +57,12 @@ export function Hero() {
               </Link>
             </div>
 
-            <p className="mt-12 max-w-xl font-editorial text-sm leading-relaxed text-stone">
+            <p className="mt-4 max-w-xl text-base leading-relaxed text-cool/80">
+              Based on the HEARTLAND Protocol published in Cureus. Peer review
+              applies to the protocol article, not validation of the app or its AI.
+            </p>
+
+            <p className="mt-6 max-w-xl font-editorial text-sm leading-relaxed text-stone">
               Built for licensed clinicians. This release does not establish
               FDA clearance or authorization and does not resolve
               medical-device classification. It does not replace clinical

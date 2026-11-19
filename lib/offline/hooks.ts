@@ -9,7 +9,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useSyncExternalStore } from 'react';
 
 /**
  * Returns the count of items in the sync queue that are pending or failed.
@@ -23,23 +23,15 @@ export function usePendingSyncCount(): number {
  * Tracks navigator.onLine reactively via online/offline events.
  * Returns true when the browser reports connectivity, false when offline.
  */
+function subscribeToConnectivity(notify: () => void) {
+  window.addEventListener('online', notify);
+  window.addEventListener('offline', notify);
+  return () => {
+    window.removeEventListener('online', notify);
+    window.removeEventListener('offline', notify);
+  };
+}
+
 export function useIsOnline(): boolean {
-  const [isOnline, setIsOnline] = useState(
-    typeof navigator !== 'undefined' ? navigator.onLine : true,
-  );
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  return isOnline;
+  return useSyncExternalStore(subscribeToConnectivity, () => navigator.onLine, () => true);
 }

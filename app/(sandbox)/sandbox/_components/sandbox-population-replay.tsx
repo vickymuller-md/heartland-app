@@ -80,16 +80,17 @@ function isExceptionEvent(event: PopulationEvent): boolean {
 
 const numberFormat = new Intl.NumberFormat('en-US');
 
-export function SandboxPopulationReplay({ size, dayIndex, onDone }: {
+export function SandboxPopulationReplay({ size, dayIndex, onDone, initialResult = null }: {
   size: PopulationSize;
   dayIndex: number;
+  initialResult?: PopulationDayResult | null;
   onDone: (result: PopulationDayResult | null) => void;
 }) {
-  const [scene, setScene] = useState<'idle' | 'running' | 'done'>('idle');
+  const [scene, setScene] = useState<'idle' | 'running' | 'done'>(initialResult ? 'done' : 'idle');
   const [frame, setFrame] = useState<{ minute: number; partial: PartialCounts; feed: PopulationEvent[] }>({
     minute: WINDOW_START_MINUTE, partial: EMPTY_PARTIAL, feed: [],
   });
-  const [result, setResult] = useState<PopulationDayResult | null>(null);
+  const [result, setResult] = useState<PopulationDayResult | null>(initialResult);
   const [doubleSpeed, setDoubleSpeed] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -183,6 +184,18 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone }: {
       ctx.fillRect((ordinal % cols) * cellW + 0.5, Math.floor(ordinal / cols) * cellH + 0.5, Math.max(cellW - 1, 1), Math.max(cellH - 1, 1));
     }
   }
+
+  useEffect(() => {
+    if (!initialResult) return;
+    const events = getPopulationDayEvents(size, dayIndex);
+    const cells = new Uint8Array(size);
+    for (const event of events) cells[event.ordinal] = CATEGORY_CODE[event.category];
+    cellsRef.current = cells;
+    setFrame({ minute: WINDOW_START_MINUTE + WINDOW_MINUTES, partial: EMPTY_PARTIAL, feed: events.slice(-FEED_LINES) });
+    repaintAll();
+    // Only restored rounds start with a completed result. A scope change remounts the workspace scene.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialResult]);
 
   // Keep the wall crisp across container resizes and dpr changes.
   useEffect(() => {
@@ -351,7 +364,10 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone }: {
   }
 
   const counts = result?.counts ?? null;
-  const partial = frame.partial;
+  const partial = scene === 'done' && counts ? {
+    processed: counts.total, routine: counts.routine, retried: counts.retriedResolved, adherence: counts.adherenceLapse,
+    unreachable: counts.unresolvedNoAnswer, critical: counts.critical, warning: counts.warning, reviewQueue: counts.reviewQueue,
+  } : frame.partial;
   const running = scene === 'running';
   const highRiskGaps = partial.reviewQueue - partial.critical - partial.warning;
   const outsideReviewQueuePct = counts?.automatedPct;
@@ -391,7 +407,7 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone }: {
         )}
       </div>
 
-      <div aria-hidden={running}>
+      <div aria-hidden={running} hidden={scene === 'idle'}>
         {scene !== 'idle' && (
           <>
             <canvas
