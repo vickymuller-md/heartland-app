@@ -15,7 +15,7 @@ export const metadata: Metadata = {
  * Renders the client-side CalculatorForm which handles all scoring logic.
  */
 export default async function RiskCalculatorPage() {
-  const clinicalIntegrationEnabled = (await authorize('provider')).authorized;
+  const auth = await authorize('provider');
   return (
     <div className="mx-auto max-w-5xl">
       <div className="mb-6 print:hidden">
@@ -23,14 +23,13 @@ export default async function RiskCalculatorPage() {
           Risk Stratification Calculator
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Assess patient risk using the HEARTLAND scoring framework. Toggle
-          clinical variables to compute the risk tier and care pathway.
+          Review each factor to see the proposed HEARTLAND score and pathway.
         </p>
       </div>
 
       <ProviderPageDisclaimer variant="framework" className="mb-6" />
 
-      <CalculatorForm clinicalIntegrationEnabled={clinicalIntegrationEnabled} />
+      <CalculatorForm actorId={auth.authorized ? auth.user.id : undefined} />
 
       {/* Comparison table (reference material — hidden in print) */}
       <div className="mt-10">

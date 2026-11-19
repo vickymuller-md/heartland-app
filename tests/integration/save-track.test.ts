@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 
 // Pure function tests -- no Supabase mocking needed
-import { TRACK_MAP } from '@/lib/integration/actions';
+import { TRACK_MAP } from '@/lib/integration/utils';
 
 describe('saveTrackAssignment (INTG-03)', () => {
   it('maps track-a -> A before writing to patients.track_assignment', () => {

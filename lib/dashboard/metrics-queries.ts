@@ -228,9 +228,6 @@ export async function getProviderMetrics(
   const threeDaysAgo = new Date();
   threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -250,12 +247,8 @@ export async function getProviderMetrics(
         .in('patient_id', patientIds)
         .gte('recorded_at', threeDaysAgo.toISOString()),
 
-      // c. Medication logs (last 7 days) for adherence
-      supabase
-        .from('medication_logs')
-        .select('medication_id, patient_id, taken')
-        .in('patient_id', patientIds)
-        .gte('logged_at', sevenDaysAgo.toISOString()),
+      // The provider-scoped aggregate reconciles scheduled slots on each patient's calendar.
+      supabase.rpc('get_provider_scheduled_adherence'),
 
       // d. HFrEF patients and their medications for GDMT rate
       supabase
@@ -294,16 +287,7 @@ export async function getProviderMetrics(
     (id) => !recentPatientSet.has(id)
   ).length;
 
-  // avgAdherence: logs taken / (distinct medications * 7 days)
-  let avgAdherence = 0;
-  const logs = medsResult.data ?? [];
-  if (logs.length > 0) {
-    const distinctMeds = new Set(logs.map((l) => l.medication_id));
-    const logsTaken = logs.filter((l) => l.taken).length;
-    const expected = distinctMeds.size * 7;
-    avgAdherence = expected > 0 ? Math.round((logsTaken / expected) * 100) : 0;
-    avgAdherence = Math.min(100, Math.max(0, avgAdherence));
-  }
+  const avgAdherence = !medsResult.error && typeof medsResult.data === 'number' ? medsResult.data : null;
 
   // GDMT optimization rate
   const hfrefPatientIds = (hfrefResult.data ?? []).map((p) => p.id);

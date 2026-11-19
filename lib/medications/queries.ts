@@ -1,139 +1,108 @@
-/**
- * HEARTLAND Medication Tracking -- Supabase Query Helpers
- *
- * Reusable query functions for fetching medication data.
- * Used by Server Components and Server Actions.
- */
-
-import { subDays, format, isAfter, startOfDay } from 'date-fns';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { FREQUENCY_DOSES_MAP } from './constants';
+import { DEFAULT_TIME_ZONE, getDateKeyInTimeZone } from '@/lib/timezone';
+import { adherenceFromSchedules, medicationFrequency, medicationTiming, type MedicationSchedule } from './schedule';
+import { calendarSourceOnDay, medicationCalendarSchema, shiftMedicationDay, type MedicationCalendar } from './calendar';
 import type { MedicationRow, MedicationLog, AdherenceDay } from './types';
 
-/**
- * Get all active medications for a patient.
- * Returns medications ordered by creation date.
- */
-export async function getPatientMedications(
-  supabase: SupabaseClient,
-  patientId: string
-): Promise<MedicationRow[]> {
-  const { data, error } = await supabase
-    .from('medications')
-    .select('*')
-    .eq('patient_id', patientId)
-    .eq('active', true)
-    .order('created_at', { ascending: true });
-
-  if (error) throw error;
-  return (data ?? []) as MedicationRow[];
+export async function getPatientMedicationCalendar(supabase: SupabaseClient, patientId: string, from?: string, to?: string): Promise<MedicationCalendar> {
+  const { data, error } = await supabase.rpc('get_patient_medication_calendar', { p_patient: patientId, p_from: from ?? null, p_to: to ?? null });
+  const result = medicationCalendarSchema.safeParse(data);
+  if (error || !result.success) throw new Error('Medication calendar unavailable');
+  return result.data;
 }
 
-/**
- * Get today's dose logs for a patient.
- */
-export async function getTodayLogs(
-  supabase: SupabaseClient,
-  patientId: string,
-  date: string
-): Promise<MedicationLog[]> {
-  const { data, error } = await supabase
-    .from('medication_logs')
-    .select('*')
-    .eq('patient_id', patientId)
-    .eq('scheduled_date', date);
-
+export async function getPatientMedications(supabase: SupabaseClient, patientId: string): Promise<MedicationRow[]> {
+  const { data, error } = await supabase.from('medications').select('*')
+    .eq('patient_id', patientId).eq('active', true).order('created_at', { ascending: true });
   if (error) throw error;
-  return (data ?? []) as MedicationLog[];
+  return (data ?? []).map(row => ({
+    ...row, dosage: row.dosage ?? '', frequency: medicationFrequency(row.frequency) ?? row.frequency ?? '',
+    timing: medicationTiming(row.timing),
+  }));
 }
 
-/**
- * Compute the adherence status for a single day.
- * This is a pure function (no DB calls) for testability.
- *
- * @param dateStr - YYYY-MM-DD date to compute
- * @param medications - Active medications for the patient
- * @param logs - Dose logs for this specific date
- * @param now - Current date (for future detection)
- */
-export function computeAdherenceDay(
-  dateStr: string,
-  medications: MedicationRow[],
-  logs: MedicationLog[],
-  now: Date
-): AdherenceDay {
-  // Check if date is in the future
-  const dayStart = startOfDay(new Date(dateStr + 'T00:00:00'));
-  const todayStart = startOfDay(now);
-  if (isAfter(dayStart, todayStart)) {
-    return { date: dateStr, totalDoses: 0, takenDoses: 0, status: 'future' };
+/** Page across the server's row limit. History is scoped by the same RLS as its source. */
+export async function getMedicationScheduleHistory(supabase: SupabaseClient, patientIds: string[], from: string, to: string): Promise<MedicationSchedule[]> {
+  if (!patientIds.length) return [];
+  if (![from, to].every(validDay) || from > to) throw new Error('Invalid medication history dates');
+  if (patientIds.length > 75) {
+    const combined: MedicationSchedule[] = [];
+    for (let index = 0; index < patientIds.length; index += 75) {
+      combined.push(...await getMedicationScheduleHistory(supabase, patientIds.slice(index, index + 75), from, to));
+    }
+    return combined;
   }
-
-  // Calculate total expected doses from medication frequencies
-  const totalDoses = medications.reduce((sum, med) => {
-    return sum + (FREQUENCY_DOSES_MAP[med.frequency] ?? 0);
-  }, 0);
-
-  // No medications = no_meds
-  if (totalDoses === 0) {
-    return { date: dateStr, totalDoses: 0, takenDoses: 0, status: 'no_meds' };
+  const history: MedicationSchedule[] = [];
+  let cursor: string | null = null;
+  for (;;) {
+    let query = supabase.from('medication_schedule_versions')
+      .select('id,medication_id,patient_id,starts_on,ends_before,known,active,name,dosage,frequency,timing,weekly_day')
+      .in('patient_id', patientIds).lte('starts_on', to).or('ends_before.is.null,ends_before.gt.' + from)
+      .order('id').limit(250);
+    if (cursor) query = query.gt('id', cursor);
+    const { data, error } = await query;
+    if (error) throw error;
+    if (!data) throw new Error('Medication history unavailable');
+    history.push(...data);
+    if (data.length < 250) return history;
+    cursor = data[data.length - 1].id;
   }
-
-  // Count taken doses from logs for this date
-  const takenDoses = logs.filter(
-    (log) => log.scheduled_date === dateStr && log.taken === true
-  ).length;
-
-  // Determine status
-  let status: AdherenceDay['status'];
-  if (takenDoses >= totalDoses) {
-    status = 'complete';
-  } else if (takenDoses > 0) {
-    status = 'partial';
-  } else {
-    status = 'missed';
-  }
-
-  return { date: dateStr, totalDoses, takenDoses, status };
 }
 
-/**
- * Get 30-day adherence data for a patient.
- * Fetches medications and logs, then computes status per day.
- */
-export async function getAdherenceData(
-  supabase: SupabaseClient,
-  patientId: string,
-  days: number = 30
-): Promise<AdherenceDay[]> {
-  const now = new Date();
-  const startDate = subDays(now, days - 1);
-
-  // Fetch active medications
-  const medications = await getPatientMedications(supabase, patientId);
-
-  // Fetch logs for the date range
-  const startStr = format(startDate, 'yyyy-MM-dd');
-  const endStr = format(now, 'yyyy-MM-dd');
-
-  const { data: logs, error } = await supabase
-    .from('medication_logs')
-    .select('*')
-    .eq('patient_id', patientId)
-    .gte('scheduled_date', startStr)
-    .lte('scheduled_date', endStr);
-
-  if (error) throw error;
-  const allLogs = (logs ?? []) as MedicationLog[];
-
-  // Compute adherence for each day
-  const result: AdherenceDay[] = [];
-  for (let i = 0; i < days; i++) {
-    const date = subDays(now, days - 1 - i);
-    const dateStr = format(date, 'yyyy-MM-dd');
-    const dayLogs = allLogs.filter((l) => l.scheduled_date === dateStr);
-    result.push(computeAdherenceDay(dateStr, medications, dayLogs, now));
+async function getDoseLogs(supabase: SupabaseClient, patientId: string, from: string, to: string): Promise<MedicationLog[]> {
+  const rows: MedicationLog[] = [];
+  let cursor: string | null = null;
+  for (;;) {
+    let query = supabase.from('medication_logs').select('*').eq('patient_id', patientId)
+      .gte('scheduled_date', from).lte('scheduled_date', to).order('id').limit(250);
+    if (cursor) query = query.gt('id', cursor);
+    const { data, error } = await query;
+    if (error) throw error;
+    if (!data) throw new Error('Dose records unavailable');
+    rows.push(...data);
+    if (data.length < 250) return rows;
+    cursor = data[data.length - 1].id;
   }
+}
 
-  return result;
+export function getTodayLogs(supabase: SupabaseClient, patientId: string, day: string): Promise<MedicationLog[]> {
+  return getDoseLogs(supabase, patientId, day, day);
+}
+
+/** Legacy pure caller: a creation date is the earliest possible start. Historical screens use dated versions. */
+export function computeAdherenceDay(date: string, medications: MedicationRow[], logs: MedicationLog[], now: Date, timeZone = DEFAULT_TIME_ZONE): AdherenceDay {
+  const rows = medications.map(med => ({
+    medication_id: med.id, starts_on: med.created_at && Number.isFinite(Date.parse(med.created_at)) ? getDateKeyInTimeZone(new Date(med.created_at), timeZone) : '-infinity', ends_before: null,
+    known: !!med.created_at && Number.isFinite(Date.parse(med.created_at)), active: med.active, frequency: med.frequency, weekly_day: med.weekly_day ?? null,
+  }));
+  return adherenceFromSchedules(date, rows, logs, getDateKeyInTimeZone(now, timeZone));
+}
+
+function validDay(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+}
+
+export async function getAdherenceForRange(supabase: SupabaseClient, patientId: string, from: string, to: string, calendar?: MedicationCalendar | string): Promise<AdherenceDay[]> {
+  const datesValid = [from, to].every(validDay);
+  if (!datesValid || from > to || Date.parse(to) - Date.parse(from) > 366 * 86400000) throw new Error('Invalid medication date range');
+  const [history, logs, current] = await Promise.all([
+    getMedicationScheduleHistory(supabase, [patientId], from, to), getDoseLogs(supabase, patientId, from, to),
+    calendar && typeof calendar !== 'string' ? calendar : getPatientMedicationCalendar(supabase, patientId, from, to),
+  ]);
+  const days: AdherenceDay[] = [];
+  for (let day = from; day <= to; day = shiftMedicationDay(day, 1)) {
+    const evidence = adherenceFromSchedules(day, history, logs, current.day);
+    if (current.unclassified_dates.includes(day)) {
+      evidence.status = 'unconfirmed';
+      evidence.totalDoses = 0;
+      evidence.takenDoses = 0;
+    }
+    days.push({ ...evidence, calendarSource: calendarSourceOnDay(current, day, logs) });
+  }
+  return days;
+}
+
+export async function getAdherenceData(supabase: SupabaseClient, patientId: string, days = 30, calendar?: MedicationCalendar): Promise<AdherenceDay[]> {
+  const current = calendar ?? await getPatientMedicationCalendar(supabase, patientId);
+  return getAdherenceForRange(supabase, patientId, shiftMedicationDay(current.day, 1 - days), current.day, days <= 30 ? current : undefined);
 }

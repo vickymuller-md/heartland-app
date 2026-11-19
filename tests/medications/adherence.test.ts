@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { computeAdherenceDay } from '@/lib/medications/queries';
+import { adherenceFromSchedules, medicationScheduleOn, medicationTiming, type MedicationSchedule } from '@/lib/medications/schedule';
 import type { MedicationRow, MedicationLog } from '@/lib/medications/types';
 import { addDays, format } from 'date-fns';
 
@@ -103,11 +104,59 @@ describe('Adherence Visualization (MEDS-03)', () => {
     });
   });
 
-  describe('Adherence Heatmap', () => {
-    it.todo('renders 30-day grid with 7 columns');
-    it.todo('complete days render green background');
-    it.todo('partial days render yellow background');
-    it.todo('missed days render gray background');
-    it.todo('future days render transparent/white background');
+  describe('Dated schedule evidence', () => {
+    const original: MedicationSchedule = {
+      id: 'revision-1', medication_id: 'med-1', patient_id: 'patient-1',
+      starts_on: '2026-11-15', ends_before: '2026-11-20', known: true, active: true,
+      name: 'Recorded item', dosage: 'Original amount', frequency: 'weekly', weekly_day: 1, timing: 'morning',
+    };
+    const today = '2026-11-22';
+
+    it('counts a confirmed weekly schedule exactly once and respects creation and suspension dates', () => {
+      const history = [original,
+        { ...original, id: 'revision-2', starts_on: '2026-11-20', ends_before: '2026-11-21', frequency: 'daily', weekly_day: null, dosage: 'Updated amount' },
+        { ...original, id: 'revision-3', starts_on: '2026-11-21', ends_before: null, active: false },
+      ];
+      const days = Array.from({ length: 9 }, (_, i) => '2026-11-' + (14 + i));
+      expect(days.map(day => adherenceFromSchedules(day, history, [], today).totalDoses)).toEqual([0, 0, 1, 0, 0, 0, 1, 0, 0]);
+      expect(medicationScheduleOn(history, 'med-1', '2026-11-16')?.dosage).toBe('Original amount');
+      expect(medicationScheduleOn(history, 'med-1', '2026-11-20')?.dosage).toBe('Updated amount');
+      expect(adherenceFromSchedules('2026-11-14', history, [], today).status).toBe('no_meds');
+    });
+
+    it('distinguishes ambiguous historical evidence from a known day with no dose recorded', () => {
+      const interval = { ...original, frequency: 'daily' };
+      const scheduled = '2026-11-16';
+      expect(adherenceFromSchedules(scheduled, [interval], [], today)).toMatchObject({ totalDoses: 1, status: 'missed' });
+      for (const unknown of [{ ...original, weekly_day: null }, { ...interval, active: null }, { ...interval, known: false }, { ...interval, frequency: 'as directed by care team' }]) {
+        expect(adherenceFromSchedules(scheduled, [unknown], [], today)).toMatchObject({ totalDoses: 0, status: 'unconfirmed' });
+      }
+      expect(medicationScheduleOn([{ ...original, known: false }], 'med-1', scheduled)).toBeNull();
+      expect(adherenceFromSchedules(scheduled, [interval, original], [], today).status).toBe('unconfirmed');
+    });
+
+    it('counts each scheduled medication and slot once and leaves unverified legacy logs uncredited', () => {
+      const day = '2026-11-16';
+      const actual = { medication_id: 'med-1', scheduled_date: day, dose_number: 1, taken: true };
+      expect(adherenceFromSchedules(day, [original], [actual, actual], today)).toMatchObject({ totalDoses: 1, takenDoses: 1, status: 'complete' });
+      expect(adherenceFromSchedules(day, [original], [{ ...actual, medication_id: 'other-item' }], today)).toMatchObject({ takenDoses: 0, status: 'unconfirmed' });
+      expect(adherenceFromSchedules(day, [original], [{ ...actual, dose_number: 2 }], today)).toMatchObject({ takenDoses: 0, status: 'unconfirmed' });
+    });
+
+    it('uses the patient calendar on both sides of midnight during the autumn DST change', () => {
+      const date = new Date('2026-11-02T04:30:00Z');
+      const med = makeMed({ frequency: 'daily', created_at: '2026-11-02T04:15:00Z' });
+      expect(computeAdherenceDay('2026-11-01', [med], [], date, 'America/New_York').totalDoses).toBe(1);
+      expect(computeAdherenceDay('2026-11-02', [med], [], date, 'America/New_York').status).toBe('future');
+      expect(computeAdherenceDay('2026-11-02', [med], [], date, 'UTC').totalDoses).toBe(1);
+    });
+
+    it('reads previously stored timing values without splitting free-form instructions at a comma', () => {
+      expect(medicationTiming(null)).toEqual([]);
+      expect(medicationTiming('["morning","bedtime"]')).toEqual(['morning', 'bedtime']);
+      expect(medicationTiming('{morning,bedtime}')).toEqual(['morning', 'bedtime']);
+      expect(medicationTiming('morning\nAt the time on your plan, when confirmed')).toEqual(['morning', 'At the time on your plan, when confirmed']);
+      expect(medicationTiming('At the time on your plan, when confirmed')).toEqual(['At the time on your plan, when confirmed']);
+    });
   });
 });

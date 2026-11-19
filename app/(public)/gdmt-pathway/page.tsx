@@ -42,7 +42,7 @@ function EvidenceLegend() {
 }
 
 export default async function GdmtPathwayPage() {
-  const clinicalIntegrationEnabled = (await authorize('provider')).authorized;
+  const authorization = await authorize('provider');
   return (
     <div className="space-y-8 print:space-y-4">
       {/* Screen header */}
@@ -60,7 +60,7 @@ export default async function GdmtPathwayPage() {
 
       {/* HFrEF / HFpEF tabs (hidden in print) */}
       <div className="print:hidden">
-        <GdmtTabs clinicalIntegrationEnabled={clinicalIntegrationEnabled} />
+        <GdmtTabs clinicalIntegrationEnabled={authorization.authorized} actorId={authorization.authorized ? authorization.user.id : null} />
       </div>
 
       {/* Print-only: comprehensive output with both pathways */}

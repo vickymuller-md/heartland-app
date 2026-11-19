@@ -1,23 +1,24 @@
 /**
  * HEARTLAND Risk Score — Zod Validation Schema
  *
- * 10 boolean fields matching RiskInput interface, all defaulting to false.
- * Used by React Hook Form + zodResolver for the calculator form.
+ * Every factor needs an explicit answer before a result can be calculated.
  */
 
 import { z } from 'zod';
 
-export const riskInputSchema = z.object({
-  ageOver75: z.boolean().default(false),
-  priorHfHospitalization: z.boolean().default(false),
-  egfrBelow45: z.boolean().default(false),
-  elevatedNatriuretic: z.boolean().default(false),
-  sbpBelow100: z.boolean().default(false),
-  diabetes: z.boolean().default(false),
-  lvefBelow30: z.boolean().default(false),
-  ckmStage3or4: z.boolean().default(false),
-  distanceOver50Miles: z.boolean().default(false),
-  livesAloneOrLimitedSupport: z.boolean().default(false),
+export const RISK_FRAMEWORK_VERSION = 'HEARTLAND-3.4.1-table-1';
+
+export const riskInputSchema = z.strictObject({
+  ageOver75: z.boolean(),
+  priorHfHospitalization: z.boolean(),
+  egfrBelow45: z.boolean(),
+  elevatedNatriuretic: z.boolean(),
+  sbpBelow100: z.boolean(),
+  diabetes: z.boolean(),
+  lvefBelow30: z.boolean(),
+  ckmStage3or4: z.boolean(),
+  distanceOver50Miles: z.boolean(),
+  livesAloneOrLimitedSupport: z.boolean(),
 });
 
 export type RiskInputForm = z.output<typeof riskInputSchema>;

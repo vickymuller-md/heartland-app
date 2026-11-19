@@ -20,10 +20,12 @@ export interface MedicationRow {
   patient_id: string;
   name: string;
   dosage: string;
-  frequency: MedicationFrequency;
+  frequency: string;
   timing: string[];
   active: boolean;
   created_at: string;
+  weekly_day?: number | null;
+  schedule_revision?: string;
 }
 
 /** Row from the medication_logs table (Supabase) */
@@ -35,6 +37,8 @@ export interface MedicationLog {
   dose_number: number; // 1-4
   taken: boolean;
   taken_at: string | null;
+  calendar_time_zone?: string | null;
+  calendar_source?: string | null;
   created_at: string;
 }
 
@@ -52,10 +56,11 @@ export interface MedicationReminder {
 
 /** Computed adherence status for a single day */
 export interface AdherenceDay {
+  calendarSource?: import('./calendar').CalendarSource;
   date: string; // YYYY-MM-DD
   totalDoses: number;
   takenDoses: number;
-  status: 'complete' | 'partial' | 'missed' | 'future' | 'no_meds';
+  status: 'complete' | 'partial' | 'missed' | 'future' | 'no_meds' | 'unconfirmed';
 }
 
 /** Server Action return state for medication operations */

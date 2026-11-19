@@ -22,7 +22,7 @@ export function ScoreBreakdown({ breakdown }: ScoreBreakdownProps) {
   return (
     <div data-testid="score-breakdown">
       <h3 className="mb-2 text-sm font-semibold">Score Breakdown</h3>
-      <Table>
+      <Table scrollLabel="Risk score factors">
         <TableHeader>
           <TableRow>
             <TableHead>Variable</TableHead>

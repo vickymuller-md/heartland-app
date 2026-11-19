@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { evaluateScanSnapshot, SCAN_RECIPE, SCAN_RULES, type ScanRule } from '@/lib/dashboard/scan-evaluation';
 import { evaluateCriticalLabs, evaluateFollowupDue, evaluateFollowupOverdue, evaluateNoCheckin,
-  evaluateWeightTrend7d, evaluateLowAdherence } from '@/lib/dashboard/alert-engine';
-import { computeAdherenceDay } from '@/lib/medications/queries';
-import type { MedicationFrequency, MedicationLog, MedicationRow } from '@/lib/medications/types';
+  evaluateWeightTrend7d } from '@/lib/dashboard/alert-engine';
 import type { EffectiveLabObservation } from '@/lib/labs/effective';
 
 const clock = '2026-09-24T08:00:00.000000Z';
@@ -15,12 +13,17 @@ const lab = (n: number, analyte: 'potassium' | 'egfr', value: string, collected 
   root_id: null, version_id: null, revision: null, status: 'original', effective_lab_result_id: uuid(n),
   value, collected_at: collected, notes: null, lab_facility: null, evaluation_status: null,
 });
+const regimen = (frequency: string | null, weekday: number | null = null) => ({
+  id: uuid(30), medication_id: uuid(10), starts_on: '2026-01-01', ends_before: null,
+  active: true, known: true, schedule_frequency: frequency, weekly_day: weekday,
+});
 const snapshot = () => ({ receipt_id: uuid(999), patient_id: uuid(998), recipe: SCAN_RECIPE, captured_at: clock, calendar_timezone: 'UTC', calendar_dates: dates,
   sources: {
     checkin: { patient_created_at: ago(30), latest_vital: { id: uuid(1), recorded_at: ago(1) } },
     weights: [{ id: uuid(1), weight_lbs: 180, recorded_at: ago(1) }],
-    adherence: { medications: [] as { id: string; frequency: string | null }[],
-      logs: [] as { id: string; medication_id: string; scheduled_date: string; taken: boolean }[] },
+    adherence: { mode: 'dated-v1', calendar_timezone: 'UTC', calendar_dates: [...dates],
+      medications: [] as ReturnType<typeof regimen>[],
+      logs: [] as { id: string; medication_id: string; scheduled_date: string; dose_number: number; taken: boolean }[] },
     effective_labs: { potassium: [] as EffectiveLabObservation[], egfr: [] as EffectiveLabObservation[] },
     followups: [] as { id: string; scheduled_at: string; completed: boolean }[],
     acute_alerts: [] as { id: string; flags: string[]; status: 'open' | 'acknowledged' }[],
@@ -219,31 +222,32 @@ describe('recoverable scan frozen evaluator', () => {
     input.sources.followups[0].scheduled_at = '2026-09-24T08:00:00.0009001Z';
     expect(decision(input, 'followup_due').decision).toBe('blocked');
   });
-  it.each(['once_daily', 'twice_daily', 'three_times_daily', 'four_times_daily', 'as_needed', 'weekly'] as MedicationFrequency[])
-  ('preserves the existing adherence recipe for %s, including weekly', (frequency) => {
-    const input = snapshot(); input.sources.adherence.medications = [{ id: uuid(10), frequency }];
-    for (let count = 0; count <= 7; count++) {
-      input.sources.adherence.logs = dates.slice(0, count).map((date, i) => ({ id: uuid(20 + i), medication_id: uuid(10), scheduled_date: date, taken: true }));
-      const legacy = dates.map((date) => computeAdherenceDay(date,
-        [{ frequency } as MedicationRow], input.sources.adherence.logs as MedicationLog[], new Date(`${dates[6]}T12:00:00`)));
-      expect(triggers(input, 'low_adherence')).toBe(evaluateLowAdherence(legacy));
-    }
-  });
-  it('keeps legacy inactive-medication logs in the count, but rejects unknown frequency', () => {
-    const input = snapshot(); input.sources.adherence.medications = [{ id: uuid(10), frequency: 'once_daily' }];
-    input.sources.adherence.logs = dates.map((date, i) => ({ id: uuid(20 + i), medication_id: uuid(11), scheduled_date: date, taken: true }));
+  it('uses only the one confirmed weekly slot and blocks unconfirmed history', () => {
+    const input = snapshot();
+    input.sources.adherence.medications = [regimen('weekly', 1)];
+    expect(triggers(input, 'low_adherence')).toBe(true);
+    input.sources.adherence.logs = [{ id: uuid(20), medication_id: uuid(10), scheduled_date: '2026-09-21', dose_number: 1, taken: true }];
     expect(triggers(input, 'low_adherence')).toBe(false);
-    input.sources.adherence.medications[0].frequency = 'not-defined';
+    input.sources.adherence.medications = [regimen('weekly')];
     expect(decision(input, 'low_adherence').decision).toBe('blocked');
-    input.sources.adherence.medications[0].frequency = null;
+    input.sources.adherence.medications = [regimen('daily')];
+    input.sources.adherence.logs[0].medication_id = uuid(99);
     expect(decision(input, 'low_adherence').decision).toBe('blocked');
+  });
+  it('retires an old adherence snapshot without changing the other frozen rules', () => {
+    const input = snapshot();
+    const legacy = { ...input, sources: { ...input.sources, adherence: { medications: [{ id: uuid(2), frequency: 'weekly' }], logs: [] } } };
+    expect(decision(legacy, 'low_adherence').reason).toBe('legacy_recipe');
+    expect(decision(legacy, 'no_checkin')).toEqual(decision(input, 'no_checkin'));
   });
   it('uses the frozen timezone calendar across midnight and DST, independent of runtime timezone', () => {
     const input = snapshot(); input.captured_at = '2026-03-09T01:00:00Z'; input.calendar_timezone = 'America/New_York';
     input.calendar_dates = Array.from({ length: 7 }, (_, index) => `2026-03-${String(index + 2).padStart(2, '0')}`);
     input.sources.checkin.patient_created_at = '2026-01-01T00:00:00Z';
     input.sources.weights = [];
-    input.sources.adherence.medications = [{ id: uuid(10), frequency: 'once_daily' }];
+    input.sources.adherence.medications = [regimen('once_daily')];
+    input.sources.adherence.calendar_dates = [...input.calendar_dates];
+    input.sources.adherence.calendar_timezone = input.calendar_timezone;
     for (const timezone of ['UTC', 'Pacific/Honolulu', 'Asia/Tokyo']) {
       vi.stubEnv('TZ', timezone);
       expect(decision(input, 'low_adherence').decision).toBe('triggered');

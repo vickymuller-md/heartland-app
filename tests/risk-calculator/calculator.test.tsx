@@ -10,90 +10,51 @@ import type { RiskResult } from '@/lib/risk-score/types';
 
 // Mock window.print for print button test
 vi.stubGlobal('print', vi.fn());
+vi.mock('@/components/shared/patient-selector', () => ({
+  PatientSelector: ({ expectedActorId }: { expectedActorId: string }) =>
+    <div aria-label="Authorized patient selection">{expectedActorId}</div>,
+}));
 
 describe('CalculatorForm (RISK-02, RISK-03)', () => {
-  it('renders 10 switch/toggle inputs', () => {
-    render(<CalculatorForm />);
-    const switches = screen.getAllByRole('switch');
-    expect(switches).toHaveLength(10);
+  it('limits patient selection to the clinician who opened the assessment', () => {
+    render(<CalculatorForm actorId="provider-opening-assessment" />);
+    expect(screen.getByLabelText('Authorized patient selection')).toHaveTextContent('provider-opening-assessment');
+    expect(screen.queryByRole('button', {name: 'Load synthetic example'})).not.toBeInTheDocument();
   });
-
-  it('each toggle has an accessible label matching the clinical variable name', () => {
+  it('starts with ten unanswered, labelled factors and no classification', () => {
     render(<CalculatorForm />);
-    const toggleSection = screen.getByTestId('toggle-section');
-    for (const v of RISK_VARIABLES) {
-      expect(within(toggleSection).getByText(v.label)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('0 of 10');
+    for (const variable of RISK_VARIABLES) {
+      const group = screen.getByRole('group', { name: variable.label });
+      expect(within(group).getByRole('radio', { name: 'Present' })).not.toBeChecked();
+      expect(within(group).getByRole('radio', { name: 'Absent' })).not.toBeChecked();
+      expect(within(group).getByText(new RegExp(`\\+${variable.points} pts`))).toBeInTheDocument();
     }
+    expect(screen.queryByTestId('result-card')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Print' })).toBeDisabled();
   });
 
-  it('each toggle shows point value (+1, +2, or +3)', () => {
-    render(<CalculatorForm />);
-    const toggleSection = screen.getByTestId('toggle-section');
-    for (const v of RISK_VARIABLES) {
-      // Each toggle row has its own point badge -- use getAllByText and check >= 1
-      const badges = within(toggleSection).getAllByText(`+${v.points} pts`);
-      expect(badges.length).toBeGreaterThanOrEqual(1);
-    }
-  });
-
-  it('shows total score of 0 when all toggles are off', () => {
-    render(<CalculatorForm />);
-    const resultCard = screen.getByTestId('result-card');
-    // Score display: "0" followed by "/ 18"
-    expect(within(resultCard).getByText('0')).toBeInTheDocument();
-    expect(within(resultCard).getByText(/\/ 18/)).toBeInTheDocument();
-  });
-
-  it('updates total score when a toggle is switched on', async () => {
+  it.each([[0, 'Low'], [2, 'Moderate'], [4, 'High']] as const)('calculates after all answers when %i initial factors are present', async (count, tier) => {
     const user = userEvent.setup();
     render(<CalculatorForm />);
-    // Toggle "Age >= 75" which is 2 points
-    const ageSwitch = screen.getAllByRole('switch')[0];
-    await user.click(ageSwitch);
-    const resultCard = screen.getByTestId('result-card');
-    expect(within(resultCard).getByText('2')).toBeInTheDocument();
-  });
-
-  it('displays Low tier badge when score is 0-4', () => {
-    render(<CalculatorForm />);
-    // Default score = 0, which is Low tier
-    expect(screen.getByText('Low')).toBeInTheDocument();
-  });
-
-  it('displays Moderate tier badge when score is 5-8', async () => {
-    const user = userEvent.setup();
-    render(<CalculatorForm />);
-    const switches = screen.getAllByRole('switch');
-    // Toggle age (2) + prior HF hosp (3) = 5 -> Moderate
-    await user.click(switches[0]); // ageOver75 = 2
-    await user.click(switches[1]); // priorHfHospitalization = 3
-    expect(screen.getByText('Moderate')).toBeInTheDocument();
-  });
-
-  it('displays High tier badge when score is >= 9', async () => {
-    const user = userEvent.setup();
-    render(<CalculatorForm />);
-    const switches = screen.getAllByRole('switch');
-    // Toggle age(2) + priorHF(3) + eGFR(2) + BNP(2) = 9 -> High
-    await user.click(switches[0]); // ageOver75 = 2
-    await user.click(switches[1]); // priorHfHospitalization = 3
-    await user.click(switches[2]); // egfrBelow45 = 2
-    await user.click(switches[3]); // elevatedNatriuretic = 2
-    expect(screen.getByText('High')).toBeInTheDocument();
-  });
-
-  it('shows care pathway text matching the current tier', () => {
-    render(<CalculatorForm />);
-    // Default = Low tier
-    expect(screen.getByText(/PCP follow-up within 14 days/)).toBeInTheDocument();
-  });
-
-  it('displays score breakdown with all 10 variables', () => {
-    render(<CalculatorForm />);
-    const breakdown = screen.getByTestId('score-breakdown');
-    for (const v of RISK_VARIABLES) {
-      expect(within(breakdown).getByText(v.label)).toBeInTheDocument();
+    for (const [index, variable] of RISK_VARIABLES.entries()) {
+      const group = screen.getByRole('group', { name: variable.label });
+      await user.click(within(group).getByRole('radio', { name: index < count ? 'Present' : 'Absent' }));
+      if (index < 9) expect(screen.queryByTestId('result-card')).not.toBeInTheDocument();
     }
+    expect(within(screen.getByTestId('result-card')).getByText(tier)).toBeVisible();
+    expect(screen.getByTestId('score-breakdown')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Reset all' }));
+    expect(screen.queryByTestId('result-card')).not.toBeInTheDocument();
+  });
+
+  it('labels an anonymous worked example, including its printable summary', async () => {
+    const user = userEvent.setup();
+    render(<CalculatorForm />);
+    await user.click(screen.getByRole('button', { name: 'Load synthetic example' }));
+    expect(screen.getByText('Synthetic example', {exact: true})).toBeVisible();
+    expect(screen.getByTestId('result-card')).toHaveTextContent('Moderate');
+    expect(screen.queryByText('Patient record')).not.toBeInTheDocument();
   });
 });
 

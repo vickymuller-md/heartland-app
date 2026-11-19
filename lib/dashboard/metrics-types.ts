@@ -18,8 +18,8 @@ export interface ProviderMetrics {
   activeAlerts: number;
   /** Patients with no vitals submission in the last 3 days */
   noCheckinCount: number;
-  /** Average medication adherence across all patients, 0-100 */
-  avgAdherence: number;
+  /** Percentage of confirmed dose slots marked taken in seven patient-local days. */
+  avgAdherence: number | null;
   /** Patients with >=16 distinct app-entry days this month; not billing eligibility */
   rpmDataCompletenessCount: number;
   /** Percentage of HFrEF patients on >=3 of 4 GDMT drug classes, 0-100 */
@@ -38,7 +38,7 @@ export const EMPTY_METRICS: ProviderMetrics = {
   totalPatients: 0,
   activeAlerts: 0,
   noCheckinCount: 0,
-  avgAdherence: 0,
+  avgAdherence: null,
   rpmDataCompletenessCount: 0,
   gdmtOptRate: 0,
   addressedAlertsLast30Days: 0,

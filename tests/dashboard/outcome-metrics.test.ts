@@ -92,6 +92,7 @@ function makeSupabase(workItems: unknown[]) {
     work_items: { data: workItems },
   };
   return {
+    rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
     from: vi.fn((table: string) => makeQuery(byTable[table] ?? { data: [] })),
   };
 }

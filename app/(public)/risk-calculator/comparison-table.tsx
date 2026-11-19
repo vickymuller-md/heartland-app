@@ -23,7 +23,7 @@ export function ComparisonTable() {
       </h3>
 
       <div className="overflow-x-auto rounded-lg border" data-testid="comparison-table-scroll">
-        <Table className="min-w-[600px]">
+        <Table scrollLabel="Risk framework comparison" className="min-w-[600px]">
           <TableHeader>
             <TableRow>
               <TableHead className="w-[200px]">Characteristic</TableHead>

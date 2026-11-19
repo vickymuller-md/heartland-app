@@ -20,6 +20,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { FREQUENCY_OPTIONS } from '@/lib/medications/constants';
+import { WEEKDAYS } from '@/lib/medications/schedule';
 import { deactivateMedication } from '@/lib/medications/actions';
 import type { MedicationRow } from '@/lib/medications/types';
 import { MedicationForm } from './medication-form';
@@ -29,19 +30,24 @@ function getFrequencyLabel(freq: string): string {
 }
 
 export function MedicationList({
-  medications,
+  medications, actorId,
 }: {
-  medications: MedicationRow[];
+  medications: MedicationRow[]; actorId: string;
 }) {
   const [addOpen, setAddOpen] = useState(false);
   const [editMed, setEditMed] = useState<MedicationRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<MedicationRow | null>(null);
+  const [error, setError] = useState('');
   const [isPending, startTransition] = useTransition();
 
   function handleDeactivate(med: MedicationRow) {
     startTransition(async () => {
-      await deactivateMedication(med.id);
-      setConfirmDelete(null);
+      setError('');
+      try {
+        const result = await deactivateMedication(med.id, actorId, med.schedule_revision ?? '');
+        if (!result.success) { setError(result.error ?? 'Could not remove medication.'); return; }
+        setConfirmDelete(null);
+      } catch { setError('Removal was not confirmed. Reload your medication list.'); }
     });
   }
 
@@ -59,7 +65,7 @@ export function MedicationList({
           <DialogHeader>
             <DialogTitle>Add Medication</DialogTitle>
           </DialogHeader>
-          <MedicationForm mode="add" onSuccess={() => setAddOpen(false)} />
+          <MedicationForm actorId={actorId} mode="add" onSuccess={() => setAddOpen(false)} />
         </DialogContent>
       </Dialog>
 
@@ -74,7 +80,8 @@ export function MedicationList({
               <p className="text-lg font-semibold text-gray-900">{med.name}</p>
               <p className="text-base text-gray-600">{med.dosage}</p>
               <p className="text-sm text-gray-500">
-                {getFrequencyLabel(med.frequency)}
+                {getFrequencyLabel(med.frequency) || 'Frequency pending confirmation'}
+                {med.frequency === 'weekly' && (med.weekly_day == null ? ' · weekday pending confirmation' : ' · ' + WEEKDAYS[med.weekly_day])}
               </p>
             </div>
             <div className="flex gap-2">
@@ -123,7 +130,7 @@ export function MedicationList({
           </DialogHeader>
           {editMed && (
             <MedicationForm
-              mode="edit"
+              actorId={actorId} mode="edit"
               medication={editMed}
               onSuccess={() => setEditMed(null)}
             />
@@ -144,6 +151,7 @@ export function MedicationList({
             Remove <strong>{confirmDelete?.name}</strong> from your list? You
             can add it back later if needed.
           </p>
+          {error && <p role="alert" className="text-red-800">{error}</p>}
           <div className="flex gap-3 mt-4">
             <button
               type="button"

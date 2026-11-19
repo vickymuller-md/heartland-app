@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { PrintHeader } from '@/app/(public)/risk-calculator/print-header';
 import { CalculatorForm } from '@/app/(public)/risk-calculator/calculator-form';
 
@@ -22,18 +22,21 @@ describe('Print Layout (RISK-06)', () => {
 
   it('result card is visible in print (no print:hidden)', () => {
     render(<CalculatorForm />);
+    fireEvent.click(screen.getByRole('button', { name: 'Load synthetic example' }));
     const resultCard = screen.getByTestId('result-card');
     expect(resultCard.className).not.toMatch(/print:hidden/);
   });
 
   it('score breakdown is visible in print', () => {
     render(<CalculatorForm />);
+    fireEvent.click(screen.getByRole('button', { name: 'Load synthetic example' }));
     const breakdown = screen.getByTestId('score-breakdown');
     expect(breakdown.className).not.toMatch(/print:hidden/);
   });
 
   it('risk score disclaimer is visible in print', () => {
     render(<CalculatorForm />);
+    fireEvent.click(screen.getByRole('button', { name: 'Load synthetic example' }));
     const disclaimer = screen.getByTestId('disclaimer');
     expect(disclaimer.className).not.toMatch(/print:hidden/);
   });

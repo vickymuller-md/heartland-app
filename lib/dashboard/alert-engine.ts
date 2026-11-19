@@ -248,7 +248,7 @@ export function evaluateLowAdherence(
 ): boolean {
   // Filter to actionable days only (not no_meds or future)
   const actionable = adherenceDays.filter(
-    (d) => d.status !== 'no_meds' && d.status !== 'future'
+    (d) => d.status !== 'no_meds' && d.status !== 'future' && d.status !== 'unconfirmed'
   );
 
   // No actionable days -> no meaningful adherence to evaluate

@@ -1,86 +1,44 @@
-import { format } from 'date-fns';
-import { Pill } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { getPatientMedications, getTodayLogs, getAdherenceData } from '@/lib/medications/queries';
+import { getPatientMedications, getTodayLogs, getMedicationScheduleHistory, getAdherenceData, getPatientMedicationCalendar } from '@/lib/medications/queries';
+import { CALENDAR_SOURCE_LABEL } from '@/lib/medications/calendar';
+import { CalendarSetting } from './_components/calendar-setting';
 import { DoseLogGrid } from './_components/dose-log-grid';
 import { AdherenceHeatmap } from './_components/adherence-heatmap';
 import { MedicationList } from './_components/medication-list';
 
 export default async function MedicationsPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return <p>Please sign in to manage your medications.</p>;
 
-  if (!user) {
-    return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-          Medications
-        </h1>
-        <p className="text-base text-gray-500">
-          Please sign in to manage your medications.
-        </p>
-      </div>
-    );
+  let calendar;
+  try {
+    const settings = await getPatientMedicationCalendar(supabase, user.id);
+    const today = settings.day;
+    const [medications, todayLogs, schedules, adherenceData] = await Promise.all([
+      getPatientMedications(supabase, user.id), getTodayLogs(supabase, user.id, today),
+      getMedicationScheduleHistory(supabase, [user.id], today, today), getAdherenceData(supabase, user.id, 30, settings),
+    ]);
+    calendar = { settings, today, medications, todayLogs, schedules, adherenceData };
+  } catch {
+    return <div><h1 className="text-2xl font-bold">Medications</h1>
+      <p role="alert">Your medication schedule could not be loaded. Reload before recording a dose.</p></div>;
   }
 
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
-
-  const [medications, todayLogs, adherenceData] = await Promise.all([
-    getPatientMedications(supabase, user.id),
-    getTodayLogs(supabase, user.id, todayStr),
-    getAdherenceData(supabase, user.id),
-  ]);
-
-  // Empty state
-  if (medications.length === 0) {
-    return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-          Medications
-        </h1>
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <Pill className="h-12 w-12 text-gray-300 mb-4" />
-          <p className="text-lg text-gray-500 mb-6">
-            No medications added yet. Tap the button below to add your first
-            medication.
-          </p>
-          <MedicationList medications={[]} />
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-        Medications
-      </h1>
-
-      {/* Section 1: Today's Doses */}
-      <section>
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">
-          Today&apos;s Doses
-        </h2>
-        <DoseLogGrid medications={medications} todayLogs={todayLogs} />
-      </section>
-
-      {/* Section 2: 30-Day Adherence */}
-      <section>
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">
-          30-Day Adherence
-        </h2>
-        <AdherenceHeatmap data={adherenceData} />
-      </section>
-
-      {/* Section 3: Your Medications */}
-      <section>
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">
-          Your Medications
-        </h2>
-        <MedicationList medications={medications} />
-      </section>
-    </div>
-  );
+  return <div className="space-y-6">
+    <h1 className="text-2xl font-bold tracking-tight text-gray-900">Medications</h1>
+    <section><h2 className="mb-2 text-lg font-semibold">Today’s doses</h2>
+      <p className="mb-3 text-sm text-gray-700">{calendar.today} · {CALENDAR_SOURCE_LABEL[calendar.settings.source]} · {calendar.settings.zone}</p>
+      {calendar.settings.pending_zone && <p role="status" className="mb-3 text-sm text-amber-900">Time zone change scheduled for {calendar.settings.pending_zone}. Open your calendar settings below to see when it takes effect.</p>}
+      <DoseLogGrid key={[user.id, calendar.today, calendar.settings.revision, ...calendar.schedules.map(item => item.id), ...calendar.todayLogs.map(log => log.id + log.taken)].join('/')}
+        schedules={calendar.schedules} todayLogs={calendar.todayLogs} today={calendar.today} actorId={user.id} calendarRevision={calendar.settings.revision} />
+    </section>
+    <CalendarSetting key={calendar.settings.revision} actorId={user.id} calendar={calendar.settings} zones={['UTC', ...Intl.supportedValuesOf('timeZone')]} />
+    <section><h2 className="mb-3 text-lg font-semibold">30-day adherence</h2>
+      <AdherenceHeatmap data={calendar.adherenceData} />
+    </section>
+    <section><h2 className="mb-3 text-lg font-semibold">Your medications</h2>
+      <MedicationList key={user.id} actorId={user.id} medications={calendar.medications} />
+    </section>
+  </div>;
 }

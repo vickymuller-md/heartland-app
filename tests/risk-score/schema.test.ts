@@ -20,18 +20,8 @@ describe('riskInputSchema (RISK-01)', () => {
     expect(result.success).toBe(true);
   });
 
-  it('defaults all fields to false when not provided', () => {
-    const result = riskInputSchema.parse({});
-    expect(result.ageOver75).toBe(false);
-    expect(result.priorHfHospitalization).toBe(false);
-    expect(result.egfrBelow45).toBe(false);
-    expect(result.elevatedNatriuretic).toBe(false);
-    expect(result.sbpBelow100).toBe(false);
-    expect(result.diabetes).toBe(false);
-    expect(result.lvefBelow30).toBe(false);
-    expect(result.ckmStage3or4).toBe(false);
-    expect(result.distanceOver50Miles).toBe(false);
-    expect(result.livesAloneOrLimitedSupport).toBe(false);
+  it('rejects missing factors without assigning a negative answer', () => {
+    expect(riskInputSchema.safeParse({}).success).toBe(false);
   });
 
   it('rejects non-boolean values for each field', () => {

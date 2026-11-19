@@ -4,8 +4,7 @@ import {
   classifyProactiveSeverity, evaluateFollowupDue,
   evaluateFollowupOverdue, evaluateLowAdherence, evaluateNoCheckin, evaluateWeightTrend7d,
 } from './alert-engine';
-import { FREQUENCY_DOSES_MAP } from '@/lib/medications/constants';
-import type { AdherenceDay } from '@/lib/medications/types';
+import { adherenceFromSchedules } from '@/lib/medications/schedule';
 import type { AlertSeverity } from './types';
 import { effectiveLabObservationSchema } from '@/lib/labs/effective';
 
@@ -53,8 +52,11 @@ const alertSource = z.array(z.object({
   id, flags: z.array(z.string()), status: z.enum(['open', 'acknowledged']),
 })).max(1000);
 const adherenceSource = z.object({
-  medications: z.array(z.object({ id, frequency: z.string().nullable() })).max(1000),
-  logs: z.array(z.object({ id, medication_id: id, scheduled_date: calendarDay, taken: z.boolean() })).max(10000),
+  mode: z.literal('dated-v1'), calendar_timezone: z.string().min(1), calendar_dates: z.array(calendarDay).length(7),
+  medications: z.array(z.object({ id, medication_id: id, starts_on: z.union([calendarDay, z.literal('-infinity')]),
+    ends_before: calendarDay.nullable(), known: z.boolean(), active: z.boolean().nullable(), schedule_frequency: z.string().nullable(),
+    weekly_day: z.number().int().min(0).max(6).nullable() })).max(1000),
+  logs: z.array(z.object({ id, medication_id: id, scheduled_date: calendarDay, dose_number: z.number().int().min(1).max(4), taken: z.boolean() })).max(10000),
 });
 
 function result(rule: ScanRule, decision: ScanResult['decision'], sourceIds: string[] = [],
@@ -107,7 +109,7 @@ export function evaluateScanSnapshot(input: unknown): ScanResult[] {
     return SCAN_RULES.map((rule) => ({ ...blocked(rule, 'invalid_context'),
       receipt_id: identity.success ? identity.data.receipt_id : null }));
   }
-  const { sources, captured_at: capturedAt, calendar_dates: dates } = parsed.data;
+  const { sources, captured_at: capturedAt } = parsed.data;
   const now = new Date(capturedAt);
   const nowMicros = microseconds(capturedAt);
   const sevenDaysAgo = nowMicros - BigInt(7 * 86_400_000) * BigInt(1000);
@@ -120,21 +122,17 @@ export function evaluateScanSnapshot(input: unknown): ScanResult[] {
 
   const adherence = adherenceSource.safeParse(sources.adherence);
   if (!adherence.success || !uniqueIds(adherence.data.medications) || !uniqueIds(adherence.data.logs)
-    || adherence.data.medications.some((med) => med.frequency === null || !Object.hasOwn(FREQUENCY_DOSES_MAP, med.frequency))
-    || adherence.data.logs.some((log) => !dates.includes(log.scheduled_date))) {
-    output.set('low_adherence', blocked('low_adherence'));
+    || !frozenCalendarMatches(capturedAt, adherence.data.calendar_timezone, adherence.data.calendar_dates)
+    || adherence.data.logs.some(log => !adherence.data.calendar_dates.includes(log.scheduled_date))) {
+    output.set('low_adherence', blocked('low_adherence', sources.adherence && typeof sources.adherence === 'object'
+      && !('mode' in sources.adherence) ? 'legacy_recipe' : 'invalid_source'));
   } else {
-    const expected = adherence.data.medications.reduce((sum, med) =>
-      sum + FREQUENCY_DOSES_MAP[med.frequency as keyof typeof FREQUENCY_DOSES_MAP], 0);
-    // Preserve the existing recipe's counting of every captured taken log, including inactive meds.
-    const days: AdherenceDay[] = dates.map((date) => {
-      const taken = adherence.data.logs.filter((log) => log.scheduled_date === date && log.taken).length;
-      return { date, totalDoses: expected, takenDoses: expected === 0 ? 0 : taken,
-        status: expected === 0 ? 'no_meds' : taken >= expected ? 'complete' : taken > 0 ? 'partial' : 'missed' };
-    });
-    output.set('low_adherence', result('low_adherence', expected === 0 ? 'not_applicable' :
-      evaluateLowAdherence(days) ? 'triggered' : 'not_triggered',
-    [...adherence.data.medications, ...adherence.data.logs].map((row) => row.id)));
+    const evidence = adherence.data;
+    const versions = evidence.medications.map(med => ({ ...med, frequency: med.schedule_frequency }));
+    const days = evidence.calendar_dates.map(day => adherenceFromSchedules(day, versions, evidence.logs, evidence.calendar_dates[6]));
+    output.set('low_adherence', days.some(day => day.status === 'unconfirmed') ? blocked('low_adherence') :
+      result('low_adherence', days.every(day => day.totalDoses === 0) ? 'not_applicable' :
+        evaluateLowAdherence(days) ? 'triggered' : 'not_triggered', [...versions, ...evidence.logs].map(row => row.id)));
   }
 
   const weights = weightSource.safeParse(sources.weights);

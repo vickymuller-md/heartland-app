@@ -1,7 +1,7 @@
 // INTG-04: Titration completion saved as structured provider_notes entry
 // formatTitrationNote is a pure function -- test without Supabase mocking
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { formatTitrationNote } from '@/lib/integration/actions';
+import { formatTitrationNote } from '@/lib/integration/utils';
 import type { TitrationNoteData } from '@/lib/integration/types';
 
 // Mock date-fns format to return a predictable date

@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { PatientSelector, type SelectedPatientData } from '@/components/shared/patient-selector';
 import { HfrefPanel } from './hfref-panel';
 import { HfpefPanel } from './hfpef-panel';
 import { saveGdmtMedications } from '@/lib/integration/actions';
-import type { GdmtMedicationInput } from '@/lib/integration/types';
+import type { ConfirmedGdmtMedication } from '@/lib/integration/types';
+import { FREQUENCY_OPTIONS } from '@/lib/medications/constants';
 import {
   HFREF_MEDICATIONS,
   HFPEF_MEDICATIONS,
@@ -17,7 +18,6 @@ import {
 } from '@/lib/gdmt/constants';
 import type { Medication } from '@/lib/gdmt/types';
 import { Save } from 'lucide-react';
-import { toast } from 'sonner';
 
 /** Find a GDMT medication by agent name across both HFrEF and HFpEF lists */
 function findGdmtMedication(name: string): Medication | undefined {
@@ -25,11 +25,15 @@ function findGdmtMedication(name: string): Medication | undefined {
   return all.find(m => m.agent === name);
 }
 
-export function GdmtTabs({ clinicalIntegrationEnabled = false }: { clinicalIntegrationEnabled?: boolean }) {
+export function GdmtTabs({ clinicalIntegrationEnabled = false, actorId = null }: { clinicalIntegrationEnabled?: boolean; actorId?: string | null }) {
   const [selectedPatient, setSelectedPatient] = useState<SelectedPatientData['patient'] | null>(null);
   const [patientMedications, setPatientMedications] = useState<{ name: string; dosage: string | null; frequency: string | null }[]>([]);
-  const [selectedDrugs, setSelectedDrugs] = useState<Record<string, boolean>>({});
+  const [drafts, setDrafts] = useState<Record<string, ConfirmedGdmtMedication>>({});
+  const [error, setError] = useState('');
+  const [receipt, setReceipt] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const patientGeneration = useRef(0);
+  const selectedDrugs = Object.fromEntries(Object.keys(drafts).map(agent => [agent, true]));
 
   // Normalized existing medication names for dedup
   const existingMedNames = useMemo(
@@ -38,53 +42,62 @@ export function GdmtTabs({ clinicalIntegrationEnabled = false }: { clinicalInteg
   );
 
   const handlePatientSelect = useCallback((data: SelectedPatientData) => {
+    patientGeneration.current++;
     setSelectedPatient(data.patient);
     setPatientMedications(data.medications);
-    setSelectedDrugs({});
+    setDrafts({});
+    setIsSaving(false);
+    setError('');
+    setReceipt('');
   }, []);
 
   const handlePatientClear = useCallback(() => {
+    patientGeneration.current++;
     setSelectedPatient(null);
     setPatientMedications([]);
-    setSelectedDrugs({});
+    setDrafts({});
+    setIsSaving(false);
+    setError('');
+    setReceipt('');
   }, []);
 
   const handleDrugToggle = useCallback((drugAgent: string, checked: boolean) => {
-    setSelectedDrugs(prev => ({ ...prev, [drugAgent]: checked }));
-  }, []);
+    if (isSaving) return;
+    const template = findGdmtMedication(drugAgent);
+    if (!template) return;
+    const request = crypto.randomUUID();
+    setDrafts(previous => {
+      const next = { ...previous };
+      if (checked) next[drugAgent] = { request_id: request, name: /\sor\s/i.test(template.agent) ? '' : template.agent, dosage: '', frequency: '' };
+      else delete next[drugAgent];
+      return next;
+    });
+    setError('');
+    setReceipt('');
+  }, [isSaving]);
 
-  const hasSelected = Object.values(selectedDrugs).some(Boolean);
+  function editInstruction(agent: string, field: 'name' | 'dosage' | 'frequency', value: string) {
+    setDrafts(previous => ({ ...previous, [agent]: { ...previous[agent], [field]: value } }));
+  }
 
-  const handleSaveMedications = async () => {
-    if (!selectedPatient) return;
+  async function handleSaveMedications(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedPatient || !actorId || isSaving) return;
+    const generation = patientGeneration.current;
+    const items = Object.values(drafts);
     setIsSaving(true);
-
-    const allDrugs: GdmtMedicationInput[] = Object.entries(selectedDrugs)
-      .filter(([, checked]) => checked)
-      .map(([agent]) => {
-        const med = findGdmtMedication(agent);
-        return {
-          name: med?.agent ?? agent,
-          dosage: med?.startingDose ?? '',
-          frequency: med?.id?.includes('sglt2') ? 'daily' : 'as directed',
-        };
-      });
-
-    const existingNames = patientMedications.map(m => m.name);
-    const result = await saveGdmtMedications(selectedPatient.id, allDrugs, existingNames);
-    setIsSaving(false);
-
-    if (result.success) {
-      const addedCount = allDrugs.length;
-      toast.success(`${addedCount} medication(s) added to ${selectedPatient.full_name}`);
-      setSelectedDrugs({});
-      // Update local medication list so dedup labels refresh
-      setPatientMedications(prev => [
-        ...prev,
-        ...allDrugs.map(d => ({ name: d.name, dosage: d.dosage, frequency: d.frequency })),
-      ]);
-    } else {
-      toast.error(result.error ?? 'Failed to add medications');
+    setError('');
+    try {
+      const result = await saveGdmtMedications(selectedPatient.id, items, actorId);
+      if (generation !== patientGeneration.current) return;
+      if (!result.success) { setError(result.error ?? 'Saving was not confirmed. Please retry.'); return; }
+      setReceipt(`${result.added} added to ${selectedPatient.full_name}. ${result.existing} already listed.`);
+      setDrafts({});
+      setPatientMedications(previous => [...previous, ...items.filter(item => !previous.some(med => med.name.trim().toLowerCase() === item.name.trim().toLowerCase()))]);
+    } catch {
+      if (generation === patientGeneration.current) setError('Saving was not confirmed. Keep the entries open and retry.');
+    } finally {
+      if (generation === patientGeneration.current) setIsSaving(false);
     }
   };
 
@@ -95,6 +108,7 @@ export function GdmtTabs({ clinicalIntegrationEnabled = false }: { clinicalInteg
         <h3 className="text-sm font-medium text-gray-700 mb-3">Link to Patient</h3>
         <PatientSelector
           onSelect={handlePatientSelect}
+          expectedActorId={actorId ?? undefined}
           selectedPatient={selectedPatient}
           onClear={handlePatientClear}
         />
@@ -146,14 +160,33 @@ export function GdmtTabs({ clinicalIntegrationEnabled = false }: { clinicalInteg
         </TabsContent>
       </Tabs>
 
-      {/* Save Medications button */}
-      {selectedPatient && hasSelected && (
-        <div className="pt-4 border-t">
-          <Button onClick={handleSaveMedications} disabled={isSaving} className="gap-1">
+      {selectedPatient && <p role="status" className="text-sm font-medium text-gray-800">{receipt}</p>}
+      {selectedPatient && actorId && Object.keys(drafts).length > 0 && (
+        <form onSubmit={handleSaveMedications} className="space-y-4 border-t pt-4">
+          <h3 className="font-semibold">Confirm the medication list for {selectedPatient.full_name}</h3>
+          <p className="text-sm text-muted-foreground">Enter the medication and instructions documented for this patient. The care team can confirm timing separately.</p>
+          {Object.entries(drafts).map(([agent, item]) => <fieldset key={agent} disabled={isSaving} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2">
+            <legend className="px-1 text-sm font-medium">{agent}</legend>
+            <label className="text-sm">Recorded medication name
+              <input required maxLength={200} value={item.name} onChange={e => editInstruction(agent, 'name', e.target.value)} className="mt-1 block min-h-11 w-full rounded border px-2" />
+            </label>
+            <label className="text-sm">Recorded dosage
+              <input required maxLength={100} value={item.dosage} onChange={e => editInstruction(agent, 'dosage', e.target.value)} className="mt-1 block min-h-11 w-full rounded border px-2" />
+            </label>
+            <label className="text-sm sm:col-span-2">Recorded frequency
+              <select required value={item.frequency} onChange={e => editInstruction(agent, 'frequency', e.target.value)} className="mt-1 block min-h-11 w-full rounded border px-2">
+                <option value="" disabled>Select the recorded frequency</option>
+                {FREQUENCY_OPTIONS.filter(option => option.value !== 'weekly').map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                <option value="as directed">As directed · schedule pending confirmation</option>
+              </select>
+            </label>
+          </fieldset>)}
+          {error && <p role="alert" className="text-sm text-red-800">{error}</p>}
+          <Button type="submit" disabled={isSaving} className="gap-1">
             <Save className="size-4" />
             {isSaving ? 'Adding...' : `Add Selected Medications to ${selectedPatient.full_name}`}
           </Button>
-        </div>
+        </form>
       )}
     </div>
   );

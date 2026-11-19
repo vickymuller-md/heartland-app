@@ -12,16 +12,25 @@
 
 import { useState } from 'react';
 import type { AdherenceDay } from '@/lib/medications/types';
+import { CALENDAR_SOURCE_LABEL } from '@/lib/medications/calendar';
 
 const STATUS_COLORS: Record<AdherenceDay['status'], string> = {
-  complete: 'bg-green-500 text-white',
+  complete: 'bg-green-700 text-white',
   partial: 'bg-yellow-400 text-gray-900',
   missed: 'bg-gray-300 text-gray-700',
-  future: 'bg-white border border-gray-100 text-gray-400',
-  no_meds: 'bg-white text-gray-300',
+  future: 'bg-white border border-gray-200 text-gray-600',
+  no_meds: 'bg-white text-gray-700',
+  unconfirmed: 'bg-amber-100 text-amber-950',
 };
 
 const DAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function describeDay(day: AdherenceDay): string {
+  if (day.status === 'future') return 'Future date';
+  if (day.status === 'no_meds') return 'No medications scheduled';
+  if (day.status === 'unconfirmed') return 'Schedule pending confirmation. ' + day.takenDoses + ' of ' + day.totalDoses + ' confirmed scheduled doses recorded.';
+  return day.takenDoses + ' of ' + day.totalDoses + ' scheduled doses recorded.';
+}
 
 function getDayOfWeek(dateStr: string): number {
   // Returns 0=Mon, 1=Tue, ..., 6=Sun (ISO week)
@@ -68,11 +77,12 @@ export function AdherenceHeatmap({ data }: { data: AdherenceDay[] }) {
             <button
               key={day.date}
               type="button"
-              className={`rounded-sm w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center relative ${STATUS_COLORS[day.status]}`}
+              className={`rounded-sm w-full max-w-12 min-h-11 flex items-center justify-center relative ${STATUS_COLORS[day.status]}`}
               onClick={() =>
                 setTooltip(tooltip?.index === i ? null : { day, index: i })
               }
-              aria-label={`${day.date}: ${day.takenDoses} of ${day.totalDoses} doses taken`}
+              aria-label={day.date + ', ' + describeDay(day)}
+              aria-expanded={tooltip?.index === i}
             >
               <span className="text-xs text-center">{dayNum}</span>
             </button>
@@ -84,13 +94,8 @@ export function AdherenceHeatmap({ data }: { data: AdherenceDay[] }) {
       {tooltip && (
         <div className="mt-2 p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm">
           <p className="font-medium">{tooltip.day.date}</p>
-          <p className="text-gray-600">
-            {tooltip.day.status === 'future'
-              ? 'Future date'
-              : tooltip.day.status === 'no_meds'
-                ? 'No medications scheduled'
-                : `${tooltip.day.takenDoses} of ${tooltip.day.totalDoses} doses taken`}
-          </p>
+          <p className="text-gray-600">{describeDay(tooltip.day)}</p>
+          {tooltip.day.calendarSource && <p className="text-gray-600">{CALENDAR_SOURCE_LABEL[tooltip.day.calendarSource]}</p>}
         </div>
       )}
 
@@ -99,8 +104,10 @@ export function AdherenceHeatmap({ data }: { data: AdherenceDay[] }) {
         {[
           { status: 'complete' as const, label: 'Taken' },
           { status: 'partial' as const, label: 'Partial' },
-          { status: 'missed' as const, label: 'Missed' },
+          { status: 'missed' as const, label: 'No dose recorded' },
+          { status: 'unconfirmed' as const, label: 'Schedule unconfirmed' },
           { status: 'future' as const, label: 'Future' },
+          { status: 'no_meds' as const, label: 'No scheduled doses' },
         ].map(({ status, label }) => (
           <div key={status} className="flex items-center gap-1">
             <div

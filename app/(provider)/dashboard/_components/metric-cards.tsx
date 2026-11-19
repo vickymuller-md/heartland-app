@@ -57,11 +57,11 @@ export async function MetricCards({ providerId }: MetricCardsProps) {
           alert={metrics.noCheckinCount > 0}
         />
         <MetricCard
-          label="Avg Adherence"
-          value={`${metrics.avgAdherence}%`}
+          label="Scheduled Doses Recorded (7d)"
+          value={metrics.avgAdherence === null ? 'Unavailable' : `${metrics.avgAdherence}%`}
           icon={Activity}
           trend={adherenceTrend}
-          color={metrics.avgAdherence >= 80 ? '#22c55e' : '#f59e0b'}
+          color={metrics.avgAdherence === null ? '#64748b' : metrics.avgAdherence >= 80 ? '#22c55e' : '#f59e0b'}
         />
         <MetricCard
           label="Alerts Addressed (30d)"
@@ -72,6 +72,7 @@ export async function MetricCards({ providerId }: MetricCardsProps) {
         />
       </div>
       <p className="text-xs text-muted-foreground">
+        Scheduled doses recorded compares doses marked taken with expected slots on each patient’s local calendar. Missing schedules or an empty denominator have no percentage.
         Alerts Addressed counts alert work items closed in the last 30 days with a
         documented clinical outcome. Administrative closures and items closed without a
         recorded outcome are excluded; items created before the accountability model

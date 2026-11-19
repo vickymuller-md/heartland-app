@@ -1,117 +1,71 @@
 'use client';
 
-/**
- * HEARTLAND Dose Log Grid -- Today's dose checkboxes
- *
- * Renders a checkbox per scheduled dose per active medication.
- * Checking a dose fires the logDose Server Action via form.
- * Uses optimistic UI with startTransition for instant feedback.
- *
- * Elderly-friendly: 48px tap targets, clear labels.
- */
-
-import { useState, useTransition } from 'react';
-import { format } from 'date-fns';
-import { FREQUENCY_DOSES_MAP } from '@/lib/medications/constants';
-import type { MedicationRow, MedicationLog } from '@/lib/medications/types';
+import { useState } from 'react';
+import { expectedDoseCount, medicationTiming, type MedicationSchedule } from '@/lib/medications/schedule';
+import { TIMING_PRESETS } from '@/lib/medications/constants';
+import type { MedicationLog } from '@/lib/medications/types';
 import { logDose } from '@/lib/medications/actions';
 
 interface DoseLogGridProps {
-  medications: MedicationRow[];
+  schedules: MedicationSchedule[];
   todayLogs: MedicationLog[];
+  today: string;
+  actorId: string;
+  calendarRevision: string;
 }
 
-export function DoseLogGrid({ medications, todayLogs }: DoseLogGridProps) {
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
-  const [optimisticLogs, setOptimisticLogs] = useState<
-    Record<string, boolean>
-  >({});
-  const [, startTransition] = useTransition();
+export function DoseLogGrid({ schedules, todayLogs, today, actorId, calendarRevision }: DoseLogGridProps) {
+  const [saved, setSaved] = useState<Record<string, boolean>>({});
+  const [pending, setPending] = useState<string | null>(null);
+  const [message, setMessage] = useState('');
+  const eligible = schedules.filter(version => version.active || !version.known || version.active === null);
 
-  // Filter out as_needed medications (0 scheduled doses)
-  const scheduledMeds = medications.filter(
-    (med) => FREQUENCY_DOSES_MAP[med.frequency] > 0
-  );
-
-  if (scheduledMeds.length === 0) {
-    return (
-      <p className="text-base text-gray-500 py-4">
-        No scheduled medications for today.
-      </p>
-    );
+  async function record(version: MedicationSchedule, slot: number, taken: boolean) {
+    const key = version.id + '/' + slot;
+    setPending(key);
+    setMessage('');
+    const form = new FormData();
+    for (const [field, value] of Object.entries({
+      actor_id: actorId, medication_id: version.medication_id, version: version.id, scheduled_date: today, calendar_revision: calendarRevision,
+      dose_number: String(slot), taken: String(taken),
+    })) form.set(field, value);
+    try {
+      const result = await logDose(null, form);
+      if (!result.success) { setMessage(result.error ?? 'Dose recording was not confirmed. Try again.'); return; }
+      setSaved(previous => ({ ...previous, [key]: taken }));
+      setMessage(taken ? 'Dose marked as taken.' : 'Dose mark removed.');
+    } catch {
+      setMessage('Dose recording was not confirmed. Reload the schedule before trying again.');
+    } finally {
+      setPending(null);
+    }
   }
 
-  function isDoseTaken(medId: string, doseNum: number): boolean {
-    const key = `${medId}-${doseNum}`;
-    if (key in optimisticLogs) return optimisticLogs[key];
-    return todayLogs.some(
-      (log) =>
-        log.medication_id === medId &&
-        log.dose_number === doseNum &&
-        log.taken === true
-    );
-  }
-
-  function handleToggle(medId: string, doseNum: number, taken: boolean) {
-    const key = `${medId}-${doseNum}`;
-    // Optimistic update
-    setOptimisticLogs((prev) => ({ ...prev, [key]: !taken }));
-
-    startTransition(async () => {
-      const formData = new FormData();
-      formData.set('medication_id', medId);
-      formData.set('scheduled_date', todayStr);
-      formData.set('dose_number', String(doseNum));
-      formData.set('taken', String(!taken));
-
-      const result = await logDose(null, formData);
-      if (result.error) {
-        // Revert on error
-        setOptimisticLogs((prev) => ({ ...prev, [key]: taken }));
-      }
-    });
-  }
-
-  return (
-    <div className="space-y-4">
-      {scheduledMeds.map((med) => {
-        const doseCount = FREQUENCY_DOSES_MAP[med.frequency];
-        const timingLabels = med.timing.length >= doseCount ? med.timing : null;
-
-        return (
-          <div key={med.id} className="space-y-2">
-            <p className="text-lg font-semibold text-gray-900">{med.name}</p>
-            <p className="text-sm text-gray-500">{med.dosage}</p>
-            <div className="flex flex-wrap gap-3">
-              {Array.from({ length: doseCount }).map((_, i) => {
-                const doseNum = i + 1;
-                const taken = isDoseTaken(med.id, doseNum);
-                const label = timingLabels
-                  ? timingLabels[i].charAt(0).toUpperCase() +
-                    timingLabels[i].slice(1)
-                  : `Dose ${doseNum}`;
-
-                return (
-                  <button
-                    key={doseNum}
-                    type="button"
-                    onClick={() => handleToggle(med.id, doseNum, taken)}
-                    className={`min-h-[48px] min-w-[48px] px-4 py-2 rounded-lg border-2 text-base font-medium transition-colors ${
-                      taken
-                        ? 'bg-green-100 border-green-500 text-green-800'
-                        : 'bg-white border-gray-300 text-gray-700'
-                    }`}
-                    aria-pressed={taken}
-                    aria-label={`${med.name} ${label}: ${taken ? 'taken' : 'not taken'}`}
-                  >
-                    {taken ? '\u2713 ' : ''}{label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
+  return <div className="space-y-4">
+    {!eligible.some(item => expectedDoseCount(item, today) !== 0) && <p>No scheduled medications for today.</p>}
+    {eligible.map(version => {
+      const count = expectedDoseCount(version, today);
+      if (count === 0) return null;
+      const labels = medicationTiming(version.timing);
+      const timed = labels.length === count && labels.every(label => TIMING_PRESETS.some(preset => preset.value === label));
+      return <div key={version.id} className="space-y-2 rounded-lg border p-3">
+        <p className="text-lg font-semibold text-gray-900">{version.name ?? 'Medication record'}</p>
+        <p className="text-sm text-gray-700">{version.dosage}</p>
+        {!timed && labels.length > 0 && <p className="text-sm text-gray-700">Recorded timing: {labels.join(' · ')}</p>}
+        {count === null ? <p className="text-sm text-amber-900">Schedule pending confirmation. Check the recorded instructions with your care team.</p> : <>
+          {!timed && <p className="text-sm text-gray-700">Time pending confirmation. Follow your recorded instructions.</p>}
+          <div className="flex flex-wrap gap-3">{Array.from({ length: count }, (_, index) => {
+            const slot = index + 1, key = version.id + '/' + slot;
+            const taken = saved[key] ?? todayLogs.some(log => log.medication_id === version.medication_id && log.dose_number === slot && log.taken);
+            const label = timed ? TIMING_PRESETS.find(preset => preset.value === labels[index])!.label : 'Dose ' + slot;
+            return <button key={slot} type="button" disabled={pending !== null} aria-pressed={taken}
+              aria-label={version.name + ' ' + label + (taken ? ', taken' : ', not recorded')}
+              className={`min-h-12 min-w-12 rounded-lg border-2 px-4 py-2 font-medium ${taken ? 'border-green-700 bg-green-100 text-green-900' : 'border-gray-400 bg-white text-gray-800'}`}
+              onClick={() => void record(version, slot, !taken)}>{pending === key ? 'Saving…' : (taken ? 'Taken · ' : '') + label}</button>;
+          })}</div>
+        </>}
+      </div>;
+    })}
+    <p role="status" className="text-sm text-gray-800">{message}</p>
+  </div>;
 }

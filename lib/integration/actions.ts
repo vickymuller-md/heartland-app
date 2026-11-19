@@ -17,22 +17,21 @@
 import { authorizeProviderForPatient } from '@/lib/auth/authorization';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { titrationNoteSchema, type SaveResult, type TitrationNoteData, type TitrationNoteSaveResult, type GdmtMedicationInput } from './types';
+import { riskInputSchema, RISK_FRAMEWORK_VERSION } from '@/lib/risk-score/schema';
+import { titrationNoteSchema, type SaveResult, type TitrationNoteData, type TitrationNoteSaveResult, type ConfirmedGdmtMedication } from './types';
 import {
   TRACK_MAP,
   formatTitrationNote,
-  buildGdmtMedications,
 } from './utils';
-
-// Re-export pure functions for backward compatibility with existing imports
-export { TRACK_MAP, formatTitrationNote, buildGdmtMedications };
 
 // ---------- Zod Schemas ----------
 
 const riskScoreSchema = z.object({
-  patientId: z.uuid('Invalid patient ID'),
-  score: z.number().int().min(0).max(18),
-  tier: z.enum(['low', 'moderate', 'high']),
+  patientId: z.uuid(),
+  actorId: z.uuid(),
+  requestId: z.uuid(),
+  version: z.literal(RISK_FRAMEWORK_VERSION),
+  factors: riskInputSchema,
 });
 
 const facilityTierSchema = z.object({
@@ -56,39 +55,33 @@ const trackAssignmentSchema = z.object({
 export async function saveRiskScore(
   _prevState: unknown,
   formData: FormData
-): Promise<SaveResult> {
-  const raw = {
-    patientId: formData.get('patientId') as string,
-    score: Number(formData.get('score')),
-    tier: formData.get('tier') as string,
-  };
-
-  const parsed = riskScoreSchema.safeParse(raw);
-  if (!parsed.success) {
-    return { success: false, error: 'Validation failed' };
+): Promise<SaveResult & { requestId?: string }> {
+  const requestId = String(formData.get('requestId') ?? '');
+  let factors: unknown;
+  try {
+    factors = JSON.parse(String(formData.get('inputs')));
+  } catch {
+    return { success: false, error: 'Review all ten factors before saving.', requestId };
   }
+  const parsed = riskScoreSchema.safeParse({
+    patientId: formData.get('patientId'), actorId: formData.get('actorId'),
+    requestId, version: formData.get('version'), factors,
+  });
+  if (!parsed.success) return { success: false, error: 'Assessment incomplete or outdated. Review the factors.', requestId };
 
-  const auth = await authorizeProviderForPatient(parsed.data.patientId);
-  if (!auth.authorized) return { success: false, error: auth.error };
-
-  const { data, error } = await auth.supabase
-    .from('patients')
-    .update({
-      risk_tier: parsed.data.tier,
-      risk_score: parsed.data.score,
-      risk_scored_at: new Date().toISOString(),
-    })
-    .eq('id', parsed.data.patientId)
-    .select('id');
-
-  if (error) return { success: false, error: 'Unable to save risk score' };
-  if (!data || data.length === 0) {
-    return { success: false, error: 'Patient not found or not linked to provider' };
+  const { patientId, actorId, version } = parsed.data;
+  const auth = await authorizeProviderForPatient(patientId);
+  if (!auth.authorized || auth.user.id !== actorId) {
+    return { success: false, error: 'Session or patient access changed. Reload before saving.', requestId };
   }
-
-  revalidatePath(`/patients/${parsed.data.patientId}`);
+  const { data, error } = await auth.supabase.rpc('record_risk_assessment', {
+    p_expected_actor: actorId, p_patient_id: patientId, p_request_id: requestId,
+    p_version: version, p_factors: parsed.data.factors,
+  });
+  if (error || data !== requestId) return { success: false, error: 'Save could not be confirmed. Retry this assessment.', requestId };
+  revalidatePath(`/patients/${patientId}`);
   revalidatePath('/dashboard');
-  return { success: true };
+  return { success: true, requestId };
 }
 
 /**
@@ -220,33 +213,27 @@ export async function saveTitrationNote(
  */
 export async function saveGdmtMedications(
   patientId: string,
-  selected: GdmtMedicationInput[],
-  existingMedNames: string[]
-): Promise<SaveResult> {
-  if (!patientId || !z.string().uuid().safeParse(patientId).success) {
-    return { success: false, error: 'Invalid patient ID' };
-  }
-
-  const newMeds = buildGdmtMedications(selected, existingMedNames);
-  if (newMeds.length === 0) {
-    return { success: true }; // Nothing to insert -- all duplicates
-  }
-
+  selected: ConfirmedGdmtMedication[],
+  expectedActor: string,
+): Promise<SaveResult & { added?: number; existing?: number }> {
   const auth = await authorizeProviderForPatient(patientId);
   if (!auth.authorized) return { success: false, error: auth.error };
-
-  const rows = newMeds.map(m => ({
-    patient_id: patientId,
-    name: m.name,
-    dosage: m.dosage,
-    frequency: m.frequency,
-    active: true,
-  }));
-
-  const { error } = await auth.supabase.from('medications').insert(rows);
-
-  if (error) return { success: false, error: 'Unable to save medications' };
-
+  if (auth.user.id !== expectedActor) return { success: false, error: 'The provider session changed. Reload the pathway.' };
+  const input = z.array(z.object({
+    request_id: z.uuid(), name: z.string().trim().min(1).max(200).refine(name => !/\sor\s/i.test(name)),
+    dosage: z.string().trim().min(1).max(100),
+    frequency: z.enum(['daily','once_daily','twice_daily','three_times_daily','four_times_daily','as_needed','as directed']),
+  }).strict()).min(1).max(20).safeParse(selected);
+  if (!input.success) return { success: false, error: 'Confirm one medication name, dosage and frequency for each selection.' };
+  const { data, error } = await auth.supabase.rpc('record_gdmt_medications', {
+    p_actor: expectedActor, p_patient: patientId, p_selections: input.data,
+  });
+  const receipt = z.object({ added: z.number().int().min(0), existing: z.number().int().min(0) }).safeParse(data);
+  if (error || !receipt.success || receipt.data.added + receipt.data.existing !== input.data.length) {
+    return { success: false, error: 'The medication list could not be confirmed. Retry or reload the patient list.' };
+  }
   revalidatePath(`/patients/${patientId}`);
-  return { success: true };
+  revalidatePath('/medications');
+  revalidatePath('/today');
+  return { success: true, ...receipt.data };
 }

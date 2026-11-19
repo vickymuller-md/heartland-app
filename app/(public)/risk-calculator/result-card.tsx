@@ -5,13 +5,14 @@ import type { RiskResult } from '@/lib/risk-score/types';
 
 interface ResultCardProps {
   result: RiskResult;
+  allowExplanation?: boolean;
 }
 
 /**
  * Displays the tier badge, score, and care pathway recommendations.
  * Visible on both screen and print. Colors preserved in print via print-color-adjust.
  */
-export function ResultCard({ result }: ResultCardProps) {
+export function ResultCard({ result, allowExplanation = true }: ResultCardProps) {
   const colors = TIER_COLORS[result.tier];
 
   return (
@@ -59,7 +60,7 @@ export function ResultCard({ result }: ResultCardProps) {
             </p>
           </div>
           <div className="print:hidden">
-            <ExplainResultButton
+            {allowExplanation && <ExplainResultButton
               input={{
                 module: 'risk',
                 result: {
@@ -73,7 +74,7 @@ export function ResultCard({ result }: ResultCardProps) {
                   support: result.carePathway.support,
                 },
               }}
-            />
+            />}
           </div>
         </CardContent>
       </Card>

@@ -75,3 +75,5 @@ export interface GdmtMedicationInput {
   dosage: string;
   frequency: string;
 }
+
+export type ConfirmedGdmtMedication = GdmtMedicationInput & { request_id: string };

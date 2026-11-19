@@ -27,9 +27,8 @@ export const TIMING_PRESETS: { value: string; label: string }[] = [
 ];
 
 /**
- * Maps medication frequency to number of scheduled doses per day.
- * Used by adherence calculation and dose log grid.
- * as_needed = 0 (no scheduled doses, patient logs when taken)
+ * Slot count on a scheduled day. Weekly rows first require a matching
+ * confirmed weekday. As-needed instructions have no scheduled slots.
  */
 export const FREQUENCY_DOSES_MAP: Record<MedicationFrequency, number> = {
   once_daily: 1,
