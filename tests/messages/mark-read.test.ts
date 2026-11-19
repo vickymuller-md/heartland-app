@@ -1,21 +1,37 @@
-/**
- * markMessageRead Server Action -- Tests
- * Requirement: MSG-04
- * Source: HEARTLAND Protocol v3.3 -- Phase 19 Structured Provider Messages
- *
- * MSG-04: Message read-receipt: provider sees when patient viewed the message
- */
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { markMessageRead } from '@/lib/messages/actions';
 
-// import { markMessageRead } from '@/lib/messages/actions';
+const { authorize, rpc, revalidate } = vi.hoisted(() => ({
+  authorize: vi.fn(),
+  rpc: vi.fn(),
+  revalidate: vi.fn(),
+}));
+vi.mock('@/lib/auth/authorization', () => ({ authorize }));
+vi.mock('next/cache', () => ({ revalidatePath: revalidate }));
+const patient = '83000000-0000-4000-8000-000000000001';
+const message = '83000000-0000-4000-8000-000000000002';
+beforeEach(() => {
+  vi.resetAllMocks();
+  authorize.mockResolvedValue({ authorized: true, user: { id: patient }, supabase: { rpc } });
+});
 
-import { describe, it } from 'vitest';
-
-describe('markMessageRead server action (MSG-04)', () => {
-  it.todo(
-    'calls supabase update with the correct message ID and sets read_at'
-  );
-
-  it.todo(
-    'is idempotent -- no-op if read_at is already set'
-  );
+describe('portal read confirmation', () => {
+  it('requires the same patient session that opened the card', async () => {
+    expect((await markMessageRead(message, message)).success).toBe(false);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+  it('requires a timestamp from the database before refreshing both views', async () => {
+    rpc
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({ data: '2026-11-19T13:00:00Z', error: null });
+    expect((await markMessageRead(message, patient)).success).toBe(false);
+    expect(revalidate).not.toHaveBeenCalled();
+    expect(await markMessageRead(message, patient)).toEqual({ success: true });
+    expect(rpc).toHaveBeenCalledWith('confirm_portal_message_read', {
+      p_expected_patient: patient,
+      p_message_id: message,
+    });
+    expect(revalidate).toHaveBeenCalledWith('/today');
+    expect(revalidate).toHaveBeenCalledWith('/patients/' + patient);
+  });
 });

@@ -7,19 +7,17 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { getRecentVitals } from '@/lib/vitals/queries';
-import {
-  getPatientMedications,
-  getTodayLogs,
-  computeAdherenceDay,
-} from '@/lib/medications/queries';
-import { getEducationProgress } from '@/lib/education/queries';
+import { hasVitalWithinDay } from '@/lib/vitals/queries';
+import { getAdherenceForRange } from '@/lib/medications/queries';
+import type { MedicationCalendar } from '@/lib/medications/calendar';
+import { getEducationSummary } from '@/lib/education/queries';
 import { DEFAULT_TIME_ZONE, getDateKeyInTimeZone, getZonedDayBounds } from '@/lib/timezone';
 
 export interface TodayTaskStatus {
   vitalsLogged: boolean;
   medsTaken: number;
   medsTotal: number;
+  medsScheduleUnconfirmed?: boolean;
   educationRemaining: number;
 }
 
@@ -27,39 +25,27 @@ export async function getTodayTaskStatus(
   supabase: SupabaseClient,
   patientId: string,
   timeZone = DEFAULT_TIME_ZONE,
+  calendar?: MedicationCalendar,
 ): Promise<TodayTaskStatus> {
   const now = new Date();
-  const todayStr = getDateKeyInTimeZone(now, timeZone);
-  const dayBounds = getZonedDayBounds(now, timeZone);
+  const todayStr = calendar?.day ?? getDateKeyInTimeZone(now, timeZone);
+  const dayBounds = calendar ? { start: new Date(calendar.day_bounds.start_at), endExclusive: new Date(calendar.day_bounds.end_at) }
+    : getZonedDayBounds(now, timeZone);
 
-  const [recentVitals, medications, todayLogs, educationProgress] =
+  const [vitalsLogged, [adherence], education] =
     await Promise.all([
-      getRecentVitals(supabase, patientId, 1),
-      getPatientMedications(supabase, patientId),
-      getTodayLogs(supabase, patientId, todayStr),
-      getEducationProgress(supabase, patientId),
+      hasVitalWithinDay(supabase, patientId, dayBounds.start, dayBounds.endExclusive),
+      getAdherenceForRange(supabase, patientId, todayStr, todayStr, calendar ?? timeZone),
+      getEducationSummary(supabase, patientId),
     ]);
 
-  const vitalsLogged = recentVitals.some(
-    (v) => v.recorded_at >= dayBounds.start.toISOString()
-      && v.recorded_at < dayBounds.endExclusive.toISOString(),
-  );
-
-  const adherence = computeAdherenceDay(
-    todayStr,
-    medications,
-    todayLogs,
-    now,
-  );
-
-  const educationRemaining = educationProgress.filter(
-    (p) => !p.completed
-  ).length;
+  const educationRemaining = education.totalDomains - education.completedDomains;
 
   return {
     vitalsLogged,
     medsTaken: adherence.takenDoses,
     medsTotal: adherence.totalDoses,
+    medsScheduleUnconfirmed: adherence.status === 'unconfirmed',
     educationRemaining,
   };
 }

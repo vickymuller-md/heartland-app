@@ -7,6 +7,7 @@
  * Requirements: DASH-05 (alert inbox with resolution workflow)
  */
 
+import { AlertRefreshStatus } from '../_components/realtime-alerts-provider';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { getAlerts } from '@/lib/dashboard/queries';
@@ -56,6 +57,7 @@ export default async function AlertsPage({ searchParams }: AlertsPageProps) {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Operational Inbox</h1>
+          <AlertRefreshStatus checkedAt={new Date().toISOString()} />
         <p className="text-sm text-muted-foreground">
           Assigned work, patient alerts, and honest in-app message delivery evidence.
         </p>

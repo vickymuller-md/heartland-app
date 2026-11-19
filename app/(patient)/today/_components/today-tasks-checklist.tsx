@@ -6,6 +6,7 @@ interface TodayTasksProps {
   vitalsLogged: boolean;
   medsTaken: number;
   medsTotal: number;
+  medsScheduleUnconfirmed?: boolean;
   educationRemaining: number;
 }
 
@@ -13,14 +14,16 @@ export function TodayTasksChecklist({
   vitalsLogged,
   medsTaken,
   medsTotal,
+  medsScheduleUnconfirmed = false,
   educationRemaining,
 }: TodayTasksProps) {
   const vitalsComplete = vitalsLogged;
-  const medsComplete = medsTotal === 0 || medsTaken >= medsTotal;
+  const medsComplete = !medsScheduleUnconfirmed && medsTaken >= medsTotal;
   const educationComplete = educationRemaining === 0;
 
   function medsDetail(): string {
-    if (medsTotal === 0) return 'No medications set up';
+    if (medsScheduleUnconfirmed) return medsTotal ? `${medsTaken} of ${medsTotal} confirmed doses recorded · additional schedule needs confirmation` : 'Schedule pending confirmation';
+    if (medsTotal === 0) return 'No doses scheduled today';
     if (medsTaken >= medsTotal) return 'All taken';
     return `${medsTaken} of ${medsTotal} taken`;
   }
@@ -55,6 +58,7 @@ export function TodayTasksChecklist({
 
         {/* Task 2: Medications */}
         <li className="flex items-center gap-3 min-h-[48px]">
+          <span className="sr-only">{medsComplete ? 'Medication task complete' : 'Medication task pending'}</span>
           {medsComplete ? (
             <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
           ) : (

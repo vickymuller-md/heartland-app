@@ -52,3 +52,11 @@ export async function getVitalsHistory(
   if (error) throw error;
   return (data ?? []) as VitalsRow[];
 }
+
+/** Native timestamp bounds include the first instant and exclude the next day, including DST. */
+export async function hasVitalWithinDay(supabase: SupabaseClient, patientId: string, start: Date, endExclusive: Date): Promise<boolean> {
+  const { data, error } = await supabase.from('vitals').select('id').eq('patient_id', patientId)
+    .gte('recorded_at', start.toISOString()).lt('recorded_at', endExclusive.toISOString()).limit(1);
+  if (error || !data) throw new Error('Today check-in unavailable');
+  return data.length > 0;
+}

@@ -1,3 +1,4 @@
+import { AlertRefreshStatus } from '../_components/realtime-alerts-provider';
 import { Suspense } from 'react';
 import { randomUUID } from 'node:crypto';
 import Link from 'next/link';
@@ -100,6 +101,7 @@ export default async function ProviderDashboard({
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">Operational workspace</p>
           <h1 className="text-3xl font-bold tracking-tight text-gray-950">Daily Loop</h1>
+          <AlertRefreshStatus checkedAt={new Date().toISOString()} />
           <p className="mt-1 text-sm text-gray-600">Priority, action, owner, deadline, and outcome in one queue.</p>
           <Link href="/team/reassignment-requests" prefetch={false} className="mt-2 inline-flex min-h-11 items-center text-sm text-blue-700 underline">My pending reassignment requests</Link>
         </div>

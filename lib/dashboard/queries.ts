@@ -201,17 +201,11 @@ export async function getLinkedPatients(
   return sortPatients(result, sortBy);
 }
 
-/**
- * Get full patient detail for the patient detail view.
- * DASH-03: Vitals trends, symptoms, medications, education, notes
- */
-export async function getPatientDetail(
-  supabase: SupabaseClient,
-  providerId: string,
-  patientId: string
-): Promise<PatientDetailData | null> {
+export async function getLinkedPatientProfile(
+  supabase: SupabaseClient, providerId: string, patientId: string,
+): Promise<PatientDetailData['patient'] | null> {
   // 1. Security check: verify provider-patient link exists
-  const { data: link } = await supabase
+  const { data: link, error: linkError } = await supabase
     .from('provider_patient_links')
     .select('id')
     .eq('provider_id', providerId)
@@ -219,6 +213,7 @@ export async function getPatientDetail(
     .eq('status', 'active')
     .maybeSingle();
 
+  if (linkError) throw linkError;
   if (!link) return null; // Unauthorized
 
   // 2. Fetch patient profile
@@ -230,66 +225,53 @@ export async function getPatientDetail(
 
   if (patientError) throw patientError;
 
-  const patientFullName = extractFullName(patient.profiles) ?? 'Unknown';
+  return {
+    id: patient.id, full_name: extractFullName(patient.profiles) ?? 'Unknown',
+    risk_tier: patient.risk_tier, track_assignment: patient.track_assignment,
+  };
+}
+
+/**
+ * Get full patient detail for the patient detail view.
+ * DASH-03: Vitals trends, symptoms, medications, education, notes
+ */
+export async function getPatientDetail(
+  supabase: SupabaseClient,
+  providerId: string,
+  patientId: string
+): Promise<PatientDetailData | null> {
+  const patient = await getLinkedPatientProfile(supabase, providerId, patientId);
+  if (!patient) return null;
+  const patientFullName = patient.full_name;
 
   // 3. Fetch vitals (last 90 days)
   const ninetyDaysAgo = new Date();
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-  const { data: vitals } = await supabase
-    .from('vitals')
-    .select('recorded_at, weight_lbs, sbp, dbp, heart_rate, spo2')
-    .eq('patient_id', patientId)
-    .gte('recorded_at', ninetyDaysAgo.toISOString())
-    .order('recorded_at', { ascending: true });
-
-  // 4. Fetch symptoms (last 90 days)
-  const { data: symptoms } = await supabase
-    .from('symptoms')
-    .select('id, recorded_at, dyspnea, edema, orthopnea, fatigue, red_flag')
-    .eq('patient_id', patientId)
-    .gte('recorded_at', ninetyDaysAgo.toISOString())
-    .order('recorded_at', { ascending: false });
-
-  // 5. Fetch medication adherence (reuse Phase 9)
-  let adherenceSummary: unknown = null;
-  try {
-    adherenceSummary = await getAdherenceData(supabase, patientId, 30);
-  } catch {
-    // Medication data may not exist yet
-  }
-
-  // 6. Fetch education progress (reuse Phase 9)
-  let educationProgress: unknown = null;
-  try {
-    educationProgress = await getEducationSummary(supabase, patientId);
-  } catch {
-    // Education data may not exist yet
-  }
-
-  // 7. Fetch provider notes
-  const notes = await getProviderNotes(supabase, patientId);
-
-  // 8. Fetch open alerts
-  const { data: openAlerts } = await supabase
-    .from('alerts')
-    .select('id, patient_id, vitals_id, flags, severity, status, acknowledged_by, acknowledged_at, resolved_by, resolved_at, created_at')
-    .eq('patient_id', patientId)
-    .in('status', ['open', 'acknowledged'])
-    .order('created_at', { ascending: false });
-
+  const since = ninetyDaysAgo.toISOString();
+  const [vitalResult, symptomResult, adherenceSummary, educationProgress, notes, alertResult] = await Promise.all([
+    supabase.from('vitals').select('recorded_at, weight_lbs, sbp, dbp, heart_rate, spo2')
+      .eq('patient_id', patientId).gte('recorded_at', since).order('recorded_at', { ascending: true }),
+    supabase.from('symptoms').select('id, recorded_at, dyspnea, edema, orthopnea, fatigue, red_flag')
+      .eq('patient_id', patientId).gte('recorded_at', since).order('recorded_at', { ascending: false }),
+    getAdherenceData(supabase, patientId, 30).catch(() => null),
+    getEducationSummary(supabase, patientId).catch(() => null),
+    getProviderNotes(supabase, patientId),
+    supabase.from('alerts').select('id, patient_id, vitals_id, flags, severity, status, acknowledged_by, acknowledged_at, resolved_by, resolved_at, created_at')
+      .eq('patient_id', patientId).in('status', ['open', 'acknowledged']).order('created_at', { ascending: false }),
+  ]);
+  const readError = vitalResult.error ?? symptomResult.error ?? alertResult.error;
+  if (readError) throw readError;
+  const { data: vitals } = vitalResult;
+  const { data: symptoms } = symptomResult;
+  const { data: openAlerts } = alertResult;
   const alertAccountability = await getAlertAccountability(
     supabase,
     (openAlerts ?? []).map((a) => a.id)
   );
 
   return {
-    patient: {
-      id: patient.id,
-      full_name: patientFullName,
-      risk_tier: patient.risk_tier,
-      track_assignment: patient.track_assignment,
-    },
+    patient,
     vitals: (vitals ?? []).map((v) => ({
       date: v.recorded_at,
       weight_lbs: v.weight_lbs,
@@ -312,6 +294,20 @@ export async function getPatientDetail(
   };
 }
 
+// Filter through the provider's active relationship at the database so the full
+// authorized inbox shares one ordering and one count, regardless of panel size.
+const ALERT_PATIENT_SCOPE = 'patients!inner(profiles!patients_id_fkey!inner(full_name,scope:provider_patient_links!provider_patient_links_patient_id_fkey!inner()))';
+
+export async function getUrgentAlertCount(supabase: SupabaseClient, providerId: string): Promise<number | null> {
+  const { count, error } = await supabase.from('alerts')
+    .select(`id,${ALERT_PATIENT_SCOPE}`, { count: 'exact', head: true })
+    .eq('patients.profiles.scope.provider_id', providerId)
+    .eq('patients.profiles.scope.status', 'active')
+    .in('severity', ['critical', 'warning'])
+    .eq('status', 'open');
+  return error ? null : count;
+}
+
 /**
  * Get alerts for all linked patients with filtering.
  * DASH-05: Alert inbox
@@ -324,22 +320,11 @@ export async function getAlerts(
 ): Promise<{ alerts: AlertRow[]; total: number }> {
   const limit = Math.min(Math.max(pagination.limit ?? 25, 1), 50);
   const offset = Math.max(pagination.offset ?? 0, 0);
-  // Get linked patient IDs
-  const { data: links, error: linkError } = await supabase
-    .from('provider_patient_links')
-    .select('patient_id')
-    .eq('provider_id', providerId)
-    .eq('status', 'active');
-
-  if (linkError) throw linkError;
-  if (!links || links.length === 0) return { alerts: [], total: 0 };
-  const patientIds = links.map((l) => l.patient_id);
-
-  // Build query with optional status filter
   let query = supabase
     .from('alerts')
-    .select('id, patient_id, vitals_id, flags, severity, status, acknowledged_by, acknowledged_at, resolved_by, resolved_at, created_at, occurrence_count, first_seen_at, last_seen_at, patients!inner(profiles!patients_id_fkey(full_name))', { count: 'exact' })
-    .in('patient_id', patientIds)
+    .select(`id, patient_id, vitals_id, flags, severity, status, acknowledged_by, acknowledged_at, resolved_by, resolved_at, created_at, occurrence_count, first_seen_at, last_seen_at, ${ALERT_PATIENT_SCOPE}`, { count: 'exact' })
+    .eq('patients.profiles.scope.provider_id', providerId)
+    .eq('patients.profiles.scope.status', 'active')
     .order('last_seen_at', { ascending: false })
     .order('id', { ascending: true })
     .range(offset, offset + limit - 1);
@@ -350,13 +335,14 @@ export async function getAlerts(
 
   const { data, error, count } = await query;
   if (error) throw error;
+  if (!data || count == null) throw new Error('Alert inbox unavailable.');
 
   const accountability = await getAlertAccountability(
     supabase,
-    (data ?? []).map((row) => row.id)
+    data.map((row) => row.id)
   );
 
-  const alerts = (data ?? []).map((row) => {
+  const alerts = data.map((row) => {
     const owner = accountability.get(row.id);
     return {
       id: row.id,
@@ -379,7 +365,7 @@ export async function getAlerts(
       outcome_required: owner?.outcome_required ?? false,
     };
   });
-  return { alerts, total: count ?? 0 };
+  return { alerts, total: count };
 }
 
 /**

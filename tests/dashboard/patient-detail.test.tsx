@@ -83,6 +83,7 @@ describe('PatientDetailTabs', () => {
   it('renders 5 tabs: Vitals, Symptoms, Medications, Education, Notes', () => {
     render(
       <PatientDetailTabs
+        actorId="provider-1"
         patientId="p1"
         vitals={mockVitals}
         symptoms={mockSymptoms}
@@ -103,9 +104,10 @@ describe('PatientDetailTabs', () => {
     expect(screen.getByText('Notes')).toBeInTheDocument();
   });
 
-  it('Vitals tab shows multi-series line chart (weight, SBP, DBP, HR, SpO2)', () => {
+  it('Vitals tab shows multi-series line chart (weight, SBP, DBP, HR, SpO2)', async () => {
     render(
       <PatientDetailTabs
+        actorId="provider-1"
         patientId="p1"
         vitals={mockVitals}
         symptoms={[]}
@@ -120,12 +122,13 @@ describe('PatientDetailTabs', () => {
 
     fireEvent.click(screen.getByText('Vitals'));
     // Chart should be rendered (mocked)
-    expect(screen.getByTestId('line-chart')).toBeInTheDocument();
+    expect(await screen.findByTestId('line-chart', {}, { timeout: 5000 })).toBeInTheDocument();
   });
 
-  it('Vitals tab supports 7/30/90 day period toggle', () => {
+  it('Vitals tab supports 7/30/90 day period toggle', async () => {
     render(
       <PatientDetailTabs
+        actorId="provider-1"
         patientId="p1"
         vitals={mockVitals}
         symptoms={[]}
@@ -140,7 +143,7 @@ describe('PatientDetailTabs', () => {
 
     fireEvent.click(screen.getByText('Vitals'));
     // Period buttons should be present
-    expect(screen.getByText('7d')).toBeInTheDocument();
+    expect(await screen.findByText('7d', {}, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.getByText('30d')).toBeInTheDocument();
     expect(screen.getByText('90d')).toBeInTheDocument();
   });
@@ -205,7 +208,7 @@ describe('MedicationSummary', () => {
 
   it('shows empty state when no medications', () => {
     render(<MedicationSummary patientId="p1" adherenceSummary={{ medications: [] }} />);
-    expect(screen.getByText('No medications recorded')).toBeInTheDocument();
+    expect(screen.getByText('No active medications listed')).toBeInTheDocument();
   });
 });
 

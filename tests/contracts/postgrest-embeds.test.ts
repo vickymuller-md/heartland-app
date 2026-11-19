@@ -39,7 +39,7 @@ const enabled = env.HEARTLAND_REST_CONTRACT === '1' && !!env.NEXT_PUBLIC_SUPABAS
 // this case is what fails first if a migration ever adds a second path between those tables.
 const EMBEDS: Array<{ table: string; select: string; used_by: string }> = [
   { table: 'patients', select: 'id,profiles!patients_id_fkey(full_name)', used_by: 'lib/dashboard/queries.ts, worklist-queries.ts, metrics-queries.ts' },
-  { table: 'alerts', select: 'id,patients!inner(profiles!patients_id_fkey(full_name))', used_by: 'lib/dashboard/queries.ts alerts list' },
+  { table: 'alerts', select: 'id,patients!inner(profiles!patients_id_fkey!inner(full_name,scope:provider_patient_links!provider_patient_links_patient_id_fkey!inner()))', used_by: 'lib/dashboard/queries.ts alerts list and badge' },
   { table: 'work_items', select: 'id,patients!work_items_patient_id_fkey(profiles!patients_id_fkey(full_name)),assignee:profiles!work_items_assigned_to_fkey(full_name)', used_by: 'lib/daily-loop/queries.ts' },
   { table: 'work_items', select: 'id,recipient:profiles!work_items_transfer_pending_to_fkey(full_name),offered_by:profiles!work_items_transfer_offered_by_fkey(full_name)', used_by: 'lib/daily-loop/queries.ts — 00041 adds three more work_items→profiles paths, so these embeds must stay hinted' },
   { table: 'provider_messages', select: 'id,patients!provider_messages_patient_id_fkey(profiles!patients_id_fkey(full_name))', used_by: 'lib/inbox/queries.ts' },

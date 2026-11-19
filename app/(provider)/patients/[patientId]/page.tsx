@@ -1,3 +1,4 @@
+import { RISK_VARIABLES } from '@/lib/risk-score/constants';
 import Link from 'next/link';
 import { randomUUID } from 'node:crypto';
 import { ArrowLeft, AlertTriangle, FileText } from 'lucide-react';
@@ -68,49 +69,30 @@ export default async function PatientDetailPage({
   }
 
   const { patient, vitals, symptoms, adherenceSummary, educationProgress, notes, openAlerts } = detail;
-  const messages = await getPatientMessages(supabase, patientId);
-  const operationalView = await getPatientOperationalView(supabase, user.id, patientId);
-  const teamDirectory = await getTeamDirectory(supabase);
-  // Directory entries identify organizations only. Recipient eligibility/current
-  // designation come from a fresh per-organization authorized read, not this list.
-  const designationOrganizations = teamDirectory.members.filter((member) => member.is_self
-    && teamDirectory.manageableOrganizationIds.includes(member.organization_id))
-    .map((member) => ({ id: member.organization_id, name: member.organization_name }));
-  const teachbackState = await getEducationTeachbackState(supabase, patientId);
-  const canRecordTeachback = await hasCapabilityInAnyOrganization(
-    supabase,
-    'educate',
-    teamDirectory.members
-      .filter((member) => member.is_self)
-      .map((member) => member.organization_id),
-  );
-  const tier = patient.risk_tier ? normalizeRiskTier(patient.risk_tier) : null;
+  const [messages, operationalView, teamDirectory, teachbackState, profile, clinical, link, completedSteps, assessment] = await Promise.all([
+    getPatientMessages(supabase, patientId),
+    getPatientOperationalView(supabase, user.id, patientId),
+    getTeamDirectory(supabase),
+    getEducationTeachbackState(supabase, patientId),
+    supabase.from('profiles').select('full_name, email, phone, address, patient_code').eq('id', patientId).single(),
+    supabase.from('patients').select('risk_tier, track_assignment, facility_tier, comorbidities, ckm_stage').eq('id', patientId).single(),
+    supabase.from('provider_patient_links').select('linked_at').eq('provider_id', user.id).eq('patient_id', patientId).eq('status', 'active').maybeSingle(),
+    getSetupStatus(supabase, patientId),
+    supabase.from('risk_assessments').select('score, tier, recorded_at, framework_version, factors')
+      .eq('patient_id', patientId).order('recorded_at', { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  const recordedAssessment = assessment.data;
+  const profileData = profile.data;
+  const clinicalData = clinical.data;
+  const linkData = link.data;
+  const ownMemberships = teamDirectory.members.filter(member => member.is_self);
+  const designationOrganizations = ownMemberships.filter(member => teamDirectory.manageableOrganizationIds.includes(member.organization_id))
+    .map(member => ({ id: member.organization_id, name: member.organization_name }));
+  const canRecordTeachback = await hasCapabilityInAnyOrganization(supabase, 'educate', ownMemberships.map(member => member.organization_id));
+  const currentTier = recordedAssessment?.tier ?? clinicalData?.risk_tier ?? patient.risk_tier;
+  const tier = currentTier ? normalizeRiskTier(currentTier) : null;
   const tierStyle = tier ? TIER_DISPLAY[tier.tier] : null;
   const trackLabel = patient.track_assignment ? TRACK_DISPLAY[patient.track_assignment] : null;
-
-  // Fetch contact info for Info tab
-  const { data: profileData } = await supabase
-    .from('profiles')
-    .select('full_name, email, phone, address, patient_code')
-    .eq('id', patientId)
-    .single();
-
-  const { data: clinicalData } = await supabase
-    .from('patients')
-    .select('risk_tier, track_assignment, facility_tier, comorbidities, ckm_stage')
-    .eq('id', patientId)
-    .single();
-
-  const { data: linkData } = await supabase
-    .from('provider_patient_links')
-    .select('linked_at')
-    .eq('provider_id', user.id)
-    .eq('patient_id', patientId)
-    .eq('status', 'active')
-    .maybeSingle();
-
-  // Fetch onboarding setup status
-  const completedSteps = await getSetupStatus(supabase, patientId);
   const setupComplete = completedSteps === ALL_STEPS_COMPLETE;
 
   const patientInfo = {
@@ -120,7 +102,7 @@ export default async function PatientDetailPage({
     phone: profileData?.phone ?? null,
     address: profileData?.address ?? null,
     patient_code: profileData?.patient_code ?? null,
-    risk_tier: clinicalData?.risk_tier ?? patient.risk_tier,
+    risk_tier: currentTier,
     track_assignment: clinicalData?.track_assignment ?? patient.track_assignment,
     facility_tier: clinicalData?.facility_tier ?? null,
     linked_at: linkData?.linked_at ?? null,
@@ -162,6 +144,13 @@ export default async function PatientDetailPage({
               </span>
             )}
           </div>
+          {assessment.error ? <p className="mt-2 text-sm">Assessment history unavailable.</p> : recordedAssessment ? (
+            <details className="mt-2 text-sm">
+              <summary className="cursor-pointer font-medium">Recorded assessment · {recordedAssessment.score}/18</summary>
+              <p className="my-2">{recordedAssessment.framework_version} · {recordedAssessment.recorded_at}</p>
+              <ul>{RISK_VARIABLES.map(factor => <li key={factor.key}>{factor.label} · {recordedAssessment.factors[factor.key] ? 'Present' : 'Absent'}</li>)}</ul>
+            </details>
+          ) : tier && <p className="mt-2 text-sm">Earlier assessment · individual responses unavailable.</p>}
         </div>
         <Link
           href={`/patients/${patientId}/sbar`}
@@ -208,7 +197,7 @@ export default async function PatientDetailPage({
 
       {/* Tabs */}
       <div id="patient-record-tabs" className="scroll-mt-4">
-        <PatientDetailTabs
+        <PatientDetailTabs key={JSON.stringify([user.id, patientId])} actorId={user.id}
           patientId={patientId}
           vitals={vitals}
           symptoms={symptoms}

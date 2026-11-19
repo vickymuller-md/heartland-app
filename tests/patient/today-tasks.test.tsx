@@ -15,21 +15,19 @@ import { TodayTasksChecklist } from '@/app/(patient)/today/_components/today-tas
 
 // Mock the query dependencies for getTodayTaskStatus unit tests
 vi.mock('@/lib/vitals/queries', () => ({
-  getRecentVitals: vi.fn(),
+  hasVitalWithinDay: vi.fn(),
 }));
 vi.mock('@/lib/medications/queries', () => ({
-  getPatientMedications: vi.fn(),
-  getTodayLogs: vi.fn(),
-  computeAdherenceDay: vi.fn(),
+  getAdherenceForRange: vi.fn(),
 }));
 vi.mock('@/lib/education/queries', () => ({
-  getEducationProgress: vi.fn(),
+  getEducationSummary: vi.fn(),
 }));
 
 import { getTodayTaskStatus } from '@/lib/patient/today-tasks';
-import { getRecentVitals } from '@/lib/vitals/queries';
-import { getPatientMedications, getTodayLogs, computeAdherenceDay } from '@/lib/medications/queries';
-import { getEducationProgress } from '@/lib/education/queries';
+import { hasVitalWithinDay } from '@/lib/vitals/queries';
+import { getAdherenceForRange } from '@/lib/medications/queries';
+import { getEducationSummary } from '@/lib/education/queries';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 const mockSupabase = {} as SupabaseClient;
@@ -39,75 +37,54 @@ describe('getTodayTaskStatus (PTUX-03)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Default mocks
-    vi.mocked(getRecentVitals).mockResolvedValue([]);
-    vi.mocked(getPatientMedications).mockResolvedValue([]);
-    vi.mocked(getTodayLogs).mockResolvedValue([]);
-    vi.mocked(computeAdherenceDay).mockReturnValue({
+    vi.mocked(hasVitalWithinDay).mockResolvedValue(false);
+    vi.mocked(getAdherenceForRange).mockResolvedValue([{
       date: '2026-03-27',
       totalDoses: 0,
       takenDoses: 0,
       status: 'no_meds',
-    });
-    vi.mocked(getEducationProgress).mockResolvedValue([]);
+    }]);
+    vi.mocked(getEducationSummary).mockResolvedValue({ totalDomains: 8, completedDomains: 0, completionRate: 0, domains: [] });
   });
 
   it('returns vitalsLogged=true when vitals recorded today', async () => {
-    const todayISO = new Date().toISOString().slice(0, 10);
-    vi.mocked(getRecentVitals).mockResolvedValue([
-      {
-        id: 'v1',
-        patient_id: patientId,
-        recorded_at: todayISO + 'T14:30:00.000Z',
-        weight_lbs: 180,
-        sbp: 120,
-        dbp: 80,
-        heart_rate: 72,
-        spo2: 96,
-        source: 'patient_app',
-      },
-    ]);
+    vi.mocked(hasVitalWithinDay).mockResolvedValue(true);
 
     const result = await getTodayTaskStatus(mockSupabase, patientId, 'UTC');
     expect(result.vitalsLogged).toBe(true);
   });
 
   it('returns vitalsLogged=false when no vitals today', async () => {
-    vi.mocked(getRecentVitals).mockResolvedValue([]);
+    vi.mocked(hasVitalWithinDay).mockResolvedValue(false);
     const result = await getTodayTaskStatus(mockSupabase, patientId);
     expect(result.vitalsLogged).toBe(false);
   });
 
-  it('returns medsTaken and medsTotal from computeAdherenceDay', async () => {
-    vi.mocked(computeAdherenceDay).mockReturnValue({
+  it('returns medsTaken and medsTotal from the dated schedule', async () => {
+    vi.mocked(getAdherenceForRange).mockResolvedValue([{
       date: '2026-03-27',
       totalDoses: 4,
       takenDoses: 2,
       status: 'partial',
-    });
+    }]);
 
     const result = await getTodayTaskStatus(mockSupabase, patientId);
     expect(result.medsTaken).toBe(2);
     expect(result.medsTotal).toBe(4);
   });
 
-  it('returns educationRemaining as count of incomplete progress', async () => {
-    vi.mocked(getEducationProgress).mockResolvedValue([
-      { id: 'e1', patient_id: patientId, domain_id: 'daily_weight', completed: true, completed_at: '2026-03-27', attempts: 1, created_at: '2026-03-27' },
-      { id: 'e2', patient_id: patientId, domain_id: 'medications', completed: false, completed_at: null, attempts: 0, created_at: '2026-03-27' },
-      { id: 'e3', patient_id: patientId, domain_id: 'warning_signs', completed: false, completed_at: null, attempts: 0, created_at: '2026-03-27' },
-    ]);
-
-    const result = await getTodayTaskStatus(mockSupabase, patientId);
-    expect(result.educationRemaining).toBe(2);
+  it('counts all eight offered modules before any attempt and only outstanding modules afterwards', async () => {
+    expect((await getTodayTaskStatus(mockSupabase, patientId)).educationRemaining).toBe(8);
+    vi.mocked(getEducationSummary).mockResolvedValue({ totalDomains: 8, completedDomains: 2, completionRate: 25, domains: [] });
+    expect((await getTodayTaskStatus(mockSupabase, patientId)).educationRemaining).toBe(6);
   });
 
   it('runs all queries in parallel via Promise.all', async () => {
     await getTodayTaskStatus(mockSupabase, patientId);
     // All four query functions should have been called
-    expect(getRecentVitals).toHaveBeenCalledOnce();
-    expect(getPatientMedications).toHaveBeenCalledOnce();
-    expect(getTodayLogs).toHaveBeenCalledOnce();
-    expect(getEducationProgress).toHaveBeenCalledOnce();
+    expect(hasVitalWithinDay).toHaveBeenCalledOnce();
+    expect(getAdherenceForRange).toHaveBeenCalledOnce();
+    expect(getEducationSummary).toHaveBeenCalledOnce();
   });
 });
 
@@ -170,6 +147,12 @@ describe('TodayTasksChecklist (PTUX-03)', () => {
       />
     );
     expect(screen.getByText('All taken')).toBeInTheDocument();
+  });
+
+  it.each([0, 2])('keeps the medication task open when a schedule is unconfirmed and all %i known slots are recorded', count => {
+    render(<TodayTasksChecklist vitalsLogged medsTaken={count} medsTotal={count} medsScheduleUnconfirmed educationRemaining={0} />);
+    expect(screen.getByText('Medication task pending')).toBeInTheDocument();
+    expect(screen.queryByText('All taken')).not.toBeInTheDocument();
   });
 
   it('shows education as done when educationRemaining=0', () => {

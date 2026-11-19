@@ -36,6 +36,9 @@ export default async function SbarPage({ params }: SbarPageProps) {
     redirect('/dashboard?error=patient_not_found');
   }
 
+  const patientName = detail.patient.full_name ?? 'Unknown';
+  let sbarData: ReturnType<typeof populateSbar>;
+  let showFramework: boolean;
   try {
     const [meds, effectiveLabs, profileData] = await Promise.all([
       getPatientMedications(supabase, patientId),
@@ -54,11 +57,9 @@ export default async function SbarPage({ params }: SbarPageProps) {
         ? detail.vitals[detail.vitals.length - 1]
         : null;
 
-    // Patient name from detail
-    const patientName = detail.patient.full_name ?? 'Unknown';
-
     // Build SbarInput and populate
-    const sbarData = populateSbar({
+    showFramework = Boolean(profileData.data.risk_tier);
+    sbarData = populateSbar({
       patient_id: patientId,
       patient_name: patientName,
       vitals: latestVitals
@@ -82,21 +83,22 @@ export default async function SbarPage({ params }: SbarPageProps) {
       facility_tier: profileData.data?.facility_tier ?? null,
     }, new Date()); // Assess timestamps after the complete read, not against its earlier start.
 
-    return (
-      <div className="space-y-4">
-        {profileData.data?.risk_tier && (
-          <ProviderPageDisclaimer variant="framework" />
-        )}
-        <SbarEditor
-          providerId={user.id}
-          sourceReadAt={sourceReadAt}
-          initialData={sbarData}
-          patientName={patientName}
-          patientId={patientId}
-        />
-      </div>
-    );
   } catch {
     return <p role="alert">SBAR draft unavailable: source data could not be verified. Reload the page; no draft was generated.</p>;
   }
+
+  return (
+    <div className="space-y-4">
+      {showFramework && (
+        <ProviderPageDisclaimer variant="framework" />
+      )}
+      <SbarEditor
+        providerId={user.id}
+        sourceReadAt={sourceReadAt}
+        initialData={sbarData}
+        patientName={patientName}
+        patientId={patientId}
+      />
+    </div>
+  );
 }

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { VitalsEntryForm } from "./_components/vitals-form";
 import { OfflineIndicator } from "./_components/OfflineIndicator";
 import { MessageCards } from "./_components/message-card";
@@ -6,11 +7,11 @@ import { TodayTasksChecklist } from "./_components/today-tasks-checklist";
 import { createClient } from "@/lib/supabase/server";
 import { getUnreadMessages } from "@/lib/messages/queries";
 import { getTodayTaskStatus } from "@/lib/patient/today-tasks";
-import type { TodayTaskStatus } from "@/lib/patient/today-tasks";
 import { getPatientPlan } from "@/lib/patient/plan";
 import { NextActionCard } from "./_components/next-action-card";
 import { ProductEventTracker } from "@/components/analytics/product-event-tracker";
-import { getPatientTimeZone } from '@/lib/patient/timezone';
+import { getPatientMedicationCalendar } from '@/lib/medications/queries';
+import { CALENDAR_SOURCE_LABEL } from '@/lib/medications/calendar';
 import { formatInTimeZone } from '@/lib/timezone';
 
 export default async function PatientToday() {
@@ -20,24 +21,18 @@ export default async function PatientToday() {
   } = await supabase.auth.getUser();
 
   // PTUX-03: Parallel fetch of messages + task status
-  const defaultTaskStatus: TodayTaskStatus = {
-    vitalsLogged: false,
-    medsTaken: 0,
-    medsTotal: 0,
-    educationRemaining: 0,
-  };
-  const timeZone = user ? await getPatientTimeZone(supabase) : 'America/New_York';
+  const calendar = user ? await getPatientMedicationCalendar(supabase, user.id).catch(() => null) : null;
   const [messagesResult, taskResult, plan] = await Promise.all([
     user
       ? getUnreadMessages(supabase, user.id)
           .then((data) => ({ data, error: null as string | null }))
           .catch(() => ({ data: [], error: 'Care-team messages could not be loaded.' }))
       : Promise.resolve({ data: [], error: null }),
-    user
-      ? getTodayTaskStatus(supabase, user.id, timeZone)
+    user && calendar
+      ? getTodayTaskStatus(supabase, user.id, calendar.zone, calendar)
           .then((data) => ({ data, error: null as string | null }))
-          .catch(() => ({ data: defaultTaskStatus, error: 'Today checklist status could not be loaded.' }))
-      : Promise.resolve({ data: defaultTaskStatus, error: null }),
+          .catch(() => ({ data: null, error: 'Today checklist status could not be loaded.' }))
+      : Promise.resolve({ data: null, error: user ? 'Your care-team calendar could not be verified. Reload to see today’s tasks.' : null }),
     user
       ? getPatientPlan(supabase, user.id)
       : Promise.resolve({ items: [], careContact: null, error: null, contactError: null }),
@@ -59,12 +54,12 @@ export default async function PatientToday() {
   // SAFE-02: Phone comes from the patient-scoped access-history RPC.
   const providerPhone = plan.careContact?.phone ?? null;
 
-  const today = formatInTimeZone(new Date(), timeZone, {
+  const today = calendar ? formatInTimeZone(new Date(calendar.day + 'T12:00:00Z'), 'UTC', {
     weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",
-  });
+  }) : null;
 
   return (
     <div className="space-y-6">
@@ -75,8 +70,9 @@ export default async function PatientToday() {
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">
           Daily Check-in
         </h1>
-        <p className="text-base text-gray-600 mt-1">{today}</p>
-        <p className="text-xs text-gray-500">Local care-team time · {timeZone}</p>
+        {today && <p className="text-base text-gray-600 mt-1">{today}</p>}
+        {calendar && <p className="text-xs text-gray-600">{CALENDAR_SOURCE_LABEL[calendar.source]} · {calendar.zone}</p>}
+        {calendar?.pending_zone && <p className="text-xs text-gray-600">Your calendar change to {calendar.pending_zone} is scheduled. <Link href="/medications" className="underline">View the time change</Link></p>}
       </div>
 
       {todayDataError && (
@@ -89,7 +85,7 @@ export default async function PatientToday() {
         dataAvailable={!todayDataError}
       />
 
-      <TodayTasksChecklist {...taskStatus} />
+      {taskStatus && <TodayTasksChecklist {...taskStatus} />}
 
       {messages.length > 0 && <div id="care-team-messages"><MessageCards messages={messages} /></div>}
 

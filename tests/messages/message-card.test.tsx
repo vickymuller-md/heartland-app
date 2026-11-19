@@ -7,12 +7,13 @@
  * PTUX-02: Subject and body render at text-lg (18px) minimum
  * - Renders card for each unread message with subject and body
  * - Renders nothing when messages array is empty
- * - Calls markMessageRead on mount when read_at is null
+ * - Records the first read only on explicit patient confirmation
  * - Does NOT call markMessageRead if read_at is already set
  * - Subject and body at text-lg class
  */
 
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MessageCards } from '@/app/(patient)/today/_components/message-card';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import type { ProviderMessage } from '@/lib/messages/types';
@@ -72,10 +73,23 @@ describe('MessageCards component (MSG-03, PTUX-02)', () => {
     expect(container.innerHTML).toBe('');
   });
 
-  it('calls markMessageRead on mount when read_at is null', () => {
+  it('confirms an unread message only after the patient acts', async () => {
+    mockMarkMessageRead.mockResolvedValue({ success: true });
     const msg = createMessage({ id: 'msg-unread', read_at: null });
     render(<MessageCards messages={[msg]} />);
-    expect(mockMarkMessageRead).toHaveBeenCalledWith('msg-unread');
+    expect(mockMarkMessageRead).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Mark as read' }));
+    expect(mockMarkMessageRead).toHaveBeenCalledWith('msg-unread', 'patient-1');
+    expect(await screen.findByRole('status')).toHaveTextContent('Read confirmed');
+  });
+
+  it('keeps the confirmation available after an unconfirmed response', async () => {
+    mockMarkMessageRead.mockResolvedValueOnce({ success: false }).mockResolvedValueOnce({ success: true });
+    render(<MessageCards messages={[createMessage()]} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Mark as read' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Try again');
+    await userEvent.click(screen.getByRole('button', { name: 'Mark as read' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Read confirmed');
   });
 
   it('does NOT call markMessageRead if message.read_at is already set', () => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { CareScope } from '@/lib/care-workflow/types';
 import { labCollectionMicros } from '@/lib/labs/quality';
@@ -120,7 +120,8 @@ export function PostclosureNeedsReader({ scope, onSelect, disabled = false }: {
   const [counts, setCounts] = useState<PostclosurePatientPage['organization_counts']>(null);
   const [target, setTarget] = useState(''), [loaded, setLoaded] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(false);
   const [invalid, setInvalid] = useState(false), generation = useRef(0), live = useRef(true), inFlight = useRef(false);
-  const callback = useRef(onSelect); callback.current = onSelect;
+  const callback = useRef(onSelect);
+  useLayoutEffect(() => { callback.current = onSelect; }, [onSelect]);
   useEffect(() => {
     live.current = true;
     const { data: { subscription } } = createClient().auth.onAuthStateChange((_event, session) => {

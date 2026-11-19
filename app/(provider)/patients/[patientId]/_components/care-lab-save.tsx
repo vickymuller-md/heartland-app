@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { LAB_OBSERVATION_FIELDS } from '@/lib/labs/quality';
 import { acknowledgeCareLabSubmission, cancelCareLabSubmission, getCareLabSubmission, prepareCareLabSubmission, saveCareLabResult,
@@ -30,7 +30,8 @@ function SaveState({ scope, workId, detail, initial, mayStart, onBlock, onClose 
   const [error, setError] = useState<string | null>(null);
   const [sessionChanged, setSessionChanged] = useState(false);
   const generation = useRef(0), inFlight = useRef(false), live = useRef(true);
-  const callbacks = useRef({ onBlock, onClose }); callbacks.current = { onBlock, onClose };
+  const callbacks = useRef({ onBlock, onClose });
+  useLayoutEffect(() => { callbacks.current = { onBlock, onClose }; }, [onBlock, onClose]);
   useEffect(() => {
     live.current = true;
     const { data: { subscription } } = createClient().auth.onAuthStateChange((_event, session) => {

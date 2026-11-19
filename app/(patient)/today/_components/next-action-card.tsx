@@ -9,7 +9,7 @@ export function NextActionCard({
   nextFollowup,
   dataAvailable = true,
 }: {
-  tasks: TodayTaskStatus;
+  tasks: TodayTaskStatus | null;
   unreadMessages: number;
   nextFollowup: PatientPlanItem | null;
   dataAvailable?: boolean;
@@ -20,7 +20,7 @@ export function NextActionCard({
     : 'No additional action is listed. Keep following your care team’s instructions.';
   let href = '/plan';
 
-  if (!dataAvailable) {
+  if (!dataAvailable || !tasks) {
     title = 'Some Today data could not be loaded';
     detail = 'Do not interpret this page as a completed checklist. Reconnect and retry before relying on it.';
     href = '/today';
@@ -36,9 +36,13 @@ export function NextActionCard({
     title = 'Update today’s medication log';
     detail = `${tasks.medsTaken} of ${tasks.medsTotal} scheduled doses recorded.`;
     href = '/medications';
+  } else if (tasks.medsScheduleUnconfirmed) {
+    title = 'Review your medication schedule';
+    detail = 'Some instructions still need confirmation from your care team.';
+    href = '/medications';
   } else if (tasks.educationRemaining > 0) {
     title = 'Continue your learning plan';
-    detail = `${tasks.educationRemaining} assigned module(s) remaining.`;
+    detail = `${tasks.educationRemaining} available learning module${tasks.educationRemaining === 1 ? '' : 's'} remaining.`;
     href = '/education';
   }
 
@@ -46,7 +50,9 @@ export function NextActionCard({
     <section className="rounded-2xl bg-slate-900 p-5 text-white" aria-labelledby="next-action-heading">
       <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">Your next action</p>
       <div className="mt-2 flex items-start gap-3">
-        <CheckCircle2 className="mt-0.5 size-6 shrink-0 text-emerald-300" aria-hidden="true" />
+        {href === '/plan'
+          ? <CheckCircle2 className="mt-0.5 size-6 shrink-0 text-emerald-300" aria-hidden="true" />
+          : <ArrowRight className="mt-0.5 size-6 shrink-0 text-blue-200" aria-hidden="true" />}
         <div className="min-w-0 flex-1">
           <h2 id="next-action-heading" className="text-xl font-bold">{title}</h2>
           <p className="mt-1 text-sm text-slate-300">{detail}</p>

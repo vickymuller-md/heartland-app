@@ -1,15 +1,15 @@
 'use client';
 
 /**
- * MessageCards -- Patient-facing message card list with auto read-receipt
+ * MessageCards -- Patient-facing message card list with explicit read confirmation
  *
  * Renders provider messages as cards above the vitals form.
- * Automatically marks each unread message as read on mount via useEffect.
+ * Records a read receipt after the patient confirms.
  *
  * Requirements: MSG-03, MSG-05
  */
 
-import { useEffect } from 'react';
+import { useState, useTransition } from 'react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { MessageSquare } from 'lucide-react';
 import type { ProviderMessage } from '@/lib/messages/types';
@@ -21,12 +21,16 @@ interface MessageCardsProps {
 }
 
 function MessageCard({ message }: { message: ProviderMessage }) {
-  // Auto-mark as read on mount -- CRITICAL: dependency on message.id only
-  useEffect(() => {
-    if (!message.read_at) {
-      markMessageRead(message.id);
-    }
-  }, [message.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [pending, startTransition] = useTransition();
+  const [confirmation, setConfirmation] = useState<'idle' | 'read' | 'error'>('idle');
+  function confirmRead() {
+    startTransition(async () => {
+      try {
+        const result = await markMessageRead(message.id, message.patient_id);
+        setConfirmation(result.success ? 'read' : 'error');
+      } catch { setConfirmation('error'); }
+    });
+  }
 
   let relativeTime: string;
   try {
@@ -69,6 +73,12 @@ function MessageCard({ message }: { message: ProviderMessage }) {
       <p className="text-lg text-gray-700 whitespace-pre-wrap">
         {message.body}
       </p>
+      {!message.read_at && confirmation !== 'read' && <button type="button" onClick={confirmRead} disabled={pending}
+        className="mt-3 min-h-11 rounded-md border border-blue-700 px-3 font-medium text-blue-900">
+        {pending ? 'Confirming…' : 'Mark as read'}
+      </button>}
+      {confirmation === 'error' && <p role="alert">Read confirmation unavailable. Try again.</p>}
+      {(message.read_at || confirmation === 'read') && <p role="status">Read confirmed in the portal.</p>}
     </div>
   );
 }

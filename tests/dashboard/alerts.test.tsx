@@ -329,7 +329,7 @@ describe('RealtimeAlertsProvider', () => {
     const handler = mocks.channel.on.mock.calls.find((call) => call[1].event === 'INSERT')![2];
     const alert = { patient_id: 'patient-1', severity: 'critical', flags: ['sbp_low'] };
     act(() => handler({ new: alert }));
-    expect(mocks.showAlertToast).toHaveBeenCalledExactlyOnceWith(alert);
+    expect(mocks.showAlertToast).toHaveBeenCalledExactlyOnceWith(alert, expect.any(Function));
   });
 
   it('invalidates React Query caches on new alert', () => {
@@ -341,10 +341,43 @@ describe('RealtimeAlertsProvider', () => {
     ]);
   });
 
-  it('does not subscribe when no patients are linked', () => {
+  it('reconciles a visible inbox when a subscribed stream misses a database change', () => {
+    vi.useFakeTimers();
+    const previous = window.location.pathname;
+    window.history.replaceState(null, '', '/alerts');
+    const { unmount } = mount();
+    try {
+      act(() => {
+        mocks.channel.subscribe.mock.calls[0][0]('SUBSCRIBED');
+        vi.advanceTimersByTime(200);
+      });
+      mocks.refresh.mockClear();
+      act(() => { vi.advanceTimersByTime(30_200); });
+      expect(mocks.refresh).toHaveBeenCalledOnce();
+    } finally {
+      unmount();
+      window.history.replaceState(null, '', previous);
+      vi.useRealTimers();
+    }
+  });
+
+  it('watches for new links without subscribing to any alert when the roster is empty', () => {
     mount([]);
     expect(screen.getByText('Child')).toBeInTheDocument();
-    expect(mocks.supabase.channel).not.toHaveBeenCalled();
+    expect(mocks.channel.on.mock.calls.map(call => call[1].table)).toEqual(['provider_patient_links']);
+  });
+
+  it('refreshes the server screen once for new alerts after subscription and ignores duplicate delivery', () => {
+    vi.useFakeTimers();
+    try {
+      mount();
+      const onInsert = mocks.channel.on.mock.calls.find(call => call[1].event === 'INSERT')![2];
+      act(() => mocks.channel.subscribe.mock.calls[0][0]('SUBSCRIBED'));
+      const alert = { id: 'new-alert', patient_id: 'patient-1', severity: 'warning', flags: [] };
+      act(() => { onInsert({ new: alert }); onInsert({ new: alert }); vi.advanceTimersByTime(200); });
+      expect(mocks.refresh).toHaveBeenCalledTimes(1);
+      expect(mocks.showAlertToast).toHaveBeenCalledTimes(1);
+    } finally { vi.useRealTimers(); }
   });
 
   it('replaces the previous subscription when the linked patients change', () => {

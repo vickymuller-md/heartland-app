@@ -17,7 +17,7 @@ interface AlertToastData {
   patient_id: string;
 }
 
-export function showAlertToast(alert: AlertToastData): void {
+export function showAlertToast(alert: AlertToastData, openInbox: () => void): void {
   const flagLabels = alert.flags
     .map((f) => FLAG_LABELS[f as AlertFlag] || f)
     .join(', ');
@@ -29,9 +29,7 @@ export function showAlertToast(alert: AlertToastData): void {
       description: flagLabels,
       action: {
         label: 'View',
-        onClick: () => {
-          window.location.href = '/alerts';
-        },
+        onClick: openInbox,
       },
       duration: 10000,
     });
@@ -40,9 +38,7 @@ export function showAlertToast(alert: AlertToastData): void {
       description: flagLabels,
       action: {
         label: 'View',
-        onClick: () => {
-          window.location.href = '/alerts';
-        },
+        onClick: openInbox,
       },
       duration: 5000,
     });

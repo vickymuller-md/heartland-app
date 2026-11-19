@@ -14,29 +14,13 @@
  */
 
 import { authorize } from '@/lib/auth/authorization';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { getUrgentAlertCount } from '@/lib/dashboard/queries';
+import { getLinkedPatientIds } from '@/lib/supabase/linked-patients';
 import { redirect } from 'next/navigation';
 import { Toaster } from 'sonner';
 import { ProviderShell } from './_components/provider-shell';
 import { QueryProvider } from './_components/query-provider';
 import { RealtimeAlertsProvider } from './_components/realtime-alerts-provider';
-
-/** Count open critical/warning alerts for the provider's linked patients (EFFI-02). */
-async function getUrgentAlertCount(
-  supabase: SupabaseClient,
-  patientIds: string[],
-): Promise<number> {
-  if (patientIds.length === 0) return 0;
-
-  const { count } = await supabase
-    .from('alerts')
-    .select('id', { count: 'exact', head: true })
-    .in('patient_id', patientIds)
-    .in('severity', ['critical', 'warning'])
-    .eq('status', 'open');
-
-  return count ?? 0;
-}
 
 export default async function ProviderLayout({
   children,
@@ -55,28 +39,18 @@ export default async function ProviderLayout({
   }
   const supabase = auth.supabase;
 
-  // Fetch linked patient IDs for Realtime subscription filtering
-  let linkedPatientIds: string[] = [];
   const providerId = auth.user.id;
-
-  const { data: links } = await supabase
-    .from('provider_patient_links')
-    .select('patient_id')
-    .eq('provider_id', providerId)
-    .eq('status', 'active');
-
-  linkedPatientIds = (links ?? []).map((l) => l.patient_id);
-
-  // Fetch urgent alert count for sidebar badge (EFFI-02)
-  const urgentCount = linkedPatientIds.length > 0
-    ? await getUrgentAlertCount(supabase, linkedPatientIds)
-    : 0;
+  const [linkedPatientIds, urgentCount] = await Promise.all([
+    getLinkedPatientIds(supabase, providerId).catch(() => null),
+    getUrgentAlertCount(supabase, providerId).catch(() => null),
+  ]);
 
   return (
     <QueryProvider>
       <RealtimeAlertsProvider
         providerId={providerId}
-        linkedPatientIds={linkedPatientIds}
+        linkedPatientIds={linkedPatientIds ?? []}
+        linksAvailable={linkedPatientIds !== null}
       >
         <ProviderShell urgentCount={urgentCount}>{children}</ProviderShell>
         <Toaster richColors position="top-right" />

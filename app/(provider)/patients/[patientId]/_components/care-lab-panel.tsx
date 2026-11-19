@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { LAB_OBSERVATION_FIELDS } from '@/lib/labs/quality';
 import { loadSourceContext } from '@/lib/labs/observation-actions';
@@ -56,8 +56,10 @@ function LabState({ scope, workId, workflow, stepsReady, refreshToken, onReadine
   const [error, setError] = useState<string | null>(null);
   const [sessionChanged, setSessionChanged] = useState(false);
   const generation = useRef(0), inFlight = useRef(false), live = useRef(true);
-  const callbacks = useRef({ onReadiness, onChanged }); callbacks.current = { onReadiness, onChanged };
-  const latest = useRef({ scope, workId, saveOpen }); latest.current = { scope, workId, saveOpen };
+  const callbacks = useRef({ onReadiness, onChanged });
+  useLayoutEffect(() => { callbacks.current = { onReadiness, onChanged }; }, [onReadiness, onChanged]);
+  const saveOpenRef = useRef(saveOpen);
+  useLayoutEffect(() => { saveOpenRef.current = saveOpen; }, [saveOpen]);
   useEffect(() => {
     live.current = true;
     const { data: { subscription } } = createClient().auth.onAuthStateChange((_event, session) => {
@@ -73,11 +75,10 @@ function LabState({ scope, workId, workflow, stepsReady, refreshToken, onReadine
   const noOwnPending = recoveryComplete && ownRequests.length === 0 && ownIntents.length === 0 && !selected && !saveOpen && !busy;
   // Even a fully batched refresh must pair its imperative false with a completed result.
   useEffect(() => { callbacks.current.onReadiness(live.current && noOwnPending); }, [noOwnPending, completionEpoch]);
-  const loadRef = useRef<() => void>(() => {});
-  loadRef.current = () => { void load(); };
-  useEffect(() => { if (refreshToken > 0) loadRef.current(); }, [refreshToken]);
+  const refresh = useEffectEvent(() => { void load(); });
+  useEffect(() => { if (refreshToken > 0) refresh(); }, [refreshToken]);
   async function load() {
-    if (inFlight.current || !live.current || latest.current.saveOpen) return;
+    if (inFlight.current || !live.current || saveOpenRef.current) return;
     inFlight.current = true; const version = ++generation.current;
     const valid = () => live.current && generation.current === version;
     const read = { ...scope, work_item_id: workId };
@@ -159,7 +160,7 @@ function LabState({ scope, workId, workflow, stepsReady, refreshToken, onReadine
     void operate({ ...input, request_id: crypto.randomUUID() }, prepareComposition);
   }
   function closeSave() {
-    setSaveOpen(null); latest.current.saveOpen = null; setRecoveryComplete(false);
+    setSaveOpen(null); saveOpenRef.current = null; setRecoveryComplete(false);
     setDetail(null); setSources(null); callbacks.current.onChanged(); void load();
   }
   if (sessionChanged) return <p role="alert">Your session changed. Reload laboratory follow-up before continuing.</p>;

@@ -4,12 +4,12 @@
  * SendMessageForm -- Provider compose form for structured messages
  *
  * Template selector auto-populates subject and placeholder.
- * Uses useActionState with sendMessage server action.
+ * A receipt belongs to one draft, provider, and patient.
  *
  * Requirements: MSG-01, MSG-02, MSG-03
  */
 
-import { useActionState, useEffect, useRef, useState } from 'react';
+import { type FormEvent, useRef, useState, useTransition } from 'react';
 import { Send, MessageSquare } from 'lucide-react';
 import { sendMessage, type MessageActionState } from '@/lib/messages/actions';
 import { MESSAGE_TEMPLATES } from '@/lib/messages/constants';
@@ -18,15 +18,18 @@ import { Button } from '@/components/ui/button';
 
 interface SendMessageFormProps {
   patientId: string;
+  actorId: string;
 }
 
-export function SendMessageForm({ patientId }: SendMessageFormProps) {
-  const [state, formAction, isPending] = useActionState<
-    MessageActionState | null,
-    FormData
-  >(sendMessage, null);
+export function SendMessageForm(props: SendMessageFormProps) {
+  return <MessageDraft key={props.actorId + ':' + props.patientId} {...props} />;
+}
 
-  const formRef = useRef<HTMLFormElement>(null);
+function MessageDraft({ patientId, actorId }: SendMessageFormProps) {
+  const [feedback, setFeedback] = useState<MessageActionState | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const requestId = useRef('');
+  const sending = useRef(false);
 
   // Template selection state
   const firstTemplate = MESSAGE_TEMPLATES[0];
@@ -40,15 +43,44 @@ export function SendMessageForm({ patientId }: SendMessageFormProps) {
   const currentTemplate =
     MESSAGE_TEMPLATES.find((t) => t.type === selectedType) ?? firstTemplate;
 
-  // Reset form on success
-  useEffect(() => {
-    if (state?.success) {
-      formRef.current?.reset();
-      setSelectedType(firstTemplate.type);
-      setSubject(firstTemplate.defaultSubject);
-      setBody('');
-    }
-  }, [state?.success, firstTemplate.type, firstTemplate.defaultSubject]);
+  function editDraft() {
+    requestId.current = '';
+    setFeedback(null);
+  }
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (sending.current) return;
+    const id = requestId.current || crypto.randomUUID();
+    requestId.current = id;
+    const data = new FormData(event.currentTarget);
+    data.set('requestId', id);
+    data.set('actorId', actorId);
+    sending.current = true;
+    setFeedback(null);
+
+    startTransition(async () => {
+      try {
+        const result = await sendMessage(null, data);
+        // The clinician can already be writing the next draft when the reply arrives.
+        if (requestId.current !== id) return;
+        if (result.success) {
+          if (result.receipt !== id) throw new Error('Unconfirmed message');
+          setSelectedType(firstTemplate.type);
+          setSubject(firstTemplate.defaultSubject);
+          setBody('');
+          requestId.current = '';
+        }
+        setFeedback(result);
+      } catch {
+        if (requestId.current === id) {
+          setFeedback({ error: 'Portal save could not be confirmed. Retry this draft.' });
+        }
+      } finally {
+        sending.current = false;
+      }
+    });
+  }
 
   function handleTemplateChange(newType: MessageTemplateType) {
     setSelectedType(newType);
@@ -66,7 +98,7 @@ export function SendMessageForm({ patientId }: SendMessageFormProps) {
         <h3 className="text-sm font-medium text-gray-700">Send Message to Patient</h3>
       </div>
 
-      <form ref={formRef} action={formAction} className="space-y-3">
+      <form onSubmit={submit} onChange={editDraft} className="space-y-3">
         <input type="hidden" name="patientId" value={patientId} />
         <input type="hidden" name="templateType" value={selectedType} />
 
@@ -112,9 +144,9 @@ export function SendMessageForm({ patientId }: SendMessageFormProps) {
             required
             className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
-          {state?.errors?.subject && (
+          {feedback?.errors?.subject && (
             <p className="mt-1 text-xs text-red-600">
-              {state.errors.subject[0]}
+              {feedback.errors.subject[0]}
             </p>
           )}
         </div>
@@ -138,16 +170,16 @@ export function SendMessageForm({ patientId }: SendMessageFormProps) {
             placeholder={currentTemplate.bodyPlaceholder}
             className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
-          {state?.errors?.body && (
+          {feedback?.errors?.body && (
             <p className="mt-1 text-xs text-red-600">
-              {state.errors.body[0]}
+              {feedback.errors.body[0]}
             </p>
           )}
         </div>
 
         {/* Error / Success */}
-        {state?.error && (
-          <p className="text-xs text-red-600">{state.error}</p>
+        {feedback?.error && (
+          <p role="alert" className="text-xs text-red-600">{feedback.error}</p>
         )}
 
         <div className="flex items-center gap-3">
@@ -155,8 +187,8 @@ export function SendMessageForm({ patientId }: SendMessageFormProps) {
             <Send className="h-4 w-4" />
             {isPending ? 'Sending...' : 'Send Message'}
           </Button>
-          {state?.success && (
-            <p className="text-sm text-green-600">Message sent</p>
+          {feedback?.success && (
+            <p role="status" className="text-sm text-green-700">Message sent</p>
           )}
         </div>
       </form>

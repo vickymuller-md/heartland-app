@@ -2,6 +2,7 @@
 
 import { Activity, Stethoscope, Pill, BookOpen, FileText, User, FlaskConical, HeartPulse, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
+import dynamic from 'next/dynamic';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import type {
   VitalsChartPoint,
@@ -12,17 +13,23 @@ import type {
 import type { ProviderMessage } from '@/lib/messages/types';
 import type { EducationTeachback } from '@/lib/education/types';
 import { MESSAGE_TEMPLATE_LABELS } from '@/lib/messages/constants';
-import { VitalsChart } from './vitals-chart';
 import { SymptomHistory } from './symptom-history';
 import { MedicationSummary } from './medication-summary';
 import { EducationSummary } from './education-summary';
 import { ProviderNotes } from './provider-notes';
 import { SendMessageForm } from './send-message-form';
 import { PatientInfoTab } from './patient-info-tab';
-import { LabResultsTab } from './lab-results-tab';
 import { ComorbidityTab } from './comorbidity-tab';
 
+const VitalsChart = dynamic(() => import('./vitals-chart').then(module => module.VitalsChart), {
+  loading: () => <p role="status">Loading measurements…</p>,
+});
+const LabResultsTab = dynamic(() => import('./lab-results-tab').then(module => module.LabResultsTab), {
+  loading: () => <p role="status">Loading laboratory results…</p>,
+});
+
 interface PatientDetailTabsProps {
+  actorId: string;
   patientId: string;
   vitals: VitalsChartPoint[];
   symptoms: SymptomEntry[];
@@ -51,6 +58,7 @@ interface PatientDetailTabsProps {
 }
 
 export function PatientDetailTabs({
+  actorId,
   patientId,
   vitals,
   symptoms,
@@ -140,7 +148,7 @@ export function PatientDetailTabs({
           <hr className="border-gray-200" />
 
           {/* Send message form */}
-          <SendMessageForm patientId={patientId} />
+          <SendMessageForm patientId={patientId} actorId={actorId} />
 
           {/* Message history */}
           {messages.length > 0 && (

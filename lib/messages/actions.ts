@@ -19,6 +19,7 @@ import { sendMessageSchema } from './schema';
 
 export interface MessageActionState {
   success?: boolean;
+  receipt?: string;
   errors?: Record<string, string[]>;
   error?: string;
 }
@@ -56,49 +57,30 @@ export async function sendMessage(
   const auth = await authorizeProviderForPatient(parsed.data.patientId);
   if (!auth.authorized) return { error: auth.error };
 
-  const { error } = await auth.supabase.from('provider_messages').insert({
-    patient_id: parsed.data.patientId,
-    provider_id: auth.user.id,
-    template_type: parsed.data.templateType,
-    subject: parsed.data.subject,
-    body: parsed.data.body,
+  const actor = formData.get('actorId');
+  const requestId = formData.get('requestId');
+  if (auth.user.id !== actor || !sendMessageSchema.shape.patientId.safeParse(requestId).success) {
+    return { error: 'Session or draft changed. Reload this patient record.' };
+  }
+  const { data, error } = await auth.supabase.rpc('record_portal_message', {
+    p_expected_actor: actor, p_patient_id: parsed.data.patientId, p_request_id: requestId,
+    p_template: parsed.data.templateType, p_subject: parsed.data.subject, p_body: parsed.data.body,
   });
-
-  if (error) return { error: 'Unable to send message' };
-
-  // 4. Revalidate both provider detail page and patient today view
-  revalidatePath(`/provider/patients/${parsed.data.patientId}`);
+  if (error || data !== requestId) return { error: 'Portal save could not be confirmed. Retry this draft.' };
+  revalidatePath(`/patients/${parsed.data.patientId}`);
+  revalidatePath('/alerts');
   revalidatePath('/today');
-  return { success: true };
+  return { success: true, receipt: String(requestId) };
 }
 
-// ---------- Mark Message Read ----------
-
-/**
- * Mark a message as read by the patient.
- * Idempotent: only updates if read_at IS NULL.
- * Called from patient-side message card on mount.
- */
-export async function markMessageRead(
-  messageId: string
-): Promise<{ success: boolean; error?: string }> {
-  if (!sendMessageSchema.shape.patientId.safeParse(messageId).success) {
-    return { success: false, error: 'Invalid message ID' };
-  }
+export async function markMessageRead(messageId: string, patientId: string): Promise<{ success: boolean; error?: string }> {
+  if (!sendMessageSchema.shape.patientId.safeParse(messageId).success) return { success: false, error: 'Invalid message ID' };
   const auth = await authorize('patient');
-  if (!auth.authorized) return { success: false, error: auth.error };
-
-  const { data, error } = await auth.supabase
-    .from('provider_messages')
-    .update({ read_at: new Date().toISOString() })
-    .eq('id', messageId)
-    .eq('patient_id', auth.user.id)
-    .is('read_at', null)
-    .select('id');
-
-  if (error) return { success: false, error: 'Unable to update message' };
-  if (!data?.length) return { success: true };
-
+  if (!auth.authorized || auth.user.id !== patientId) return { success: false, error: 'Patient session changed. Reload this page.' };
+  const { data, error } = await auth.supabase.rpc('confirm_portal_message_read', { p_expected_patient: patientId, p_message_id: messageId });
+  if (error || typeof data !== 'string') return { success: false, error: 'Read confirmation unavailable. Try again.' };
   revalidatePath('/today');
+  revalidatePath('/alerts');
+  revalidatePath(`/patients/${patientId}`);
   return { success: true };
 }
