@@ -690,7 +690,13 @@ async function reachFallbackForm(page: import('@playwright/test').Page) {
   await openCheckIn(page);
   await expect(page.getByTestId('sandbox-ai-checkin')).toContainText('any chest pain');
   await page.getByLabel('Type your check-in answer').fill('no chest pain today');
-  await page.getByRole('button', { name: 'Send answer' }).click();
+  const [response] = await Promise.all([
+    page.waitForResponse(response =>
+      response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/sandbox-ai/checkin'),
+    page.getByRole('button', { name: 'Send answer' }).click(),
+  ]);
+  expect(response.ok()).toBe(true);
+  expect(await response.json()).toMatchObject({ fallback: true });
   await expect(page.getByTestId('sandbox-ai-form')).toBeVisible();
   await expect(page.getByTestId('sandbox-ai-checkin')).toContainText('unavailable right now');
 }
