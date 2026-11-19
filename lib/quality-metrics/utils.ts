@@ -25,8 +25,8 @@ export function formatRate(
  * Evaluate a rate against a target threshold.
  *
  * "approaching" = within 10% margin of target:
- *   - higherIsBetter: rate >= target * 0.9 && rate < target
- *   - !higherIsBetter: rate > target && rate <= target * 1.1
+ *   - higherIsBetter: rate >= target * 0.9 && rate <= target
+ *   - !higherIsBetter: rate >= target && rate <= target * 1.1
  *
  * Returns 'no_data' if rate or target is null.
  */
@@ -38,12 +38,12 @@ export function evaluateTarget(
   if (rate == null || target == null) return 'no_data';
 
   if (higherIsBetter) {
-    if (rate >= target) return 'met';
+    if (rate > target) return 'met';
     if (rate >= target * 0.9) return 'approaching';
     return 'below';
   } else {
     // Lower is better (e.g., readmission rate)
-    if (rate <= target) return 'met';
+    if (rate < target) return 'met';
     if (rate <= target * 1.1) return 'approaching';
     return 'below';
   }

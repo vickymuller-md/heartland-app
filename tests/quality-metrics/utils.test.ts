@@ -31,7 +31,7 @@ describe('CKM-02 formatRate', () => {
 });
 
 describe('CKM-02 evaluateTarget (higherIsBetter=true)', () => {
-  it('evaluateTarget(80, 70, true) returns "met" (rate >= target)', () => {
+  it('evaluateTarget(80, 70, true) returns "met" (rate > target)', () => {
     expect(evaluateTarget(80, 70, true)).toBe('met');
   });
 
@@ -45,7 +45,7 @@ describe('CKM-02 evaluateTarget (higherIsBetter=true)', () => {
 });
 
 describe('CKM-02 evaluateTarget (higherIsBetter=false)', () => {
-  it('evaluateTarget(12, 15, false) returns "met" (lower is better, rate <= target)', () => {
+  it('evaluateTarget(12, 15, false) returns "met" (lower is better, rate < target)', () => {
     expect(evaluateTarget(12, 15, false)).toBe('met');
   });
 
@@ -68,22 +68,20 @@ describe('CKM-02 evaluateTarget (no_data cases)', () => {
   });
 });
 
-describe('CKM-02 target labels match the comparator in code', () => {
-  it('labels every numeric target with the inclusive comparator evaluateTarget applies', () => {
+describe('planning examples in Toolkit 3.4.1, section 8.1', () => {
+  it('preserves the strict comparison for every published numerical example', () => {
     for (const definition of METRIC_DEFINITIONS) {
-      for (const label of [definition.tier1TargetLabel, definition.tier23TargetLabel]) {
-        expect(label).not.toMatch(/[<>]/);
+      for (const [target, label] of [
+        [definition.tier1Target, definition.tier1TargetLabel],
+        [definition.tier23Target, definition.tier23TargetLabel],
+      ] as const) {
+        if (target === null) continue;
+        const higher = definition.higherIsBetter;
+        expect(label).toBe(`${higher ? '>' : '<'}${target}%`);
+        expect(evaluateTarget(target, target, higher)).toBe('approaching');
+        expect(evaluateTarget(target + (higher ? 0.1 : -0.1), target, higher)).toBe('met');
+        expect(evaluateTarget(target + (higher ? -0.1 : 0.1), target, higher)).toBe('approaching');
       }
     }
-  });
-
-  it('a rate exactly on the target counts as met, as the labels now say', () => {
-    const contact = METRIC_DEFINITIONS[0];
-    expect(contact.tier1TargetLabel).toBe('≥70%');
-    expect(evaluateTarget(70, contact.tier1Target, contact.higherIsBetter)).toBe('met');
-
-    const readmission = METRIC_DEFINITIONS[3];
-    expect(readmission.tier23TargetLabel).toBe('≤15%');
-    expect(evaluateTarget(15, readmission.tier23Target, readmission.higherIsBetter)).toBe('met');
   });
 });

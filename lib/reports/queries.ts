@@ -1,302 +1,165 @@
-/**
- * HEARTLAND Reports & Data Export -- Query Functions
- *
- * Server-side query functions for report data aggregation.
- * All functions accept a SupabaseClient from lib/supabase/server.ts.
- *
- * Requirements: REPT-01 (Monthly Report), REPT-02 (Patient Summary)
- * Source: HEARTLAND Protocol v3.3 -- Phase 21
- */
-
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type {
-  MonthlyReportData,
-  PatientSummaryData,
-  ReportDateRange,
-  NiwTractionData,
-  MonthlyCount,
-} from './types';
-import { getPatientDetail } from '@/lib/dashboard/queries';
+import { z } from 'zod';
+import { getLinkedPatientIds } from '@/lib/supabase/linked-patients';
+import { findUsRegion } from '@/lib/us-regions';
+import { getAdherenceForRange } from '@/lib/medications/queries';
+import { getEducationSummary } from '@/lib/education/queries';
+import { getLinkedPatientProfile } from '@/lib/dashboard/queries';
 import { getReportLabResults } from './lab-results';
+import { reportDateBounds } from './date-range';
+import { exactCount, readReportRows } from './rows';
+import type { MonthlyCount, MonthlyReportData, NiwTractionData, PatientSummaryData, ReportDateRange } from './types';
 
-// Re-export types for consumers that import from queries
 export type { MonthlyReportData, PatientSummaryData, NiwTractionData, MonthlyCount } from './types';
 
-/**
- * Aggregate monthly report data for a provider's linked patients.
- * REPT-01: Monthly panel report with patient counts, alerts, compliance.
- */
+// The report counts saved checklist headers, including the historical spelling.
+export const TITRATION_NOTE_FILTER = 'content.ilike."[TITRATION CHECKLIST — *",content.ilike."[Titration]*"';
+
+export { getLinkedPatientIds as getReportPatientIds };
+
+export async function getReportPatients(client: SupabaseClient, patientIds: string[]) {
+  const patients: Array<{ id: string; full_name: string }> = [];
+  for (let i = 0; i < patientIds.length; i += 100) {
+    const scope = patientIds.slice(i, i + 100);
+    const { data, error } = await client.from('profiles').select('id, full_name').in('id', scope);
+    if (error || !data || data.length !== scope.length) throw new Error('Panel unavailable.');
+    patients.push(...data.map(p => ({ id: p.id, full_name: p.full_name ?? 'Name not recorded' })));
+  }
+  return patients.sort((a, b) => a.full_name.localeCompare(b.full_name) || a.id.localeCompare(b.id));
+}
+
 export async function getMonthlyReportData(
-  supabase: SupabaseClient,
-  providerId: string,
-  range: ReportDateRange
+  client: SupabaseClient, providerId: string, range: ReportDateRange,
+  linkedIds?: string[],
 ): Promise<MonthlyReportData> {
-  // Derive month string from range.from
-  const month = range.from.slice(0, 7); // "YYYY-MM"
-
-  // 1. Fetch linked patient IDs
-  const { data: links, error: linkError } = await supabase
-    .from('provider_patient_links')
-    .select('patient_id')
-    .eq('provider_id', providerId)
-    .eq('status', 'active');
-
-  if (linkError) throw linkError;
-
-  const patientIds = (links ?? []).map((l) => l.patient_id);
-  const totalPatients = patientIds.length;
-
-  // Return zeroed data if no linked patients
-  if (totalPatients === 0) {
-    return {
-      month,
-      from: range.from,
-      to: range.to,
-      totalPatients: 0,
-      activePatientsInPeriod: 0,
-      alertsGenerated: 0,
-      alertsCritical: 0,
-      titrationNotesCount: 0,
-      avgCheckInCompliance: 0,
-      gdmtOptimizationRate: null,
-    };
-  }
-
-  // 2. Fetch vitals in range for compliance and active patient calculation
-  const { data: vitals, error: vitalsError } = await supabase
-    .from('vitals')
-    .select('patient_id, recorded_at')
-    .in('patient_id', patientIds)
-    .gte('recorded_at', range.from)
-    .lte('recorded_at', range.to);
-
-  if (vitalsError) throw vitalsError;
-
-  // Compute active patients (unique patient_ids with vitals in range)
-  const activePatientIds = new Set<string>();
-  // Compute distinct calendar days per patient for compliance
+  const { fromInclusive, toExclusive } = reportDateBounds(range);
+  const patientIds = linkedIds ?? await getLinkedPatientIds(client, providerId);
   const daysPerPatient = new Map<string, Set<string>>();
-
-  for (const v of vitals ?? []) {
-    activePatientIds.add(v.patient_id);
-    const daySet = daysPerPatient.get(v.patient_id) ?? new Set<string>();
-    // Extract calendar day from recorded_at (YYYY-MM-DD)
-    daySet.add(v.recorded_at.slice(0, 10));
-    daysPerPatient.set(v.patient_id, daySet);
-  }
-
-  const activePatientsInPeriod = activePatientIds.size;
-
-  // Compliance: patients with >=16 distinct vitals days / total linked patients * 100
-  let compliantCount = 0;
-  for (const [, days] of daysPerPatient) {
-    if (days.size >= 16) {
-      compliantCount++;
+  let alertsGenerated = 0, alertsCritical = 0, titrationNotesCount = 0;
+  for (let i = 0; i < patientIds.length; i += 100) {
+    const scope = patientIds.slice(i, i + 100);
+    const alerts = () => client.from('alerts').select('id', { count: 'exact', head: true })
+      .in('patient_id', scope).gte('created_at', fromInclusive).lt('created_at', toExclusive);
+    const [vitals, total, critical, notes] = await Promise.all([
+      readReportRows(() => client.from('vitals').select('id, patient_id, recorded_at')
+        .in('patient_id', scope).gte('recorded_at', fromInclusive).lt('recorded_at', toExclusive)),
+      alerts(),
+      alerts().eq('severity', 'critical'),
+      client.from('provider_notes').select('id', { count: 'exact', head: true })
+        .in('patient_id', scope).or(TITRATION_NOTE_FILTER)
+        .gte('created_at', fromInclusive).lt('created_at', toExclusive),
+    ]);
+    for (const vital of vitals) {
+      const dates = daysPerPatient.get(vital.patient_id) ?? new Set<string>();
+      dates.add(new Date(vital.recorded_at).toISOString().slice(0, 10));
+      daysPerPatient.set(vital.patient_id, dates);
     }
+    alertsGenerated += exactCount(total);
+    alertsCritical += exactCount(critical);
+    titrationNotesCount += exactCount(notes);
   }
-  const avgCheckInCompliance =
-    totalPatients > 0
-      ? Math.round((compliantCount / totalPatients) * 1000) / 10
-      : 0;
-
-  // 3. Fetch alerts in range
-  const { data: alertsData, error: alertsError } = await supabase
-    .from('alerts')
-    .select('id, severity')
-    .in('patient_id', patientIds)
-    .gte('created_at', range.from)
-    .lte('created_at', range.to);
-
-  if (alertsError) throw alertsError;
-
-  const alertsGenerated = (alertsData ?? []).length;
-  const alertsCritical = (alertsData ?? []).filter(
-    (a) => a.severity === 'critical'
-  ).length;
-
-  // 4. Fetch titration notes count
-  const { count: titrationCount, error: notesError } = await supabase
-    .from('provider_notes')
-    .select('id', { count: 'exact', head: true })
-    .in('patient_id', patientIds)
-    .ilike('content', '[Titration]%')
-    .gte('created_at', range.from)
-    .lte('created_at', range.to);
-
-  if (notesError) throw notesError;
-
+  const daysInPeriod = (Date.parse(toExclusive) - Date.parse(fromInclusive)) / 86_400_000;
+  const withSixteenDays = [...daysPerPatient.values()].filter(days => days.size >= 16).length;
   return {
-    month,
-    from: range.from,
-    to: range.to,
-    totalPatients,
-    activePatientsInPeriod,
-    alertsGenerated,
-    alertsCritical,
-    titrationNotesCount: titrationCount ?? 0,
-    avgCheckInCompliance,
-    gdmtOptimizationRate: null, // Phase 13 not complete
+    month: range.from.slice(0, 7), ...range, totalPatients: patientIds.length,
+    activePatientsInPeriod: daysPerPatient.size, alertsGenerated, alertsCritical, titrationNotesCount,
+    avgCheckInCompliance: patientIds.length && daysInPeriod >= 16
+      ? Math.round(withSixteenDays * 1000 / patientIds.length) / 10 : null,
+    gdmtOptimizationRate: null,
   };
 }
 
-/**
- * Get full patient summary data for PDF export.
- * REPT-02: Patient summary with detail data + labs within date range.
- */
 export async function getPatientSummaryData(
-  supabase: SupabaseClient,
-  patientId: string,
-  providerId: string,
-  range: ReportDateRange
+  client: SupabaseClient, patientId: string, providerId: string, range: ReportDateRange,
 ): Promise<PatientSummaryData | null> {
-  // 1. Get patient detail (reuse dashboard query)
-  // Note: getPatientDetail signature is (supabase, providerId, patientId)
-  const detail = await getPatientDetail(supabase, providerId, patientId);
-  if (!detail) return null;
-
-  // 2. Read the complete effective source composition under the expected authenticated actor.
-  const labs = await getReportLabResults(supabase, [patientId], range, providerId);
-
+  const { fromInclusive, toExclusive } = reportDateBounds(range);
+  const patient = await getLinkedPatientProfile(client, providerId, patientId);
+  if (!patient) return null;
+  const [vitals, notes, openAlerts, adherenceSummary, educationProgress, labs] = await Promise.all([
+    client.from('vitals').select('recorded_at, weight_lbs, sbp, dbp, heart_rate, spo2').eq('patient_id', patientId)
+      .gte('recorded_at', fromInclusive).lt('recorded_at', toExclusive)
+      .order('recorded_at', { ascending: false }).order('id', { ascending: true }).limit(5),
+    client.from('provider_notes').select('id, content, created_at').eq('patient_id', patientId)
+      .gte('created_at', fromInclusive).lt('created_at', toExclusive)
+      .order('created_at', { ascending: false }).order('id', { ascending: true }).limit(3),
+    readReportRows(() => client.from('alerts').select('id, severity, flags, created_at')
+      .eq('patient_id', patientId).in('status', ['open', 'acknowledged'])),
+    getAdherenceForRange(client, patientId, range.from, range.to).catch(() => null),
+    getEducationSummary(client, patientId).catch(() => null),
+    getReportLabResults(client, [patientId], range, providerId),
+  ]);
+  if (vitals.error || !vitals.data || notes.error || !notes.data) throw new Error('Summary source unavailable.');
   return {
-    ...detail,
-    labs,
-    dateRange: range,
+    patient, dateRange: range, labs, notes: notes.data, adherenceSummary, educationProgress,
+    vitals: vitals.data.map(({ recorded_at, ...values }) => ({ date: recorded_at, ...values })),
+    openAlerts: openAlerts.sort((a, b) => b.created_at.localeCompare(a.created_at) || a.id.localeCompare(b.id)),
   };
 }
 
-// ---------- NIW Traction Report (REPT-06) ----------
-
-/**
- * Pure helper: build last 12 months with per-month provider/patient counts.
- * Exported for unit testing without Supabase dependency.
- */
 export function computeMonthlyGrowth(
-  providerRows: { created_at: string }[],
-  patientRows: { created_at: string }[]
+  providerRows: { created_at: string }[], patientRows: { created_at: string }[], now = new Date(),
 ): MonthlyCount[] {
-  const months: string[] = [];
-  const now = new Date();
+  const months: MonthlyCount[] = [];
   for (let i = 11; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    months.push(
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    );
+    const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1)).toISOString().slice(0, 7);
+    months.push({ month,
+      providers: providerRows.filter(r => r.created_at.slice(0, 7) === month).length,
+      patients: patientRows.filter(r => r.created_at.slice(0, 7) === month).length,
+    });
   }
-  const countByMonth = (rows: { created_at: string }[], month: string) =>
-    rows.filter((r) => r.created_at.slice(0, 7) === month).length;
-  return months.map((month) => ({
-    month,
-    providers: countByMonth(providerRows, month),
-    patients: countByMonth(patientRows, month),
-  }));
+  return months;
 }
 
-/**
- * Aggregate platform-wide NIW traction stats using admin client.
- * REPT-06: Cumulative totals + geographic spread + monthly growth for NIW petition.
- * Must be called from Server Components only (uses service_role key).
- */
+const count = z.number().int().nonnegative();
+const adoptionSchema = z.object({
+  active_sandbox_accounts: count, unique_sandbox_testers: count, sandbox_views: count,
+  sandbox_first_actions: count, sandbox_task_completions: count,
+  median_session_duration_ms: z.number().nonnegative(), campaign_sources: z.record(z.string(), count),
+});
+
+/** Aggregate only. An unavailable source prevents printing a misleading evidence report. */
 export async function getNiwTractionStats(): Promise<NiwTractionData> {
-  // Dynamic import to avoid bundling server-only module in client
-  const { supabaseAdmin } = await import('@/lib/supabase/admin');
-
-  const [
-    { count: totalProviders },
-    { count: totalPatients },
-    { count: totalAlerts },
-    { count: totalTitrations },
-    { count: pendingAccessRequests },
-    { data: stateRows },
-    { data: providersByMonth },
-    { data: patientsByMonth },
-    { data: adoptionSummary },
-  ] = await Promise.all([
-    supabaseAdmin
-      .from('profiles')
-      .select('id', { count: 'exact', head: true })
-      .eq('role', 'provider'),
-    supabaseAdmin
-      .from('profiles')
-      .select('id', { count: 'exact', head: true })
-      .eq('role', 'patient'),
-    supabaseAdmin
-      .from('alerts')
-      .select('id', { count: 'exact', head: true }),
-    supabaseAdmin
-      .from('provider_notes')
-      .select('id', { count: 'exact', head: true })
-      .ilike('content', '[Titration]%'),
-    supabaseAdmin
-      .from('access_requests')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'pending'),
-    supabaseAdmin
-      .from('profiles')
-      .select('state')
-      .not('state', 'is', null),
-    supabaseAdmin
-      .from('profiles')
-      .select('created_at')
-      .eq('role', 'provider'),
-    supabaseAdmin
-      .from('profiles')
-      .select('created_at')
-      .eq('role', 'patient'),
-    supabaseAdmin.rpc(
-      'get_adoption_summary',
-      { p_since: new Date(Date.now() - 30 * 86_400_000).toISOString() },
-    ),
+  const { supabaseAdmin: db } = await import('@/lib/supabase/admin');
+  const now = new Date();
+  const since = new Date(now.getTime() - 30 * 86_400_000).toISOString();
+  const [profiles, alerts, notes, approved, pending, adoption] = await Promise.all([
+    readReportRows(() => db.from('profiles').select('id, role, created_at, state').in('role', ['provider', 'patient'])),
+    db.from('alerts').select('id', { count: 'exact', head: true }),
+    db.from('provider_notes').select('id', { count: 'exact', head: true }).or(TITRATION_NOTE_FILTER),
+    db.from('access_requests').select('id', { count: 'exact', head: true }).eq('status', 'approved'),
+    db.from('access_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    db.rpc('get_adoption_summary', { p_since: since }),
   ]);
-
-  const activeStates = [
-    ...new Set(
-      (stateRows ?? [])
-        .map((r) => r.state as string)
-        .filter(Boolean)
-    ),
-  ];
-  const monthlyGrowth = computeMonthlyGrowth(
-    providersByMonth ?? [],
-    patientsByMonth ?? []
-  );
-
-  const providerCount = totalProviders ?? 0;
-  const adoption = adoptionSummary && typeof adoptionSummary === 'object'
-    ? adoptionSummary as Record<string, unknown>
-    : {};
-  const metric = (key: string) => typeof adoption[key] === 'number' ? adoption[key] as number : 0;
-  const sandboxViews30d = metric('sandbox_views');
-  const sandboxFirstActions30d = metric('sandbox_first_actions');
-  const uniqueSandboxTesters30d = metric('unique_sandbox_testers');
-  const campaignSources = adoption.campaign_sources;
-  const campaignSources30d = campaignSources && typeof campaignSources === 'object'
-    ? Object.entries(campaignSources as Record<string, unknown>)
-      .filter((entry): entry is [string, number] => typeof entry[1] === 'number')
-      .map(([source, sessions]) => ({ source, sessions }))
-      .sort((a, b) => b.sessions - a.sessions || a.source.localeCompare(b.source))
-    : [];
-
+  if (adoption.error) throw new Error('Dissemination summary unavailable.');
+  const metrics = adoptionSchema.parse(adoption.data);
+  // The aggregate returns zero for both an empty sample and measured zero milliseconds.
+  let medianDuration: number | null = Math.round(metrics.median_session_duration_ms / 1000);
+  if (metrics.median_session_duration_ms === 0) {
+    const sample = await db.from('product_events').select('id', { count: 'exact', head: true })
+      .eq('actor_role', 'tester').eq('event_name', 'sandbox_view').gte('occurred_at', since)
+      .not('duration_ms', 'is', null);
+    if (exactCount(sample) === 0) medianDuration = null;
+  }
+  const providers = profiles.filter(p => p.role === 'provider');
+  const patients = profiles.filter(p => p.role === 'patient');
+  const names = profiles.flatMap(profile => {
+    const region = findUsRegion(profile.state);
+    return region ? [region.name] : [];
+  });
   return {
-    totalProviders: providerCount,
-    totalPatients: totalPatients ?? 0,
-    totalAlerts: totalAlerts ?? 0,
-    totalTitrations: totalTitrations ?? 0,
-    activeStates,
-    monthlyGrowth,
-    approvedProviders: providerCount,
-    pendingAccessRequests: pendingAccessRequests ?? 0,
-    activeSandboxAccounts: metric('active_sandbox_accounts'),
-    uniqueSandboxTesters30d,
-    sandboxViews30d,
-    sandboxFirstActions30d,
-    sandboxTaskCompletions30d: metric('sandbox_task_completions'),
-    sandboxActivationRate30d: uniqueSandboxTesters30d > 0
-      ? Math.round((sandboxFirstActions30d / uniqueSandboxTesters30d) * 100)
-      : null,
-    medianSandboxDurationSeconds: metric('median_session_duration_ms')
-      ? Math.round(metric('median_session_duration_ms') / 1000)
-      : null,
-    campaignSources30d,
+    totalProviders: providers.length, totalPatients: patients.length,
+    activeStates: [...new Set(names)].sort(),
+    monthlyGrowth: computeMonthlyGrowth(providers, patients, now),
+    totalAlerts: exactCount(alerts), totalTitrations: exactCount(notes),
+    approvedAccessRequests: exactCount(approved), pendingAccessRequests: exactCount(pending),
+    activeSandboxAccounts: metrics.active_sandbox_accounts, uniqueSandboxTesters30d: metrics.unique_sandbox_testers,
+    sandboxViews30d: metrics.sandbox_views, sandboxFirstActions30d: metrics.sandbox_first_actions,
+    sandboxTaskCompletions30d: metrics.sandbox_task_completions,
+    sandboxActivationRate30d: metrics.unique_sandbox_testers
+      ? Math.round(metrics.sandbox_first_actions * 100 / metrics.unique_sandbox_testers) : null,
+    medianSandboxDurationSeconds: medianDuration,
+    campaignSources30d: Object.entries(metrics.campaign_sources).map(([source, sessions]) => ({ source, sessions }))
+      .sort((a, b) => b.sessions - a.sessions || a.source.localeCompare(b.source)),
   };
 }

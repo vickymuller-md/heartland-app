@@ -1,66 +1,45 @@
-/**
- * Reports & Data Export -- Server Component
- *
- * Reads searchParams for date range, fetches monthly report data
- * and linked patients list, passes to ReportsShell client component.
- * Also fetches platform-wide NIW traction stats for petition evidence.
- *
- * Requirements: REPT-01, REPT-02, REPT-03, REPT-04, REPT-05, REPT-06
- * Source: HEARTLAND Protocol v3.3 -- Phase 21, Phase 28
- */
-
-import { createClient } from '@/lib/supabase/server';
-import { getMonthlyReportData, getNiwTractionStats } from '@/lib/reports/queries';
-import { getLinkedPatients } from '@/lib/dashboard/queries';
+import { authorize } from '@/lib/auth/authorization';
+import { getMonthlyReportData, getNiwTractionStats, getReportPatientIds, getReportPatients } from '@/lib/reports/queries';
+import { reportDateBounds } from '@/lib/reports/date-range';
 import { ReportsShell } from './_components/reports-shell';
 import { NiwReportTrigger } from './_components/niw-report-trigger';
-import { startOfMonth, format } from 'date-fns';
+import { DateRangePicker } from './_components/date-range-picker';
 import { redirect } from 'next/navigation';
 
-export default async function ReportsPage({
-  searchParams,
-}: {
+export default async function ReportsPage({ searchParams }: {
   searchParams: Promise<{ from?: string; to?: string; patient?: string }>;
 }) {
+  const auth = await authorize('provider');
+  if (!auth.authorized) {
+    if (auth.error === 'Consent required') redirect('/consent');
+    redirect(auth.error === 'MFA required' ? '/security/mfa' : '/login');
+  }
   const params = await searchParams;
-
-  const today = new Date();
-  const from = params.from ?? format(startOfMonth(today), 'yyyy-MM-dd');
-  const to = params.to ?? format(today, 'yyyy-MM-dd');
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect('/login');
-
-  const providerId = user.id;
-
-  const [monthlyData, linkedPatients, niwData] = await Promise.all([
-    getMonthlyReportData(supabase, providerId, { from, to }),
-    getLinkedPatients(supabase, providerId),
+  const today = new Date().toISOString().slice(0, 10);
+  const range = { from: params.from ?? today.slice(0, 8) + '01', to: params.to ?? today };
+  try { reportDateBounds(range); } catch {
+    return <div className="space-y-4"><h1 className="text-2xl font-bold">Reports &amp; Data Export</h1>
+      <p role="alert">Choose a valid UTC date range from the first through the last day. Select up to 367 calendar days.</p>
+      <DateRangePicker {...range} /></div>;
+  }
+  const [panel, niw] = await Promise.allSettled([
+    getReportPatientIds(auth.supabase, auth.user.id).then(ids => Promise.all([
+      getMonthlyReportData(auth.supabase, auth.user.id, range, ids), getReportPatients(auth.supabase, ids),
+    ] as const)),
     getNiwTractionStats(),
   ]);
-
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Reports &amp; Data Export</h1>
-      <ReportsShell
-        providerId={providerId}
-        data={monthlyData}
-        patients={linkedPatients}
-        from={from}
-        to={to}
-      />
-
-      {/* NIW Traction Report Section */}
+      {panel.status === 'fulfilled' ? (
+        <ReportsShell providerId={auth.user.id} data={panel.value[0]} patients={panel.value[1]} {...range} />
+      ) : <div className="space-y-3"><DateRangePicker {...range} />
+        <p role="alert">Panel data is unavailable. Reload to prepare an accurate export.</p></div>}
       <section className="mt-8 border-t pt-6">
-        <h2 className="text-lg font-semibold mb-2">NIW Traction Report</h2>
-        <p className="text-sm text-gray-600 mb-4">
-          One-page PDF showing platform-wide adoption for NIW petition evidence.
-        </p>
-        <NiwReportTrigger data={niwData} />
+        <h2 className="text-lg font-semibold mb-2">NIW Activity Report</h2>
+        <p className="text-sm text-gray-600 mb-4">Registered account counts and recorded synthetic activity for dissemination evidence.</p>
+        {niw.status === 'fulfilled' ? <NiwReportTrigger data={niw.value} />
+          : <p role="alert">Platform activity data is unavailable. Reload to prepare the evidence report.</p>}
       </section>
     </div>
   );

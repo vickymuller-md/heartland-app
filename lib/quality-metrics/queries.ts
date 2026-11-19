@@ -2,10 +2,9 @@
  * Quality Metrics -- Supabase Queries
  *
  * Server-side queries for quality metric records.
- * Uses date-fns for consistent date window calculation.
  */
 
-import { startOfMonth, subMonths, format } from 'date-fns';
+import { METRIC_DEFINITIONS } from './constants';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { QualityMetricRecord, MetricKey, MonthlyTrend } from './types';
 
@@ -17,24 +16,16 @@ export async function getQualityMetrics(
   supabase: SupabaseClient,
   providerId: string,
 ): Promise<QualityMetricRecord[]> {
-  const { data, error } = await supabase
-    .from('quality_metric_records')
-    .select('*')
-    .eq('provider_id', providerId)
-    .order('period_month', { ascending: false });
-
-  if (error || !data) return [];
-
-  // Deduplicate: keep only the most recent record per metric_key
-  const seen = new Set<string>();
-  const latest: QualityMetricRecord[] = [];
-  for (const row of data) {
-    if (!seen.has(row.metric_key)) {
-      seen.add(row.metric_key);
-      latest.push(row as QualityMetricRecord);
-    }
-  }
-  return latest;
+  // Read the latest row independently for each measure. A busy measure cannot
+  // displace another measure's latest row beyond the API's page limit.
+  const records = await Promise.all(METRIC_DEFINITIONS.map(async ({ key }) => {
+    const { data, error } = await supabase.from('quality_metric_records').select('*')
+      .eq('provider_id', providerId).eq('metric_key', key)
+      .order('period_month', { ascending: false }).limit(1).maybeSingle();
+    if (error) throw error;
+    return data as QualityMetricRecord | null;
+  }));
+  return records.filter((row): row is QualityMetricRecord => row !== null);
 }
 
 /**
@@ -42,7 +33,7 @@ export async function getQualityMetrics(
  * Returns MonthlyTrend[] ordered by period_month ascending.
  *
  * Default window: 6 months (current month + 5 previous).
- * Cutoff: startOfMonth(subMonths(today, months - 1))
+ * Month bounds use the UTC calendar and exclude future reporting months.
  */
 export async function getMetricHistory(
   supabase: SupabaseClient,
@@ -50,16 +41,18 @@ export async function getMetricHistory(
   metricKey: MetricKey,
   months: number = 6,
 ): Promise<MonthlyTrend[]> {
-  const cutoff = format(startOfMonth(subMonths(new Date(), months - 1)), 'yyyy-MM-dd');
+  const now = new Date();
+  const month = (offset: number) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset, 1)).toISOString().slice(0, 10);
 
   const { data, error } = await supabase
     .from('quality_metric_records')
     .select('period_month, rate_pct')
     .eq('provider_id', providerId)
     .eq('metric_key', metricKey)
-    .gte('period_month', cutoff)
+    .gte('period_month', month(1 - months)).lt('period_month', month(1))
     .order('period_month', { ascending: true });
 
-  if (error || !data) return [];
+  if (error) throw error;
+  if (!data) throw new Error('Quality metric source unavailable.');
   return data as MonthlyTrend[];
 }

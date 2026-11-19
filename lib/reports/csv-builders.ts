@@ -166,6 +166,11 @@ export function buildMedsCSV(
     'frequency',
     'taken_at',
     'taken',
+    'scheduled_date',
+    'dose_number',
+    'schedule_details',
+    'calendar_time_zone',
+    'calendar_source',
   ];
 
   const dataRows = meds.map((m) => [
@@ -174,7 +179,12 @@ export function buildMedsCSV(
     m.dose ?? '',
     m.frequency ?? '',
     m.taken_at ? (opts.deidentify ? truncateToYear(m.taken_at) : m.taken_at) : '',
-    String(m.taken ?? ''),
+    String(m.taken),
+    opts.deidentify ? truncateToYear(m.scheduled_date) : m.scheduled_date,
+    String(m.dose_number),
+    m.schedule_recorded ? 'recorded' : 'unavailable',
+    opts.deidentify ? '' : m.calendar_time_zone ?? '',
+    m.calendar_source ?? 'unrecorded',
   ]);
 
   return [header, ...dataRows];

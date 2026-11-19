@@ -8,9 +8,9 @@
  * Uses vi.fn() mock for Supabase client.
  */
 
-import { getMetricHistory } from '@/lib/quality-metrics/queries';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { startOfMonth, subMonths, format } from 'date-fns';
+import { getMetricHistory, getQualityMetrics } from '@/lib/quality-metrics/queries';
+import { describe, it, expect, vi } from 'vitest';
+import { METRIC_DEFINITIONS } from '@/lib/quality-metrics/constants';
 
 // Build a chainable Supabase mock
 function createMockSupabase(returnData: unknown[] | null = null, returnError: unknown = null) {
@@ -19,6 +19,7 @@ function createMockSupabase(returnData: unknown[] | null = null, returnError: un
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     gte: vi.fn().mockReturnThis(),
+    lt: vi.fn().mockReturnThis(),
     order: vi.fn().mockResolvedValue({ data: returnData, error: returnError }),
   };
   return chain;
@@ -27,11 +28,13 @@ function createMockSupabase(returnData: unknown[] | null = null, returnError: un
 describe('CKM-04 getMetricHistory', () => {
   it('Queries with cutoff date = startOfMonth(subMonths(today, 5)) for default 6-month window', async () => {
     const mock = createMockSupabase([]);
-    const expectedCutoff = format(startOfMonth(subMonths(new Date(), 5)), 'yyyy-MM-dd');
+    const now = new Date();
+    const month = (offset: number) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset, 1)).toISOString().slice(0,10);
 
     await getMetricHistory(mock as never, 'provider-1', 'contact_48_72h');
 
-    expect(mock.gte).toHaveBeenCalledWith('period_month', expectedCutoff);
+    expect(mock.gte).toHaveBeenCalledWith('period_month', month(-5));
+    expect(mock.lt).toHaveBeenCalledWith('period_month', month(1));
   });
 
   it('Filters by provider_id and metric_key', async () => {
@@ -44,7 +47,7 @@ describe('CKM-04 getMetricHistory', () => {
   });
 
   it('Returns empty array when no records exist', async () => {
-    const mock = createMockSupabase(null);
+    const mock = createMockSupabase([]);
 
     const result = await getMetricHistory(mock as never, 'abc', 'contact_48_72h');
 
@@ -60,5 +63,17 @@ describe('CKM-04 getMetricHistory', () => {
     await getMetricHistory(mock as never, 'abc', 'contact_48_72h');
 
     expect(mock.order).toHaveBeenCalledWith('period_month', { ascending: true });
+  });
+});
+
+describe('latest reporting-period evidence', () => {
+  it('reads one bounded row per measure, including infrequently entered measures', async () => {
+    const query = { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(), maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) };
+    const db = { from: vi.fn().mockReturnValue(query) };
+    query.maybeSingle.mockResolvedValueOnce({ data: { metric_key: 'contact_48_72h' }, error: null });
+    expect(await getQualityMetrics(db as never, 'provider')).toEqual([{ metric_key: 'contact_48_72h' }]);
+    for (const {key} of METRIC_DEFINITIONS) expect(query.eq).toHaveBeenCalledWith('metric_key', key);
+    expect(query.limit).toHaveBeenCalledWith(1);
   });
 });

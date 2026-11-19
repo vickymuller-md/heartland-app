@@ -14,10 +14,12 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import { StrictMode } from 'react';
 import type { LabResultRow, MonthlyReportData, PatientSummaryData } from '@/lib/reports/types';
+import { DateRangePicker } from '@/app/(provider)/reports/_components/date-range-picker';
+import { MonthlyReportPrint } from '@/app/(provider)/reports/_components/monthly-report-print';
 import { PatientSummaryPrint } from '@/app/(provider)/reports/_components/patient-summary-print';
 
 const mocks = vi.hoisted(() => ({
-  download: vi.fn(), fetchSummary: vi.fn(), failure: false, page: 0, selection: '',
+  routerPush: vi.fn(), download: vi.fn(), fetchSummary: vi.fn(), failure: false, page: 0, selection: '',
   labGate: null as Promise<void> | null,
   actor: '64000000-0000-4000-8000-000000000001',
   listeners: new Set<(event: string, session: { user: { id: string } } | null) => void>(),
@@ -26,7 +28,7 @@ const mocks = vi.hoisted(() => ({
   cloneGate: null as Promise<void> | null, loadGate: null as Promise<void> | null,
   beforeClone: vi.fn(), afterAppend: null as (() => void) | null,
 }));
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.routerPush }) }));
 vi.mock('react-to-print', () => ({ useReactToPrint: (options: {
   contentRef?: { current: HTMLElement | null };
   onBeforePrint: () => Promise<void>; print: (frame: HTMLIFrameElement) => Promise<void>;
@@ -56,7 +58,7 @@ vi.mock('react-to-print', () => ({ useReactToPrint: (options: {
     finally { frame?.remove(); }
   })();
 } }));
-vi.mock('@/lib/reports/actions', () => ({ fetchPatientSummary: mocks.fetchSummary }));
+vi.mock('@/lib/reports/actions', () => ({ fetchPatientSummary: mocks.fetchSummary, fetchReportCsv: vi.fn(async () => { if (mocks.failure) throw new Error('Private data'); return [['patient_id']]; }) }));
 vi.mock('@/lib/reports/csv-builders', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/lib/reports/csv-builders')>(), downloadCSV: mocks.download,
 }));
@@ -97,7 +99,7 @@ import { ReportsShell } from '@/app/(provider)/reports/_components/reports-shell
 
 const summary: PatientSummaryData = {
   patient: { id: '64000000-0000-4000-8000-000000000011', full_name: 'Synthetic Patient', risk_tier: null, track_assignment: null },
-  vitals: [], symptoms: [], adherenceSummary: null, educationProgress: null, notes: [], openAlerts: [],
+  vitals: [], adherenceSummary: null, educationProgress: null, notes: [], openAlerts: [],
   dateRange: { from: '2025-08-01', to: '2025-08-31' }, labs: [],
 };
 const monthly: MonthlyReportData = {
@@ -141,12 +143,37 @@ describe('REPT-05 sidebar Reports link', () => {
 });
 
 describe('REPT-04 DateRangePicker', () => {
-  it.todo('preset "Last 30 days" sets from to today minus 30 days');
-  it.todo('custom from/to inputs push URL searchParams on change');
+  it('includes exactly thirty calendar days, including the last day in UTC', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-01-15T00:05:00Z'));
+      render(<DateRangePicker from="2026-01-01" to="2026-01-15" />);
+      fireEvent.click(screen.getByRole('button', { name: 'Last 30 Days' }));
+      expect(mocks.routerPush).toHaveBeenCalledWith('/reports?from=2025-12-17&to=2026-01-15');
+      fireEvent.click(screen.getByRole('button', { name: 'This Month' }));
+      expect(mocks.routerPush).toHaveBeenCalledWith('/reports?from=2026-01-01&to=2026-01-15');
+    } finally { vi.useRealTimers(); }
+  });
+  it('sends both date bounds and invalidates a previously selected export', () => {
+    const invalidate = vi.fn();
+    render(<DateRangePicker from="2026-01-02" to="2026-01-15" onRangeChange={invalidate} />);
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-01-03' } });
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-01-16' } });
+    expect(mocks.routerPush).toHaveBeenNthCalledWith(1, '/reports?from=2026-01-03&to=2026-01-15');
+    expect(mocks.routerPush).toHaveBeenNthCalledWith(2, '/reports?from=2026-01-02&to=2026-01-16');
+    expect(invalidate).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('REPT-01 monthly report render', () => {
-  it.todo('MonthlyReportPrint renders all metric sections');
+  it('prints the period and distinguishes measured zeros from unavailable rates', () => {
+    render(<MonthlyReportPrint data={monthly} />);
+    const report = within(screen.getByTestId('monthly-report-print'));
+    expect(report.getByText(/UTC calendar days/)).toHaveTextContent('2025-08-01 – 2025-08-31');
+    expect(report.getByRole('row', { name: 'Alerts Generated 0' })).toBeInTheDocument();
+    expect(report.getByRole('row', { name: /16\+ check-in days/ })).toHaveTextContent('0.0%');
+    expect(report.getByRole('row', { name: /GDMT Optimization Rate/ })).toHaveTextContent('Unavailable');
+  });
 });
 
 describe('REPT-02 patient summary render', () => {

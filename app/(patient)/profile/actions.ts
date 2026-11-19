@@ -8,6 +8,7 @@
 
 import { authorize } from '@/lib/auth/authorization';
 import { revalidatePath } from 'next/cache';
+import { findUsRegion } from '@/lib/us-regions';
 
 /**
  * Update the state column on the current user's profile row.
@@ -16,16 +17,16 @@ import { revalidatePath } from 'next/cache';
 export async function updateProfileState(
   state: string
 ): Promise<{ success?: boolean; error?: string }> {
-  const normalizedState = state.trim().toUpperCase();
-  if (normalizedState && !/^[A-Z]{2}$/.test(normalizedState)) {
-    return { error: 'Invalid state' };
-  }
+  if (typeof state !== 'string') return { error: 'Invalid state or territory' };
+  const nameOrCode = state.trim();
+  const region = findUsRegion(nameOrCode);
+  if (nameOrCode && !region) return { error: 'Invalid state or territory' };
   const auth = await authorize('patient');
   if (!auth.authorized) return { error: auth.error };
 
   const { data, error } = await auth.supabase
     .from('profiles')
-    .update({ state: normalizedState || null })
+    .update({ state: region?.code ?? null })
     .eq('id', auth.user.id)
     .select('id');
 

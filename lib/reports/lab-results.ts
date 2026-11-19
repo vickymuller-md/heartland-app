@@ -5,19 +5,8 @@ import { effectiveLabObservationSchema, getEffectiveLabObservations, selectLates
 import { LAB_OBSERVATION_FIELDS, labCollectionMicros } from '@/lib/labs/quality';
 import type { LabResultRow, ReportDateRange } from './types';
 
-const DAY_MS = 86_400_000;
-/** Date-only controls select whole UTC calendar days, including the final day. */
-export function labDateBounds(range: ReportDateRange) {
-  const parseDay = (value: string) => {
-    const date = new Date(`${value}T00:00:00.000Z`);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(date.getTime())
-      || date.toISOString().slice(0, 10) !== value) throw new Error('Invalid laboratory date range');
-    return date.getTime();
-  };
-  const from = parseDay(range.from); const to = parseDay(range.to);
-  if (from > to || to - from > 366 * DAY_MS) throw new Error('Invalid laboratory date range');
-  return { fromInclusive: new Date(from).toISOString(), toExclusive: new Date(to + DAY_MS).toISOString() };
-}
+import { reportDateBounds } from './date-range';
+export { reportDateBounds as labDateBounds } from './date-range';
 
 /** All effective source heads, not just the latest draw. No superseded amendment rows. */
 export function projectLabResults(observations: EffectiveLabObservation[], now = new Date()): LabResultRow[] {
@@ -52,7 +41,7 @@ export async function getReportLabResults(
 ): Promise<LabResultRow[]> {
   z.guid().parse(expectedActorId);
   const scope = [...new Set(z.array(z.guid()).parse(patientIds).map((id) => id.toLowerCase()))].sort();
-  const bounds = labDateBounds(range);
+  const bounds = reportDateBounds(range);
   const from = labCollectionMicros(bounds.fromInclusive)!; const until = labCollectionMicros(bounds.toExclusive)!;
   const observations: EffectiveLabObservation[] = [];
   for (let offset = 0; offset < scope.length; offset += 500) {

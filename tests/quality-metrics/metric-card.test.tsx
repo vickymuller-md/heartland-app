@@ -26,7 +26,7 @@ const contactMetric = METRIC_DEFINITIONS[0]; // contact_48_72h
 const readmissionMetric = METRIC_DEFINITIONS[3]; // readmission_30day
 
 describe('CKM-03 MetricCard tier targets', () => {
-  it('Shows tier 1 target string ("\u226570%") for Tier 1 provider with contact_48_72h metric', () => {
+  it('Shows tier 1 target string (">70%") for Tier 1 provider with contact_48_72h metric', () => {
     render(
       <MetricCard
         definition={contactMetric}
@@ -35,10 +35,10 @@ describe('CKM-03 MetricCard tier targets', () => {
         facilityTier={1}
       />,
     );
-    expect(screen.getByText(/\u2265\s*70%/)).toBeDefined();
+    expect(screen.getByText(/>\s*70%/)).toBeDefined();
   });
 
-  it('Shows tier 2/3 target string ("\u226590%") for Tier 2 provider with contact_48_72h metric', () => {
+  it('Shows tier 2/3 target string (">90%") for Tier 2 provider with contact_48_72h metric', () => {
     render(
       <MetricCard
         definition={contactMetric}
@@ -47,7 +47,7 @@ describe('CKM-03 MetricCard tier targets', () => {
         facilityTier={2}
       />,
     );
-    expect(screen.getByText(/\u2265\s*90%/)).toBeDefined();
+    expect(screen.getByText(/>\s*90%/)).toBeDefined();
   });
 
   it('Shows "Target: Improvement from baseline" for 30-day readmission metric (Tier 1 special case)', () => {
@@ -77,6 +77,13 @@ describe('CKM-03 MetricCard tier targets', () => {
 });
 
 describe('CKM-03 MetricCard status badges', () => {
+  it('does not assign a Tier 2/3 comparison when a facility example was not selected', () => {
+    render(<MetricCard definition={contactMetric} latestRecord={null} history={[]} facilityTier={null} />);
+    expect(screen.getByText(/Select an example above/)).toBeInTheDocument();
+    expect(screen.queryByText(/>90%/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Approaching|Below Target|^Met$/)).not.toBeInTheDocument();
+  });
+
   const makeRecord = (numerator: number, denominator: number) => ({
     id: 'rec-1',
     provider_id: 'p-1',

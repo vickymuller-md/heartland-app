@@ -10,7 +10,7 @@
  */
 
 import { useRouter } from 'next/navigation';
-import { startOfMonth, subDays, format } from 'date-fns';
+import { lastUtcDays } from '@/lib/reports/date-range';
 
 interface DateRangePickerProps {
   from: string;
@@ -22,34 +22,29 @@ export function DateRangePicker({ from, to, onRangeChange }: DateRangePickerProp
   const router = useRouter();
 
   const push = (newFrom: string, newTo: string) => {
+    if (!newFrom || !newTo) return;
     if (newFrom !== from || newTo !== to) onRangeChange?.();
-    router.push(`/reports?from=${newFrom}&to=${newTo}`);
+    router.push('/reports?' + new URLSearchParams({ from: newFrom, to: newTo }));
   };
 
   const today = new Date();
-  const todayStr = format(today, 'yyyy-MM-dd');
+  const todayStr = today.toISOString().slice(0, 10);
 
   const presets = [
     {
       label: 'This Month',
       getRange: () => ({
-        from: format(startOfMonth(today), 'yyyy-MM-dd'),
+        from: todayStr.slice(0, 8) + '01',
         to: todayStr,
       }),
     },
     {
       label: 'Last 30 Days',
-      getRange: () => ({
-        from: format(subDays(today, 30), 'yyyy-MM-dd'),
-        to: todayStr,
-      }),
+      getRange: () => lastUtcDays(30, today),
     },
     {
       label: 'Last 90 Days',
-      getRange: () => ({
-        from: format(subDays(today, 90), 'yyyy-MM-dd'),
-        to: todayStr,
-      }),
+      getRange: () => lastUtcDays(90, today),
     },
   ];
 

@@ -32,24 +32,14 @@ export function MetricCard({ definition, latestRecord, history, facilityTier }: 
   const [formOpen, setFormOpen] = useState(false);
 
   const isTier1 = facilityTier === 1;
-  const numericTarget = isTier1 ? definition.tier1Target : definition.tier23Target;
-  const targetLabel = isTier1 ? definition.tier1TargetLabel : definition.tier23TargetLabel;
-
-  // Compute current rate
-  const currentRate = latestRecord
-    ? formatRate(latestRecord.numerator, latestRecord.denominator)
-    : null;
-  const ratePct = latestRecord?.rate_pct ?? null;
-
-  // Evaluate status
-  let status: TargetStatus;
-  if (numericTarget == null) {
-    // Tier 1 readmission -- no numeric target, always neutral
-    status = ratePct != null ? 'no_data' : 'no_data';
-  } else {
-    status = evaluateTarget(ratePct, numericTarget, definition.higherIsBetter);
-  }
-
+  const hasExample = isTier1 || facilityTier === 2 || facilityTier === 3;
+  const numericTarget = hasExample ? (isTier1 ? definition.tier1Target : definition.tier23Target) : null;
+  const targetLabel = hasExample ? (isTier1 ? definition.tier1TargetLabel : definition.tier23TargetLabel) : 'Select an example above';
+  const numerator = latestRecord?.numerator;
+  const denominator = latestRecord?.denominator;
+  const currentRate = formatRate(numerator ?? null, denominator ?? null);
+  const ratePct = numerator != null && denominator ? (numerator / denominator) * 100 : null;
+  const status = evaluateTarget(ratePct, numericTarget, definition.higherIsBetter);
   const statusStyle = STATUS_STYLES[status];
 
   return (
@@ -71,6 +61,7 @@ export function MetricCard({ definition, latestRecord, history, facilityTier }: 
         <span className="text-3xl font-bold text-gray-900">
           {currentRate ?? '\u2014'}
         </span>
+        {currentRate && <span className="ml-2 text-sm text-slate-700">{numerator} of {denominator} recorded</span>}
       </div>
 
       {/* Target */}
@@ -79,16 +70,17 @@ export function MetricCard({ definition, latestRecord, history, facilityTier }: 
       </div>
 
       {/* Status Badge */}
-      <div className="mb-3">
+      {hasExample && <div className="mb-3">
         <p className="mb-1 text-xs text-gray-500">Comparison with the planning example, not a clinical adequacy assessment.</p>
         <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyle.className}`}>
           {numericTarget == null && ratePct != null ? 'No Numeric Target' : statusStyle.label}
         </span>
-      </div>
+      </div>}
 
       {/* Trend Chart */}
       <MetricTrendChart
         data={history}
+        showBaseline={isTier1 && numericTarget === null}
         target={numericTarget}
         higherIsBetter={definition.higherIsBetter}
       />

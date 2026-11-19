@@ -10,10 +10,13 @@
  * Requirement: REPT-02 (Patient Summary PDF)
  */
 
-import { authorizeProviderForPatient } from '@/lib/auth/authorization';
-import { getPatientSummaryData } from '@/lib/reports/queries';
+import { authorize, authorizeProviderForPatient } from '@/lib/auth/authorization';
+import { getPatientSummaryData, getReportPatientIds } from '@/lib/reports/queries';
 import type { PatientSummaryData, ReportDateRange } from '@/lib/reports/types';
 import { z } from 'zod';
+import { getReportVitals, getReportMedicationLogs } from './export-data';
+import { buildMedsCSV, buildVitalsCSV } from './csv-builders';
+import { reportDateBounds } from './date-range';
 
 const reportRequestSchema = z.object({
   patientId: z.string().uuid(),
@@ -47,4 +50,19 @@ export async function fetchPatientSummary(
     auth.user.id,
     range,
   );
+}
+
+export async function fetchReportCsv(
+  kind: 'vitals' | 'medications', patientIds: string[], range: ReportDateRange, expectedProviderId: string, minimized: boolean,
+): Promise<string[][]> {
+  reportDateBounds(range);
+  const scope = [...new Set(z.array(z.uuid()).min(1).parse(patientIds).map(id => id.toLowerCase()))];
+  const auth = await authorize('provider');
+  if (!auth.authorized || auth.user.id !== expectedProviderId) throw new Error('Report session unavailable.');
+  const linked = new Set(await getReportPatientIds(auth.supabase, auth.user.id));
+  if (scope.some(id => !linked.has(id))) throw new Error('Panel membership changed.');
+  const opts = { deidentify: minimized, patientMap: new Map(scope.map((id, i) => [id, `P${String(i + 1).padStart(3, '0')}`])) };
+  if (kind === 'vitals') return buildVitalsCSV(await getReportVitals(auth.supabase, scope, range), opts);
+  if (kind === 'medications') return buildMedsCSV(await getReportMedicationLogs(auth.supabase, scope, range), opts);
+  throw new Error('Unknown report type.');
 }

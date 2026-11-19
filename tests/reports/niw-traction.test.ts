@@ -4,32 +4,36 @@
  * Source: HEARTLAND Protocol v3.3 -- Phase 28 Reporting & NIW Evidence
  */
 
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { NiwTractionPrint } from '@/app/(provider)/reports/_components/niw-traction-print';
 import { describe, it, expect } from 'vitest';
 import type { NiwTractionData } from '@/lib/reports/types';
 import { computeMonthlyGrowth } from '@/lib/reports/queries';
 
+const data: NiwTractionData = {
+  totalProviders: 5,
+  totalPatients: 23,
+  totalAlerts: 47,
+  totalTitrations: 12,
+  activeStates: ['California', 'Texas'],
+  monthlyGrowth: [{ month: '2026-03', providers: 2, patients: 8 }],
+  approvedAccessRequests: 5,
+  pendingAccessRequests: 3,
+  activeSandboxAccounts: 12,
+  uniqueSandboxTesters30d: 10,
+  sandboxViews30d: 15,
+  sandboxFirstActions30d: 8,
+  sandboxTaskCompletions30d: 19,
+  sandboxActivationRate30d: 53,
+  medianSandboxDurationSeconds: 142,
+  campaignSources30d: [{ source: 'rural_health_outreach', sessions: 6 }],
+};
+
 describe('REPT-06 NiwTractionData type shape', () => {
   it('NiwTractionData has required fields', () => {
-    const data: NiwTractionData = {
-      totalProviders: 5,
-      totalPatients: 23,
-      totalAlerts: 47,
-      totalTitrations: 12,
-      activeStates: ['California', 'Texas'],
-      monthlyGrowth: [{ month: '2026-03', providers: 2, patients: 8 }],
-      approvedProviders: 5,
-      pendingAccessRequests: 3,
-      activeSandboxAccounts: 12,
-      uniqueSandboxTesters30d: 10,
-      sandboxViews30d: 15,
-      sandboxFirstActions30d: 8,
-      sandboxTaskCompletions30d: 19,
-      sandboxActivationRate30d: 53,
-      medianSandboxDurationSeconds: 142,
-      campaignSources30d: [{ source: 'rural_health_outreach', sessions: 6 }],
-    };
     expect(data.totalProviders).toBe(5);
-    expect(data.approvedProviders).toBe(5);
+    expect(data.approvedAccessRequests).toBe(5);
     expect(data.pendingAccessRequests).toBe(3);
     expect(data.uniqueSandboxTesters30d).toBe(10);
     expect(data.sandboxActivationRate30d).toBe(53);
@@ -76,6 +80,20 @@ describe('REPT-06 computeMonthlyGrowth', () => {
 });
 
 describe('REPT-06 NiwTractionPrint', () => {
-  it.todo('renders cumulative stats from data');
-  it.todo('renders UsStateMap with activeStates prop');
+  const html = () => new DOMParser().parseFromString(renderToStaticMarkup(createElement(NiwTractionPrint, { data })), 'text/html');
+  it('prints numeric evidence and monthly counts even when the report is hidden on screen', () => {
+    const doc = html();
+    expect(doc.body.textContent).toContain('5Provider profiles');
+    expect(doc.body.textContent).toContain('23Patient profiles');
+    expect(doc.body.textContent).toContain('Recorded alert rows');
+    expect(doc.querySelector('tbody tr')?.textContent).toBe('2026-0328');
+    expect(doc.querySelectorAll('tbody rect')).toHaveLength(2);
+  });
+  it('prints accessible state boundaries without fetching a map inside the print frame', () => {
+    const map = html().querySelector('svg[role=img]')!;
+    expect(map.querySelectorAll('path')).toHaveLength(51);
+    const recorded = [...map.querySelectorAll('path')].filter(path => path.getAttribute('fill') === '#1e40af');
+    expect(recorded.map(path => path.textContent)).toEqual(['California · State recorded', 'Texas · State recorded']);
+    expect(map.querySelector('image,script')).toBeNull();
+  });
 });

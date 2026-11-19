@@ -13,6 +13,8 @@ import React from 'react';
 import type { PatientSummaryData } from '@/lib/reports/types';
 import { RiskTierDisclaimer } from '@/components/disclaimers/risk-score-disclaimer';
 import { labCollectionUTC } from '@/lib/labs/quality';
+import { summarizeAdherence } from '@/lib/medications/schedule';
+import { CALENDAR_SOURCE_LABEL } from '@/lib/medications/calendar';
 
 interface PatientSummaryPrintProps {
   data: PatientSummaryData | null;
@@ -22,6 +24,9 @@ export const PatientSummaryPrint = React.forwardRef<
   HTMLDivElement,
   PatientSummaryPrintProps
 >(function PatientSummaryPrint({ data }, ref) {
+  const days = data?.adherenceSummary;
+  const { scheduled, taken, uncertainDays } = summarizeAdherence(days ?? []);
+  const calendarSources = [...new Set((days ?? []).flatMap(day => day.calendarSource ? [CALENDAR_SOURCE_LABEL[day.calendarSource]] : []))];
   return (
     <div ref={ref} className="hidden print:block p-8 text-sm font-sans" data-testid="patient-summary-print">
       {!data ? (
@@ -45,7 +50,7 @@ export const PatientSummaryPrint = React.forwardRef<
           </p>
 
           {/* a. Patient Profile */}
-          <h2 className="font-semibold mt-4 mb-2 border-b pb-1">Patient Profile</h2>
+          <h2 className="font-semibold mt-4 mb-2 border-b pb-1 break-after-avoid">Patient Profile (current)</h2>
           <table className="w-full text-sm mb-4">
             <tbody>
               <tr>
@@ -71,14 +76,14 @@ export const PatientSummaryPrint = React.forwardRef<
           </table>
 
           {/* b. Vitals Summary */}
-          <h2 className="font-semibold mt-4 mb-2 border-b pb-1">Vitals Summary (Last 5)</h2>
+          <h2 className="font-semibold mt-4 mb-2 border-b pb-1 break-after-avoid">Vitals Summary (most recent five in the selected UTC period)</h2>
           {data.vitals.length === 0 ? (
             <p className="text-sm text-gray-500 mb-4">No vitals recorded in period.</p>
           ) : (
             <table className="w-full text-sm mb-4 border-collapse">
               <thead>
                 <tr className="border-b">
-                  <th className="py-1 text-left font-medium">Date</th>
+                  <th className="py-1 text-left font-medium">Recorded at (UTC)</th>
                   <th className="py-1 text-left font-medium">Weight (lbs)</th>
                   <th className="py-1 text-left font-medium">SBP/DBP</th>
                   <th className="py-1 text-left font-medium">HR</th>
@@ -86,9 +91,9 @@ export const PatientSummaryPrint = React.forwardRef<
                 </tr>
               </thead>
               <tbody>
-                {data.vitals.slice(0, 5).map((v, i) => (
+                {data.vitals.map((v, i) => (
                   <tr key={i} className="border-b border-gray-200">
-                    <td className="py-1">{v.date}</td>
+                    <td className="py-1"><time dateTime={v.date}>{labCollectionUTC(v.date)}</time></td>
                     <td className="py-1">{v.weight_lbs ?? '-'}</td>
                     <td className="py-1">
                       {v.sbp != null && v.dbp != null
@@ -104,7 +109,7 @@ export const PatientSummaryPrint = React.forwardRef<
           )}
 
           {/* c. Lab Results */}
-          <h2 className="font-semibold mt-4 mb-2 border-b pb-1">Lab Results</h2>
+          <h2 className="font-semibold mt-4 mb-2 border-b pb-1 break-after-avoid">Lab Results</h2>
           <p className="text-xs text-gray-600 mb-2">Current source versions by documented collection over complete UTC calendar days, not a reconstruction of past decisions. Flags are shown only when recorded. Source status and alert processing do not establish clinical review or suitability.</p>
           {data.labs.length === 0 ? (
             <p className="text-sm text-gray-500 mb-4">No lab values recorded in period.</p>
@@ -158,40 +163,30 @@ export const PatientSummaryPrint = React.forwardRef<
             </table>
           )}
 
-          {/* d. Medication Adherence */}
-          <h2 className="font-semibold mt-4 mb-2 border-b pb-1">Medication Adherence</h2>
+          <h2 className="font-semibold mt-4 mb-2 border-b pb-1 break-after-avoid">Medication Adherence</h2>
+          <p className="text-xs text-gray-600">Scheduled doses by patient-local calendar date in the selected period.</p>
+          {calendarSources.length > 0 && <p className="text-xs text-gray-600">Calendar history · {calendarSources.join(' · ')}</p>}
           <p className="text-sm mb-4">
-            {data.adherenceSummary &&
-            typeof data.adherenceSummary === 'object' &&
-            'adherenceRate' in (data.adherenceSummary as Record<string, unknown>)
-              ? `${(data.adherenceSummary as Record<string, unknown>).adherenceRate}% taken`
-              : 'No adherence data available.'}
+            {days == null ? 'Medication adherence unavailable.' : scheduled > 0
+              ? `${taken} of ${scheduled} scheduled doses logged as taken (${Math.round(taken * 100 / scheduled)}%) on days with confirmed schedules.`
+              : 'No scheduled doses on days with confirmed schedules.'}
+            {uncertainDays > 0 && ` Schedule history incomplete on ${uncertainDays} day(s). Those days are excluded from the calculation.`}
           </p>
 
-          {/* e. Education Progress */}
-          <h2 className="font-semibold mt-4 mb-2 border-b pb-1">Education Progress</h2>
-          {data.educationProgress &&
-          Array.isArray(data.educationProgress) ? (
-            <ul className="list-none text-sm mb-4">
-              {(
-                data.educationProgress as Array<{
-                  domain: string;
-                  completed: boolean;
-                }>
-              ).map((d, i) => (
-                <li key={i} className="py-0.5">
-                  {d.completed ? '[x]' : '[ ]'} {d.domain}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-gray-500 mb-4">
-              No education progress data available.
-            </p>
-          )}
+          <h2 className="font-semibold mt-4 mb-2 border-b pb-1 break-after-avoid">Education Progress (current)</h2>
+          {data.educationProgress ? (
+            <>
+              <p>{data.educationProgress.completedDomains} of {data.educationProgress.totalDomains} available modules completed.</p>
+              <ul className="list-none text-sm mb-4">
+                {data.educationProgress.domains.map(domain => (
+                  <li key={domain.id}>{domain.title} · {domain.completed ? 'Completed' : domain.attempts ? 'In progress' : 'Not started'}</li>
+                ))}
+              </ul>
+            </>
+          ) : <p className="text-sm mb-4">Education progress unavailable.</p>}
 
           {/* f. Active Alerts */}
-          <h2 className="font-semibold mt-4 mb-2 border-b pb-1">Active Alerts</h2>
+          <h2 className="font-semibold mt-4 mb-2 border-b pb-1 break-after-avoid">Active Alerts (current)</h2>
           {data.openAlerts.length === 0 ? (
             <p className="text-sm text-gray-500 mb-4">No active alerts.</p>
           ) : (
@@ -216,12 +211,12 @@ export const PatientSummaryPrint = React.forwardRef<
           )}
 
           {/* g. Recent Notes */}
-          <h2 className="font-semibold mt-4 mb-2 border-b pb-1">Recent Provider Notes</h2>
+          <h2 className="font-semibold mt-4 mb-2 border-b pb-1 break-after-avoid">Provider Notes (most recent three in the selected UTC period)</h2>
           {data.notes.length === 0 ? (
             <p className="text-sm text-gray-500 mb-4">No notes recorded.</p>
           ) : (
             <ul className="list-none text-sm mb-4">
-              {data.notes.slice(0, 3).map((note) => (
+              {data.notes.map((note) => (
                 <li key={note.id} className="py-1 border-b border-gray-100">
                   <span className="text-xs text-gray-400">
                     {note.created_at}
@@ -233,7 +228,7 @@ export const PatientSummaryPrint = React.forwardRef<
           )}
 
           {/* Footer */}
-          <p className="text-xs text-gray-400 border-t pt-2">
+          <p className="text-xs text-gray-600 border-t pt-2">
             Generated by HEARTLAND Protocol App &mdash; app.heartlandprotocol.org &mdash;{' '}
             {new Date().toLocaleDateString()}
           </p>

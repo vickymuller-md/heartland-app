@@ -1,53 +1,26 @@
-'use client';
-
-/**
- * UsStateMap -- US Choropleth Map for NIW Traction Evidence
- * Requirements: REPT-07 (geographic state choropleth for NIW petition)
- * Source: HEARTLAND Protocol v3.3 -- Phase 28 Reporting & NIW Evidence
- *
- * Highlights active states (where patients/providers are located) in blue.
- * Uses us-atlas TopoJSON; state names match profiles.state column values.
- */
-
-import {
-  ComposableMap,
-  Geographies,
-  Geography,
-} from '@vnedyalk0v/react19-simple-maps';
-
-const GEO_URL =
-  'https://cdn.jsdelivr.net/npm/us-atlas@3/states-albers-10m.json';
+import map from './us-state-paths.json';
 
 interface UsStateMapProps {
-  activeStates: string[]; // full state names matching us-atlas properties.name
+  activeStates: string[];
   width?: number;
 }
 
+/** Self-contained paths render when the report opens, including in the print window. */
 export function UsStateMap({ activeStates, width = 800 }: UsStateMapProps) {
-  const activeSet = new Set(activeStates);
+  const active = new Set(activeStates);
   return (
-    <ComposableMap
-      projection="geoAlbersUsa"
+    <svg
+      role="img"
+      aria-label="States and the District of Columbia on provider and patient profiles"
+      viewBox={map.viewBox}
       width={width}
-      height={Math.round(width * 0.625)}
+      className="block h-auto max-w-full"
     >
-      <Geographies geography={GEO_URL}>
-        {({ geographies }: { geographies: Array<{ rsmKey: string; properties: { name: string } }> }) =>
-          geographies.map((geo) => {
-            const isActive = activeSet.has(geo.properties.name);
-            return (
-              <Geography
-                key={geo.rsmKey}
-                geography={geo}
-                fill={isActive ? '#1e40af' : '#e5e7eb'}
-                stroke="#ffffff"
-                strokeWidth={0.5}
-                style={{ default: { outline: 'none' }, hover: { outline: 'none' }, pressed: { outline: 'none' } }}
-              />
-            );
-          })
-        }
-      </Geographies>
-    </ComposableMap>
+      {map.states.map(({ name, d }) => (
+        <path key={name} d={d} fill={active.has(name) ? '#1e40af' : '#e5e7eb'} stroke="#fff" strokeWidth={0.8}>
+          <title>{[name, active.has(name) ? 'State recorded' : 'No profile state recorded'].join(' · ')}</title>
+        </path>
+      ))}
+    </svg>
   );
 }

@@ -132,7 +132,20 @@ describe('REPT-03 buildMedsCSV', () => {
     expect(headers).toContain('taken_at');
   });
 
-  it.todo('returns correct data row shape once medication query is defined');
+  it('prints a recorded log even when the historical medication details are unavailable', () => {
+    const rows = buildMedsCSV([{ patient_id: 'fixture', medication_name: '', dose: '', frequency: '',
+      scheduled_date: '2026-03-27', dose_number: 2, taken_at: null, taken: false, schedule_recorded: false }], { deidentify: false });
+    expect(rows.every(row => row.length === rows[0].length)).toBe(true);
+    expect(rows[1]).toEqual(['fixture','','','','','false','2026-03-27','2','unavailable','','unrecorded']);
+  });
+
+  it('includes recorded calendar provenance and suppresses the exact zone in a deidentified export', () => {
+    const row = { patient_id: 'fixture', medication_name: 'Synthetic', dose: 'Recorded', frequency: 'daily',
+      scheduled_date: '2026-03-27', dose_number: 1, taken_at: null, taken: false, schedule_recorded: true,
+      calendar_time_zone: 'America/Phoenix', calendar_source: 'patient' };
+    expect(buildMedsCSV([row], { deidentify: false })[1].slice(-2)).toEqual(['America/Phoenix','patient']);
+    expect(buildMedsCSV([row], { deidentify: true })[1].slice(-2)).toEqual(['','patient']);
+  });
 });
 
 // ---------- REPT-08 Year-Only Date Reduction ----------
@@ -226,7 +239,7 @@ describe('REPT-08 year-only date reduction', () => {
           patient_id: 'uuid-1',
           medication_name: 'Carvedilol',
           dose: '6.25mg',
-          frequency: 'BID',
+          frequency: 'BID', scheduled_date: '2026-03-27', dose_number: 1, schedule_recorded: true,
           taken_at: '2026-03-27T08:00:00Z',
           taken: true,
         },

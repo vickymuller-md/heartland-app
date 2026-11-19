@@ -15,12 +15,10 @@ import { useSessionBoundExport } from '@/lib/exports/use-session-bound-export';
 import { DateRangePicker } from './date-range-picker';
 import { MonthlyReportPrint } from './monthly-report-print';
 import { PatientSummaryPrint } from './patient-summary-print';
-import { fetchPatientSummary } from '@/lib/reports/actions';
+import { fetchPatientSummary, fetchReportCsv } from '@/lib/reports/actions';
 import {
   downloadCSV,
-  buildVitalsCSV,
   buildLabsCSV,
-  buildMedsCSV,
 } from '@/lib/reports/csv-builders';
 import type { MonthlyReportData, PatientSummaryData } from '@/lib/reports/types';
 import { getReportLabResults } from '@/lib/reports/lab-results';
@@ -30,7 +28,7 @@ import { Printer, Download } from 'lucide-react';
 interface ReportsShellProps {
   providerId: string;
   data: MonthlyReportData;
-  patients: PatientWithStatus[];
+  patients: Pick<PatientWithStatus, 'id' | 'full_name'>[];
   from: string;
   to: string;
 }
@@ -101,25 +99,8 @@ function SessionBoundReports({ data, patients, from, to, providerId }: ReportsSh
       let rows: string[][];
       if (csvType === 'labs') {
         rows = buildLabsCSV(await getReportLabResults(supabase, linkedPatientIds, { from, to }, providerId), opts);
-      } else if (csvType === 'vitals') {
-        const { data: vitals, error } = await supabase.from('vitals')
-          .select('patient_id, recorded_at, weight_lbs, sbp, dbp, heart_rate, spo2')
-          .in('patient_id', linkedPatientIds).gte('recorded_at', from).lte('recorded_at', to)
-          .order('recorded_at', { ascending: false });
-        if (error) throw error;
-        rows = buildVitalsCSV(vitals ?? [], opts);
       } else {
-        const { data: meds, error } = await supabase.from('medication_logs')
-          .select('patient_id, medications(name, dose, frequency), taken_at, taken')
-          .in('patient_id', linkedPatientIds).gte('taken_at', from).lte('taken_at', to)
-          .order('taken_at', { ascending: false });
-        if (error) throw error;
-        rows = buildMedsCSV((meds ?? []).map((m: Record<string, unknown>) => {
-          const med = m.medications as Record<string, unknown> | null;
-          return { patient_id: m.patient_id as string, medication_name: (med?.name as string) ?? '',
-            dose: (med?.dose as string) ?? '', frequency: (med?.frequency as string) ?? '',
-            taken_at: m.taken_at as string, taken: m.taken as boolean };
-        }), opts);
+        rows = await fetchReportCsv(csvType, linkedPatientIds, { from, to }, providerId, deidentify);
       }
       await verifySession(ticket);
       if (!isCurrent(ticket)) return;
@@ -160,24 +141,24 @@ function SessionBoundReports({ data, patients, from, to, providerId }: ReportsSh
 
         {/* Metric cards grid */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          <MetricCard label="Patients Monitored" value={data.totalPatients} />
-          <MetricCard label="Active in Period" value={data.activePatientsInPeriod} />
+          <MetricCard label="Currently linked profiles" value={data.totalPatients} />
+          <MetricCard label="Profiles with a recorded vital" value={data.activePatientsInPeriod} />
           <MetricCard label="Alerts Generated" value={data.alertsGenerated} />
           <MetricCard label="Critical Alerts" value={data.alertsCritical} />
           <MetricCard
-            label="Titrations Completed"
+            label="Titration notes saved"
             value={data.titrationNotesCount}
           />
           <MetricCard
-            label="Check-In Compliance"
-            value={`${data.avgCheckInCompliance.toFixed(1)}%`}
+            label="Linked profiles with 16+ check-in days"
+            value={data.avgCheckInCompliance === null ? 'Not applicable' : `${data.avgCheckInCompliance.toFixed(1)}%`}
           />
           <MetricCard
             label="GDMT Optimization Rate"
             value={
               data.gdmtOptimizationRate !== null
                 ? `${data.gdmtOptimizationRate.toFixed(1)}%`
-                : 'Pending'
+                : 'Unavailable'
             }
           />
         </div>
@@ -254,6 +235,9 @@ function SessionBoundReports({ data, patients, from, to, providerId }: ReportsSh
           ))}
         </div>
 
+        <p className="mb-3 text-sm text-slate-700">{csvType === 'medications'
+          ? 'Includes recorded dose-log entries by scheduled local date, including entries without a taken timestamp. Historical list details are marked unavailable when unrecorded.'
+          : 'Includes the selected UTC calendar days, through the end of the final day.'}</p>
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:gap-4">
           <label className="flex items-center gap-2 text-sm">
             <input

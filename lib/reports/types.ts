@@ -9,6 +9,8 @@
  */
 
 import type { PatientDetailData } from '@/lib/dashboard/types';
+import type { AdherenceDay } from '@/lib/medications/types';
+import type { getEducationSummary } from '@/lib/education/queries';
 
 // ---------- Date Range ----------
 
@@ -28,13 +30,19 @@ export interface MonthlyReportData {
   alertsGenerated: number;
   alertsCritical: number;
   titrationNotesCount: number;
-  avgCheckInCompliance: number;         // 0-100 percentage
+  avgCheckInCompliance: number | null;         // 0-100 percentage
   gdmtOptimizationRate: number | null;  // null if Phase 13 not complete
 }
 
 // ---------- Patient Summary ----------
 
-export interface PatientSummaryData extends PatientDetailData {
+export interface PatientSummaryData {
+  patient: PatientDetailData['patient'];
+  vitals: PatientDetailData['vitals'];
+  notes: Array<{ id: string; content: string; created_at: string }>;
+  openAlerts: Array<Pick<PatientDetailData['openAlerts'][number], 'id' | 'flags' | 'severity' | 'created_at'>>;
+  adherenceSummary: AdherenceDay[] | null;
+  educationProgress: Awaited<ReturnType<typeof getEducationSummary>> | null;
   labs: LabResultRow[];
   dateRange: ReportDateRange;
 }
@@ -84,8 +92,13 @@ export interface MedLogRow {
   medication_name: string;
   dose: string;
   frequency: string;
-  taken_at: string;
+  taken_at: string | null;
   taken: boolean;
+  scheduled_date: string;
+  dose_number: number;
+  schedule_recorded: boolean;
+  calendar_time_zone?: string | null;
+  calendar_source?: string | null;
 }
 
 // ---------- NIW Traction Report (REPT-06) ----------
@@ -103,14 +116,7 @@ export interface NiwTractionData {
   totalTitrations: number;
   activeStates: string[]; // unique full state names (matches us-atlas properties.name)
   monthlyGrowth: MonthlyCount[]; // last 12 months, zero-filled
-  /**
-   * Providers who completed registration. Because provider registration
-   * requires a valid invite code issued by the protocol admin, every
-   * registered provider is by definition "approved" — i.e. this equals
-   * totalProviders. Surfaced separately so monthly reports can state the
-   * "manual approval" claim explicitly for the NIW petition.
-   */
-  approvedProviders: number;
+  approvedAccessRequests: number; // status='approved' in access_requests
   /**
    * Access requests awaiting manual review (status='pending' in access_requests).
    */

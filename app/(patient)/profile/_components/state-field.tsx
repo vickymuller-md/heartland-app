@@ -1,104 +1,44 @@
 'use client';
 
-/**
- * StateField -- US State Dropdown for Patient Profile
- * Requirements: REPT-07 (geographic state capture for NIW traction map)
- * Source: HEARTLAND Protocol v3.3 -- Phase 28 Reporting & NIW Evidence
- *
- * Full state names match us-atlas TopoJSON properties.name for choropleth mapping.
- */
-
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
+import { findUsRegion, US_REGIONS } from '@/lib/us-regions';
 import { updateProfileState } from '../actions';
 
-const US_STATES = [
-  'Alabama',
-  'Alaska',
-  'Arizona',
-  'Arkansas',
-  'California',
-  'Colorado',
-  'Connecticut',
-  'Delaware',
-  'District of Columbia',
-  'Florida',
-  'Georgia',
-  'Hawaii',
-  'Idaho',
-  'Illinois',
-  'Indiana',
-  'Iowa',
-  'Kansas',
-  'Kentucky',
-  'Louisiana',
-  'Maine',
-  'Maryland',
-  'Massachusetts',
-  'Michigan',
-  'Minnesota',
-  'Mississippi',
-  'Missouri',
-  'Montana',
-  'Nebraska',
-  'Nevada',
-  'New Hampshire',
-  'New Jersey',
-  'New Mexico',
-  'New York',
-  'North Carolina',
-  'North Dakota',
-  'Ohio',
-  'Oklahoma',
-  'Oregon',
-  'Pennsylvania',
-  'Rhode Island',
-  'South Carolina',
-  'South Dakota',
-  'Tennessee',
-  'Texas',
-  'Utah',
-  'Vermont',
-  'Virginia',
-  'Washington',
-  'West Virginia',
-  'Wisconsin',
-  'Wyoming',
-] as const;
+const choices = [...US_REGIONS].sort((a, b) => a.name.localeCompare(b.name));
 
-interface StateFieldProps {
-  defaultValue?: string;
-}
-
-export function StateField({ defaultValue }: StateFieldProps) {
+export function StateField({ defaultValue }: { defaultValue?: string }) {
+  const [selected, setSelected] = useState(findUsRegion(defaultValue)?.code ?? '');
   const [isPending, startTransition] = useTransition();
 
-  function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const state = e.target.value;
+  function handleChange(event: React.ChangeEvent<HTMLSelectElement>) {
+    const code = event.target.value;
+    const previous = selected;
+    setSelected(code);
     startTransition(async () => {
-      const result = await updateProfileState(state);
-      if (result?.error) {
-        toast.error(result.error);
-      } else {
+      try {
+        const result = await updateProfileState(code);
+        if (!result.success) throw new Error('Unable to save state or territory');
         toast.success('Saved');
+      } catch {
+        setSelected(previous);
+        toast.error('State or territory could not be saved. Try again.');
       }
     });
   }
 
   return (
     <select
+      id="state"
       name="state"
-      defaultValue={defaultValue ?? ''}
+      value={selected}
       onChange={handleChange}
       disabled={isPending}
+      aria-busy={isPending}
       className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
     >
-      <option value="">Select your state</option>
-      {US_STATES.map((s) => (
-        <option key={s} value={s}>
-          {s}
-        </option>
-      ))}
+      <option value="">Select your state or territory</option>
+      {choices.map(({ code, name }) => <option key={code} value={code}>{name}</option>)}
     </select>
   );
 }

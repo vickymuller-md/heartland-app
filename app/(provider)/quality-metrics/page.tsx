@@ -1,12 +1,5 @@
-/**
- * Quality Metrics Dashboard -- Server Component
- *
- * Fetches facility tier, latest records, and 6-month history for each metric.
- * Renders a responsive grid of 5 MetricCards.
- * Source: HEARTLAND Protocol v3.3 Module 8, Section 8.1
- */
-
 import { createClient } from '@/lib/supabase/server';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { METRIC_DEFINITIONS } from '@/lib/quality-metrics/constants';
 import { getQualityMetrics, getMetricHistory } from '@/lib/quality-metrics/queries';
@@ -14,7 +7,7 @@ import type { QualityMetricRecord, MonthlyTrend } from '@/lib/quality-metrics/ty
 import { MetricCard } from './_components/metric-card';
 import { QUALITY_METRIC_LIMIT } from '@/lib/implementation/constants';
 
-export default async function QualityMetricsPage() {
+export default async function QualityMetricsPage({ searchParams }: { searchParams: Promise<{ example?: string }> }) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -22,31 +15,15 @@ export default async function QualityMetricsPage() {
 
   if (!user) redirect('/login');
 
-  // Fetch facility tier from provider's profile
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('facility_tier')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  const facilityTier: number | null = profile?.facility_tier ?? null;
-
-  // Fetch latest records per metric
-  const latestRecords = await getQualityMetrics(supabase, user.id);
-
-  // Build a map for quick lookup
-  const latestByKey = new Map<string, QualityMetricRecord>();
-  for (const rec of latestRecords) {
-    latestByKey.set(rec.metric_key, rec);
-  }
-
-  // Fetch 6-month history for each metric
-  const historyByKey = new Map<string, MonthlyTrend[]>();
-  for (const def of METRIC_DEFINITIONS) {
-    const history = await getMetricHistory(supabase, user.id, def.key, 6);
-    historyByKey.set(def.key, history);
-  }
-
+  const { example } = await searchParams;
+  const facilityTier = example === '1' ? 1 : example === '2-3' ? 2 : null;
+  const [latest, histories] = await Promise.allSettled([
+    getQualityMetrics(supabase, user.id),
+    Promise.all(METRIC_DEFINITIONS.map(async def => [def.key, await getMetricHistory(supabase, user.id, def.key, 6)] as const)),
+  ]);
+  const latestByKey = new Map<string, QualityMetricRecord>(latest.status === 'fulfilled'
+    ? latest.value.map(record => [record.metric_key, record]) : []);
+  const historyByKey = new Map<string, MonthlyTrend[]>(histories.status === 'fulfilled' ? histories.value : []);
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -58,8 +35,21 @@ export default async function QualityMetricsPage() {
         <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">{QUALITY_METRIC_LIMIT}</p>
       </div>
 
+      <nav aria-label="Historical planning example" className="flex flex-wrap items-center gap-3">
+        <span>Compare with an example</span>
+        {[['', 'No comparison'], ['1', 'Tier 1'], ['2-3', 'Tiers 2 and 3']].map(([value, label]) => (
+          <Link key={value} href={value ? `/quality-metrics?example=${value}` : '/quality-metrics'}
+            aria-current={(example ?? '') === value ? 'page' : undefined}
+            className="rounded border px-3 py-2 text-sm text-slate-800 aria-[current=page]:bg-slate-800 aria-[current=page]:text-white">
+            {label}
+          </Link>
+        ))}
+      </nav>
+      {(latest.status === 'rejected' || histories.status === 'rejected') && (
+        <p role="alert">Quality metric records could not be loaded completely. Reload to view the dashboard.</p>
+      )}
       {/* Metric Cards Grid */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      {latest.status === 'fulfilled' && histories.status === 'fulfilled' && <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {METRIC_DEFINITIONS.map((def) => (
           <MetricCard
             key={def.key}
@@ -69,11 +59,11 @@ export default async function QualityMetricsPage() {
             facilityTier={facilityTier}
           />
         ))}
-      </div>
+      </div>}
 
       {/* Disclaimer */}
       <p className="text-xs text-gray-400">
-        Metric values are entered manually. Phase 22 does not integrate EHR data.
+        The care team enters these measures manually.
       </p>
     </div>
   );

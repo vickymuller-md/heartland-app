@@ -40,11 +40,11 @@ export default async function ProfilePage() {
               htmlFor="state"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              State
+              State or territory
             </label>
             <StateField defaultValue={currentState} />
             <p className="mt-1 text-xs text-gray-500">
-              Your US state helps your care team understand regional resources.
+              Your state or territory helps your care team understand regional resources.
             </p>
           </div>
         </div>

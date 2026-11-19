@@ -24,9 +24,10 @@ interface MetricTrendChartProps {
   data: MonthlyTrend[];
   target: number | null;
   higherIsBetter: boolean;
+  showBaseline: boolean;
 }
 
-export function MetricTrendChart({ data, target, higherIsBetter }: MetricTrendChartProps) {
+export function MetricTrendChart({ data, target, higherIsBetter, showBaseline }: MetricTrendChartProps) {
   const chartData = data.map((d) => ({
     month: format(parseISO(d.period_month), 'MMM'),
     rate: d.rate_pct,
@@ -42,7 +43,7 @@ export function MetricTrendChart({ data, target, higherIsBetter }: MetricTrendCh
 
   // For Tier 1 readmission (target=null), use first data point as baseline
   const baselineRate =
-    target == null && data.length > 0 ? data[0].rate_pct : null;
+    showBaseline && data.length > 0 ? data[0].rate_pct : null;
 
   const refLineColor = target != null
     ? (higherIsBetter ? '#22c55e' : '#ef4444')
