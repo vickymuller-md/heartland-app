@@ -66,9 +66,8 @@ test.describe('sandbox navigation shell', () => {
       await page.getByRole('link', { name: 'Try sandbox' }).click();
       await expect(page).toHaveURL(/area=command/);
       const start = page.getByTestId('population-run');
-      const box = await start.boundingBox();
-      expect(box).not.toBeNull();
-      expect(box!.y + box!.height).toBeLessThanOrEqual(height);
+      await expect(start).toBeVisible();
+      await expect(start).toBeInViewport({ ratio: 1 });
       await start.click();
       await page.getByRole('button', { name: 'Review a sample case' }).click();
       const example = page.locator('[data-testid^="queue-entry-"][aria-expanded="true"]');
