@@ -6,8 +6,8 @@ authors:
   - family-names: "Muller Ferreira"
     given-names: "Vicky"
     orcid: "https://orcid.org/0009-0009-1099-5690"
-version: 1.10.1
-date-released: 2026-10-01
+version: 1.11.0
+date-released: 2026-11-20
 repository-code: "https://github.com/vickymuller-md/heartland-app"
 url: "https://app.heartlandprotocol.org"
 license: MIT
@@ -16,25 +16,17 @@ identifiers:
     value: "10.5281/zenodo.19600593"
     description: "Concept DOI for all HEARTLAND Protocol App versions"
 abstract: >-
-  Progressive Web Application operationalizing the HEARTLAND Protocol for
-  primary care-led heart failure workflows in rural and resource-limited
-  settings. Version 1.10.1 adds public local-readiness materials, pharmacy
-  participation across resource tiers, explicit recognition/assessment/decision
-  boundaries, referral contexts and common clinical goals with resource-specific
-  delivery support. It retains a public synthetic-data demonstrator with
-  bounded English- and Spanish-language check-ins, optional voice interaction,
-  simulated outreach, a read-only provider Copilot over deterministic tools,
-  population replay, human-controlled SBAR wording, Evidence Flow, Decision
-  Receipts, and explicit separation among language assistance, version-controlled
-  rules, and human authorization. This release adds recoverable examination,
-  laboratory and education workflows, organization-scoped work ownership,
-  notification-intent controls, reconciled clinical references and 58
-  individually authorized synthetic audio recordings. Scheduled recovery and
-  external notification transport remain gated and disabled. Audio checks are
-  automated documentary verification, not human-listening certification.
-  The software demonstrates implementation and
-  technical inspectability; it does not establish clinical validation,
-  institutional deployment, regulatory status, efficacy, or patient outcomes.
+  Educational software for studying the implementation of rural heart failure
+  workflows. Version 1.11.0 adds confirmed medication schedules by local day,
+  versioned ten-input risk assessments, scoped alert reconciliation, explicit
+  portal message read receipts and reconciled reports and exports. An
+  account-free sandbox lets visitors follow a fictional case from a simulated
+  alert to a documented human decision. The interface uses the typography and
+  colors of the HEARTLAND site, with keyboard navigation, enlarged chart
+  readings and high-contrast form controls. Bilingual language assistance and
+  reviewed synthetic audio accompany deterministic rules and human review.
+  The app supports synthetic demonstration and controlled evaluation. Clinical
+  validation and prospective patient outcomes require separate evidence.
 keywords:
   - heart failure
   - rural health

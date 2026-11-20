@@ -43,7 +43,9 @@ Cross-cutting:
 - Pharmacoeconomic Navigator — Generic Bridge calculator (low-cost generics; prices verified against dated retail lists)
 - NIW Traction Report — monthly aggregate usage statistics (geographic spread, module engagement, growth)
 - Offline-capable shell (PWA with service worker): the app shell, downtime page and the ten pocket cards are precached; AI features require connectivity
-- Mobile-first, print-friendly
+- Confirmed daily and weekly medication schedules, patient time-zone preferences, and traceable ten-input risk assessments
+- Scoped alert reconciliation, explicit portal message read receipts, and consistent PDF, CSV and FHIR reporting for the data each format covers
+- Mobile-first, print-friendly interface with a guided synthetic case, keyboard navigation, high-contrast controls and scalable chart labels
 - Public local-readiness guide and downloadable 12-scenario training pack; common clinical goals across resource tiers, pharmacy participation, referral contexts and authority boundaries
 - Privacy-minimizing exports, row-level access control, immutable work events, and explicit access revocation
 
@@ -63,7 +65,7 @@ For research collaborations, pilot deployments at Critical Access Hospitals, or 
 | Public sandbox | Account-free synthetic Evidence Lab with bilingual AI-assisted check-ins, provider workflow demonstrations, population replay, and inspectable decision receipts; not for real patient data or clinical use |
 | Clinical release posture | Controlled evaluation only; real-PHI and pilot go-live gates remain closed pending independent validation and organizational controls |
 | Product plan | Published in [`reference/HEARTLAND_PRODUCT_ADOPTION_PLAN.md`](./reference/HEARTLAND_PRODUCT_ADOPTION_PLAN.md) |
-| Open-science release record | Version metadata in [`CITATION.cff`](./CITATION.cff) and [`.zenodo.json`](./.zenodo.json); current release boundaries in [`reference/RELEASE_NOTES_v1.10.1.md`](./reference/RELEASE_NOTES_v1.10.1.md). Historical release notes remain preserved. |
+| Open-science release record | Version metadata in [`CITATION.cff`](./CITATION.cff) and [`.zenodo.json`](./.zenodo.json); current release boundaries in [`reference/RELEASE_NOTES_v1.11.0.md`](./reference/RELEASE_NOTES_v1.11.0.md). Historical release notes remain preserved. |
 
 ## Stack
 
