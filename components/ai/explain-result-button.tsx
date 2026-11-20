@@ -65,7 +65,7 @@ function Explanation({ input }: { input: ExplainResultInput }) {
       {status === 'shown' && explanation && (
         <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-sm leading-6 text-slate-800" data-testid="explain-result-text">
           {explanation}
-          <p className="mt-2 text-[11px] font-semibold text-slate-600">
+          <p className="mt-2 text-xs font-semibold text-slate-600">
             AI explanation of a result the deterministic engine already computed — educational
             implementation-support resource, not medical advice.
           </p>

@@ -22,7 +22,7 @@
     --color-cool: var(--foreground);
     --color-stone: var(--muted-foreground);
     --color-signal: var(--primary);
-    --color-signal-deep: #244d3f;
+    --color-signal-deep: #173c2e;
     --color-alert: var(--destructive);
     --color-alert-deep: #83352b;
     --color-alert-on-dark: #f1b6a8;
@@ -69,23 +69,23 @@
 
 :root {
     --background: #f7f7f2;
-    --foreground: #1e302a;
+    --foreground: #18271f;
     --card: #ffffff;
     --card-foreground: var(--foreground);
     --popover: var(--card);
     --popover-foreground: var(--foreground);
-    --primary: #2d614d;
+    --primary: #22513e;
     --primary-foreground: #ffffff;
     --secondary: #e9eee7;
     --secondary-foreground: #294b3d;
     --muted: #eef0e9;
-    --muted-foreground: #52625b;
+    --muted-foreground: #3e5045;
     --accent: #e2ebe3;
     --accent-foreground: #254b3a;
     --destructive: #a23d33;
-    --border: #d5dcd4;
-    --input: #85958a;
-    --ring: #386e52;
+    --border: #cad3c9;
+    --input: #64796a;
+    --ring: #24583c;
     --chart-1: #2b634b;
     --chart-2: #4b617b;
     --chart-3: #925321;
@@ -143,8 +143,8 @@
   --color-slate-200: #d9dfd8;
   --color-slate-300: #bdc8bf;
   --color-slate-400: #94a298;
-  --color-slate-500: #586a5f;
-  --color-slate-600: #4c5d53;
+  --color-slate-500: #46594c;
+  --color-slate-600: #3b4e41;
   --color-slate-700: #374b40;
   --color-slate-800: #2c4035;
   --color-slate-900: #1f3429;
@@ -272,19 +272,8 @@
     @apply inline-flex min-w-0 items-center gap-2 font-sans text-lg font-semibold tracking-tight text-foreground;
   }
   .workspace-brand svg { @apply size-7 shrink-0 text-primary; }
-  .page-title {
-    @apply font-display font-normal text-foreground;
-    font-size: clamp(2.375rem, 1.65rem + 2.3vw, 3.75rem);
-    line-height: 1.05;
-    letter-spacing: -0.025em;
-  }
-  .section-title {
-    @apply font-display font-normal text-foreground;
-    font-size: clamp(1.875rem, 1.55rem + 1vw, 2.5rem);
-    line-height: 1.12;
-  }
   .section-kicker {
-    @apply text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground;
+    @apply text-xs font-semibold tracking-wide text-muted-foreground;
   }
   .panel { @apply min-w-0 rounded-xl border border-border bg-card; }
   .status-label {
@@ -298,6 +287,29 @@
 }
 
 @media screen {
+  :root {
+    --text-xs: 0.875rem;
+    --text-xs--line-height: 1.45;
+    --text-sm: 0.9375rem;
+    --text-sm--line-height: 1.5;
+    --text-base: 1.0625rem;
+    --text-base--line-height: 1.55;
+  }
+  body {
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+  }
+  .page-title, .section-title, .workspace-content :where(h1) {
+    @apply font-heading font-semibold text-foreground;
+    line-height: 1.18;
+    letter-spacing: -0.025em;
+  }
+  .page-title, .workspace-content :where(h1) {
+    font-size: clamp(2rem, 1.65rem + 1.6vw, 3rem);
+  }
+  .section-title {
+    font-size: clamp(1.5rem, 1.3rem + 0.85vw, 2rem);
+  }
   /* Shared masthead utilities are supplied by the network package. */
   .interface-masthead > header { @apply border-border bg-background; }
   .interface-masthead > header svg { @apply text-primary; }
@@ -305,12 +317,36 @@
   .interface-masthead > header > div > div > a { @apply min-h-11 rounded-lg px-4 py-2 text-sm; }
   .interface-masthead > header > div > div > a:last-child { @apply bg-primary text-white hover:bg-signal-deep hover:text-white; }
   .interface-masthead > header > div > div > a > span[aria-hidden] { display: none; }
-  .workspace-content :where(h1) {
-    font-family: var(--heartland-serif), Georgia, serif;
-    font-size: clamp(2.25rem, 1.8rem + 1.4vw, 3.25rem);
-    font-weight: 400;
-    line-height: 1.08;
-    letter-spacing: -0.025em;
+}
+
+@media screen and (prefers-contrast: more) {
+  :root:not(.dark) {
+    --foreground: #101b14;
+    --muted-foreground: #27382d;
+    --primary: #123e2a;
+    --border: #778779;
+    --input: #485d4f;
+    --ring: #143c25;
+    --color-slate-500: #314238;
+    --color-slate-600: #26372c;
+  }
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 3px solid var(--ring);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 3px var(--card);
+  }
+}
+
+@media (forced-colors: active) {
+  [aria-current="page"],
+  [role="tab"][aria-selected="true"],
+  button[aria-pressed="true"] {
+    text-decoration-line: underline;
+    text-underline-offset: 0.18em;
+  }
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 3px solid Highlight;
+    outline-offset: 3px;
   }
 }
 

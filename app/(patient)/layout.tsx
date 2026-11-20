@@ -34,7 +34,7 @@ export default function PatientLayout({
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Top bar */}
-      <header className="flex min-h-16 items-center justify-between border-b border-gray-200 bg-white px-4">
+      <header className="flex min-h-16 flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-white px-4 py-2">
         <WorkspaceBrand />
         <div className="flex items-center gap-3">
           <Link
@@ -61,7 +61,7 @@ export default function PatientLayout({
         className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="grid grid-cols-6 max-w-lg mx-auto">
+        <div className="mx-auto grid max-w-lg grid-cols-[repeat(auto-fit,minmax(min(100%,max(48px,3.25rem)),1fr))]">
           {tabs.map(({ href, label, icon: Icon }) => {
             const active = pathname.startsWith(href);
             return (
@@ -69,7 +69,7 @@ export default function PatientLayout({
                 key={href}
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className={`flex flex-col items-center justify-center min-h-[48px] min-w-[48px] border-t-2 px-1 py-2 ${
+                className={`flex min-h-[48px] min-w-[48px] flex-col items-center justify-center border-t-2 px-0.5 py-2 ${
                   active
                     ? "border-primary font-semibold text-primary"
                     : "border-transparent text-muted-foreground"

@@ -15,7 +15,7 @@ export function Hero() {
               App {APP_VERSION} · Open-source educational companion
             </p>
 
-            <h1 className="mt-4 max-w-[14ch] font-display text-[clamp(3.1rem,6vw,5.5rem)] font-normal leading-[0.98] tracking-[-0.035em] text-foreground">
+            <h1 className="mt-4 max-w-[17ch] font-heading text-[clamp(2.5rem,1.65rem+3.2vw,4.5rem)] font-semibold leading-[1.1] tracking-[-0.025em] text-foreground">
               Heart failure care{" "}
               <span className="font-display font-normal italic text-primary">
                 where there&rsquo;s
@@ -49,7 +49,7 @@ export function Hero() {
               </Link>
             </div>
 
-            <p className="mt-4 max-w-xl text-base leading-relaxed text-cool/80">
+            <p className="mt-4 max-w-xl text-base leading-relaxed text-muted-foreground">
               Based on the HEARTLAND Protocol published in Cureus. Peer review
               applies to the protocol article, not validation of the app or its AI.
             </p>

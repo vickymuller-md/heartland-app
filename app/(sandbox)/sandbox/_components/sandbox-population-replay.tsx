@@ -404,7 +404,7 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone, initialResult 
       {scene === 'idle' && (
         <div className="mt-3 border-t border-white/20 pt-3">
           <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span className="font-display text-[2.75rem] leading-none tabular-nums sm:text-[3.5rem]">{numberFormat.format(size)}</span>
+            <span className="font-heading text-4xl leading-tight font-semibold tabular-nums sm:text-5xl">{numberFormat.format(size)}</span>
             <span className="text-sm text-slate-200">scheduled check-ins</span>
           </p>
           <Button className="mt-3 border-transparent bg-white text-slate-950 hover:bg-slate-100" onClick={run} data-testid="population-run">
@@ -433,7 +433,7 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone, initialResult 
             </ul>
             <div className="mt-3 space-y-1 font-mono text-xs leading-5" data-testid="population-feed" aria-hidden="true">
               {frame.feed.map((event) => (
-                <p key={`${event.ordinal}`} className={isExceptionEvent(event) ? 'font-bold text-amber-200' : 'text-slate-400'}>
+                <p key={`${event.ordinal}`} className={isExceptionEvent(event) ? 'font-bold text-amber-200' : 'text-slate-200'}>
                   {formatClock(event.minute)} · {event.name} · {event.state} · {event.detail}
                 </p>
               ))}
@@ -492,7 +492,7 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone, initialResult 
           ? `Overnight simulation complete: ${counts.total} check-ins, ${counts.reviewQueue} eligible for review, ${counts.unresolvedNoAnswer} unanswered. ${outsideReviewQueuePct} percent outside the review queue, not resolved. Unanswered High-risk cases overlap the queue; review is not proven.`
           : ''}
       </p>
-      <p className="mt-3 text-sm leading-6 text-slate-300" data-testid="population-disclaimer">
+      <p className="mt-3 text-sm leading-6 text-slate-200" data-testid="population-disclaimer">
         Illustrative workflow demonstration on synthetic data — not a clinical outcome or
         staffing claim.
       </p>

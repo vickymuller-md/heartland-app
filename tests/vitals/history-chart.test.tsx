@@ -102,12 +102,12 @@ describe('VitalsHistory', () => {
       expect(chartContainer.className).toContain('h-[250px]');
     });
 
-    it('chart axis font sizes are at least 14px', () => {
+    it('scales both chart axes with the shared caption size', () => {
       const { container } = render(<VitalsChart data={sampleData} />);
       const xAxis = container.querySelector('[data-testid="x-axis"]');
       const yAxis = container.querySelector('[data-testid="y-axis"]');
-      expect(Number(xAxis?.getAttribute('data-font-size'))).toBeGreaterThanOrEqual(14);
-      expect(Number(yAxis?.getAttribute('data-font-size'))).toBeGreaterThanOrEqual(14);
+      expect(xAxis).toHaveAttribute('data-font-size', 'var(--text-xs)');
+      expect(yAxis).toHaveAttribute('data-font-size', 'var(--text-xs)');
     });
 
     it('renders SpO2 line when data contains SpO2 values', () => {

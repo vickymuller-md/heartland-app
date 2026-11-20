@@ -80,12 +80,13 @@ export function VitalsChart({ data }: VitalsChartProps) {
         <p className="text-gray-600">
           No vitals recorded in the last {period} days
         </p>
-        <div className="mt-4 flex gap-2">
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
           {PERIODS.map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+              aria-pressed={period === p}
+              className={`min-h-11 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
                 period === p
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -102,13 +103,13 @@ export function VitalsChart({ data }: VitalsChartProps) {
   return (
     <div className="space-y-4">
       {/* Period toggle */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm text-gray-500">Period:</span>
         {PERIODS.map((p) => (
           <button
             key={p}
             onClick={() => setPeriod(p)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`min-h-11 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
               period === p
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -127,7 +128,7 @@ export function VitalsChart({ data }: VitalsChartProps) {
           <XAxis
             dataKey="date"
             tickFormatter={formatDate}
-            tick={{ fontSize: 12 }}
+            tick={{ fontSize: 'var(--text-xs)' }}
             tickLine={false}
             axisLine={false}
           />
@@ -135,28 +136,28 @@ export function VitalsChart({ data }: VitalsChartProps) {
           <YAxis
             yAxisId="weight"
             orientation="left"
-            tick={{ fontSize: 12 }}
+            tick={{ fontSize: 'var(--text-xs)' }}
             tickLine={false}
             axisLine={false}
             label={{
               value: 'Weight (lbs)',
               angle: -90,
               position: 'insideLeft',
-              style: { fontSize: 11, fill: '#6b7280' },
+              style: { fontSize: 'var(--text-xs)', fill: 'var(--muted-foreground)' },
             }}
           />
           {/* Right Y-axis: BP/HR/SpO2 */}
           <YAxis
             yAxisId="vitals"
             orientation="right"
-            tick={{ fontSize: 12 }}
+            tick={{ fontSize: 'var(--text-xs)' }}
             tickLine={false}
             axisLine={false}
             label={{
               value: 'BP / HR / SpO2',
               angle: 90,
               position: 'insideRight',
-              style: { fontSize: 11, fill: '#6b7280' },
+              style: { fontSize: 'var(--text-xs)', fill: 'var(--muted-foreground)' },
             }}
           />
           <ChartTooltip

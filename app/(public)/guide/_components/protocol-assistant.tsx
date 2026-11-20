@@ -62,7 +62,7 @@ export function ProtocolAssistant() {
         <label className="sr-only" htmlFor="protocol-assistant-input">Ask about the implementation content</label>
         <input
           id="protocol-assistant-input"
-          className="min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm"
+          className="min-h-11 min-w-0 w-full rounded-lg border border-input bg-card px-3 text-base text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           value={question}
           maxLength={300}
           placeholder="e.g. What does Module 3 say about holding a titration?"
@@ -97,7 +97,7 @@ export function ProtocolAssistant() {
           {answer.citations.length > 0 && (
             <p className="mt-2 flex flex-wrap gap-1.5">
               {answer.citations.map((citation) => (
-                <span key={citation} className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-800">{citation}</span>
+                <span key={citation} className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">{citation}</span>
               ))}
             </p>
           )}
@@ -111,7 +111,7 @@ export function ProtocolAssistant() {
         </p>
       )}
 
-      <p className="mt-3 text-[11px] leading-4 text-gray-600">
+      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
         Educational reference only: answers describe the published implementation content, are
         AI-generated, and may be imperfect — verify against the cited module. Not medical advice,
         not patient-specific guidance, and never a substitute for clinical judgment.

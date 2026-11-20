@@ -126,7 +126,7 @@ export function RequestAccessForm() {
       )}
 
       <div className="flex flex-col items-start gap-6 border-t border-grid pt-8 sm:flex-row sm:items-center sm:justify-between">
-        <p className="max-w-md font-editorial text-[12.5px] font-medium text-cool/80">
+        <p className="max-w-md font-editorial text-sm font-medium text-foreground">
           Submissions are reviewed manually. No patient information is collected here.
         </p>
         <button
@@ -167,7 +167,7 @@ function Field({
 }) {
   return (
     <label className="block space-y-2">
-      <span className="flex items-baseline justify-between font-editorial text-[12.5px] font-medium text-cool/80">
+      <span className="flex items-baseline justify-between font-editorial text-sm font-medium text-foreground">
         <span>
           {label}
           {required && <span className="ml-1 text-alert">*</span>}
@@ -181,12 +181,12 @@ function Field({
         inputMode={inputMode}
         pattern={pattern}
         aria-invalid={Boolean(error)}
-        className="w-full rounded-lg border border-grid bg-terminal px-3.5 py-3 font-editorial text-[15px] text-cool outline-none transition-colors placeholder:text-stone/60 focus:border-cool focus:ring-2 focus:ring-cool/10"
+        className="w-full rounded-lg border border-input bg-card px-3.5 py-3 font-editorial text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       />
       {error ? (
-        <span className="block font-editorial text-[12px] text-alert">{error}</span>
+        <span className="block font-editorial text-xs text-alert">{error}</span>
       ) : hint ? (
-        <span className="block font-editorial text-[12px] text-stone">{hint}</span>
+        <span className="block font-editorial text-xs text-stone">{hint}</span>
       ) : null}
     </label>
   );
@@ -205,13 +205,13 @@ function SelectField({
 }) {
   return (
     <label className="block space-y-2">
-      <span className="flex items-baseline justify-between font-editorial text-[12.5px] font-medium text-cool/80">
+      <span className="flex items-baseline justify-between font-editorial text-sm font-medium text-foreground">
         <span>{label}</span>
       </span>
       <select
         name={name}
         aria-invalid={Boolean(error)}
-        className="w-full rounded-lg border border-grid bg-terminal px-3.5 py-3 font-editorial text-[15px] text-cool outline-none transition-colors focus:border-cool focus:ring-2 focus:ring-cool/10"
+        className="w-full rounded-lg border border-input bg-card px-3.5 py-3 font-editorial text-base text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
@@ -220,7 +220,7 @@ function SelectField({
         ))}
       </select>
       {error && (
-        <span className="block font-editorial text-[12px] text-alert">{error}</span>
+        <span className="block font-editorial text-xs text-alert">{error}</span>
       )}
     </label>
   );
@@ -239,7 +239,7 @@ function TextAreaField({
 }) {
   return (
     <label className="block space-y-2">
-      <span className="flex items-baseline justify-between font-editorial text-[12.5px] font-medium text-cool/80">
+      <span className="flex items-baseline justify-between font-editorial text-sm font-medium text-foreground">
         <span>{label}</span>
       </span>
       <textarea
@@ -247,12 +247,12 @@ function TextAreaField({
         rows={5}
         maxLength={1200}
         aria-invalid={Boolean(error)}
-        className="w-full resize-none rounded-lg border border-grid bg-terminal p-3.5 font-editorial text-[14.5px] leading-relaxed text-cool outline-none transition-colors placeholder:text-stone/60 focus:border-cool focus:ring-2 focus:ring-cool/10"
+        className="w-full resize-none rounded-lg border border-input bg-card p-3.5 font-editorial text-base leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       />
       {error ? (
-        <span className="block font-editorial text-[12px] text-alert">{error}</span>
+        <span className="block font-editorial text-xs text-alert">{error}</span>
       ) : hint ? (
-        <span className="block font-editorial text-[12px] text-stone">{hint}</span>
+        <span className="block font-editorial text-xs text-stone">{hint}</span>
       ) : null}
     </label>
   );
@@ -261,7 +261,7 @@ function TextAreaField({
 function SubmittedPanel() {
   return (
     <div className="rounded-2xl border border-grid bg-terminal p-10">
-      <p className="inline-flex items-center gap-2 rounded-full border border-signal/40 bg-signal/10 px-3.5 py-1.5 font-editorial text-[12.5px] font-medium text-signal">
+      <p className="inline-flex items-center gap-2 rounded-full border border-signal/40 bg-signal/10 px-3.5 py-1.5 font-editorial text-sm font-medium text-signal">
         <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-signal" />
         Request received
       </p>
@@ -269,7 +269,7 @@ function SubmittedPanel() {
         Thanks — we&rsquo;ll be in touch{" "}
         <span className="font-display italic font-normal text-alert">soon</span>.
       </h2>
-      <p className="mt-5 max-w-xl font-editorial text-[15px] leading-relaxed text-cool/80">
+      <p className="mt-5 max-w-xl font-editorial text-base leading-relaxed text-muted-foreground">
         Your request has been queued for manual review. Most approved
         requests receive an invitation code within seven business days.
         Implementation pilots or time-sensitive research engagements can be

@@ -67,11 +67,11 @@ export function VitalsChart({ data }: VitalsChartProps) {
         <XAxis
           dataKey="date"
           tickFormatter={formatDate}
-          tick={{ fontSize: 14 }}
+          tick={{ fontSize: 'var(--text-xs)' }}
           tickLine={false}
           axisLine={false}
         />
-        <YAxis tick={{ fontSize: 14 }} tickLine={false} axisLine={false} />
+        <YAxis tick={{ fontSize: 'var(--text-xs)' }} tickLine={false} axisLine={false} />
         <ChartTooltip
           content={<ChartTooltipContent className="text-base" />}
         />

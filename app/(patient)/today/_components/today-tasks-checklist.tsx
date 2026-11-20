@@ -44,9 +44,9 @@ export function TodayTasksChecklist({
           {vitalsComplete ? (
             <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
           ) : (
-            <Circle className="h-5 w-5 text-gray-400 shrink-0" />
+            <Circle className="h-5 w-5 text-slate-500 shrink-0" />
           )}
-          <div>
+          <div className="min-w-0 [overflow-wrap:anywhere]">
             <p className="text-base font-medium text-gray-900">
               Daily check-in
             </p>
@@ -62,9 +62,9 @@ export function TodayTasksChecklist({
           {medsComplete ? (
             <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
           ) : (
-            <Circle className="h-5 w-5 text-gray-400 shrink-0" />
+            <Circle className="h-5 w-5 text-slate-500 shrink-0" />
           )}
-          <div>
+          <div className="min-w-0 [overflow-wrap:anywhere]">
             <p className="text-base font-medium text-gray-900">Medications</p>
             <p className="text-sm text-gray-500">{medsDetail()}</p>
           </div>
@@ -75,9 +75,9 @@ export function TodayTasksChecklist({
           {educationComplete ? (
             <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
           ) : (
-            <Circle className="h-5 w-5 text-gray-400 shrink-0" />
+            <Circle className="h-5 w-5 text-slate-500 shrink-0" />
           )}
-          <div>
+          <div className="min-w-0 [overflow-wrap:anywhere]">
             <p className="text-base font-medium text-gray-900">Education</p>
             <p className="text-sm text-gray-500">{educationDetail()}</p>
           </div>

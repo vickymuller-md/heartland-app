@@ -64,7 +64,7 @@ export function SandboxCommandCenter({ restoredRound, onRoundChange, taskStates,
         <div className="grid min-w-0 gap-x-10 gap-y-5 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,0.88fr)]">
           <div className="min-w-0 self-center">
             <p className="section-kicker">Synthetic demonstration</p>
-            <h1 className="page-title mt-2 lg:text-[4rem]">Follow a sample case</h1>
+            <h1 className="page-title mt-2">Follow a sample case</h1>
             <p className="mt-3 max-w-xl text-base leading-7 text-muted-foreground">
               Trace a fictional check-in from the overnight round to the rule that flagged it and the decision a reviewer records.
             </p>
@@ -85,7 +85,7 @@ export function SandboxCommandCenter({ restoredRound, onRoundChange, taskStates,
               {POPULATION_SIZES.map((size) => (
                 <button key={size} type="button" data-testid={`population-size-${size}`}
                   aria-pressed={populationSize === size} onClick={() => onPopulationSize(size)}
-                  className={`min-h-11 rounded-md px-3 text-sm font-semibold tabular-nums ${populationSize === size ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground hover:bg-muted'}`}>
+                  className={`min-h-11 rounded-md border-2 px-3 text-sm font-semibold tabular-nums ${populationSize === size ? 'border-primary bg-secondary text-secondary-foreground' : 'border-transparent text-muted-foreground hover:bg-muted'}`}>
                   {numberFormat.format(size)}
                 </button>
               ))}
@@ -234,7 +234,7 @@ function ReviewQueueSection({ result, queue, expandedOrdinal, onCaseChange, dayI
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-bold text-slate-950">{event.name} · {event.age}{worked && <span className="ml-2 text-xs font-semibold text-emerald-700">Worked ✓</span>}</p>
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${event.category === 'critical' ? 'bg-red-100 text-red-800' : event.category === 'warning' ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-700'}`}>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${event.category === 'critical' ? 'bg-red-100 text-red-800' : event.category === 'warning' ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-700'}`}>
                     {event.category === 'no_answer' ? 'unreachable' : event.category}
                   </span>
                 </div>
@@ -334,15 +334,15 @@ function CasePanel({ event, caseId, runId, dayIndex, worked, sent, callOpen, onO
         )}
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Risk score {chart.totalScore}/18 · {chart.tier}</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Risk score {chart.totalScore}/18 · {chart.tier}</p>
             <ul className="mt-1 flex flex-wrap gap-1">
               {chart.riskFactors.filter((factor) => factor.present).map((factor) => (
-                <li key={factor.variable} className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] text-blue-900">{factor.variable} +{factor.points}</li>
+                <li key={factor.variable} className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-900">{factor.variable} +{factor.points}</li>
               ))}
             </ul>
           </div>
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Medications</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Medications</p>
             <ul className="mt-1 space-y-0.5 text-xs text-slate-700">
               {chart.medications.map((medication) => (
                 <li key={medication.name}><span className="font-semibold">{medication.name}</span> {medication.dose} · {medication.status}</li>
@@ -368,7 +368,7 @@ function CasePanel({ event, caseId, runId, dayIndex, worked, sent, callOpen, onO
                 Call ended — {callOutcome.disposition}{callOutcome.redFlagIds.length > 0 ? ` (rule ${callOutcome.redFlagIds[0]})` : ''}
               </span>
             )}
-            <span className="text-[11px] text-slate-500">Interactive AI check-in — you play the patient; the registered rules set the disposition.</span>
+            <span className="text-xs text-slate-500">Interactive AI check-in — you play the patient; the registered rules set the disposition.</span>
           </div>
         )}
         {callOpen && (

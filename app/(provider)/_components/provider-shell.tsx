@@ -95,7 +95,7 @@ function ProviderNavigation({ urgentCount, onNavigate }: { urgentCount: number |
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${active ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'}`}
+                  className={`flex min-h-11 items-center gap-3 rounded-lg border-l-[3px] px-3 py-2 text-sm transition-colors ${active ? 'border-primary bg-sidebar-accent font-semibold text-sidebar-accent-foreground' : 'border-transparent font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'}`}
                   onClick={onNavigate}
                   aria-current={active ? 'page' : undefined}
                 >
@@ -139,7 +139,7 @@ export function ProviderShell({ children, urgentCount }: { children: React.React
         <ProviderNavigation urgentCount={urgentCount} />
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 items-center border-b border-gray-200 bg-white px-4 print:hidden lg:hidden">
+        <header className="flex min-h-16 flex-wrap items-center gap-x-3 gap-y-1 border-b border-gray-200 bg-white px-4 py-2 print:hidden lg:hidden">
           <Dialog open={sidebarOpen} onOpenChange={setSidebarOpen}>
             <DialogTrigger aria-label="Open sidebar" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded hover:bg-gray-100">
               <Menu className="size-5 text-gray-700" />
@@ -152,7 +152,7 @@ export function ProviderShell({ children, urgentCount }: { children: React.React
               <ProviderNavigation urgentCount={urgentCount} onNavigate={() => setSidebarOpen(false)} />
             </DialogContent>
           </Dialog>
-          <span className="ml-3"><WorkspaceBrand /></span>
+          <WorkspaceBrand />
         </header>
         <ConnectivityBanner workspace="provider" />
         <main id="main-content" tabIndex={-1} className="workspace-content mx-auto w-full max-w-[1440px] flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
