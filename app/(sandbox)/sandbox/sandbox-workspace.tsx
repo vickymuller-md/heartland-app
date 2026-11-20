@@ -521,12 +521,14 @@ export function SandboxWorkspace() {
       aria-label="Interactive sandbox"
       aria-busy={!hydrated}
       disabled={!hydrated}
-      className="min-w-0 space-y-4 aria-busy:[&_button]:cursor-wait aria-busy:[&_button]:opacity-60"
+      className="min-w-0 space-y-4 aria-busy:[&_button]:cursor-wait"
     >
       <nav className="border-b border-border py-3" aria-label="Sandbox product navigation">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
           <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-            <span aria-label="Sandbox coverage">{demo.visitedSections.length}/{SANDBOX_SECTIONS.length} areas explored</span>
+            <span role="status">
+              {hydrated ? `${demo.visitedSections.length}/${SANDBOX_SECTIONS.length} areas explored` : 'Preparing demo…'}
+            </span>
             <span data-testid="sandbox-day-badge" className="border-l border-border pl-4 font-semibold text-foreground">Day {demo.dayIndex + 1} of {SANDBOX_DAY_COUNT}</span>
             <div aria-hidden="true" className="hidden h-1 w-20 overflow-hidden rounded-full bg-border sm:block">
               <div className="h-full bg-primary transition-all motion-reduce:transition-none" style={{ width: `${progress}%` }} />

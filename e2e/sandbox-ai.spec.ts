@@ -1006,10 +1006,13 @@ test('a case is fully workable: chart, protocol outcome, progress, Daily Loop, a
   try {
     await page.goto('/sandbox', { waitUntil: 'commit' });
     await expect(run).toBeDisabled();
+    await expect(page.getByText('Preparing demo…', { exact: true })).toBeVisible();
+    await expect(page.getByTestId('sandbox-nav-copilot')).toHaveCSS('opacity', '1');
   } finally {
     unblock();
   }
   await expect(run).toBeEnabled();
+  await expect(page.getByText('1/9 areas explored', { exact: true })).toBeVisible();
   await page.unroute(script);
   await run.click();
   await expect(page.getByTestId('population-exceptions')).toBeVisible();
