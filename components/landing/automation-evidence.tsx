@@ -212,7 +212,7 @@ export function AutomationEvidence() {
           </Link>
         </div>
         <aside data-testid="local-candidate" aria-labelledby="lab-candidate-title" className="mt-10 rounded-xl border-2 border-dashed border-cool/40 bg-terminal p-6 md:p-8">
-          <p className="text-sm font-semibold text-cool">Implementation status · Deployed 1 October 2026</p>
+          <p className="text-sm font-semibold text-cool">Earlier deployment checkpoints · September–October 2026</p>
           <h3 id="lab-candidate-title" className="mt-3 text-2xl font-semibold text-cool">What is deployed, what is inactive, what still needs approval.</h3>
           <p className="mt-4 max-w-3xl text-base leading-relaxed text-cool/80">A software archive, a deployment and clinical approval are different kinds of evidence. This dated summary is not a live service-status check or authorization for patient care.</p>
           <div data-testid="recorded-checkpoint" className="mt-6 rounded-xl border border-grid bg-panel p-5">

@@ -281,6 +281,14 @@ export default function AboutPage() {
             >
               DOI {APP_ARCHIVE_DOI}
             </a>
+            <p className="mt-2 text-sm leading-relaxed">
+              The November 2026 release covers confirmed medication schedules,
+              ten-input risk assessments, explicit portal read receipts, reconciled
+              reports and the guided fictional case in the sandbox.{' '}
+              <a href={`https://github.com/vickymuller-md/heartland-app/releases/tag/${APP_ARCHIVE_VERSION}`} className="underline underline-offset-4">
+                Read the software release notes
+              </a>
+            </p>
           </li>
           <li>
             <strong>OSF</strong>:{" "}

@@ -93,7 +93,8 @@ Protocol content and research materials are available through the existing depos
 - **Cureus** (peer-reviewed, indexed PubMed/PMC/Scopus)
 - **Zenodo** (protocol): [`10.5281/zenodo.23076249`](https://doi.org/10.5281/zenodo.23076249)
 - **Zenodo** (software, all versions): [`10.5281/zenodo.19600593`](https://doi.org/10.5281/zenodo.19600593)
-- **Zenodo** (software v1.10.1): [`10.5281/zenodo.23076550`](https://doi.org/10.5281/zenodo.23076550), source commit `b06c0e2`. Later runtime updates add the verified citation and align the About-page intensive-optimization label with Toolkit V3.4.1; they do not replace that immutable archive or change clinical calculations.
+- **Zenodo** (software v1.11.0) — source commit `0a7a91e`. [Version DOI](https://doi.org/10.5281/zenodo.24404128) · [Release notes](./reference/RELEASE_NOTES_v1.11.0.md)
+- The previous software release remains available. [App v1.10.1 archive](https://doi.org/10.5281/zenodo.23076550)
 - **OSF**: [`10.17605/OSF.IO/YUSGH`](https://doi.org/10.17605/OSF.IO/YUSGH)
 - **medRxiv**: three complementary systematic reviews registered in PROSPERO
 
