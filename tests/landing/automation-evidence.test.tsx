@@ -167,7 +167,7 @@ describe("composed public home", () => {
     expect(preparation.getByText(/No patient pilot, institutional adoption or clinical outcome is demonstrated/)).toBeVisible();
     const modules = screen.getByRole("region", { name: "Eight modules, one shared protocol." });
     expect(within(modules).getAllByRole("article")).toHaveLength(8);
-    expect(within(modules).getAllByText("Educational module")).toHaveLength(8);
+    expect(within(modules).getAllByRole("heading", { level: 3 })).toHaveLength(8);
     expect(within(screen.getByTestId("published-capabilities")).getAllByRole("article")).toHaveLength(9);
     expect(container.querySelectorAll("details")).toHaveLength(5);
     for (const label of [`Published release · ${APP_VERSION}`, "Synthetic walkthrough · No clinical care", "Deployment expansion · Controlled evaluation only"]) {

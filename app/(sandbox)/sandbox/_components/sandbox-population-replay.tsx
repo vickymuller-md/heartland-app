@@ -34,12 +34,12 @@ const GRID: Record<PopulationSize, { cols: number; rows: number }> = {
 };
 
 const CATEGORY_COLORS: Record<PopulationEventCategory, string> = {
-  routine: '#34d399',
-  retry: '#60a5fa',
-  no_answer: '#64748b',
-  warning: '#fbbf24',
-  critical: '#f87171',
-  adherence: '#c084fc',
+  routine: '#8cbba0',
+  retry: '#9db6cc',
+  no_answer: '#99a29c',
+  warning: '#e4b969',
+  critical: '#ee9b8d',
+  adherence: '#c4adbc',
 };
 const CATEGORY_CODE: Record<PopulationEventCategory, number> = {
   routine: 1, retry: 2, no_answer: 3, warning: 4, critical: 5, adherence: 6,
@@ -373,17 +373,17 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone, initialResult 
   const outsideReviewQueuePct = counts?.automatedPct;
   const categoryRows = [
     { key: 'routine', label: 'Routine on first response', value: partial.routine, tone: 'text-emerald-200' },
-    { key: 'retry', label: 'Answered on simulated retry', value: partial.retried, tone: 'text-blue-200' },
+    { key: 'retry', label: 'Answered on simulated retry', value: partial.retried, tone: 'text-slate-200' },
     { key: 'no_answer', label: 'Unanswered after simulated retry', value: partial.unreachable, tone: 'text-slate-200' },
     { key: 'critical', label: 'Critical flags', value: partial.critical, tone: 'text-red-200' },
     { key: 'warning', label: 'Warning flags', value: partial.warning, tone: 'text-amber-200' },
-    { key: 'adherence', label: 'Adherence gaps · pharmacist workflow', value: partial.adherence, tone: 'text-purple-200' },
+    { key: 'adherence', label: 'Adherence gaps · pharmacist workflow', value: partial.adherence, tone: 'text-slate-200' },
   ];
 
   return (
-    <div className="min-w-0 rounded-2xl border border-white/15 bg-white/5 p-3 [overflow-wrap:anywhere] sm:p-5" data-testid="population-funnel">
+    <div className="min-w-0 rounded-xl bg-slate-950 p-4 text-white [overflow-wrap:anywhere] sm:p-6" data-testid="population-funnel">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-blue-200">
+        <p className="text-sm font-medium text-slate-200">
           Overnight round · Day {dayIndex + 1} of 5
           {scene !== 'idle' && (
             <span className="ml-2 rounded bg-white/10 px-1.5 py-0.5 font-mono text-xs text-slate-200" data-testid="population-clock">{formatClock(frame.minute)}</span>
@@ -400,12 +400,18 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone, initialResult 
             </Button>
           </span>
         )}
-        {scene === 'idle' && (
-          <Button size="sm" className="min-h-11 bg-blue-600 px-4 font-bold text-white hover:bg-blue-500" onClick={run} data-testid="population-run">
-            <Play className="mr-1.5 size-4" /> Run the overnight round
-          </Button>
-        )}
       </div>
+      {scene === 'idle' && (
+        <div className="mt-3 border-t border-white/20 pt-3">
+          <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="font-display text-[2.75rem] leading-none tabular-nums sm:text-[3.5rem]">{numberFormat.format(size)}</span>
+            <span className="text-sm text-slate-200">scheduled check-ins</span>
+          </p>
+          <Button className="mt-3 border-transparent bg-white text-slate-950 hover:bg-slate-100" onClick={run} data-testid="population-run">
+            <Play className="size-4" aria-hidden="true" /> Run the overnight round
+          </Button>
+        </div>
+      )}
 
       <div aria-hidden={running} hidden={scene === 'idle'}>
         {scene !== 'idle' && (

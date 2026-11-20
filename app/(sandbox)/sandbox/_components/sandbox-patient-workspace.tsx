@@ -5,7 +5,8 @@ import { SANDBOX_PATIENTS } from '@/lib/sandbox/fixtures';
 import type { SandboxPatient } from '@/lib/sandbox/types';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { SectionHeading, SyntheticBanner, WeightTrend } from './sandbox-ui';
+import { WeightTrend } from '@/components/shared/weight-trend';
+import { SectionHeading, SyntheticBanner } from './sandbox-ui';
 
 export function SandboxPatientWorkspace({ patient, documentedActions, onPatientChange, onDocumentAction }: {
   patient: SandboxPatient;

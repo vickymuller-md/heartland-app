@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, ChevronRight, BookOpen, Users, Activity, Phone, ClipboardCheck, Bell, FileText, Radio, Pill, BarChart2, ClipboardList, Stethoscope, CreditCard, FileBarChart2 } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { ProtocolAssistant } from './protocol-assistant';
 import { ImplementationPrinciples, LocalReadinessGuide, ReferralContextGuide } from '@/components/implementation/implementation-guidance';
 import { QUALITY_METRIC_LIMIT } from '@/lib/implementation/constants';
@@ -13,26 +13,26 @@ import { QUALITY_METRICS } from '@/lib/tier-selector/constants';
 /* ------------------------------------------------------------------ */
 
 const TOC = [
-  { id: 'overview', label: 'System Overview', icon: BookOpen },
-  { id: 'getting-started', label: 'Getting Started', icon: Users },
-  { id: 'implementation-readiness', label: 'Local Readiness & Training', icon: ClipboardCheck },
-  { id: 'patient-onboarding', label: 'Patient Onboarding', icon: Users },
-  { id: 'daily-workflow-patient', label: 'Patient Daily Workflow', icon: Activity },
-  { id: 'daily-workflow-provider', label: 'Provider Daily Workflow', icon: Bell },
-  { id: 'risk-calculator', label: 'Risk Stratification', icon: Activity },
-  { id: 'gdmt-pathway', label: 'GDMT Optimization', icon: Pill },
-  { id: 'titration', label: 'Telephone Titration', icon: Phone },
-  { id: 'remote-monitoring', label: 'Remote Monitoring & Tracks', icon: Radio },
-  { id: 'track-b', label: 'Track B (Analog Pathway)', icon: FileText },
-  { id: 'alerts', label: 'Alerts & Triage', icon: Bell },
-  { id: 'discharge', label: 'Discharge & Follow-up', icon: ClipboardList },
-  { id: 'messaging', label: 'Patient Messaging', icon: FileText },
-  { id: 'sbar', label: 'SBAR Handoff', icon: ClipboardCheck },
-  { id: 'comorbidity', label: 'Comorbidity Manager', icon: Stethoscope },
-  { id: 'quality-metrics', label: 'Quality Metrics', icon: BarChart2 },
-  { id: 'reports', label: 'Reports & Export', icon: FileBarChart2 },
-  { id: 'pocket-cards', label: 'Pocket Cards', icon: CreditCard },
-  { id: 'troubleshooting', label: 'Troubleshooting & FAQ', icon: BookOpen },
+  { id: 'overview', label: 'System Overview' },
+  { id: 'getting-started', label: 'Getting Started' },
+  { id: 'implementation-readiness', label: 'Local Readiness & Training' },
+  { id: 'patient-onboarding', label: 'Patient Onboarding' },
+  { id: 'daily-workflow-patient', label: 'Patient Daily Workflow' },
+  { id: 'daily-workflow-provider', label: 'Provider Daily Workflow' },
+  { id: 'risk-calculator', label: 'Risk Stratification' },
+  { id: 'gdmt-pathway', label: 'GDMT Optimization' },
+  { id: 'titration', label: 'Telephone Titration' },
+  { id: 'remote-monitoring', label: 'Remote Monitoring & Tracks' },
+  { id: 'track-b', label: 'Track B (Analog Pathway)' },
+  { id: 'alerts', label: 'Alerts & Triage' },
+  { id: 'discharge', label: 'Discharge & Follow-up' },
+  { id: 'messaging', label: 'Patient Messaging' },
+  { id: 'sbar', label: 'SBAR Handoff' },
+  { id: 'comorbidity', label: 'Comorbidity Manager' },
+  { id: 'quality-metrics', label: 'Quality Metrics' },
+  { id: 'reports', label: 'Reports & Export' },
+  { id: 'pocket-cards', label: 'Pocket Cards' },
+  { id: 'troubleshooting', label: 'Troubleshooting & FAQ' },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -41,10 +41,9 @@ const TOC = [
 
 const GuideSection = createContext<{ active: string; select: (id: string) => void }>({ active: '', select: () => undefined });
 
-function Section({ id, title, icon: Icon, children }: {
+function Section({ id, title, children }: {
   id: string;
   title: string;
-  icon: React.ComponentType<{ className?: string }>;
   children: React.ReactNode;
 }) {
   const { active, select } = useContext(GuideSection);
@@ -57,7 +56,6 @@ function Section({ id, title, icon: Icon, children }: {
         aria-controls={`${id}-content`}
         className="flex min-h-12 w-full items-center gap-3 text-left group"
       >
-        <Icon className="h-6 w-6 text-blue-600 shrink-0" />
         <span className="text-lg font-semibold text-gray-900 flex-1">{title}</span>
         {open ? <ChevronDown className="h-5 w-5 text-gray-600" /> : <ChevronRight className="h-5 w-5 text-gray-600" />}
       </button></h2>
@@ -131,20 +129,20 @@ export function GuideContent() {
     <GuideSection.Provider value={{ active, select }}>
     <div className="print:text-sm">
       {/* Header */}
-      <div className="mb-5 text-center">
-        <p className="text-sm font-semibold uppercase tracking-widest text-blue-600 mb-2">HEARTLAND Protocol</p>
-        <h1 className="text-3xl font-bold text-gray-900 mb-3">HEARTLAND User Guide</h1>
-        <p className="text-gray-600 max-w-2xl mx-auto">
+      <div className="mb-6 border-b border-border pb-5">
+        <p className="section-kicker mb-2">HEARTLAND Protocol</p>
+        <h1 className="page-title mb-3">HEARTLAND User Guide</h1>
+        <p className="max-w-2xl text-base leading-7 text-muted-foreground">
           Explore a fictional case, find patient tasks or look up a care-team workflow.
         </p>
         <p className="text-xs text-gray-600 mt-2">Operational clarification &middot; Updated October 2026</p>
-        <p className="mx-auto mt-3 max-w-2xl text-sm text-amber-800">Use fictional information in the demonstration and during controlled evaluation. This release does not establish HIPAA readiness or compliance. For clinical operation, your organization must approve use.</p>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">Use fictional information in the demonstration and during controlled evaluation. This release does not establish HIPAA readiness or compliance. For clinical operation, your organization must approve use.</p>
       </div>
 
       <nav aria-label="Start with your task" className="mb-6 grid gap-2 sm:grid-cols-3 print:hidden">
-        <Link className="rounded-xl border border-slate-300 bg-white p-3 font-semibold text-blue-800" href="/sandbox">Visitor · Follow a sample case</Link>
-        <a className="rounded-xl border border-slate-300 bg-white p-3 font-semibold text-blue-800" href="#daily-workflow-patient">Patient · Find today’s tasks</a>
-        <a className="rounded-xl border border-slate-300 bg-white p-3 font-semibold text-blue-800" href="#daily-workflow-provider">Team · Review the daily queue</a>
+        <Link className="panel inline-flex items-center p-4 text-sm font-semibold text-primary hover:border-input" href="/sandbox">Visitor · Follow a sample case</Link>
+        <a className="panel inline-flex items-center p-4 text-sm font-semibold text-primary hover:border-input" href="#daily-workflow-patient">Patient · Find today’s tasks</a>
+        <a className="panel inline-flex items-center p-4 text-sm font-semibold text-primary hover:border-input" href="#daily-workflow-provider">Team · Review the daily queue</a>
       </nav>
 
       {/* Reference assistant over the published implementation content */}
@@ -158,7 +156,7 @@ export function GuideContent() {
         </nav>
       </details>
 
-      <Section id="implementation-readiness" title="Local Readiness & Training" icon={ClipboardCheck}>
+      <Section id="implementation-readiness" title="Local Readiness & Training">
         <ImplementationPrinciples />
         <LocalReadinessGuide />
       </Section>
@@ -166,7 +164,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       {/*  1. SYSTEM OVERVIEW                                          */}
       {/* ============================================================ */}
-      <Section id="overview" title="System Overview" icon={BookOpen}>
+      <Section id="overview" title="System Overview">
         <p>
           The HEARTLAND Protocol App is a <strong>two-sided clinical implementation platform</strong> designed
           specifically for primary care providers managing heart failure (HF) patients in rural and
@@ -215,7 +213,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       {/*  2. GETTING STARTED                                          */}
       {/* ============================================================ */}
-      <Section id="getting-started" title="Getting Started" icon={Users}>
+      <Section id="getting-started" title="Getting Started">
         <h3 className="font-semibold text-gray-900 mb-2">Creating Your Provider Account</h3>
         <div className="space-y-4">
           <Step n={1} title="Register at the app">
@@ -267,7 +265,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       {/*  3. PATIENT ONBOARDING                                       */}
       {/* ============================================================ */}
-      <Section id="patient-onboarding" title="Patient Onboarding" icon={Users}>
+      <Section id="patient-onboarding" title="Patient Onboarding">
         <p>
           After a patient is linked to your account, an <strong>&quot;Setup Incomplete&quot;</strong> badge appears on their
           card in the Dashboard. The onboarding wizard ensures every patient has a complete clinical profile before
@@ -310,7 +308,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       {/*  4. PATIENT DAILY WORKFLOW                                   */}
       {/* ============================================================ */}
-      <Section id="daily-workflow-patient" title="Patient Daily Workflow" icon={Activity}>
+      <Section id="daily-workflow-patient" title="Patient Daily Workflow">
         <p>
           Educate your patients on the following daily routine. This is what they see when they open the app each day.
         </p>
@@ -368,7 +366,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       {/*  5. PROVIDER DAILY WORKFLOW                                  */}
       {/* ============================================================ */}
-      <Section id="daily-workflow-provider" title="Provider Daily Workflow" icon={Bell}>
+      <Section id="daily-workflow-provider" title="Provider Daily Workflow">
         <p>Here is the recommended daily routine for managing your HF patient panel:</p>
 
         <div className="space-y-4">
@@ -410,7 +408,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       {/*  6. RISK STRATIFICATION CALCULATOR                           */}
       {/* ============================================================ */}
-      <Section id="risk-calculator" title="Risk Stratification Calculator" icon={Activity}>
+      <Section id="risk-calculator" title="Risk Stratification Calculator">
         <p>
           The HEARTLAND Risk Score is a 10-variable tool that stratifies patients into Low, Moderate, or High risk
           tiers. Unlike MAGGIC or GWTG-HF scores, it includes <strong>distance to cardiology</strong> and
@@ -466,7 +464,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       {/*  7. GDMT OPTIMIZATION                                        */}
       {/* ============================================================ */}
-      <Section id="gdmt-pathway" title="GDMT Optimization Pathway" icon={Pill}>
+      <Section id="gdmt-pathway" title="GDMT Optimization Pathway">
         <p>
           The GDMT Pathway provides evidence-based medication optimization guidance for both HFrEF (LVEF &le;40%)
           and HFpEF (LVEF &gt;40%). Reference content incorporates the published HEARTLAND Toolkit V3.4; local-policy and prototype limitations remain applicable.
@@ -506,7 +504,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       {/*  8. TELEPHONE TITRATION                                      */}
       {/* ============================================================ */}
-      <Section id="titration" title="Telephone Titration Checklist" icon={Phone}>
+      <Section id="titration" title="Telephone Titration Checklist">
         <p>
           The Titration Checklist is a <strong>5-step guided workflow</strong> for phone-based medication adjustment,
           based on the Hozho Trial methodology, in which phone-based titration raised 30-day GDMT class addition from 13.1% to 66.2%.
@@ -549,7 +547,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       {/*  9. REMOTE MONITORING & TRACKS                               */}
       {/* ============================================================ */}
-      <Section id="remote-monitoring" title="Remote Monitoring & Track Assignment" icon={Radio}>
+      <Section id="remote-monitoring" title="Remote Monitoring & Track Assignment">
         <p>
           The Remote Monitoring tool helps you assign patients to the appropriate monitoring track and provides
           billing code navigation with explicit verification requirements.
@@ -590,7 +588,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       {/*  10. TRACK B (ANALOG)                                        */}
       {/* ============================================================ */}
-      <Section id="track-b" title="Track B: Analog Monitoring Pathway" icon={FileText}>
+      <Section id="track-b" title="Track B: Analog Monitoring Pathway">
         <p>
           Track B is designed for patients without smartphones &mdash; common in rural and elderly populations.
           The provider manages all digital interactions on behalf of the patient.
@@ -634,7 +632,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       {/*  11. ALERTS & TRIAGE                                         */}
       {/* ============================================================ */}
-      <Section id="alerts" title="Alerts & Triage" icon={Bell}>
+      <Section id="alerts" title="Alerts & Triage">
         <p>
           The software separates observations, evaluation, notification intent, attempts and human review.
           External notification dispatch and institution-gated background processes remain disabled in this release.
@@ -681,7 +679,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       {/*  12. DISCHARGE & FOLLOW-UP                                   */}
       {/* ============================================================ */}
-      <Section id="discharge" title="Discharge Planning & Post-Discharge Follow-up" icon={ClipboardList}>
+      <Section id="discharge" title="Discharge Planning & Post-Discharge Follow-up">
         <p>
           The Discharge module guides you through evidence-based discharge transitions per the HEARTLAND Protocol
           Module 4, including task-shifting and structured follow-up scheduling.
@@ -729,7 +727,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       {/*  13. MESSAGING                                               */}
       {/* ============================================================ */}
-      <Section id="messaging" title="Patient Messaging" icon={FileText}>
+      <Section id="messaging" title="Patient Messaging">
         <p>
           The structured messaging system lets you send one-way messages to patients. Messages appear as cards on
           the patient&apos;s Today page. The patient can select “Mark as read” to record a confirmation. A message available in the portal carries no evidence of external delivery.
@@ -771,7 +769,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       {/*  14. SBAR HANDOFF                                            */}
       {/* ============================================================ */}
-      <Section id="sbar" title="SBAR Handoff Generator" icon={ClipboardCheck}>
+      <Section id="sbar" title="SBAR Handoff Generator">
         <p>
           The SBAR (Situation, Background, Assessment, Recommendation) generator creates structured clinical
           handoff documents auto-populated from the patient&apos;s record. Use this when referring a patient to a
@@ -803,7 +801,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       {/*  15. COMORBIDITY MANAGER                                     */}
       {/* ============================================================ */}
-      <Section id="comorbidity" title="Comorbidity Manager" icon={Stethoscope}>
+      <Section id="comorbidity" title="Comorbidity Manager">
         <p>
           The Comorbidity Manager provides HF-specific guidance for managing common comorbidities. For each
           condition, it shows key considerations, recommended actions, and medication interactions with GDMT.
@@ -839,7 +837,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       {/*  16. QUALITY METRICS                                         */}
       {/* ============================================================ */}
-      <Section id="quality-metrics" title="Quality Metrics Dashboard" icon={BarChart2}>
+      <Section id="quality-metrics" title="Quality Metrics Dashboard">
         <p>
           Inspect monthly process measures with their denominators and missing-data limitations.
           Historical tier-specific targets shown by legacy displays are service-planning examples, not individual treatment goals.
@@ -873,7 +871,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       {/*  17. REPORTS & EXPORT                                        */}
       {/* ============================================================ */}
-      <Section id="reports" title="Reports & Data Export" icon={FileBarChart2}>
+      <Section id="reports" title="Reports & Data Export">
         <p>
           Generate reports for clinical documentation, NIW evidence, and quality improvement.
         </p>
@@ -902,7 +900,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       {/*  18. POCKET CARDS                                            */}
       {/* ============================================================ */}
-      <Section id="pocket-cards" title="Pocket Card Library" icon={CreditCard}>
+      <Section id="pocket-cards" title="Pocket Card Library">
         <p>
           The Pocket Card Library provides ten educational reference cards. Check each card&apos;s version and prototype/distribution limits before use; library availability is not authorization for direct patient care.
         </p>
@@ -915,7 +913,7 @@ export function GuideContent() {
       {/* ============================================================ */}
       {/*  19. TROUBLESHOOTING & FAQ                                   */}
       {/* ============================================================ */}
-      <Section id="troubleshooting" title="Troubleshooting & FAQ" icon={BookOpen}>
+      <Section id="troubleshooting" title="Troubleshooting & FAQ">
         <h3 className="font-semibold text-gray-900 mb-3">Frequently Asked Questions</h3>
         <div className="space-y-4">
           <div>

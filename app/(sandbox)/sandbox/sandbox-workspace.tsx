@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Activity, BarChart3, BookOpenCheck, ClipboardList, HeartPulse, PhoneCall, RotateCcw, Sparkles, Stethoscope, Users } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import { trackProductEvent } from '@/lib/product-analytics/actions';
 import { getPublicDisseminationContext } from '@/lib/product-analytics/public-context';
 import { OUTREACH_TRANSCRIPTS, outreachWorkItems, type SimulatedCallTranscript } from '@/lib/sandbox-ai/fixtures';
@@ -25,7 +25,6 @@ import { SandboxCopilot } from './_components/sandbox-copilot';
 
 const SANDBOX_STORAGE_KEY = 'heartland_synthetic_sandbox_v2';
 const MAX_LOCAL_AGE_MS = 7 * 86_400_000;
-const SECTION_ICONS = [Stethoscope, Sparkles, ClipboardList, PhoneCall, Activity, BookOpenCheck, Users, HeartPulse, BarChart3];
 const TASK_STATUSES: SandboxTaskStatus[] = ['open', 'reviewed', 'actioned', 'awaiting', 'closed'];
 const PATIENT_CHECK_IN_IDS = new Set(SANDBOX_PATIENTS.flatMap((patient) =>
   ['weight', 'meds', 'symptoms', 'education', 'message', 'message-read', 'call'].map((suffix) => `${patient.id}-${suffix}`),
@@ -524,40 +523,48 @@ export function SandboxWorkspace() {
       disabled={!hydrated}
       className="min-w-0 space-y-4 aria-busy:[&_button]:cursor-wait aria-busy:[&_button]:opacity-60"
     >
-      <nav className="-mx-4 border-y bg-slate-50 px-4 py-3 sm:-mx-6 sm:px-6" aria-label="Sandbox product navigation">
-        <div className="mx-auto max-w-7xl">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex min-w-0 flex-wrap items-center gap-3">
-              <div><p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Sandbox coverage</p><p className="text-sm font-bold text-slate-950">{demo.visitedSections.length}/{SANDBOX_SECTIONS.length} areas explored</p></div>
-              <span data-testid="sandbox-day-badge" className="inline-flex max-w-full items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-sm font-bold text-violet-800">Day {demo.dayIndex + 1} of {SANDBOX_DAY_COUNT}</span>
+      <nav className="border-b border-border py-3" aria-label="Sandbox product navigation">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            <span aria-label="Sandbox coverage">{demo.visitedSections.length}/{SANDBOX_SECTIONS.length} areas explored</span>
+            <span data-testid="sandbox-day-badge" className="border-l border-border pl-4 font-semibold text-foreground">Day {demo.dayIndex + 1} of {SANDBOX_DAY_COUNT}</span>
+            <div aria-hidden="true" className="hidden h-1 w-20 overflow-hidden rounded-full bg-border sm:block">
+              <div className="h-full bg-primary transition-all motion-reduce:transition-none" style={{ width: `${progress}%` }} />
             </div>
-            <div className="flex min-w-0 flex-wrap items-center gap-3"><div aria-hidden="true" className="hidden h-2 w-40 overflow-hidden rounded-full bg-slate-200 sm:block"><div className="h-full rounded-full bg-violet-600 transition-all motion-reduce:transition-none" style={{ width: `${progress}%` }} /></div><Button size="sm" variant="ghost" className="h-auto min-h-11 max-w-full whitespace-normal py-2 text-sm" onClick={reset}><RotateCcw className="mr-1 size-4" /> Reset</Button></div>
           </div>
-          <button type="button" aria-expanded={menuOpen} aria-controls="sandbox-area-list" onClick={() => setMenuOpen(!menuOpen)} className="mt-1 inline-flex min-h-11 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 lg:hidden">
-            {menuOpen ? 'Close areas' : 'Explore all 9 areas'}
-          </button>
-          <div id="sandbox-area-list" className={`mt-2 grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-2 lg:grid ${menuOpen ? 'grid' : 'hidden'}`}>
-            {SANDBOX_SECTIONS.map((section, index) => {
-              const Icon = SECTION_ICONS[index];
-              const active = demo.selectedSection === section.id;
-              return <button key={section.id} type="button" data-testid={`sandbox-nav-${section.id}`} aria-current={active ? 'page' : undefined} onClick={() => navigate(section.id)} className={`inline-flex min-h-11 min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-lg px-3 py-2 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-700 motion-reduce:transition-none ${active ? 'bg-slate-950 text-white' : 'border bg-white text-slate-700 hover:border-violet-300'}`}><Icon className="size-4 shrink-0" aria-hidden="true" /><span className="min-w-0 [overflow-wrap:anywhere]">{section.shortLabel}</span>{section.id === 'copilot' && !demo.visitedSections.includes('copilot') && <span aria-hidden="true" className="rounded-full bg-violet-100 px-1.5 py-0.5 text-xs font-bold text-violet-800">NEW</span>}</button>;
-            })}
-          </div>
+          <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={reset}>
+            <RotateCcw className="size-4" aria-hidden="true" /> Reset
+          </Button>
+        </div>
+        <button type="button" aria-expanded={menuOpen} aria-controls="sandbox-area-list" onClick={() => setMenuOpen(!menuOpen)} className="inline-flex min-h-11 items-center rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground hover:border-input lg:hidden">
+          {menuOpen ? 'Close areas' : 'Explore all 9 areas'}
+        </button>
+        <div id="sandbox-area-list" className={`mt-2 grid-cols-[repeat(auto-fit,minmax(min(100%,7rem),1fr))] gap-1 lg:grid lg:grid-cols-9 ${menuOpen ? 'grid' : 'hidden'}`}>
+          {SANDBOX_SECTIONS.map((section) => {
+            const active = demo.selectedSection === section.id;
+            return (
+              <button key={section.id} type="button" data-testid={`sandbox-nav-${section.id}`}
+                aria-current={active ? 'page' : undefined} onClick={() => navigate(section.id)}
+                className={`min-h-11 min-w-0 border-b-2 px-2 py-2 text-sm [overflow-wrap:anywhere] focus-visible:outline-2 focus-visible:outline-ring ${active ? 'border-primary font-semibold text-primary' : 'border-transparent text-muted-foreground hover:border-input hover:text-foreground'}`}>
+                {section.shortLabel}
+              </button>
+            );
+          })}
         </div>
       </nav>
 
       <p className="sr-only" role="status" aria-live="polite">
         Now viewing {SANDBOX_SECTIONS[currentSectionIndex]?.title ?? 'the sandbox'}.
       </p>
-      <div ref={contentRef} role="region" aria-label={`Sandbox area: ${SANDBOX_SECTIONS[currentSectionIndex]?.title ?? 'the sandbox'}`} tabIndex={-1} className="min-w-0 scroll-mt-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-700">{sectionContent}</div>
+      <div ref={contentRef} role="region" aria-label={`Sandbox area: ${SANDBOX_SECTIONS[currentSectionIndex]?.title ?? 'the sandbox'}`} tabIndex={-1} className="min-w-0 scroll-mt-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{sectionContent}</div>
 
       {dayToast && (
-        <div role="status" data-testid="day-toast" className="fixed bottom-4 left-1/2 z-50 w-[min(92vw,32rem)] -translate-x-1/2 rounded-xl border border-violet-300 bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-xl">
+        <div role="status" data-testid="day-toast" className="fixed bottom-4 left-1/2 z-50 w-[min(92vw,32rem)] -translate-x-1/2 rounded-xl border border-border bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-xl">
           {dayToast}
         </div>
       )}
 
-      <nav className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-white p-4" aria-label="Guided sandbox tour">
+      <nav className="flex flex-wrap items-center justify-between gap-3 border-t border-border py-5" aria-label="Guided sandbox tour">
         <div className="min-w-0 max-w-full">{previousSection && <Button variant="outline" className="h-auto min-h-11 max-w-full whitespace-normal py-2" onClick={() => navigate(previousSection.id)}>← {previousSection.title}</Button>}</div>
         <p className="text-center text-sm font-semibold uppercase tracking-wide text-slate-500">Step {currentSectionIndex + 1} of {SANDBOX_SECTIONS.length}</p>
         <div className="min-w-0 max-w-full">{nextSection ? <Button className="h-auto min-h-11 max-w-full whitespace-normal py-2" onClick={() => navigate(nextSection.id)}>{nextSection.title} →</Button> : <Button className="h-auto min-h-11 max-w-full whitespace-normal py-2" onClick={() => navigate('command')}>Return to Command Center</Button>}</div>

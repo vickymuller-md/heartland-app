@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function GuidePage() {
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 print:max-w-none print:px-8">
+    <div className="mx-auto max-w-4xl py-2 print:max-w-none print:px-8">
       <GuideContent />
       <ProviderPageDisclaimer className="mt-8" />
     </div>

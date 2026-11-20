@@ -11,14 +11,14 @@ export function ScaleDemo() {
 
   return (
     <section aria-labelledby="scale-title" className="border-b border-grid bg-terminal">
-      <div className="mx-auto max-w-[1200px] px-6 py-24 md:py-32">
+      <div className="mx-auto max-w-[1200px] px-6 py-14 md:py-20">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="font-editorial text-sm uppercase tracking-[0.14em] text-alert">
+          <p className="font-editorial text-sm uppercase tracking-[0.14em] text-signal">
             The scale demonstration
           </p>
           <h2 id="scale-title" className="mt-5 text-[clamp(1.85rem,3.5vw,2.85rem)] font-editorial font-semibold leading-[1.15] tracking-[-0.015em] text-cool">
             Explore scale.{" "}
-            <span className="font-display italic font-normal text-alert">
+            <span className="font-display italic font-normal text-signal">
               Keep the unknowns visible.
             </span>
           </h2>
@@ -30,7 +30,7 @@ export function ScaleDemo() {
         </div>
 
         <div className="mt-14 grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] gap-6">
-          <article aria-labelledby="scale-total" className="min-w-0 rounded-2xl border border-grid bg-panel p-6 md:p-8">
+          <article aria-labelledby="scale-total" className="min-w-0 rounded-xl border border-grid bg-panel p-6 md:p-8">
             <p className="font-editorial text-4xl font-semibold leading-tight tracking-[-0.02em] text-cool">
               {numberFormat.format(day.counts.total)}
             </p>
@@ -41,8 +41,8 @@ export function ScaleDemo() {
               Included in this simulated round; not a count of completed care.
             </p>
           </article>
-          <article aria-labelledby="scale-queue" className="min-w-0 rounded-2xl border border-grid bg-panel p-6 md:p-8">
-            <p className="font-editorial text-4xl font-semibold leading-tight tracking-[-0.02em] text-alert">
+          <article aria-labelledby="scale-queue" className="min-w-0 rounded-xl border border-grid bg-panel p-6 md:p-8">
+            <p className="font-editorial text-4xl font-semibold leading-tight tracking-[-0.02em] text-signal">
               {numberFormat.format(day.counts.reviewQueue)}
             </p>
             <h3 id="scale-queue" className="mt-5 font-editorial text-lg font-medium text-cool">
@@ -52,7 +52,7 @@ export function ScaleDemo() {
               A routing count; it does not demonstrate completed clinical reviews.
             </p>
           </article>
-          <article aria-labelledby="scale-unanswered" className="min-w-0 rounded-2xl border border-grid bg-panel p-6 md:p-8">
+          <article aria-labelledby="scale-unanswered" className="min-w-0 rounded-xl border border-grid bg-panel p-6 md:p-8">
             <p className="font-editorial text-4xl font-semibold leading-tight tracking-[-0.02em] text-cool">
               {numberFormat.format(day.counts.unresolvedNoAnswer)}
             </p>
@@ -75,7 +75,7 @@ export function ScaleDemo() {
         <div className="mt-12 text-center">
           <Link
             href="/sandbox"
-            className="inline-flex min-h-12 max-w-full items-center rounded-xl bg-alert px-6 py-3 font-editorial text-base font-semibold text-terminal transition-colors hover:opacity-90"
+            className="inline-flex min-h-12 max-w-full items-center rounded-xl bg-signal px-6 py-3 font-editorial text-base font-semibold text-terminal transition-colors hover:opacity-90"
           >
             Run the overnight round yourself →
           </Link>

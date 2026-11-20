@@ -25,7 +25,7 @@ describe('sandbox layout presentation', () => {
     main.focus();
     expect(main).toHaveFocus();
     expect(screen.getByRole('link', { name: 'Skip to main content' })).toHaveAttribute('href', '#main-content');
-    expect(screen.getByRole('link', { name: /HEARTLAND/ })).toHaveAttribute('href', '/sandbox');
+    expect(screen.getByRole('link', { name: /^Heartland Sandbox$/i })).toHaveAttribute('href', '/sandbox');
     const account = within(screen.getByRole('navigation', { name: 'Sandbox account options' }));
     expect(account.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login');
     expect(account.getByRole('link', { name: 'Create account' })).toHaveAttribute('href', '/register?mode=tester');

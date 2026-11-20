@@ -48,17 +48,14 @@ const RESPONSIBILITY_LAYERS = [
   {
     label: "AI language",
     detail: "Converses, extracts, drafts, and narrates",
-    accent: "bg-violet-600",
   },
   {
     label: "Registered rules",
     detail: "Rules and gap policies set simulated routing",
-    accent: "bg-signal",
   },
   {
     label: "Human review",
     detail: "Verifies evidence and authorizes action",
-    accent: "bg-alert",
   },
 ];
 
@@ -113,15 +110,15 @@ const CAPABILITIES = [
 export function AutomationEvidence() {
   return (
     <section id="evidence-lab" className="border-b border-grid bg-panel font-editorial [overflow-wrap:anywhere]" data-testid="landing-evidence-lab">
-      <div className="mx-auto max-w-[1200px] px-6 py-24 md:py-32">
+      <div className="mx-auto max-w-[1200px] px-6 py-14 md:py-20">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:items-end">
           <div className="lg:col-span-7">
-            <p className="text-sm uppercase tracking-[0.18em] text-alert">
+            <p className="text-sm uppercase tracking-[0.18em] text-signal">
               The Evidence Lab
             </p>
             <h2 className="mt-5 max-w-3xl text-[clamp(2rem,4.2vw,3.5rem)] font-editorial font-semibold leading-[1.05] tracking-[-0.02em] text-cool">
               See what the system does —{" "}
-              <span className="font-display italic font-normal text-alert">
+              <span className="font-display italic font-normal text-signal">
                 and what it never decides.
               </span>
             </h2>
@@ -134,9 +131,8 @@ export function AutomationEvidence() {
 
           <div data-testid="responsibility-layers" className="grid grid-cols-1 gap-3 lg:col-span-5">
             {RESPONSIBILITY_LAYERS.map((layer) => (
-              <div key={layer.label} className="rounded-2xl border border-grid bg-terminal p-4">
+              <div key={layer.label} className="rounded-xl border border-grid bg-terminal p-4">
                 <div className="flex items-center gap-2">
-                  <span className={`h-2 w-2 rounded-full ${layer.accent}`} aria-hidden="true" />
                   <p className="text-sm font-semibold text-cool">
                     {layer.label}
                   </p>
@@ -149,8 +145,8 @@ export function AutomationEvidence() {
           </div>
         </div>
 
-        <div data-testid="synthetic-walkthrough" className="mt-14 rounded-3xl border border-grid bg-terminal p-5 md:p-8">
-          <p className="text-sm font-semibold text-alert">Synthetic walkthrough · No clinical care</p>
+        <div data-testid="synthetic-walkthrough" className="mt-14 rounded-xl border border-grid bg-terminal p-5 md:p-8">
+          <p className="text-sm font-semibold text-signal">Synthetic walkthrough · No clinical care</p>
           <h3 className="mt-3 text-2xl font-semibold text-cool">One answer, five visible handoffs.</h3>
           <p className="mt-4 max-w-3xl text-base leading-relaxed text-cool/80">
             Open each step to follow a fixed fictional example. This explanation does not run AI,
@@ -159,16 +155,16 @@ export function AutomationEvidence() {
           <ol className="mt-8 space-y-3">
             {FLOW_STEPS.map((step) => (
               <li key={step.number}>
-                <details open={step.number === "01"} className="group rounded-2xl border border-grid bg-panel">
-                  <summary className="min-h-12 cursor-pointer rounded-2xl px-5 py-5 text-cool marker:text-alert focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-alert">
-                    <span className="ml-2 text-sm font-semibold text-alert">{step.number}</span>{" "}
+                <details open={step.number === "01"} className="group rounded-xl border border-grid bg-panel">
+                  <summary className="min-h-12 cursor-pointer rounded-2xl px-5 py-5 text-cool marker:text-signal focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-signal">
+                    <span className="ml-2 text-sm font-semibold text-signal">{step.number}</span>{" "}
                     <span className="ml-2 text-lg font-semibold">{step.title}</span>
                     <span className="mt-2 block text-base leading-relaxed text-cool/80">{step.body}</span>
                   </summary>
                   <dl className="grid gap-5 border-t border-grid px-5 py-5 text-base leading-relaxed md:grid-cols-3">
-                    <div><dt className="text-sm font-semibold text-alert">Source</dt><dd className="mt-2 text-cool/80">{step.source}</dd></div>
-                    <div><dt className="text-sm font-semibold text-alert">What changes</dt><dd className="mt-2 text-cool/80">{step.record}</dd></div>
-                    <div><dt className="text-sm font-semibold text-alert">Responsibility</dt><dd className="mt-2 text-cool/80">{step.owner}</dd></div>
+                    <div><dt className="text-sm font-semibold text-signal">Source</dt><dd className="mt-2 text-cool/80">{step.source}</dd></div>
+                    <div><dt className="text-sm font-semibold text-signal">What changes</dt><dd className="mt-2 text-cool/80">{step.record}</dd></div>
+                    <div><dt className="text-sm font-semibold text-signal">Responsibility</dt><dd className="mt-2 text-cool/80">{step.owner}</dd></div>
                   </dl>
                 </details>
               </li>
@@ -183,8 +179,8 @@ export function AutomationEvidence() {
         </div>
         <div data-testid="published-capabilities" className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {CAPABILITIES.map((capability) => (
-            <article key={capability.eyebrow} className="min-w-0 break-words rounded-2xl border border-grid bg-terminal p-6">
-              <p className="text-sm font-semibold text-alert">
+            <article key={capability.eyebrow} className="min-w-0 break-words rounded-xl border border-grid bg-terminal p-6">
+              <p className="text-sm font-semibold text-signal">
                 {capability.eyebrow}
               </p>
               <h3 className="mt-3 font-editorial text-[18px] font-semibold tracking-tight text-cool">
@@ -197,7 +193,7 @@ export function AutomationEvidence() {
           ))}
         </div>
 
-        <div className="mt-10 flex flex-col flex-wrap gap-5 rounded-2xl border border-alert/30 bg-alert/10 p-6 md:flex-row md:items-center md:justify-between">
+        <div className="mt-10 flex flex-col flex-wrap gap-5 rounded-2xl border border-alert/30 bg-signal/10 p-6 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0 flex-1">
             <p className="font-editorial text-[16px] font-semibold text-cool">
               Try the published synthetic workflow.
@@ -210,16 +206,16 @@ export function AutomationEvidence() {
           <Link
             href="/sandbox"
             prefetch={false}
-            className="inline-flex min-h-12 max-w-full items-center justify-center rounded-xl bg-alert px-6 py-3 text-center text-base font-semibold text-white transition-colors hover:bg-cool focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-alert"
+            className="inline-flex min-h-12 max-w-full items-center justify-center rounded-xl bg-signal px-6 py-3 text-center text-base font-semibold text-white transition-colors hover:bg-cool focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-signal"
           >
             Open the Evidence Lab →
           </Link>
         </div>
-        <aside data-testid="local-candidate" aria-labelledby="lab-candidate-title" className="mt-10 rounded-3xl border-2 border-dashed border-cool/40 bg-terminal p-6 md:p-8">
+        <aside data-testid="local-candidate" aria-labelledby="lab-candidate-title" className="mt-10 rounded-xl border-2 border-dashed border-cool/40 bg-terminal p-6 md:p-8">
           <p className="text-sm font-semibold text-cool">Implementation status · Deployed 1 October 2026</p>
           <h3 id="lab-candidate-title" className="mt-3 text-2xl font-semibold text-cool">What is deployed, what is inactive, what still needs approval.</h3>
           <p className="mt-4 max-w-3xl text-base leading-relaxed text-cool/80">A software archive, a deployment and clinical approval are different kinds of evidence. This dated summary is not a live service-status check or authorization for patient care.</p>
-          <div data-testid="recorded-checkpoint" className="mt-6 rounded-2xl border border-grid bg-panel p-5">
+          <div data-testid="recorded-checkpoint" className="mt-6 rounded-xl border border-grid bg-panel p-5">
             <p className="text-sm font-semibold text-signal">Recorded deployment checkpoint · 30 September 2026</p>
             <h4 className="mt-3 text-xl font-semibold text-cool">Laboratory submission recovery</h4>
             <dl className="mt-4 grid gap-5 text-base leading-relaxed md:grid-cols-2">

@@ -3,12 +3,21 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 test('landing exposes immediate sandbox and separate clinical access', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Heart failure care');
   await expect(page.getByRole('link', { name: /try the sandbox now/i })).toHaveAttribute('href', '/sandbox');
   await expect(page.getByRole('link', { name: /request evaluation access/i }).first()).toHaveAttribute('href', '/request-access');
   await expect(page.locator('footer').filter({ hasText: 'Heartland · App' })).toContainText(/v\d+\.\d+\.\d+/);
   await expect(page.locator('body')).not.toContainText(/not a medical device|clinical decision support|no PHI is ever collected/i);
+  const trend = page.getByRole('img', { name: /^Weight trend from/ });
+  const chartLabel = await trend.getAttribute('aria-label');
+  await page.getByRole('link', { name: 'Open the fictional patient record' }).click();
+  await expect(page.getByRole('region', { name: 'Sandbox area: Patient 360' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Monitoring', exact: true }).click();
+  await expect(trend).toHaveAttribute('aria-label', chartLabel!);
+  expect(pageErrors).toEqual([]);
 });
 
 test('complete synthetic sandbox opens without an account', async ({ page }) => {
@@ -19,8 +28,9 @@ test('complete synthetic sandbox opens without an account', async ({ page }) => 
   await expect(page.getByRole('link', { name: 'Create account' })).toHaveAttribute('href', '/register?mode=tester');
   const patient360Cta = page.getByTestId('sandbox-open-patient-360');
   await expect(patient360Cta).toBeVisible();
-  await expect(patient360Cta).toHaveClass(/text-white/);
-  await expect(patient360Cta).toHaveClass(/border-white\/25/);
+  await expect(patient360Cta).toBeEnabled();
+  await patient360Cta.click();
+  await expect(page.getByRole('region', { name: 'Sandbox area: Patient Experience' })).toBeVisible();
 
   await enterSandboxArea(page, 'daily-loop');
   await expect(page.getByTestId('sandbox-daily-loop')).toBeVisible();

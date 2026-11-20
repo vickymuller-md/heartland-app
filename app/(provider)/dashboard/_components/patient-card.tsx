@@ -30,9 +30,9 @@ const STATUS_DOT: Record<string, string> = {
 
 /** Risk tier display labels and colors */
 const TIER_STYLES: Record<string, { label: string; className: string }> = {
-  low: { label: 'Low', className: 'bg-green-100 text-green-700' },
-  moderate: { label: 'Moderate', className: 'bg-amber-100 text-amber-700' },
-  high: { label: 'High', className: 'bg-red-100 text-red-700' },
+  low: { label: 'Low', className: 'status-label status-positive' },
+  moderate: { label: 'Moderate', className: 'status-label status-warning' },
+  high: { label: 'High', className: 'status-label status-critical' },
 };
 
 function formatLastVitals(dateStr: string | null): string {
@@ -50,7 +50,7 @@ export function PatientCard({ patient }: PatientCardProps) {
 
   return (
     <Link href={`/patients/${patient.id}`} className="block group">
-      <Card className="transition-shadow duration-200 hover:shadow-md group-hover:ring-2 group-hover:ring-blue-200">
+      <Card className="transition-colors group-hover:border-input">
         <CardContent className="flex flex-col gap-3">
           {/* Top row: name + alert badge */}
           <div className="flex items-start justify-between gap-2">

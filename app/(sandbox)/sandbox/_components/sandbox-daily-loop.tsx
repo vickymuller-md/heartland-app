@@ -86,10 +86,10 @@ export function SandboxDailyLoop({ taskStates, onTaskState, onOpenPatient, onBul
 
       <section className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3" aria-label="Daily Loop synthetic metrics">
         <MetricCard label="Open" value={activeTasks.length} detail="All non-closed work." />
-        <MetricCard label="Now" value={activeTasks.filter((task) => task.priority === 'now').length} detail="Immediate review queue." tone="amber" />
-        <MetricCard label="Due today" value={activeTasks.filter((task) => task.priority === 'today').length} detail="Time-bound workflow." tone="blue" />
-        <MetricCard label="Persistent" value={activeTasks.filter((task) => task.occurrences > 1).length} detail="Coalesced repeated signals." tone="violet" />
-        <MetricCard label="Closed" value={closed} detail="Outcome required." tone="emerald" />
+        <MetricCard label="Now" value={activeTasks.filter((task) => task.priority === 'now').length} detail="Immediate review queue." />
+        <MetricCard label="Due today" value={activeTasks.filter((task) => task.priority === 'today').length} detail="Time-bound workflow." />
+        <MetricCard label="Persistent" value={activeTasks.filter((task) => task.occurrences > 1).length} detail="Coalesced repeated signals." />
+        <MetricCard label="Closed" value={closed} detail="Outcome required." />
       </section>
 
       <section className="rounded-2xl border bg-white p-3 sm:p-4" aria-label="Queue filters">

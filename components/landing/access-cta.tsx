@@ -9,21 +9,16 @@ export function AccessCta() {
   return (
     <section className="bg-terminal">
       <div className="mx-auto max-w-[1200px] px-4 py-24 sm:px-6 md:py-32">
-        <div className="relative overflow-hidden rounded-3xl bg-cool px-4 py-16 text-terminal sm:px-8 md:px-16 md:py-24">
-          {/* warm glow blob, low opacity */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-alert-on-dark/30 blur-3xl"
-          />
+        <div className="relative overflow-hidden rounded-xl bg-cool px-4 py-16 text-terminal sm:px-8 md:px-16 md:py-24">
 
           <div className="relative flex flex-wrap items-end gap-12">
             <div className="min-w-0 flex-[7_1_24rem]">
-              <p className="font-editorial text-sm uppercase tracking-[0.14em] text-alert-on-dark">
+              <p className="font-editorial text-sm uppercase tracking-[0.14em] text-emerald-100">
                 For licensed clinicians
               </p>
               <h2 className="mt-5 text-[clamp(1.5rem,4.6vw,3.75rem)] font-editorial font-semibold leading-[1.15] tracking-[-0.02em] text-terminal">
                 Explore first. Evaluate{" "}
-                <span className="font-display italic font-normal text-alert-on-dark">
+                <span className="font-display italic font-normal text-emerald-100">
                   deliberately.
                 </span>
               </h2>
@@ -37,21 +32,17 @@ export function AccessCta() {
                 <Link
                   href="/sandbox"
                   data-landing-cta="start-sandbox-primary"
-                  className="group inline-flex min-h-11 max-w-full items-center gap-3 rounded-3xl bg-alert-on-dark px-4 py-4 font-editorial text-base font-medium text-cool transition-colors hover:bg-terminal hover:text-cool sm:px-7"
+                  className="group inline-flex min-h-11 max-w-full items-center gap-3 rounded-xl bg-emerald-100 px-4 py-4 font-editorial text-base font-medium text-cool transition-colors hover:bg-terminal hover:text-cool sm:px-7"
                 >
                   Start the free sandbox
-                  <span className="transition-transform group-hover:translate-x-1">
-                    →
-                  </span>
+
                 </Link>
                 <Link
                   href="/request-access"
-                  className="group inline-flex min-h-11 max-w-full items-center gap-2 font-editorial text-base text-terminal/85 transition-colors hover:text-alert-on-dark"
+                  className="group inline-flex min-h-11 max-w-full items-center gap-2 font-editorial text-base text-terminal/85 transition-colors hover:text-emerald-100"
                 >
                   Request evaluation access
-                  <span className="transition-transform group-hover:translate-x-1">
-                    →
-                  </span>
+
                 </Link>
               </div>
             </div>
@@ -70,7 +61,7 @@ export function AccessCta() {
                   "Controlled workspace: CSV export with identifier substitution and year-only dates",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-3">
-                    <span aria-hidden className="mt-[0.55em] inline-block h-1.5 w-1.5 flex-none rounded-full bg-alert-on-dark" />
+                    <span aria-hidden className="mt-[0.55em] inline-block h-1.5 w-1.5 flex-none rounded-full bg-emerald-100" />
                     <span>{item}</span>
                   </li>
                 ))}

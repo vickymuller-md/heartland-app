@@ -13,7 +13,7 @@ export default function PublicLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="[&>header>div]:flex-wrap [&>header>div]:gap-3 [&>header>div>div>a]:inline-flex [&>header_a]:min-h-11 [&>header_nav]:flex-wrap bg-terminal font-editorial text-cool antialiased selection:bg-alert/40 selection:text-cool">
+    <div className="interface-masthead [&>header>div]:flex-wrap [&>header>div]:gap-3 [&>header>div>div>a]:inline-flex [&>header_a]:min-h-11 [&>header_nav]:flex-wrap bg-terminal font-editorial text-cool antialiased selection:bg-primary/20 selection:text-cool">
       <a href="#main-content" className="sr-only z-50 rounded bg-white px-4 py-3 font-semibold text-slate-950 focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Skip to main content</a>
       <Masthead
         currentSite="app"
@@ -28,7 +28,7 @@ export default function PublicLayout({
         secondaryCta={{ label: "Sign in", href: "/login" }}
         cta={{ label: "Try sandbox", href: "/sandbox" }}
       />
-      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main id="main-content" tabIndex={-1} className="workspace-content mx-auto w-full max-w-[1200px] px-4 py-8 sm:px-6 lg:px-8">
         {children}
       </main>
       <Colophon />

@@ -18,19 +18,7 @@ vi.mock('next/navigation', () => ({
 
 // Mock next/link
 vi.mock('next/link', () => ({
-  default: ({
-    children,
-    href,
-    className,
-  }: {
-    children: React.ReactNode;
-    href: string;
-    className?: string;
-  }) => (
-    <a href={href} className={className}>
-      {children}
-    </a>
-  ),
+  default: (props: React.ComponentProps<'a'>) => <a {...props} />,
 }));
 
 // Mock SignOutButton
@@ -93,12 +81,12 @@ describe('PatientLayout', () => {
 
     // The Today tab link should have the active styling class
     const todayLink = screen.getByText('Today').closest('a');
-    expect(todayLink?.className).toContain('text-blue-600');
+    expect(todayLink).toHaveAttribute('aria-current', 'page');
     expect(todayLink?.className).toContain('font-semibold');
 
     // The History tab link should NOT have active styling
     const historyLink = screen.getByText('History').closest('a');
-    expect(historyLink?.className).toContain('text-gray-500');
+    expect(historyLink).not.toHaveAttribute('aria-current');
   });
 
   it('each tab has minimum 48px tap target (min-h-[48px] min-w-[48px])', () => {

@@ -44,10 +44,10 @@ const ROWS = [
 export function EvidenceFoundation() {
   return (
     <section aria-labelledby="clinical-context-title" className="border-b border-grid bg-panel-hi/40">
-      <div className="mx-auto max-w-[1200px] px-6 py-24 md:py-32">
+      <div className="mx-auto max-w-[1200px] px-6 py-14 md:py-20">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
           <header className="min-w-0 break-words">
-            <p className="font-editorial text-[12.5px] uppercase tracking-[0.18em] text-alert">
+            <p className="font-editorial text-xs uppercase tracking-[0.18em] text-signal">
               Evidence
             </p>
             <h2 id="clinical-context-title" className="mt-5 text-[clamp(1.85rem,3.5vw,2.85rem)] font-editorial font-semibold leading-[1.1] tracking-[-0.02em] text-cool">
@@ -70,7 +70,7 @@ export function EvidenceFoundation() {
                 }
               >
                 <div className="min-w-0">
-                  <a href={row.href} className="inline-flex min-h-11 items-center font-editorial text-lg font-semibold tracking-tight text-cool underline decoration-alert underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-alert">
+                  <a href={row.href} className="inline-flex min-h-11 items-center font-editorial text-lg font-semibold tracking-tight text-cool underline decoration-signal underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-signal">
                     {row.trial} ↗
                   </a>
                   <p className="mt-1 font-editorial text-sm text-stone">

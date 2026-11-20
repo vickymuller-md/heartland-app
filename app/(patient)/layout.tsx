@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { WorkspaceBrand } from "@/components/shared/workspace-brand";
 import { usePathname } from "next/navigation";
 import { Heart, TrendingUp, Pill, BookOpen, CalendarDays, Shield, UserRound } from "lucide-react";
 import { SignOutButton } from "@/components/auth/sign-out-button";
@@ -31,12 +32,10 @@ export default function PatientLayout({
   }, []);
 
   return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-screen bg-background pb-20">
       {/* Top bar */}
-      <header className="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-4">
-        <span className="text-lg font-bold tracking-wide text-slate-900">
-          HEARTLAND
-        </span>
+      <header className="flex min-h-16 items-center justify-between border-b border-gray-200 bg-white px-4">
+        <WorkspaceBrand />
         <div className="flex items-center gap-3">
           <Link
             href="/profile"
@@ -55,7 +54,7 @@ export default function PatientLayout({
       <ConnectivityBanner workspace="patient" />
 
       {/* Main content -- pb-20 clears the fixed bottom nav */}
-      <main id="main-content" tabIndex={-1} className="px-4 pt-4 pb-20 max-w-lg mx-auto">{children}</main>
+      <main id="main-content" tabIndex={-1} className="workspace-content mx-auto max-w-lg px-4 pt-5 pb-20">{children}</main>
 
       {/* Bottom tab navigation -- min 48px tap targets for elderly users (VITL-08) */}
       <nav
@@ -69,13 +68,14 @@ export default function PatientLayout({
               <Link
                 key={href}
                 href={href}
-                className={`flex flex-col items-center justify-center min-h-[48px] min-w-[48px] px-2 py-2 ${
+                aria-current={active ? "page" : undefined}
+                className={`flex flex-col items-center justify-center min-h-[48px] min-w-[48px] border-t-2 px-1 py-2 ${
                   active
-                    ? "text-blue-600 font-semibold"
-                    : "text-gray-500"
+                    ? "border-primary font-semibold text-primary"
+                    : "border-transparent text-muted-foreground"
                 }`}
               >
-                <Icon className="h-6 w-6 mb-0.5" />
+                <Icon className="mb-1 size-5" aria-hidden="true" />
                 <span className="text-xs">{label}</span>
               </Link>
             );

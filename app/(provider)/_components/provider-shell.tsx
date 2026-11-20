@@ -34,6 +34,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { SignOutButton } from '@/components/auth/sign-out-button';
+import { WorkspaceBrand } from '@/components/shared/workspace-brand';
 import { ConnectivityBanner } from '@/components/shared/connectivity-banner';
 
 // ---------- NAV_GROUPS: Grouped sidebar navigation ----------
@@ -83,7 +84,7 @@ function ProviderNavigation({ urgentCount, onNavigate }: { urgentCount: number |
       <nav aria-label="Workspace destinations" className="flex-1 overflow-y-auto px-3 py-4">
         {NAV_GROUPS.map((group) => (
           <div key={group.label} className="mb-4">
-            <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-wider text-slate-300">
+            <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {group.label}
             </p>
             {group.items.map((item) => {
@@ -94,13 +95,13 @@ function ProviderNavigation({ urgentCount, onNavigate }: { urgentCount: number |
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${active ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+                  className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${active ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'}`}
                   onClick={onNavigate}
                   aria-current={active ? 'page' : undefined}
                 >
-                  <Icon className="size-5 shrink-0" />
+                  <Icon className="size-4 shrink-0" aria-hidden="true" />
                   <span className="flex-1">{item.label}</span>
-                  {item.showBadge && urgentCount === null && <span className="text-xs text-amber-200">Count unavailable</span>}
+                  {item.showBadge && urgentCount === null && <span className="text-xs text-amber-800">Count unavailable</span>}
                   {showCount && (
                     <span className="ml-auto rounded-full bg-red-700 px-1.5 py-0.5 text-xs font-bold text-white">
                       {urgentCount}
@@ -114,8 +115,8 @@ function ProviderNavigation({ urgentCount, onNavigate }: { urgentCount: number |
       </nav>
 
       {/* Sign Out */}
-      <div className="border-t border-slate-700 p-4">
-        <SignOutButton className="w-full justify-start text-slate-300 hover:bg-slate-800 hover:text-white" />
+      <div className="border-t border-sidebar-border p-4">
+        <SignOutButton className="w-full justify-start text-muted-foreground hover:bg-sidebar-accent hover:text-foreground" />
       </div>
     </>
   );
@@ -131,10 +132,10 @@ export function ProviderShell({ children, urgentCount }: { children: React.React
   }, []);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-background">
       <a href="#main-content" className="sr-only z-50 rounded bg-white px-4 py-3 font-semibold text-slate-950 focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Skip to main content</a>
-      <aside className="hidden w-64 shrink-0 flex-col bg-slate-900 text-white lg:flex print:hidden">
-        <div className="flex h-16 items-center px-6 text-lg font-bold">HEARTLAND</div>
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex print:hidden">
+        <div className="flex h-16 items-center border-b border-sidebar-border px-6"><WorkspaceBrand /></div>
         <ProviderNavigation urgentCount={urgentCount} />
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
@@ -143,18 +144,18 @@ export function ProviderShell({ children, urgentCount }: { children: React.React
             <DialogTrigger aria-label="Open sidebar" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded hover:bg-gray-100">
               <Menu className="size-5 text-gray-700" />
             </DialogTrigger>
-            <DialogContent showCloseButton={false} className="inset-y-0 left-0 flex h-dvh w-72 max-w-[90vw] translate-x-0 translate-y-0 flex-col gap-0 rounded-none bg-slate-900 p-0 text-white">
+            <DialogContent showCloseButton={false} className="inset-y-0 left-0 flex h-dvh w-72 max-w-[90vw] translate-x-0 translate-y-0 flex-col gap-0 rounded-none bg-sidebar p-0 text-sidebar-foreground">
               <div className="flex min-h-16 items-center justify-between px-4">
                 <DialogTitle>Workspace navigation</DialogTitle>
-                <DialogClose aria-label="Close sidebar" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded hover:bg-slate-700"><X className="size-5" /></DialogClose>
+                <DialogClose aria-label="Close sidebar" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded hover:bg-sidebar-accent"><X className="size-5" /></DialogClose>
               </div>
               <ProviderNavigation urgentCount={urgentCount} onNavigate={() => setSidebarOpen(false)} />
             </DialogContent>
           </Dialog>
-          <span className="ml-3 text-lg font-bold tracking-wide text-slate-900">HEARTLAND</span>
+          <span className="ml-3"><WorkspaceBrand /></span>
         </header>
         <ConnectivityBanner workspace="provider" />
-        <main id="main-content" tabIndex={-1} className="flex-1 p-4 sm:p-6">{children}</main>
+        <main id="main-content" tabIndex={-1} className="workspace-content mx-auto w-full max-w-[1440px] flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );

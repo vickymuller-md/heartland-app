@@ -4,14 +4,14 @@
 export function Abstract() {
   return (
     <section className="border-y border-grid bg-panel">
-      <div className="mx-auto max-w-[1200px] px-6 py-24 md:py-32">
+      <div className="mx-auto max-w-[1200px] px-6 py-14 md:py-20">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="font-editorial text-sm uppercase tracking-[0.14em] text-alert">
+          <p className="font-editorial text-sm uppercase tracking-[0.14em] text-signal">
             Why Heartland exists
           </p>
           <h2 className="mt-5 text-[clamp(1.85rem,3.5vw,2.85rem)] font-editorial font-semibold leading-[1.15] tracking-[-0.015em] text-cool">
             Follow-up needs more than a{" "}
-            <span className="font-display italic font-normal text-alert">
+            <span className="font-display italic font-normal text-signal">
               calculated score
             </span>
             . It needs context, ownership and a next step.
@@ -71,9 +71,9 @@ function Disclaimer({
     <aside
       role="note"
       aria-label="Clinical use disclaimer"
-      className="rounded-2xl border border-grid bg-terminal p-6"
+      className="rounded-xl border border-grid bg-terminal p-6"
     >
-      <p className="font-editorial text-sm uppercase tracking-[0.14em] text-alert">
+      <p className="font-editorial text-sm uppercase tracking-[0.14em] text-signal">
         {heading}
       </p>
       <p className="mt-3 font-editorial text-base leading-relaxed text-cool/80">
@@ -93,11 +93,11 @@ function ContextCard({
   accent?: boolean;
 }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-grid bg-terminal p-6 md:p-8">
+    <div className="min-w-0 rounded-xl border border-grid bg-terminal p-6 md:p-8">
       <h3
         className={
           "font-editorial text-2xl font-semibold leading-snug " +
-          (accent ? "text-alert" : "text-cool")
+          (accent ? "text-signal" : "text-cool")
         }
       >
         {heading}

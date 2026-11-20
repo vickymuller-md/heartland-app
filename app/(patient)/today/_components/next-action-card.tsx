@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import type { TodayTaskStatus } from '@/lib/patient/today-tasks';
 import type { PatientPlanItem } from '@/lib/patient/plan';
 
@@ -47,19 +46,14 @@ export function NextActionCard({
   }
 
   return (
-    <section className="rounded-2xl bg-slate-900 p-5 text-white" aria-labelledby="next-action-heading">
-      <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">Your next action</p>
-      <div className="mt-2 flex items-start gap-3">
-        {href === '/plan'
-          ? <CheckCircle2 className="mt-0.5 size-6 shrink-0 text-emerald-300" aria-hidden="true" />
-          : <ArrowRight className="mt-0.5 size-6 shrink-0 text-blue-200" aria-hidden="true" />}
-        <div className="min-w-0 flex-1">
-          <h2 id="next-action-heading" className="text-xl font-bold">{title}</h2>
-          <p className="mt-1 text-sm text-slate-300">{detail}</p>
-          <Link href={href} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg bg-white px-4 text-sm font-semibold text-slate-900">
-            Continue <ArrowRight className="size-4" />
-          </Link>
-        </div>
+    <section className="rounded-xl bg-slate-900 p-5 text-white" aria-labelledby="next-action-heading">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-200">Your next action</p>
+      <div className="mt-2 min-w-0">
+        <h2 id="next-action-heading" className="text-xl font-bold">{title}</h2>
+        <p className="mt-1 text-sm text-slate-300">{detail}</p>
+        <Link href={href} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg bg-white px-4 text-sm font-semibold text-slate-900">
+          Continue
+        </Link>
       </div>
     </section>
   );

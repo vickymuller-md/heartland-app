@@ -1,7 +1,7 @@
 'use client';
 
+import { PhoneCall } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, ArrowRight, BookOpenCheck, ClipboardCheck, HeartPulse, Network, PhoneCall, ShieldCheck, Users } from 'lucide-react';
 import { outcomeLabel, outcomeOptionsFor } from '@/lib/sandbox/case-outcomes';
 import { SANDBOX_PATIENTS, SANDBOX_SECTIONS, SANDBOX_TASKS } from '@/lib/sandbox/fixtures';
 import {
@@ -21,7 +21,6 @@ import { SandboxLiveCall, type LiveCallOutcome } from './sandbox-live-call';
 import { SandboxPopulationReplay } from './sandbox-population-replay';
 import { MetricCard, SectionHeading, SyntheticBanner } from './sandbox-ui';
 
-const ICONS = [Activity, PhoneCall, ClipboardCheck, HeartPulse, BookOpenCheck, Network, Users, ShieldCheck];
 const numberFormat = new Intl.NumberFormat('en-US');
 
 export function SandboxCommandCenter({ restoredRound, onRoundChange, taskStates, visitedSections, dayIndex, populationSize, workedCases, sentWorkItemIds, onPopulationSize, onWorkCase, onSendToDailyLoop, onNavigate, automatedCallsCount }: {
@@ -61,55 +60,42 @@ export function SandboxCommandCenter({ restoredRound, onRoundChange, taskStates,
 
   return (
     <div className="min-w-0 space-y-8 [overflow-wrap:anywhere] [&_button]:h-auto [&_button]:min-h-11 [&_button]:max-w-full [&_button]:whitespace-normal [&_button]:py-2" data-testid="sandbox-command-center">
-      <section className="rounded-3xl bg-slate-950 px-4 py-5 text-white sm:px-8 lg:px-10">
-        <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:items-start">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-300">Synthetic check-ins · Day {dayIndex + 1}</p>
-            <h1 className="mt-3 max-w-3xl text-3xl font-bold tracking-tight sm:text-5xl">Follow a sample case</h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
-              Follow {numberFormat.format(populationSize)} fictional check-ins from the overnight round to a registered rule, a human review and its record.
+      <section className="pt-3 sm:pt-5">
+        <div className="grid min-w-0 gap-x-10 gap-y-5 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,0.88fr)]">
+          <div className="min-w-0 self-center">
+            <p className="section-kicker">Synthetic demonstration</p>
+            <h1 className="page-title mt-2 lg:text-[4rem]">Follow a sample case</h1>
+            <p className="mt-3 max-w-xl text-base leading-7 text-muted-foreground">
+              Trace a fictional check-in from the overnight round to the rule that flagged it and the decision a reviewer records.
             </p>
             {queue.length > 0 && (
-              <Button className="mt-4 min-h-11 bg-blue-700 text-white hover:bg-blue-800" onClick={() => selectCase(queue[0].ordinal, true)}>Review a sample case <ArrowRight className="ml-2 size-4" /></Button>
+              <Button className="mt-4" onClick={() => selectCase(queue[0].ordinal, true)}>Review a sample case</Button>
             )}
           </div>
-
-          <SandboxPopulationReplay initialResult={initialResult} size={populationSize} dayIndex={dayIndex} onDone={(completed) => {
-            setResult(completed);
-            setCaseOrdinal(null);
-            onRoundChange?.(Boolean(completed), null, false);
-          }} />
-          <div className="min-w-0 lg:col-span-2">
-            <p className="text-sm font-semibold text-slate-200">Choose the simulated population</p>
-            <div className="mt-2 flex flex-wrap items-center gap-3">
-              <div className="inline-flex max-w-full flex-wrap rounded-lg border border-white/20 p-1" role="group" aria-label="Synthetic population size">
-                {POPULATION_SIZES.map((size) => (
-                  <button
-                    key={size}
-                    type="button"
-                    data-testid={`population-size-${size}`}
-                    aria-pressed={populationSize === size}
-                    onClick={() => onPopulationSize(size)}
-                    className={`min-h-11 rounded-md px-3 text-sm font-semibold transition ${populationSize === size ? 'bg-white text-slate-950' : 'text-slate-200 hover:bg-white/10'}`}
-                  >
-                    {numberFormat.format(size)}
-                  </button>
-                ))}
-              </div>
+          <div className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+            <SandboxPopulationReplay initialResult={initialResult} size={populationSize} dayIndex={dayIndex} onDone={(completed) => {
+              setResult(completed);
+              setCaseOrdinal(null);
+              onRoundChange?.(Boolean(completed), null, false);
+            }} />
+          </div>
+          <div className="min-w-0 self-start lg:col-start-1 lg:row-start-2">
+            <p className="section-kicker">Choose the simulated population</p>
+            <div className="mt-2 inline-flex max-w-full flex-wrap rounded-lg border border-border bg-card p-1" role="group" aria-label="Synthetic population size">
+              {POPULATION_SIZES.map((size) => (
+                <button key={size} type="button" data-testid={`population-size-${size}`}
+                  aria-pressed={populationSize === size} onClick={() => onPopulationSize(size)}
+                  className={`min-h-11 rounded-md px-3 text-sm font-semibold tabular-nums ${populationSize === size ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground hover:bg-muted'}`}>
+                  {numberFormat.format(size)}
+                </button>
+              ))}
             </div>
           </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap lg:col-span-2" aria-label="Choose a sandbox path">
-            <Button className="min-h-11 bg-blue-600 text-white hover:bg-blue-500" onClick={() => onNavigate(nextSection)} data-testid="sandbox-guided-demo">
-              Start 5-minute guided demo <ArrowRight className="ml-2 size-4" />
-            </Button>
-            <Button variant="ghost" className="min-h-11 border border-white/25 text-white hover:bg-white/10 hover:text-white" onClick={() => onNavigate('daily-loop')}>
-              <ClipboardCheck className="mr-2 size-4" /> Provider workflow
-            </Button>
-            <Button variant="ghost" className="min-h-11 border border-white/25 text-white hover:bg-white/10 hover:text-white" data-testid="sandbox-open-patient-360" onClick={() => onNavigate('patient-view')}>
-              <HeartPulse className="mr-2 size-4" /> Patient experience
-            </Button>
-          </div>
+        </div>
+        <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4" aria-label="Choose a sandbox path">
+          <Button variant="outline" onClick={() => onNavigate(nextSection)} data-testid="sandbox-guided-demo">Start 5-minute guided demo</Button>
+          <Button variant="ghost" onClick={() => onNavigate('daily-loop')}>Provider workflow</Button>
+          <Button variant="ghost" data-testid="sandbox-open-patient-360" onClick={() => onNavigate('patient-view')}>Patient experience</Button>
         </div>
       </section>
 
@@ -135,28 +121,22 @@ export function SandboxCommandCenter({ restoredRound, onRoundChange, taskStates,
       <SandboxAiEvidenceFlow populationSize={populationSize} dayIndex={dayIndex} />
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="Sandbox product metrics">
-        <MetricCard label="Close-follow patients" value={SANDBOX_PATIENTS.length} detail="The tour zooms into three synthetic cases." tone="blue" />
-        <MetricCard label="Operational items" value={SANDBOX_TASKS.length} detail="Now, Today, Week, and Watching." tone="amber" />
-        <MetricCard label="Outreach calls simulated" value={automatedCallsCount} detail="Completed voice simulations only; queue-only reviews are excluded." tone="blue" />
-        <MetricCard label="Actions progressed" value={actioned} detail="Reviewed, actioned, awaiting, or closed." tone="violet" />
-        <MetricCard label="Loops closed" value={closed} detail="Every closure requires a synthetic outcome." tone="emerald" />
+        <MetricCard label="Close-follow patients" value={SANDBOX_PATIENTS.length} detail="The tour zooms into three synthetic cases." />
+        <MetricCard label="Operational items" value={SANDBOX_TASKS.length} detail="Now, Today, Week, and Watching." />
+        <MetricCard label="Outreach calls simulated" value={automatedCallsCount} detail="Completed voice simulations only; queue-only reviews are excluded." />
+        <MetricCard label="Actions progressed" value={actioned} detail="Reviewed, actioned, awaiting, or closed." />
+        <MetricCard label="Loops closed" value={closed} detail="Every closure requires a synthetic outcome." />
       </section>
 
       <section className="space-y-5">
         <SectionHeading eyebrow="Product map" title="Eight connected experiences" description="The sandbox mirrors the app’s operational logic instead of presenting isolated screenshots." />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {SANDBOX_SECTIONS.filter((section) => section.id !== 'command').map((section, index) => {
-            const Icon = ICONS[index % ICONS.length];
+          {SANDBOX_SECTIONS.filter((section) => section.id !== 'command').map((section) => {
+
             const visited = visitedSections.includes(section.id);
             return (
-              <button key={section.id} type="button" onClick={() => onNavigate(section.id)} className="group min-h-44 rounded-2xl border bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200">
-                <div className="flex items-start justify-between gap-3">
-                  <span className="rounded-xl bg-blue-50 p-2.5 text-blue-700"><Icon className="size-5" aria-hidden="true" /></span>
-                  <span className="flex items-center gap-2">
-                    {section.id === 'copilot' && !visited && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-bold text-violet-800">NEW</span>}
-                    <span className={visited ? 'text-xs font-semibold text-emerald-700' : 'text-xs font-semibold text-slate-600'}>{visited ? 'Explored' : 'Open'}</span>
-                  </span>
-                </div>
+              <button key={section.id} type="button" onClick={() => onNavigate(section.id)} className="group min-h-44 rounded-2xl border bg-white p-5 text-left shadow-sm transition-colors hover:border-input focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200">
+                <span className="section-kicker">{visited ? 'Explored' : 'Open'}</span>
                 <h3 className="mt-4 text-lg font-bold text-slate-950">{section.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">{section.description}</p>
               </button>
@@ -381,7 +361,7 @@ function CasePanel({ event, caseId, runId, dayIndex, worked, sent, callOpen, onO
         {!callOpen && (
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Button ref={callButtonRef} size="sm" className="min-h-11 bg-slate-950 text-white hover:bg-slate-800" onClick={onOpenCall} data-testid={`queue-call-${event.ordinal}`}>
-              <PhoneCall className="mr-1.5 size-4" /> Call {event.name.split(' ')[0]} now
+              <PhoneCall aria-hidden="true" className="size-4" /> Call {event.name.split(' ')[0]} now
             </Button>
             {callOutcome && (
               <span className="text-xs font-semibold text-slate-700" data-testid={`queue-call-result-${event.ordinal}`}>

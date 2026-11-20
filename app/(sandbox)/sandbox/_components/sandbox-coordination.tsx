@@ -20,10 +20,10 @@ export function SandboxCoordination({ taskStates, onReassign, onDocumentAction }
       <SyntheticBanner>Assignments, messages, access relationships, and follow-ups below are simulated. No real user receives anything.</SyntheticBanner>
 
       <section className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3">
-        <MetricCard label="Team members" value={SANDBOX_TEAM.length} detail="Role and coverage explicit." tone="blue" />
+        <MetricCard label="Team members" value={SANDBOX_TEAM.length} detail="Role and coverage explicit." />
         <MetricCard label="Assigned work" value={Object.keys(taskStates).length} detail="Every item has an owner." />
-        <MetricCard label="Delivery confirmed" value="2/3" detail="One synthetic message unread." tone="violet" />
-        <MetricCard label="Access reviews" value="Current" detail="Review due in 21 days." tone="emerald" />
+        <MetricCard label="Delivery confirmed" value="2/3" detail="One synthetic message unread." />
+        <MetricCard label="Access reviews" value="Current" detail="Review due in 21 days." />
       </section>
 
       <section className="rounded-2xl border bg-white p-3 sm:p-6">

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { HeartLineMark } from "./medical-cross";
+import { HeartLineMark } from "@heartland/ui";
 import { APP_ARCHIVE_DOI, APP_ARCHIVE_VERSION, APP_VERSION } from "@/lib/app-version";
 import { HEARTLAND_NETWORK } from "@heartland/ui";
 
@@ -14,7 +14,7 @@ export function Colophon() {
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-10">
           <div className="min-w-0">
             <Link href="/" className="inline-flex min-h-11 items-center gap-2.5">
-              <HeartLineMark className="h-7 w-7 text-alert" />
+              <HeartLineMark className="h-7 w-7 text-signal" />
               <span className="font-editorial text-lg font-semibold tracking-tight text-cool">
                 Heartland · App
               </span>
@@ -132,7 +132,7 @@ function FooterLink({
         href={href}
         {...externalProps}
         aria-current={current ? "page" : undefined}
-        className="inline-flex min-h-11 max-w-full items-center gap-1 py-2 text-cool/80 transition-colors hover:text-alert"
+        className="inline-flex min-h-11 max-w-full items-center gap-1 py-2 text-cool/80 transition-colors hover:text-signal"
       >
         {children}
         {external && (

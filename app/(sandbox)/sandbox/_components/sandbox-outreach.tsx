@@ -365,10 +365,10 @@ export function SandboxOutreach({ liveCalls, runs, onLiveCall }: {
       )}
 
       <section className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3" aria-label="Automated outreach synthetic metrics">
-        <MetricCard label="Calls demonstrated" value={allCalls.length} detail="Pre-generated fixtures plus live simulations." tone="blue" />
-        <MetricCard label="Escalated to humans" value={escalations} detail="Routed by deterministic red-flag rules." tone="amber" />
-        <MetricCard label="Routine" value={allCalls.filter((call) => call.disposition === 'routine').length} detail="Stay in the monitoring queue." tone="emerald" />
-        <MetricCard label="No answer" value={allCalls.filter((call) => call.disposition === 'no_answer').length} detail="Always routed to human follow-up." tone="slate" />
+        <MetricCard label="Calls demonstrated" value={allCalls.length} detail="Pre-generated fixtures plus live simulations." />
+        <MetricCard label="Escalated to humans" value={escalations} detail="Routed by deterministic red-flag rules." />
+        <MetricCard label="Routine" value={allCalls.filter((call) => call.disposition === 'routine').length} detail="Stay in the monitoring queue." />
+        <MetricCard label="No answer" value={allCalls.filter((call) => call.disposition === 'no_answer').length} detail="Always routed to human follow-up." />
       </section>
 
       <section className="space-y-4" aria-label="Simulated call transcripts">

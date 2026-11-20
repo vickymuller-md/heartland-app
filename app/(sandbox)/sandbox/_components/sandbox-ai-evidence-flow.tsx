@@ -1,26 +1,14 @@
-import {
-  AudioLines,
-  Bot,
-  CheckCircle2,
-  ClipboardCheck,
-  Cog,
-  FileInput,
-  ListFilter,
-  MessageSquareText,
-  ShieldCheck,
-  UserRoundCheck,
-} from 'lucide-react';
 import { OUTREACH_TRANSCRIPTS } from '@/lib/sandbox-ai/fixtures';
 import { simulatePopulationDay, type PopulationSize } from '@/lib/sandbox/population';
 
 const numberFormat = new Intl.NumberFormat('en-US');
 
 const LAYERS = [
-  { label: 'Synthetic input', detail: 'fictional values only', icon: FileInput, tone: 'border-slate-200 bg-slate-50 text-slate-800' },
-  { label: 'AI language layer', detail: 'converses and extracts', icon: Bot, tone: 'border-violet-200 bg-violet-50 text-violet-900' },
-  { label: 'Registered rules', detail: 'set disposition', icon: Cog, tone: 'border-emerald-200 bg-emerald-50 text-emerald-900' },
-  { label: 'Voice interface', detail: 'optional narration', icon: AudioLines, tone: 'border-blue-200 bg-blue-50 text-blue-900' },
-  { label: 'Human review', detail: 'required before real use', icon: UserRoundCheck, tone: 'border-amber-200 bg-amber-50 text-amber-950' },
+  { label: 'Synthetic input', detail: 'fictional values only' },
+  { label: 'AI language layer', detail: 'converses and extracts' },
+  { label: 'Registered rules', detail: 'set disposition' },
+  { label: 'Voice interface', detail: 'optional narration' },
+  { label: 'Human review', detail: 'required before real use' },
 ] as const;
 
 function formatSeverity(value: number | null) {
@@ -43,86 +31,64 @@ export function SandboxAiEvidenceFlow({ populationSize, dayIndex }: {
       label: 'Collect',
       value: numberFormat.format(population.counts.total),
       detail: 'synthetic check-ins',
-      icon: FileInput,
-      tone: 'bg-slate-100 text-slate-800',
     },
     {
       label: 'Separate',
       value: `${population.counts.automatedPct}%`,
       detail: 'outside the review queue',
-      icon: Cog,
-      tone: 'bg-slate-100 text-slate-800',
     },
     {
       label: 'Route',
       value: numberFormat.format(population.counts.reviewQueue),
       detail: 'exceptions for review',
-      icon: ListFilter,
-      tone: 'bg-amber-100 text-amber-950',
     },
     {
       label: 'Clarify',
       value: 'AI',
       detail: 'conversation + extraction',
-      icon: MessageSquareText,
-      tone: 'bg-violet-100 text-violet-900',
     },
     {
       label: 'Re-evaluate',
       value: 'Rule ID',
       detail: 'same registered thresholds',
-      icon: ShieldCheck,
-      tone: 'bg-emerald-100 text-emerald-900',
     },
     {
       label: 'Review required',
       value: 'Human',
       detail: 'verify before follow-through',
-      icon: ClipboardCheck,
-      tone: 'bg-blue-100 text-blue-900',
     },
   ] as const;
 
   return (
     <section
-      className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white [overflow-wrap:anywhere]"
+      className="panel overflow-hidden [overflow-wrap:anywhere]"
       aria-labelledby="ai-evidence-flow-title"
       data-testid="ai-evidence-flow"
     >
-      <div className="border-b border-slate-200 bg-slate-950 px-3 py-5 text-white sm:px-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">How the automation works</p>
-            <h2 id="ai-evidence-flow-title" className="mt-2 text-2xl font-bold tracking-tight">See every handoff, not a black box</h2>
-            <p className="mt-2 max-w-3xl text-base leading-7 text-slate-300">
-              AI handles language. Registered rules and monitoring-gap policies determine simulated routing. Real use would require human review and authorization; this demonstration does not deliver care.
-            </p>
-          </div>
-          <div className="grid gap-2 grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] xl:min-w-[45%]" aria-label="Automation layer legend">
-            {LAYERS.map(({ label, detail, icon: Icon, tone }) => (
-              <div key={label} className={`flex min-w-0 flex-wrap items-center gap-2 rounded-lg border px-3 py-2 ${tone}`}>
-                <Icon className="size-4 shrink-0" aria-hidden="true" />
-                <span className="min-w-0">
-                  <span className="block text-sm font-bold leading-5">{label}</span>
-                  <span className="block text-xs leading-5">{detail}</span>
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+      <div className="border-b border-border px-4 py-5 sm:px-6">
+        <p className="section-kicker">How the automation works</p>
+        <h2 id="ai-evidence-flow-title" className="section-title mt-1">From check-in to human review</h2>
+        <p className="mt-2 max-w-3xl text-base leading-7 text-muted-foreground">
+          AI handles language. Registered rules and monitoring-gap policies determine simulated routing. Real use would require human review and authorization; this demonstration does not deliver care.
+        </p>
+        <dl className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-x-5 gap-y-3" aria-label="Automation layer legend">
+          {LAYERS.map(({ label, detail }) => (
+            <div key={label} className="min-w-0 border-t border-border pt-2">
+              <dt className="text-sm font-semibold text-foreground">{label}</dt>
+              <dd className="text-sm leading-5 text-muted-foreground">{detail}</dd>
+            </div>
+          ))}
+        </dl>
       </div>
 
       <div className="p-3 sm:p-6">
         <p className="mb-3 text-base leading-7 text-slate-700">
           Steps 1–3 describe the chosen population scenario. Steps 4–6 illustrate the fixed transcript example below, not a completed workflow for every check-in.
         </p>
-        <ol className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,20rem),1fr))] gap-3" aria-label="Automation evidence pipeline">
-          {steps.map(({ label, value, detail, icon: Icon, tone }, index) => (
-            <li key={label} className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <ol className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Automation evidence pipeline">
+          {steps.map(({ label, value, detail }, index) => (
+            <li key={label} className="min-w-0 rounded-lg border border-border bg-background p-4">
                 <p className="mb-3 text-xs font-semibold text-slate-600">{index < 3 ? 'Population scenario' : 'Fixed example'}</p>
-                <span className={`inline-flex size-8 items-center justify-center rounded-lg ${tone}`}>
-                  <Icon className="size-4" aria-hidden="true" />
-                </span>
                 <p className="mt-3 text-sm font-bold text-slate-700">{index + 1} · {label}</p>
                 <p className="mt-1 text-lg font-bold tabular-nums text-slate-950">{value}</p>
                 <p className="mt-1 text-sm leading-6 text-slate-600">{detail}</p>
@@ -142,24 +108,24 @@ export function SandboxAiEvidenceFlow({ populationSize, dayIndex }: {
               <p className="mt-1 text-sm leading-6 text-slate-600">Fixed example, not a member of the generated population. Changing population or day does not change this receipt.</p>
             </div>
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-950">
-              <UserRoundCheck className="size-3.5" aria-hidden="true" /> Human review required
+              Human review required
             </span>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3">
             <div className="border-b border-slate-200 p-4 lg:border-b-0 lg:border-r">
               <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-                <MessageSquareText className="size-4 text-slate-700" aria-hidden="true" /> 1 · Source transcript
+                1 · Source transcript
               </p>
               <blockquote className="mt-3 border-l-2 border-slate-300 pl-3 text-sm leading-6 text-slate-700">
                 “{sourceExcerpt}”
               </blockquote>
-              <p className="mt-3 text-[11px] font-semibold text-slate-500">Synthetic fixture · source text remains visible for verification</p>
+              <p className="mt-3 text-xs font-semibold text-slate-500">Synthetic fixture · source text remains visible for verification</p>
             </div>
 
-            <div className="border-b border-slate-200 bg-violet-50/50 p-4 lg:border-b-0 lg:border-r">
+            <div className="border-b border-slate-200 bg-background p-4 lg:border-b-0 lg:border-r">
               <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-violet-800">
-                <Bot className="size-4" aria-hidden="true" /> 2 · AI extraction
+                2 · AI extraction
               </p>
               <dl className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(min(100%,6rem),1fr))] gap-x-4 gap-y-2 text-sm">
                 <div><dt className="text-xs text-slate-500">Weight</dt><dd className="font-bold text-slate-950">{receipt.extraction.weightLbs ?? 'Unknown'} lb</dd></div>
@@ -169,12 +135,12 @@ export function SandboxAiEvidenceFlow({ populationSize, dayIndex }: {
                 <div><dt className="text-xs text-slate-500">Adherence</dt><dd className="font-bold capitalize text-slate-950">{receipt.extraction.adherence ?? 'Unknown'}</dd></div>
                 <div><dt className="text-xs text-slate-500">Chest pain/syncope</dt><dd className="font-bold text-slate-950">{receipt.extraction.chestPainOrSyncope === null ? 'Unknown' : receipt.extraction.chestPainOrSyncope ? 'Yes' : 'No'}</dd></div>
               </dl>
-              <p className="mt-3 text-[11px] font-semibold text-violet-800">Structured, not trusted as the final disposition</p>
+              <p className="mt-3 text-xs font-semibold text-violet-800">Structured, not trusted as the final disposition</p>
             </div>
 
-            <div className="bg-emerald-50/40 p-4">
+            <div className="bg-background p-4">
               <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-emerald-800">
-                <Cog className="size-4" aria-hidden="true" /> 3 · Rule + human action
+                3 · Rule + human action
               </p>
               <div className="mt-3 space-y-3 text-sm">
                 <div>
@@ -183,7 +149,6 @@ export function SandboxAiEvidenceFlow({ populationSize, dayIndex }: {
                   <p className="mt-1 text-xs leading-5 text-slate-600">{primaryRule?.message ?? 'Routine path'}</p>
                 </div>
                 <div className="flex items-start gap-2 rounded-lg bg-white/80 p-3">
-                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-700" aria-hidden="true" />
                   <div>
                     <p className="text-xs text-slate-500">Deterministic disposition</p>
                     <p className="font-bold capitalize text-slate-950">{receipt.disposition}</p>
@@ -194,7 +159,6 @@ export function SandboxAiEvidenceFlow({ populationSize, dayIndex }: {
                   <p className="mt-1 text-xs font-semibold leading-5 text-slate-800">{primaryRule?.action ?? 'Review the source and document the outcome.'}</p>
                 </div>
                 <div className="flex items-start gap-2 border-t border-emerald-200 pt-3">
-                  <UserRoundCheck className="mt-0.5 size-4 shrink-0 text-amber-700" aria-hidden="true" />
                   <div>
                     <p className="text-xs text-slate-500">Human decision</p>
                     <p className="mt-1 text-xs font-semibold leading-5 text-slate-800">Verify the source, choose the follow-through, and document the outcome.</p>
@@ -205,7 +169,7 @@ export function SandboxAiEvidenceFlow({ populationSize, dayIndex }: {
           </div>
         </div>
 
-        <p className="mt-3 text-[11px] leading-5 text-slate-500">
+        <p className="mt-3 text-xs leading-5 text-slate-500">
           Technical workflow demonstration on synthetic fixtures. The receipt explains provenance; it is not clinical validation or autonomous decision-making.
         </p>
       </div>

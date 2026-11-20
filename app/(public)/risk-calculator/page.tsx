@@ -19,10 +19,10 @@ export default async function RiskCalculatorPage() {
   return (
     <div className="mx-auto max-w-5xl">
       <div className="mb-6 print:hidden">
-        <h1 className="text-2xl font-bold tracking-tight">
+        <h1 className="page-title">
           Risk Stratification Calculator
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-3 text-base leading-7 text-muted-foreground">
           Review each factor to see the proposed HEARTLAND score and pathway.
         </p>
       </div>

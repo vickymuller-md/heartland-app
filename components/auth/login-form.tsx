@@ -58,11 +58,8 @@ export function LoginForm() {
 
   return (
     <Card>
-      <CardHeader className="text-center">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          HEARTLAND Protocol
-        </p>
-        <CardTitle role="heading" aria-level={1} className="text-2xl">Sign In</CardTitle>
+      <CardHeader>
+        <CardTitle role="heading" aria-level={1} className="section-title">Sign In</CardTitle>
         <CardDescription>
           Sandbox testers sign in directly. Real provider workspaces also require an authenticator code.
         </CardDescription>

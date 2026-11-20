@@ -44,13 +44,13 @@ export function SandboxImpact({ visitedSections, exploredPathways, taskStates, d
       </section>
 
       <section className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-3">
-        <MetricCard label="Areas explored" value={`${visitedSections.length}/${SANDBOX_SECTIONS.length}`} detail="Breadth of product discovery." tone="blue" />
-        <MetricCard label="Work progressed" value={progressed} detail="Beyond a passive page view." tone="violet" />
-        <MetricCard label="Loops closed" value={closed} detail="Outcome captured." tone="emerald" />
-        <MetricCard label="Pathways opened" value={exploredPathways.length} detail="Real public tools." tone="amber" />
+        <MetricCard label="Areas explored" value={`${visitedSections.length}/${SANDBOX_SECTIONS.length}`} detail="Breadth of product discovery." />
+        <MetricCard label="Work progressed" value={progressed} detail="Beyond a passive page view." />
+        <MetricCard label="Loops closed" value={closed} detail="Outcome captured." />
+        <MetricCard label="Pathways opened" value={exploredPathways.length} detail="Real public tools." />
         <MetricCard label="Patient actions" value={patientCheckIns.length} detail="Synthetic Today engagement." />
-        <MetricCard label="Days simulated" value={`${dayIndex + 1}/5`} detail={`${dayLog.reduce((sum, entry) => sum + entry.escalations, 0)} escalations caught across completed days.`} tone="violet" />
-        <MetricCard label="Cases documented" value={workedCasesCount} detail="Review-queue cases with a selected synthetic outcome; a call is not required." tone="emerald" />
+        <MetricCard label="Days simulated" value={`${dayIndex + 1}/5`} detail={`${dayLog.reduce((sum, entry) => sum + entry.escalations, 0)} escalations caught across completed days.`} />
+        <MetricCard label="Cases documented" value={workedCasesCount} detail="Review-queue cases with a selected synthetic outcome; a call is not required." />
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]">

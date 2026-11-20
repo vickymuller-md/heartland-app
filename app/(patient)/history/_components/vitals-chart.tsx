@@ -87,6 +87,7 @@ export function VitalsChart({ data }: VitalsChartProps) {
           type="monotone"
           dataKey="sbp"
           stroke="var(--color-sbp)"
+          strokeDasharray="7 3"
           strokeWidth={2}
           dot={false}
           name="Systolic BP"
@@ -95,6 +96,7 @@ export function VitalsChart({ data }: VitalsChartProps) {
           type="monotone"
           dataKey="hr"
           stroke="var(--color-hr)"
+          strokeDasharray="2 3"
           strokeWidth={2}
           dot={false}
           name="Heart Rate"
@@ -104,6 +106,7 @@ export function VitalsChart({ data }: VitalsChartProps) {
             type="monotone"
             dataKey="spo2"
             stroke="var(--color-spo2)"
+            strokeDasharray="8 3 2 3"
             strokeWidth={2}
             dot={false}
             name="SpO2 (%)"

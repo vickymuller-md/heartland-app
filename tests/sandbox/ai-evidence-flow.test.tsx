@@ -10,7 +10,7 @@ describe('SandboxAiEvidenceFlow', () => {
 
     const expected = simulatePopulationDay(2500, 0);
     const flow = screen.getByTestId('ai-evidence-flow');
-    expect(flow).toHaveTextContent('See every handoff, not a black box');
+    expect(flow).toHaveTextContent('From check-in to human review');
     expect(flow).toHaveTextContent('AI language layer');
     expect(flow).toHaveTextContent('Registered rules');
     expect(flow).toHaveTextContent('Human review');

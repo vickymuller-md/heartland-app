@@ -40,11 +40,11 @@ const PERIODS = [7, 30, 90] as const;
 type Period = (typeof PERIODS)[number];
 
 const chartConfig = {
-  weight_lbs: { label: 'Weight (lbs)', color: 'hsl(221, 83%, 53%)' },
-  sbp: { label: 'SBP (mmHg)', color: 'hsl(0, 72%, 51%)' },
-  dbp: { label: 'DBP (mmHg)', color: 'hsl(25, 95%, 53%)' },
-  heart_rate: { label: 'HR (bpm)', color: 'hsl(142, 71%, 45%)' },
-  spo2: { label: 'SpO2 (%)', color: 'hsl(271, 76%, 53%)' },
+  weight_lbs: { label: 'Weight (lbs)', color: 'var(--chart-1)' },
+  sbp: { label: 'SBP (mmHg)', color: 'var(--chart-2)' },
+  dbp: { label: 'DBP (mmHg)', color: 'var(--chart-5)' },
+  heart_rate: { label: 'HR (bpm)', color: 'var(--chart-3)' },
+  spo2: { label: 'SpO2 (%)', color: 'var(--chart-4)' },
 } satisfies ChartConfig;
 
 function formatDate(dateStr: string): string {
@@ -178,6 +178,7 @@ export function VitalsChart({ data }: VitalsChartProps) {
             type="monotone"
             dataKey="sbp"
             stroke="var(--color-sbp)"
+            strokeDasharray="7 3"
             strokeWidth={2}
             dot={false}
             name="SBP"
@@ -188,6 +189,7 @@ export function VitalsChart({ data }: VitalsChartProps) {
             type="monotone"
             dataKey="dbp"
             stroke="var(--color-dbp)"
+            strokeDasharray="4 3"
             strokeWidth={2}
             dot={false}
             name="DBP"
@@ -198,6 +200,7 @@ export function VitalsChart({ data }: VitalsChartProps) {
             type="monotone"
             dataKey="heart_rate"
             stroke="var(--color-heart_rate)"
+            strokeDasharray="2 3"
             strokeWidth={2}
             dot={false}
             name="HR"
@@ -209,6 +212,7 @@ export function VitalsChart({ data }: VitalsChartProps) {
               type="monotone"
               dataKey="spo2"
               stroke="var(--color-spo2)"
+              strokeDasharray="8 3 2 3"
               strokeWidth={2}
               dot={false}
               name="SpO2"

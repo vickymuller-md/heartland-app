@@ -226,11 +226,18 @@ test.describe('sandbox navigation shell', () => {
               const point = svg.createSVGPoint();
               point.x = circle.cx.baseVal.value; point.y = circle.cy.baseVal.value;
               const screen = point.matrixTransform(circle.getScreenCTM()!);
-              const box = labels[index].getBoundingClientRect();
-              return { label: labels[index].textContent, title: circle.querySelector('title')!.textContent, delta: Math.abs(screen.x - (box.left + box.width / 2)) };
+              const label = labels[index];
+              const box = label.getBoundingClientRect();
+              return {
+                day: label.firstElementChild?.textContent,
+                weight: label.lastElementChild?.textContent,
+                title: circle.querySelector('title')!.textContent,
+                delta: Math.abs(screen.x - (box.left + box.width / 2)),
+              };
             });
           });
-          expect(alignment.map((item) => item.label)).toEqual(patient.vitals.map((point) => point.label));
+          expect(alignment.map((item) => item.day)).toEqual(patient.vitals.map((point) => point.label));
+          expect(alignment.map((item) => item.weight)).toEqual(patient.vitals.map((point) => `${point.weight} lb`));
           expect(alignment.map((item) => item.title)).toEqual(patient.vitals.map((point) => `${point.label}: ${point.weight} lb`));
           for (const point of alignment) expect(point.delta).toBeLessThanOrEqual(1);
           await testInfo.attach(`chart-${patient.id}`, { body: await chart.locator('..').screenshot(), contentType: 'image/png' });

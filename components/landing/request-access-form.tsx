@@ -132,7 +132,7 @@ export function RequestAccessForm() {
         <button
           type="submit"
           disabled={pending}
-          className="group inline-flex items-center gap-3 rounded-full bg-cool px-7 py-4 font-editorial text-[14.5px] font-medium text-terminal transition-colors hover:bg-alert hover:text-cool disabled:cursor-not-allowed disabled:opacity-70"
+          className="group inline-flex items-center gap-3 rounded-lg bg-primary px-7 py-4 font-editorial text-[14.5px] font-medium text-terminal transition-colors hover:bg-signal-deep hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
         >
           {pending ? "Submitting…" : "Submit request"}
           {!pending && (
