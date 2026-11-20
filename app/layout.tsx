@@ -1,4 +1,5 @@
-import type { Metadata } from "next";
+import { HEARTLAND_COLORS } from "@heartland/ui";
+import type { Metadata, Viewport } from "next";
 import { Sora, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { DisclaimerFooter } from "@/components/disclaimers/disclaimer-footer";
@@ -13,7 +14,10 @@ const instrumentSerif = Instrument_Serif({
   display: "swap",
 });
 
+export const viewport: Viewport = { themeColor: HEARTLAND_COLORS.terminal };
+
 export const metadata: Metadata = {
+  icons: { apple: "/icons/apple-touch-icon.png" },
   metadataBase: new URL("https://app.heartlandprotocol.org"),
   title: "HEARTLAND Protocol",
   description:

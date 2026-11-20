@@ -1,3 +1,4 @@
+import { HEARTLAND_COLORS } from "@heartland/ui";
 import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
@@ -8,8 +9,8 @@ export default function manifest(): MetadataRoute.Manifest {
       "Clinical implementation companion for rural heart failure management",
     start_url: "/",
     display: "standalone",
-    background_color: "#ffffff",
-    theme_color: "#1e40af",
+    background_color: HEARTLAND_COLORS.terminal,
+    theme_color: HEARTLAND_COLORS.terminal,
     orientation: "portrait",
     icons: [
       {

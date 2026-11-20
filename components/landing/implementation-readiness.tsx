@@ -18,7 +18,7 @@ export function ImplementationReadiness() {
           ))}
         </div>
         <div className="mt-6 flex flex-wrap gap-3">
-          <a className="inline-flex min-h-11 items-center rounded-lg bg-primary px-5 py-3 text-sm text-terminal" href="/guide#implementation-readiness">Explore local readiness and training</a>
+          <a className="inline-flex min-h-11 items-center rounded-full bg-cool hover:bg-alert hover:text-cool px-5 py-3 text-sm text-terminal" href="/guide#implementation-readiness">Explore local readiness and training</a>
           <a className="inline-flex min-h-11 items-center rounded-lg border border-input px-5 py-3 text-sm" href="/resources/heartland-local-readiness-training.md" download>Download the synthetic exercise pack</a>
         </div>
         <p className="mt-4 text-sm text-cool/75">Resource tier changes delivery support, not clinically indicated care. No patient pilot, institutional adoption or clinical outcome is demonstrated.</p>

@@ -63,7 +63,7 @@ export function SandboxCommandCenter({ restoredRound, onRoundChange, taskStates,
       <section className="pt-3 sm:pt-5">
         <div className="grid min-w-0 gap-x-10 gap-y-5 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,0.88fr)]">
           <div className="min-w-0 self-center">
-            <p className="section-kicker">Synthetic demonstration</p>
+            <p className="text-xs font-medium text-signal">Synthetic demonstration</p>
             <h1 className="page-title mt-2">Follow a sample case</h1>
             <p className="mt-3 max-w-xl text-base leading-7 text-muted-foreground">
               Trace a fictional check-in from the overnight round to the rule that flagged it and the decision a reviewer records.

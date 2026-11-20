@@ -1,6 +1,33 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
+test('the home and sandbox render the network colors and editorial type', async ({ page }) => {
+  // Compare against the published protocol website, independently of local theme overrides.
+  const cream = 'rgb(250, 246, 238)';
+  const navy = 'rgb(15, 37, 68)';
+  const coral = 'rgb(255, 107, 85)';
+
+  await page.goto('/');
+  const title = page.getByRole('heading', { level: 1 });
+  await expect(page.locator('body')).toHaveCSS('background-color', cream);
+  await expect(title).toHaveCSS('color', navy);
+  await expect(title).toHaveCSS('font-family', /Sora/i);
+  await expect(title).toHaveCSS('font-weight', '400');
+  const phrase = title.getByText('where there’s no', { exact: true });
+  await expect(phrase).toHaveCSS('font-family', /Instrument.{1,4}Serif/i);
+  await expect(phrase).toHaveCSS('font-style', 'italic');
+  const action = page.getByRole('link', { name: 'Try the sandbox now' });
+  await expect(action).toHaveCSS('background-color', navy);
+  await expect(action).toHaveCSS('color', cream);
+  await expect(page.locator('header svg').first()).toHaveCSS('color', coral);
+
+  await action.click();
+  await expect(page.getByTestId('population-funnel')).toHaveCSS('background-color', navy);
+  await expect(page.getByTestId('population-run')).toHaveCSS('background-color', coral);
+  await expect(page.getByRole('link', { name: 'Heartland Sandbox' }).locator('svg'))
+    .toHaveCSS('color', coral);
+});
+
 test('guide text, field boundaries and keyboard focus respect the contrast preference', async ({ page }) => {
   await page.goto('/guide');
   const assistant = page.getByTestId('protocol-assistant');

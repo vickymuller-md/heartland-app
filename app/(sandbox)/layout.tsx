@@ -21,7 +21,7 @@ export default async function SandboxLayout({ children }: { children: React.Reac
           {user ? <SignOutButton className="h-auto min-h-11 max-w-full whitespace-normal py-2" /> : (
             <nav className="flex min-w-0 flex-wrap items-center gap-3" aria-label="Sandbox account options">
               <Link href="/login" className="hidden min-h-11 items-center text-sm font-semibold text-slate-600 hover:text-slate-950 sm:inline-flex">Sign in</Link>
-              <Link href="/register?mode=tester" className="inline-flex min-h-11 max-w-full items-center rounded-lg border border-border bg-card px-2.5 py-2 text-sm font-semibold text-foreground hover:border-input hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:px-3">Create account</Link>
+              <Link href="/register?mode=tester" className="inline-flex min-h-11 max-w-full items-center rounded-full border border-border bg-card px-2.5 py-2 text-sm font-semibold text-foreground hover:border-input hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:px-3">Create account</Link>
             </nav>
           )}
         </div>

@@ -381,7 +381,7 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone, initialResult 
   ];
 
   return (
-    <div className="min-w-0 rounded-xl bg-slate-950 p-4 text-white [overflow-wrap:anywhere] sm:p-6" data-testid="population-funnel">
+    <div className="min-w-0 rounded-xl bg-cool p-4 text-white [overflow-wrap:anywhere] sm:p-6" data-testid="population-funnel">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium text-slate-200">
           Overnight round · Day {dayIndex + 1} of 5
@@ -407,7 +407,7 @@ export function SandboxPopulationReplay({ size, dayIndex, onDone, initialResult 
             <span className="font-heading text-4xl leading-tight font-semibold tabular-nums sm:text-5xl">{numberFormat.format(size)}</span>
             <span className="text-sm text-slate-200">scheduled check-ins</span>
           </p>
-          <Button className="mt-3 border-transparent bg-white text-slate-950 hover:bg-slate-100" onClick={run} data-testid="population-run">
+          <Button className="mt-3 rounded-full border-transparent bg-alert text-cool hover:bg-terminal hover:text-cool" onClick={run} data-testid="population-run">
             <Play className="size-4" aria-hidden="true" /> Run the overnight round
           </Button>
         </div>

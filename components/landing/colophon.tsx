@@ -14,7 +14,7 @@ export function Colophon() {
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-10">
           <div className="min-w-0">
             <Link href="/" className="inline-flex min-h-11 items-center gap-2.5">
-              <HeartLineMark className="h-7 w-7 text-signal" />
+              <HeartLineMark className="h-7 w-7 text-alert" />
               <span className="font-editorial text-lg font-semibold tracking-tight text-cool">
                 Heartland · App
               </span>
@@ -24,7 +24,7 @@ export function Colophon() {
               Advanced Network Delivery. An educational implementation companion
               based on the published protocol, with synthetic demonstrations.
             </p>
-            <p className="mt-6 font-editorial text-sm leading-relaxed text-stone">
+            <p className="mt-6 font-editorial text-sm leading-relaxed text-muted-foreground">
               Built by Vicky Muller Ferreira, MD. For licensed clinicians
               only. This release does not establish FDA clearance or
               authorization and does not resolve medical-device classification.
@@ -69,7 +69,7 @@ export function Colophon() {
             >
               Software Heritage · historical snapshot
             </FooterLink>
-            <li className="text-sm leading-relaxed text-stone">
+            <li className="text-sm leading-relaxed text-muted-foreground">
               This historical snapshot does not archive the deployment of
               30 September 2026 described above.
             </li>
@@ -86,7 +86,7 @@ export function Colophon() {
           </nav>
         </div>
 
-        <div className="mt-14 flex flex-col flex-wrap gap-3 border-t border-grid pt-6 font-editorial text-sm leading-relaxed text-stone md:flex-row md:items-center md:justify-between">
+        <div className="mt-14 flex flex-col flex-wrap gap-3 border-t border-grid pt-6 font-editorial text-sm leading-relaxed text-muted-foreground md:flex-row md:items-center md:justify-between">
           <p>© 2026 Vicky Muller Ferreira, MD · App source under MIT</p>
           <p>HEARTLAND App {APP_VERSION} · open source</p>
         </div>
@@ -132,11 +132,11 @@ function FooterLink({
         href={href}
         {...externalProps}
         aria-current={current ? "page" : undefined}
-        className="inline-flex min-h-11 max-w-full items-center gap-1 py-2 text-cool/80 transition-colors hover:text-signal"
+        className="inline-flex min-h-11 max-w-full items-center gap-1 py-2 text-cool/80 transition-colors hover:text-coral-ink"
       >
         {children}
         {external && (
-          <span className="shrink-0 text-sm text-stone" aria-hidden>
+          <span className="shrink-0 text-sm text-muted-foreground" aria-hidden>
             ↗
           </span>
         )}

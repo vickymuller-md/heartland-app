@@ -116,9 +116,9 @@ export function AutomationEvidence() {
             <p className="text-sm uppercase tracking-[0.18em] text-signal">
               The Evidence Lab
             </p>
-            <h2 className="mt-5 max-w-3xl text-[clamp(2rem,4.2vw,3.5rem)] font-editorial font-semibold leading-[1.05] tracking-[-0.02em] text-cool">
+            <h2 className="mt-5 max-w-3xl text-[clamp(2rem,4.2vw,3.5rem)] font-editorial font-normal leading-[1.05] tracking-[-0.02em] text-cool">
               See what the system does —{" "}
-              <span className="font-display italic font-normal text-signal">
+              <span className="font-display italic font-normal text-coral-ink">
                 and what it never decides.
               </span>
             </h2>
@@ -206,7 +206,7 @@ export function AutomationEvidence() {
           <Link
             href="/sandbox"
             prefetch={false}
-            className="inline-flex min-h-12 max-w-full items-center justify-center rounded-xl bg-signal px-6 py-3 text-center text-base font-semibold text-white transition-colors hover:bg-cool focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-signal"
+            className="inline-flex min-h-12 max-w-full items-center justify-center rounded-full bg-cool px-6 py-3 text-center text-base font-semibold text-white transition-colors hover:bg-cool focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-signal"
           >
             Open the Evidence Lab →
           </Link>

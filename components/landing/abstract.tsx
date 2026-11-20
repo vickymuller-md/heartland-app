@@ -9,9 +9,9 @@ export function Abstract() {
           <p className="font-editorial text-sm uppercase tracking-[0.14em] text-signal">
             Why Heartland exists
           </p>
-          <h2 className="mt-5 text-[clamp(1.85rem,3.5vw,2.85rem)] font-editorial font-semibold leading-[1.15] tracking-[-0.015em] text-cool">
+          <h2 className="mt-5 text-[clamp(1.85rem,3.5vw,2.85rem)] font-editorial font-normal leading-[1.15] tracking-[-0.015em] text-cool">
             Follow-up needs more than a{" "}
-            <span className="font-display italic font-normal text-signal">
+            <span className="font-display italic font-normal text-coral-ink">
               calculated score
             </span>
             . It needs context, ownership and a next step.

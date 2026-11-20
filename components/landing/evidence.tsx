@@ -50,7 +50,7 @@ export function EvidenceFoundation() {
             <p className="font-editorial text-xs uppercase tracking-[0.18em] text-signal">
               Evidence
             </p>
-            <h2 id="clinical-context-title" className="mt-5 text-[clamp(1.85rem,3.5vw,2.85rem)] font-editorial font-semibold leading-[1.1] tracking-[-0.02em] text-cool">
+            <h2 id="clinical-context-title" className="mt-5 text-[clamp(1.85rem,3.5vw,2.85rem)] font-editorial font-normal leading-[1.1] tracking-[-0.02em] text-cool">
               Clinical context, not product validation
             </h2>
             <p className="mt-6 max-w-sm font-editorial text-base leading-relaxed text-cool/80">
@@ -73,7 +73,7 @@ export function EvidenceFoundation() {
                   <a href={row.href} className="inline-flex min-h-11 items-center font-editorial text-lg font-semibold tracking-tight text-cool underline decoration-signal underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-signal">
                     {row.trial} ↗
                   </a>
-                  <p className="mt-1 font-editorial text-sm text-stone">
+                  <p className="mt-1 font-editorial text-sm text-muted-foreground">
                     {row.citation}
                   </p>
                 </div>

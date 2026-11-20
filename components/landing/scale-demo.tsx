@@ -16,9 +16,9 @@ export function ScaleDemo() {
           <p className="font-editorial text-sm uppercase tracking-[0.14em] text-signal">
             The scale demonstration
           </p>
-          <h2 id="scale-title" className="mt-5 text-[clamp(1.85rem,3.5vw,2.85rem)] font-editorial font-semibold leading-[1.15] tracking-[-0.015em] text-cool">
+          <h2 id="scale-title" className="mt-5 text-[clamp(1.85rem,3.5vw,2.85rem)] font-editorial font-normal leading-[1.15] tracking-[-0.015em] text-cool">
             Explore scale.{" "}
-            <span className="font-display italic font-normal text-signal">
+            <span className="font-display italic font-normal text-coral-ink">
               Keep the unknowns visible.
             </span>
           </h2>
@@ -75,7 +75,7 @@ export function ScaleDemo() {
         <div className="mt-12 text-center">
           <Link
             href="/sandbox"
-            className="inline-flex min-h-12 max-w-full items-center rounded-xl bg-signal px-6 py-3 font-editorial text-base font-semibold text-terminal transition-colors hover:opacity-90"
+            className="inline-flex min-h-12 max-w-full items-center rounded-full bg-cool px-6 py-3 font-editorial text-base font-medium text-terminal transition-colors hover:bg-alert hover:text-cool"
           >
             Run the overnight round yourself →
           </Link>

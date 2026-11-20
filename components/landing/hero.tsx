@@ -7,47 +7,47 @@ export function Hero() {
   const sample = SANDBOX_PATIENTS[0];
   const latest = sample.vitals.at(-1);
   return (
-    <section className="relative bg-terminal">
-      <div className="mx-auto max-w-[1200px] px-4 py-12 sm:px-6 md:py-20">
-        <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-12 md:gap-14">
+    <section className="border-b border-grid bg-terminal">
+      <div className="mx-auto max-w-[1200px] px-6 py-20 md:py-28">
+        <div className="grid grid-cols-1 items-start gap-12 md:grid-cols-12">
           <div className="min-w-0 md:col-span-7">
-            <p className="section-kicker">
+            <p className="text-[0.875rem] font-medium text-signal">
               App {APP_VERSION} · Open-source educational companion
             </p>
 
-            <h1 className="mt-4 max-w-[17ch] font-heading text-[clamp(2.5rem,1.65rem+3.2vw,4.5rem)] font-semibold leading-[1.1] tracking-[-0.025em] text-foreground">
+            <h1 className="mt-6 font-editorial text-[clamp(2.6rem,6vw,5rem)] font-normal leading-[1.04] tracking-tight text-cool">
               Heart failure care{" "}
-              <span className="font-display font-normal italic text-primary">
-                where there&rsquo;s
+              <span className="font-display font-normal italic text-coral-ink">
+                where there&rsquo;s no
               </span>{" "}
-              no cardiologist.
+              cardiologist.
             </h1>
 
-            <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground">
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-cool/80">
               Explore how rural primary care teams could organize heart failure
               follow-up: eight protocol modules, synthetic patient journeys and
               visible boundaries between AI, registered rules and human review.
             </p>
 
-
-            <ol aria-label="Sample case in the sandbox" className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              {['Check-in received', 'Rule applied', 'Human review recorded'].map((step) => <li key={step} className="border-l border-input pl-2">{step}</li>)}
-            </ol>
-            <div className="mt-5 flex flex-col flex-wrap items-start gap-4 sm:flex-row sm:items-center">
+            <div className="mt-10 flex flex-wrap items-center gap-4">
               <Link
                 href="/sandbox"
                 data-landing-cta="start-sandbox"
-                className="inline-flex min-h-11 max-w-full items-center rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-signal-deep"
+                className="inline-flex min-h-12 max-w-full items-center rounded-full bg-cool px-6 py-2.5 text-[1rem] font-medium text-terminal hover:bg-alert hover:text-cool"
               >
                 Try the sandbox now
               </Link>
               <Link
                 href="/request-access"
-                className="inline-flex min-h-11 max-w-full items-center rounded-lg border border-input px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted"
+                className="inline-flex min-h-12 max-w-full items-center rounded-full border border-input px-6 py-2.5 text-[1rem] font-medium text-cool hover:bg-panel"
               >
                 Request evaluation access
               </Link>
             </div>
+
+            <aside aria-label="Evaluation boundaries" className="mt-8 max-w-xl border-l-2 border-grid-hi pl-4 text-sm leading-relaxed text-muted-foreground">
+              Public routes: educational sandbox. Authenticated workspace: controlled evaluation only. Real PHI and unsupervised clinical use are not authorized until organizational security, privacy, validation, staffing, and governance gates are approved.
+            </aside>
 
             <p className="mt-4 max-w-xl text-base leading-relaxed text-muted-foreground">
               Based on the HEARTLAND Protocol published in Cureus. Peer review
@@ -64,9 +64,9 @@ export function Hero() {
             </p>
           </div>
 
-          <figure className="panel min-w-0 self-center p-5 sm:p-7 md:col-span-5">
+          <figure className="min-w-0 self-start rounded-[1.5rem] border border-grid bg-panel p-6 md:col-span-5 md:p-8">
             <figcaption className="border-b border-border pb-4">
-              <p className="section-kicker">Synthetic patient record</p>
+              <p className="text-xs font-medium uppercase tracking-widest text-coral-ink">Synthetic patient record</p>
               <p className="mt-1 text-xl font-semibold text-foreground">{sample.name}</p>
             </figcaption>
             {latest && (
@@ -76,6 +76,9 @@ export function Hero() {
               </div>
             )}
             <WeightTrend data={sample.vitals} />
+            <ol aria-label="Sample case in the sandbox" className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+              {['Check-in received', 'Rule applied', 'Human review recorded'].map((step) => <li key={step} className="border-l border-input pl-2">{step}</li>)}
+            </ol>
             <Link href={`/sandbox?area=patient-360&person=${sample.id}`}
               className="mt-5 inline-flex min-h-11 items-center text-sm font-semibold text-primary underline underline-offset-4">
               Open the fictional patient record

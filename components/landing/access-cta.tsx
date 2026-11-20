@@ -13,12 +13,12 @@ export function AccessCta() {
 
           <div className="relative flex flex-wrap items-end gap-12">
             <div className="min-w-0 flex-[7_1_24rem]">
-              <p className="font-editorial text-sm uppercase tracking-[0.14em] text-emerald-100">
+              <p className="font-editorial text-sm uppercase tracking-[0.14em] text-alert">
                 For licensed clinicians
               </p>
-              <h2 className="mt-5 text-[clamp(1.5rem,4.6vw,3.75rem)] font-editorial font-semibold leading-[1.15] tracking-[-0.02em] text-terminal">
+              <h2 className="mt-5 text-[clamp(1.5rem,4.6vw,3.75rem)] font-editorial font-normal leading-[1.15] tracking-[-0.02em] text-terminal">
                 Explore first. Evaluate{" "}
-                <span className="font-display italic font-normal text-emerald-100">
+                <span className="font-display italic font-normal text-alert">
                   deliberately.
                 </span>
               </h2>
@@ -32,14 +32,14 @@ export function AccessCta() {
                 <Link
                   href="/sandbox"
                   data-landing-cta="start-sandbox-primary"
-                  className="group inline-flex min-h-11 max-w-full items-center gap-3 rounded-xl bg-emerald-100 px-4 py-4 font-editorial text-base font-medium text-cool transition-colors hover:bg-terminal hover:text-cool sm:px-7"
+                  className="group inline-flex min-h-11 max-w-full items-center gap-3 rounded-full bg-alert px-4 py-4 font-editorial text-base font-medium text-cool transition-colors hover:bg-terminal hover:text-cool sm:px-7"
                 >
                   Start the free sandbox
 
                 </Link>
                 <Link
                   href="/request-access"
-                  className="group inline-flex min-h-11 max-w-full items-center gap-2 font-editorial text-base text-terminal/85 transition-colors hover:text-emerald-100"
+                  className="group inline-flex min-h-11 max-w-full items-center gap-2 font-editorial text-base text-terminal/85 transition-colors hover:text-alert"
                 >
                   Request evaluation access
 
@@ -61,7 +61,7 @@ export function AccessCta() {
                   "Controlled workspace: CSV export with identifier substitution and year-only dates",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-3">
-                    <span aria-hidden className="mt-[0.55em] inline-block h-1.5 w-1.5 flex-none rounded-full bg-emerald-100" />
+                    <span aria-hidden className="mt-[0.55em] inline-block h-1.5 w-1.5 flex-none rounded-full bg-alert" />
                     <span>{item}</span>
                   </li>
                 ))}

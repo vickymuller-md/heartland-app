@@ -51,7 +51,7 @@ export function NextActionCard({
       <div className="mt-2 min-w-0">
         <h2 id="next-action-heading" className="text-xl font-bold">{title}</h2>
         <p className="mt-1 text-sm text-slate-300">{detail}</p>
-        <Link href={href} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg bg-white px-4 text-sm font-semibold text-slate-900">
+        <Link href={href} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-terminal px-4 text-sm font-semibold text-cool hover:bg-alert">
           Continue
         </Link>
       </div>

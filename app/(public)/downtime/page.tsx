@@ -17,7 +17,7 @@ const STEPS = [
 export default function DowntimePlaybookPage() {
   return (
     <article className="mx-auto max-w-4xl px-6 py-16 print:max-w-none print:px-0 print:py-0">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-alert">Controlled evaluation · non-PHI checklist</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-coral-ink">Controlled evaluation · non-PHI checklist</p>
       <h1 className="mt-3 text-4xl font-bold tracking-tight text-cool">HEARTLAND downtime playbook</h1>
       <p className="mt-4 max-w-2xl text-base leading-relaxed text-cool/75">
         Safe degraded mode means stopping clinical writes and returning to the facility-approved source record and escalation process. This page contains no patient information and may be printed in advance.
@@ -39,7 +39,7 @@ export default function DowntimePlaybookPage() {
       <section className="mt-10 grid gap-4 border border-grid p-5 sm:grid-cols-2" aria-labelledby="local-details">
         <h2 id="local-details" className="sm:col-span-2 text-lg font-bold text-cool">Facility-approved details · complete before pilot</h2>
         {['Downtime owner', 'Incident commander', 'Clinical escalation contact', 'Approved backup channel', 'Recovery time objective', 'Recovery point objective'].map((label) => (
-          <div key={label} className="min-h-16 border-b border-stone/50 pt-2 text-xs font-semibold uppercase tracking-wide text-stone">{label}</div>
+          <div key={label} className="min-h-16 border-b border-stone/50 pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
         ))}
       </section>
     </article>

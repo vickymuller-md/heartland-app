@@ -130,7 +130,7 @@ export function GuideContent() {
     <div className="print:text-sm">
       {/* Header */}
       <div className="mb-6 border-b border-border pb-5">
-        <p className="section-kicker mb-2">HEARTLAND Protocol</p>
+        <p className="mb-2 text-xs font-medium uppercase tracking-widest text-coral-ink">HEARTLAND Protocol</p>
         <h1 className="page-title mb-3">HEARTLAND User Guide</h1>
         <p className="max-w-2xl text-base leading-7 text-muted-foreground">
           Explore a fictional case, find patient tasks or look up a care-team workflow.

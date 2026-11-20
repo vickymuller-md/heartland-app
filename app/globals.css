@@ -13,20 +13,8 @@
     --font-sans: var(--heartland-sans), system-ui, sans-serif;
     --font-editorial: var(--heartland-sans), system-ui, sans-serif;
     --font-display: var(--heartland-serif), Georgia, serif;
-    --color-terminal: var(--background);
-    --color-terminal-deep: var(--muted);
-    --color-panel: var(--card);
-    --color-panel-hi: #e8ede4;
-    --color-grid: var(--border);
-    --color-grid-hi: var(--input);
-    --color-cool: var(--foreground);
-    --color-stone: var(--muted-foreground);
-    --color-signal: var(--primary);
-    --color-signal-deep: #173c2e;
-    --color-alert: var(--destructive);
-    --color-alert-deep: #83352b;
-    --color-alert-on-dark: #f1b6a8;
-    --color-critical: var(--destructive);
+    /* The network theme supplies cream, navy, signal and coral. */
+    --color-coral-ink: #b4372d;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -68,31 +56,31 @@
 }
 
 :root {
-    --background: #f7f7f2;
-    --foreground: #18271f;
-    --card: #ffffff;
+    --background: var(--color-terminal);
+    --foreground: var(--color-cool);
+    --card: var(--color-panel);
     --card-foreground: var(--foreground);
     --popover: var(--card);
     --popover-foreground: var(--foreground);
-    --primary: #22513e;
-    --primary-foreground: #ffffff;
-    --secondary: #e9eee7;
-    --secondary-foreground: #294b3d;
-    --muted: #eef0e9;
-    --muted-foreground: #3e5045;
-    --accent: #e2ebe3;
-    --accent-foreground: #254b3a;
-    --destructive: #a23d33;
-    --border: #cad3c9;
-    --input: #64796a;
-    --ring: #24583c;
-    --chart-1: #2b634b;
-    --chart-2: #4b617b;
+    --primary: var(--color-cool);
+    --primary-foreground: var(--color-terminal);
+    --secondary: var(--color-terminal-deep);
+    --secondary-foreground: var(--color-cool);
+    --muted: var(--color-terminal-deep);
+    --muted-foreground: color-mix(in srgb, var(--color-cool) 80%, var(--color-terminal));
+    --accent: var(--color-panel-hi);
+    --accent-foreground: var(--color-cool);
+    --destructive: #9e3229;
+    --border: var(--color-grid);
+    --input: #6b7786;
+    --ring: var(--color-cool);
+    --chart-1: var(--color-signal);
+    --chart-2: var(--color-cool);
     --chart-3: #925321;
     --chart-4: #70517a;
     --chart-5: #586957;
-    --radius: 0.5rem;
-    --sidebar: #f3f4ed;
+    --radius: 0.625rem;
+    --sidebar: var(--color-terminal-deep);
     --sidebar-foreground: var(--foreground);
     --sidebar-primary: var(--primary);
     --sidebar-primary-foreground: var(--primary-foreground);
@@ -138,28 +126,28 @@
 
 /* Existing utility names share the same interface palette. Data series use the chart tokens. */
 @theme {
-  --color-slate-50: #f6f7f3;
-  --color-slate-100: #eff1ec;
-  --color-slate-200: #d9dfd8;
-  --color-slate-300: #bdc8bf;
-  --color-slate-400: #94a298;
-  --color-slate-500: #46594c;
-  --color-slate-600: #3b4e41;
-  --color-slate-700: #374b40;
-  --color-slate-800: #2c4035;
-  --color-slate-900: #1f3429;
-  --color-slate-950: #14271d;
-  --color-blue-50: #eff5ee;
-  --color-blue-100: #e2ede1;
-  --color-blue-200: #cbddca;
-  --color-blue-300: #aec9ad;
-  --color-blue-400: #81a787;
-  --color-blue-500: #497954;
-  --color-blue-600: #376745;
-  --color-blue-700: #2c593b;
-  --color-blue-800: #234a32;
-  --color-blue-900: #1d3b2a;
-  --color-blue-950: #132d20;
+  --color-slate-50: var(--color-terminal);
+  --color-slate-100: var(--color-terminal-deep);
+  --color-slate-200: var(--color-grid);
+  --color-slate-300: var(--color-grid-hi);
+  --color-slate-400: #8a95a1;
+  --color-slate-500: #4c5b70;
+  --color-slate-600: #394b63;
+  --color-slate-700: #2c405a;
+  --color-slate-800: #213650;
+  --color-slate-900: var(--color-cool);
+  --color-slate-950: #0b1c34;
+  --color-blue-50: #f2f5f8;
+  --color-blue-100: #e6ecf2;
+  --color-blue-200: #ced9e4;
+  --color-blue-300: #aec0d2;
+  --color-blue-400: #849eb5;
+  --color-blue-500: #536e8b;
+  --color-blue-600: #334f6f;
+  --color-blue-700: #2a425f;
+  --color-blue-800: #213650;
+  --color-blue-900: var(--color-cool);
+  --color-blue-950: #0b1c34;
   --color-amber-50: #fbf7ef;
   --color-amber-100: #f5ecd6;
   --color-amber-200: #ebd8ad;
@@ -182,17 +170,17 @@
   --color-red-800: #763028;
   --color-red-900: #612a24;
   --color-red-950: #46201a;
-  --color-emerald-50: #f1f5ef;
-  --color-emerald-100: #e4ede1;
-  --color-emerald-200: #ccdcc8;
-  --color-emerald-300: #b1c8aa;
-  --color-emerald-400: #91ac8d;
-  --color-emerald-500: #527c55;
-  --color-emerald-600: #416747;
-  --color-emerald-700: #34583b;
-  --color-emerald-800: #2b4933;
-  --color-emerald-900: #233e2b;
-  --color-emerald-950: #1a3021;
+  --color-emerald-50: #eff6f2;
+  --color-emerald-100: #e0eee7;
+  --color-emerald-200: #c8dfd3;
+  --color-emerald-300: #a2c7b7;
+  --color-emerald-400: #79aa95;
+  --color-emerald-500: #49836e;
+  --color-emerald-600: var(--color-signal);
+  --color-emerald-700: #285e4e;
+  --color-emerald-800: var(--color-signal-deep);
+  --color-emerald-900: #193f35;
+  --color-emerald-950: #112e26;
 }
 
 @theme inline {
@@ -264,14 +252,15 @@
     }
   html {
     @apply font-sans;
+    text-rendering: optimizeLegibility;
     }
 }
 
 @layer components {
   .workspace-brand {
-    @apply inline-flex min-w-0 items-center gap-2 font-sans text-lg font-semibold tracking-tight text-foreground;
+    @apply inline-flex min-w-0 items-center gap-2.5 font-editorial text-[18px] font-semibold tracking-tight text-foreground;
   }
-  .workspace-brand svg { @apply size-7 shrink-0 text-primary; }
+  .workspace-brand svg { @apply size-7 shrink-0 text-alert; }
   .section-kicker {
     @apply text-xs font-semibold tracking-wide text-muted-foreground;
   }
@@ -300,7 +289,7 @@
     line-height: var(--text-base--line-height);
   }
   .page-title, .section-title, .workspace-content :where(h1) {
-    @apply font-heading font-semibold text-foreground;
+    @apply font-heading font-normal text-foreground;
     line-height: 1.18;
     letter-spacing: -0.025em;
   }
@@ -310,25 +299,25 @@
   .section-title {
     font-size: clamp(1.5rem, 1.3rem + 0.85vw, 2rem);
   }
-  /* Shared masthead utilities are supplied by the network package. */
-  .interface-masthead > header { @apply border-border bg-background; }
-  .interface-masthead > header svg { @apply text-primary; }
+  .interface-masthead > header nav a:hover { @apply text-coral-ink; }
   .interface-masthead > header a:focus-visible { @apply outline-2 outline-offset-2 outline-ring; }
-  .interface-masthead > header > div > div > a { @apply min-h-11 rounded-lg px-4 py-2 text-sm; }
-  .interface-masthead > header > div > div > a:last-child { @apply bg-primary text-white hover:bg-signal-deep hover:text-white; }
+}
+
+@media screen and (width < 40rem) {
+  .interface-masthead > header > div { column-gap: 0.5rem; }
+  .interface-masthead > header > div > div > a { padding-inline: 0.75rem; }
   .interface-masthead > header > div > div > a > span[aria-hidden] { display: none; }
 }
 
 @media screen and (prefers-contrast: more) {
   :root:not(.dark) {
-    --foreground: #101b14;
-    --muted-foreground: #27382d;
-    --primary: #123e2a;
-    --border: #778779;
-    --input: #485d4f;
-    --ring: #143c25;
-    --color-slate-500: #314238;
-    --color-slate-600: #26372c;
+    --foreground: #091b33;
+    --muted-foreground: var(--color-cool);
+    --border: #798595;
+    --input: #46566c;
+    --ring: var(--color-cool);
+    --color-slate-500: #33465e;
+    --color-slate-600: #25384f;
   }
   :where(a, button, input, select, textarea, [tabindex]):focus-visible {
     outline: 3px solid var(--ring);

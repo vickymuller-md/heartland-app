@@ -25,9 +25,9 @@ export default async function RequestAccessPage() {
             <p className="section-kicker">
               Controlled access
             </p>
-            <h1 className="mt-5 text-[clamp(2.2rem,4.6vw,3.5rem)] font-editorial font-semibold leading-[1.05] tracking-[-0.02em] text-cool">
+            <h1 className="mt-5 text-[clamp(2.2rem,4.6vw,3.5rem)] font-editorial font-normal leading-[1.05] tracking-[-0.02em] text-cool">
               Request{" "}
-              <span className="text-primary">
+              <span className="font-display font-normal italic text-coral-ink">
                 professional
               </span>{" "}
               access.
@@ -52,11 +52,11 @@ export default async function RequestAccessPage() {
               ))}
             </ul>
 
-            <p className="mt-10 font-editorial text-[13.5px] text-stone">
+            <p className="mt-10 font-editorial text-[13.5px] text-muted-foreground">
               Already approved?{" "}
               <Link
                 href="/login"
-                className="text-cool underline decoration-grid underline-offset-4 hover:decoration-alert hover:text-alert"
+                className="text-cool underline decoration-grid underline-offset-4 hover:decoration-alert hover:text-coral-ink"
               >
                 Sign in →
               </Link>

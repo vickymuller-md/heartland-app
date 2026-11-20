@@ -47,7 +47,7 @@ export function Modules() {
             <p className="font-editorial text-sm uppercase tracking-[0.14em] text-signal">
               What&rsquo;s inside
             </p>
-            <h2 id="modules-title" className="mt-5 text-[clamp(2rem,4vw,3.25rem)] font-editorial font-semibold leading-[1.15] tracking-[-0.02em] text-cool">
+            <h2 id="modules-title" className="mt-5 text-[clamp(2rem,4vw,3.25rem)] font-editorial font-normal leading-[1.15] tracking-[-0.02em] text-cool">
               Eight modules,{" "}
               <span className="font-display italic font-normal text-cool/70">
                 one shared protocol.

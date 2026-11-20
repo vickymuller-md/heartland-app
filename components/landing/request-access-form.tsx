@@ -120,7 +120,7 @@ export function RequestAccessForm() {
       />
 
       {formError && (
-        <p className="border border-alert/60 bg-alert/10 px-4 py-3 font-editorial text-[13px] text-alert">
+        <p className="border border-destructive/60 bg-destructive/10 px-4 py-3 font-editorial text-xs text-destructive">
           {formError}
         </p>
       )}
@@ -132,7 +132,7 @@ export function RequestAccessForm() {
         <button
           type="submit"
           disabled={pending}
-          className="group inline-flex items-center gap-3 rounded-lg bg-primary px-7 py-4 font-editorial text-[14.5px] font-medium text-terminal transition-colors hover:bg-signal-deep hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+          className="group inline-flex items-center gap-3 rounded-full bg-cool px-7 py-4 font-editorial text-[14.5px] font-medium text-terminal transition-colors hover:bg-alert hover:text-cool disabled:cursor-not-allowed disabled:opacity-70"
         >
           {pending ? "Submitting…" : "Submit request"}
           {!pending && (
@@ -170,7 +170,7 @@ function Field({
       <span className="flex items-baseline justify-between font-editorial text-sm font-medium text-foreground">
         <span>
           {label}
-          {required && <span className="ml-1 text-alert">*</span>}
+          {required && <span className="ml-1 text-destructive">*</span>}
         </span>
       </span>
       <input
@@ -184,9 +184,9 @@ function Field({
         className="w-full rounded-lg border border-input bg-card px-3.5 py-3 font-editorial text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       />
       {error ? (
-        <span className="block font-editorial text-xs text-alert">{error}</span>
+        <span className="block font-editorial text-xs text-destructive">{error}</span>
       ) : hint ? (
-        <span className="block font-editorial text-xs text-stone">{hint}</span>
+        <span className="block font-editorial text-xs text-muted-foreground">{hint}</span>
       ) : null}
     </label>
   );
@@ -220,7 +220,7 @@ function SelectField({
         ))}
       </select>
       {error && (
-        <span className="block font-editorial text-xs text-alert">{error}</span>
+        <span className="block font-editorial text-xs text-destructive">{error}</span>
       )}
     </label>
   );
@@ -250,9 +250,9 @@ function TextAreaField({
         className="w-full resize-none rounded-lg border border-input bg-card p-3.5 font-editorial text-base leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       />
       {error ? (
-        <span className="block font-editorial text-xs text-alert">{error}</span>
+        <span className="block font-editorial text-xs text-destructive">{error}</span>
       ) : hint ? (
-        <span className="block font-editorial text-xs text-stone">{hint}</span>
+        <span className="block font-editorial text-xs text-muted-foreground">{hint}</span>
       ) : null}
     </label>
   );
@@ -267,7 +267,7 @@ function SubmittedPanel() {
       </p>
       <h2 className="mt-5 text-[clamp(1.85rem,3.2vw,2.5rem)] font-editorial font-semibold leading-[1.1] tracking-[-0.015em] text-cool">
         Thanks — we&rsquo;ll be in touch{" "}
-        <span className="font-display italic font-normal text-alert">soon</span>.
+        <span className="font-display italic font-normal text-coral-ink">soon</span>.
       </h2>
       <p className="mt-5 max-w-xl font-editorial text-base leading-relaxed text-muted-foreground">
         Your request has been queued for manual review. Most approved
@@ -278,7 +278,7 @@ function SubmittedPanel() {
       <div className="mt-8 flex flex-wrap items-center gap-5">
         <Link
           href="/"
-          className="group inline-flex items-center gap-1.5 font-editorial text-[14.5px] font-medium text-cool transition-colors hover:text-alert"
+          className="group inline-flex items-center gap-1.5 font-editorial text-[14.5px] font-medium text-cool transition-colors hover:text-coral-ink"
         >
           Return to home
           <span className="transition-transform group-hover:translate-x-1">→</span>
@@ -287,7 +287,7 @@ function SubmittedPanel() {
           href="https://doi.org/10.5281/zenodo.23076249"
           target="_blank"
           rel="noopener noreferrer"
-          className="group inline-flex items-center gap-1.5 font-editorial text-[14.5px] font-medium text-cool transition-colors hover:text-alert"
+          className="group inline-flex items-center gap-1.5 font-editorial text-[14.5px] font-medium text-cool transition-colors hover:text-coral-ink"
         >
           Read the Implementation Toolkit V3.4.1 (Zenodo)
           <span className="transition-transform group-hover:translate-x-1">↗</span>

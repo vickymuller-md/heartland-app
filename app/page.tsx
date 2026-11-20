@@ -31,7 +31,7 @@ export default async function Home() {
   }
 
   return (
-    <main id="main-content" className="interface-masthead bg-terminal font-editorial text-cool antialiased [overflow-wrap:anywhere] selection:bg-primary/20 selection:text-cool [&>header]:static [&>header>div]:flex-wrap [&>header>div]:gap-4 [&>header_a]:min-h-11 [&>header_a]:items-center [&>header_a]:inline-flex [&>header_a]:text-sm [&>header_a>span]:text-base [&>header_nav]:flex-wrap [&>header_nav]:gap-4 [&>header>div>div>a:hover]:text-terminal">
+    <main id="main-content" className="interface-masthead bg-terminal font-editorial text-cool antialiased [overflow-wrap:anywhere] selection:bg-alert/40 selection:text-cool [&>header]:static [&>header>div]:flex-wrap [&>header>div]:gap-4 [&>header_a]:min-h-11 [&>header_nav]:flex-wrap [&>header_nav_a]:inline-flex">
       <Masthead
         currentSite="app"
         navItems={[
@@ -46,9 +46,6 @@ export default async function Home() {
         ]}
         cta={{ label: "Open Evidence Lab", href: "/sandbox" }}
       />
-      <aside className="border-b border-grid bg-terminal-deep px-5 py-3 text-center font-editorial text-sm leading-relaxed text-cool">
-        Public routes: educational sandbox. Authenticated workspace: controlled evaluation only. Real PHI and unsupervised clinical use are not authorized until organizational security, privacy, validation, staffing, and governance gates are approved.
-      </aside>
       <Hero />
       <Abstract />
       <ScaleDemo />
